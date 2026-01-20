@@ -460,64 +460,49 @@ class SimpleMlOnlineProcessor:
     ) -> tuple[bool, str]:
         """Decide si se debe insertar un evento de estado y qué event_code usar.
         
-        REGLA DE DOMINIO CRÍTICA:
-        Si el valor está dentro del rango WARNING del usuario, NO emitir eventos
-        de anomalía (TRANSIENT_ANOMALY, CURVE_ANOMALY, MICRO_VARIATION).
-        El usuario definió ese rango como "normal".
+        REGLA DE DOMINIO:
+        - Si valor dentro del rango del usuario → NO emitir eventos
+        - Solo emitir para cambios SIGNIFICATIVOS de severidad
+        - NO generar eventos masivos por oscilaciones normales
+        - Un evento por transición, no por lectura
         """
 
         # =========================================================================
-        # FIX CRÍTICO: Si el valor está dentro del rango del usuario, NO emitir
-        # eventos de anomalía. Solo permitir eventos informativos (ML_BEHAVIOR_STATE).
+        # REGLA 1: Si valor dentro del rango del usuario → NO emitir eventos
         # =========================================================================
         if value_within_warning_range:
-            # Valor dentro del rango del usuario - solo eventos informativos
-            if prev_state is None:
-                return False, "ML_BEHAVIOR_STATE"  # No emitir evento inicial
-            # No emitir eventos de anomalía
-            return False, prev_state.last_event_code or "ML_BEHAVIOR_STATE"
+            return False, prev_state.last_event_code if prev_state else "ML_BEHAVIOR_STATE"
 
-        # Eventos explícitos para anomalías transitorias (solo si fuera del rango)
-        if analysis.new_transient_anomaly:
-            return True, "TRANSIENT_ANOMALY"
-        if analysis.recovered_transient:
-            return True, "RECOVERED_ANOMALY"
-
-        # Primer evento para el sensor
+        # =========================================================================
+        # REGLA 2: Primer evento para el sensor → NO emitir (esperar baseline)
+        # =========================================================================
         if prev_state is None:
-            if analysis.is_curve_anomalous:
-                return True, "CURVE_ANOMALY"
-            if analysis.has_microvariation:
-                return True, "MICRO_VARIATION"
-            if new_state.behavior_pattern != "STABLE":
-                return True, "PATTERN_CHANGE"
-            return True, "ML_BEHAVIOR_STATE"
+            return False, "ML_BEHAVIOR_STATE"
 
-        state_changed = (
-            prev_state.severity != new_state.severity
-            or prev_state.recommended_action != new_state.recommended_action
-            or prev_state.behavior_pattern != new_state.behavior_pattern
-        )
-
-        if not state_changed and not analysis.is_curve_anomalous and not analysis.has_microvariation:
-            # Sin cambio relevante ni anomalías adicionales
+        # =========================================================================
+        # REGLA 3: Solo emitir si hay cambio SIGNIFICATIVO de severidad
+        # =========================================================================
+        severity_changed = prev_state.severity != new_state.severity
+        
+        if not severity_changed:
             return False, prev_state.last_event_code or "ML_BEHAVIOR_STATE"
 
-        # Priorizar tipo de evento según la anomalía detectada
-        if analysis.is_curve_anomalous:
+        # =========================================================================
+        # REGLA 4: Determinar código de evento según el tipo de anomalía
+        # =========================================================================
+        if analysis.new_transient_anomaly:
+            code = "TRANSIENT_ANOMALY"
+        elif analysis.is_curve_anomalous:
             code = "CURVE_ANOMALY"
         elif analysis.has_microvariation:
             code = "MICRO_VARIATION"
-        elif prev_state.behavior_pattern != new_state.behavior_pattern:
-            code = "PATTERN_CHANGE"
         else:
             code = "ML_BEHAVIOR_STATE"
 
-        # Evitar repetir el mismo código si el estado lógico no cambió
-        if (
-            not state_changed
-            and prev_state.last_event_code == code
-        ):
+        # =========================================================================
+        # REGLA 5: No repetir el mismo código de evento
+        # =========================================================================
+        if prev_state.last_event_code == code:
             return False, code
 
         return True, code
@@ -696,10 +681,68 @@ class SimpleMlOnlineProcessor:
 
         - ml_events: registro detallado del evento ML.
         - alert_notifications: estado de notificación (read/unread).
+        
+        LÓGICA DE DOMINIO:
+        - DELTA_SPIKE es EVENTO (señal técnica), NO tiene cooldown
+        - Otros eventos ML (CURVE_ANOMALY, etc.) SÍ tienen cooldown de 5 min
+        - ALERT activo NO bloquea eventos ML (pueden coexistir)
+        - Deduplicación solo para eventos de ESTADO, no para DELTA_SPIKE
         """
 
         engine = get_engine()
         with engine.begin() as conn:  # type: ignore[call-arg]
+            # =========================================================================
+            # LÓGICA DE DOMINIO PARA EVENTOS ML
+            # =========================================================================
+            # 
+            # REGLAS:
+            # 1. DELTA_SPIKE es EVENTO, no ESTADO → NO tiene cooldown
+            # 2. Otros eventos ML (CURVE_ANOMALY, etc.) SÍ tienen cooldown
+            # 3. ALERT activo NO bloquea eventos ML (pueden coexistir)
+            # 4. Deduplicación solo para eventos de ESTADO, no para DELTA_SPIKE
+            #
+            # =========================================================================
+            
+            is_delta_spike = (event_code == 'DELTA_SPIKE')
+            
+            # Para eventos que NO son DELTA_SPIKE, aplicar cooldown y deduplicación
+            if not is_delta_spike:
+                # Verificar cooldown: no generar si hay evento reciente del mismo tipo
+                recent_event = conn.execute(
+                    text("""
+                        SELECT TOP 1 1 FROM dbo.ml_events
+                        WHERE sensor_id = :sensor_id
+                          AND event_code = :event_code
+                          AND created_at >= DATEADD(MINUTE, -5, GETDATE())
+                    """),
+                    {"sensor_id": sensor_id, "event_code": event_code}
+                ).fetchone()
+                
+                if recent_event:
+                    logger.debug(
+                        "[ML_COOLDOWN] sensor_id=%s event_code=%s in cooldown, skipping",
+                        sensor_id, event_code
+                    )
+                    return
+                
+                # Verificar deduplicación: no generar si ya hay evento activo del mismo tipo
+                active_same_event = conn.execute(
+                    text("""
+                        SELECT TOP 1 1 FROM dbo.ml_events
+                        WHERE sensor_id = :sensor_id
+                          AND event_code = :event_code
+                          AND status = 'active'
+                    """),
+                    {"sensor_id": sensor_id, "event_code": event_code}
+                ).fetchone()
+                
+                if active_same_event:
+                    logger.debug(
+                        "[ML_DEDUPE] sensor_id=%s already has active %s event, skipping",
+                        sensor_id, event_code
+                    )
+                    return
+
             device_id = self._get_device_id(conn, sensor_id)
 
             base_payload: dict = {
