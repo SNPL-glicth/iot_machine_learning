@@ -167,6 +167,45 @@ def _should_dedupe_event(conn: Connection, *, sensor_id: int, event_code: str, d
     return row is not None
 
 
+def _is_value_within_warning_range(conn: Connection, sensor_id: int, value: float) -> bool:
+    """Verifica si el valor está dentro del rango WARNING del usuario.
+    
+    REGLA DE DOMINIO CRÍTICA:
+    Si el valor está dentro de [warning_min, warning_max], el ML NO puede
+    generar eventos. El usuario definió ese rango como "normal".
+    """
+    row = conn.execute(
+        text(
+            """
+            SELECT threshold_value_min, threshold_value_max
+            FROM dbo.alert_thresholds
+            WHERE sensor_id = :sensor_id
+              AND is_active = 1
+              AND severity = 'warning'
+              AND condition_type = 'out_of_range'
+            ORDER BY id ASC
+            """
+        ),
+        {"sensor_id": sensor_id},
+    ).fetchone()
+    
+    if not row:
+        return False  # Sin umbrales, ML puede operar
+    
+    warning_min = float(row[0]) if row[0] is not None else None
+    warning_max = float(row[1]) if row[1] is not None else None
+    
+    if warning_min is None and warning_max is None:
+        return False
+    
+    if warning_min is not None and value < warning_min:
+        return False
+    if warning_max is not None and value > warning_max:
+        return False
+    
+    return True  # Valor dentro del rango
+
+
 def _eval_pred_threshold_and_create_event(
     conn: Connection,
     *,
@@ -176,6 +215,13 @@ def _eval_pred_threshold_and_create_event(
     predicted_value: float,
     dedupe_minutes: int,
 ) -> None:
+    # =========================================================================
+    # FIX CRÍTICO: Si el valor predicho está dentro del rango WARNING del usuario,
+    # NO generar eventos. El usuario definió ese rango como "normal".
+    # =========================================================================
+    if _is_value_within_warning_range(conn, sensor_id, predicted_value):
+        return
+    
     thr = conn.execute(
         text(
             """

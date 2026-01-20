@@ -584,15 +584,16 @@ class SimpleMlOnlineProcessor:
             True si el valor está dentro del rango WARNING (ML no debe alertar)
             False si el valor está fuera del rango o no hay umbrales configurados
         """
-        # Verificar cache primero
-        if sensor_id in self._thresholds_cache:
-            thresholds = self._thresholds_cache[sensor_id]
-        else:
-            thresholds = self._load_warning_thresholds(sensor_id)
-            self._thresholds_cache[sensor_id] = thresholds
+        # FIX: Siempre recargar umbrales desde BD (sin cache) para evitar falsos positivos
+        # El cache puede tener datos obsoletos si los umbrales se configuraron después
+        thresholds = self._load_warning_thresholds(sensor_id)
         
         if not thresholds:
             # Sin umbrales configurados, ML puede operar libremente
+            logger.debug(
+                "[ML_THRESHOLD_CHECK] sensor_id=%s value=%.4f NO_THRESHOLDS - ML puede operar",
+                sensor_id, value
+            )
             return False
         
         warning_min = thresholds.get("warning_min")
@@ -600,16 +601,26 @@ class SimpleMlOnlineProcessor:
         
         # Si no hay límites de warning, no podemos determinar si está dentro
         if warning_min is None and warning_max is None:
+            logger.debug(
+                "[ML_THRESHOLD_CHECK] sensor_id=%s value=%.4f NO_LIMITS - ML puede operar",
+                sensor_id, value
+            )
             return False
         
         # Verificar si está dentro del rango
+        within_range = True
         if warning_min is not None and value < warning_min:
-            return False  # Fuera del rango (por debajo)
+            within_range = False  # Fuera del rango (por debajo)
         if warning_max is not None and value > warning_max:
-            return False  # Fuera del rango (por arriba)
+            within_range = False  # Fuera del rango (por arriba)
         
-        # Valor dentro del rango WARNING del usuario
-        return True
+        # Log para debug
+        logger.info(
+            "[ML_THRESHOLD_CHECK] sensor_id=%s value=%.4f min=%s max=%s within_range=%s",
+            sensor_id, value, warning_min, warning_max, within_range
+        )
+        
+        return within_range
 
     def _load_warning_thresholds(self, sensor_id: int) -> dict:
         """Carga los umbrales WARNING del sensor desde la BD.
@@ -839,7 +850,21 @@ class SimpleMlOnlineProcessor:
         reading: Reading,
         analysis: OnlineAnalysis,
     ) -> None:
+        """Verifica desviación entre predicción y valor real.
+        
+        REGLA DE DOMINIO CRÍTICA:
+        Si el valor está dentro del rango WARNING del usuario, NO generar
+        eventos de desviación. El usuario definió ese rango como "normal".
+        """
         cfg = self._cfg
+        
+        # =========================================================================
+        # FIX CRÍTICO: Si el valor está dentro del rango del usuario, NO generar
+        # eventos de PREDICTION_DEVIATION. El usuario definió ese rango como normal.
+        # =========================================================================
+        if self._is_value_within_warning_range(sensor_id, float(reading.value)):
+            return
+        
         engine = get_engine()
 
         reading_dt = datetime.fromtimestamp(float(reading.timestamp), tz=timezone.utc)
