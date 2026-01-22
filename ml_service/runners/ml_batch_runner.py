@@ -340,6 +340,136 @@ def _is_value_within_user_thresholds(
     return True
 
 
+def _upsert_ml_event(
+    conn: Connection,
+    *,
+    sensor_id: int,
+    device_id: int,
+    prediction_id: int,
+    event_type: str,
+    event_code: str,
+    title: str,
+    message: str,
+    payload: str,
+) -> tuple[bool, str]:
+    """MERGE para ml_events: 1 evento activo por sensor + event_code.
+    
+    REGLA DE DOMINIO CRÍTICA:
+    - Si existe evento activo del mismo sensor_id + event_code → UPDATE
+    - Si no existe → INSERT
+    - Esto garantiza idempotencia y evita duplicados
+    
+    Returns:
+        (is_new, action): True si se insertó, False si se actualizó
+    """
+    result = conn.execute(
+        text(
+            """
+            DECLARE @existing_id INT, @action VARCHAR(10);
+            
+            SELECT TOP 1 @existing_id = id
+            FROM dbo.ml_events
+            WHERE sensor_id = :sensor_id
+              AND event_code = :event_code
+              AND status = 'active'
+            ORDER BY created_at DESC;
+            
+            IF @existing_id IS NULL
+            BEGIN
+                INSERT INTO dbo.ml_events (
+                    device_id, sensor_id, prediction_id,
+                    event_type, event_code, title, message,
+                    status, created_at, payload
+                )
+                VALUES (
+                    :device_id, :sensor_id, :prediction_id,
+                    :event_type, :event_code, :title, :message,
+                    'active', GETDATE(), :payload
+                );
+                SET @action = 'INSERT';
+            END
+            ELSE
+            BEGIN
+                UPDATE dbo.ml_events
+                SET device_id = :device_id,
+                    prediction_id = :prediction_id,
+                    event_type = :event_type,
+                    title = :title,
+                    message = :message,
+                    created_at = GETDATE(),
+                    payload = :payload
+                WHERE id = @existing_id;
+                SET @action = 'UPDATE';
+            END
+            
+            SELECT @action AS action;
+            """
+        ),
+        {
+            "device_id": device_id,
+            "sensor_id": sensor_id,
+            "prediction_id": prediction_id,
+            "event_type": event_type,
+            "event_code": event_code,
+            "title": title,
+            "message": message,
+            "payload": payload,
+        },
+    ).fetchone()
+    
+    action = result[0] if result else "INSERT"
+    is_new = action == "INSERT"
+    return is_new, action
+
+
+def _resolve_ml_event_if_exists(
+    conn: Connection,
+    *,
+    sensor_id: int,
+    event_code: str,
+) -> bool:
+    """Resuelve evento activo si existe (transición a NORMAL).
+    
+    REGLA DE DOMINIO:
+    Cuando el valor vuelve a rango normal, el evento activo debe resolverse.
+    También sincroniza el estado operacional del sensor.
+    
+    Returns:
+        True si se resolvió un evento, False si no había evento activo
+    """
+    # FIX: Separar UPDATE y obtener rowcount directamente (SQLAlchemy no soporta UPDATE+SELECT en una llamada)
+    result = conn.execute(
+        text(
+            """
+            UPDATE dbo.ml_events
+            SET status = 'resolved',
+                resolved_at = GETDATE()
+            WHERE sensor_id = :sensor_id
+              AND event_code = :event_code
+              AND status = 'active'
+            """
+        ),
+        {"sensor_id": sensor_id, "event_code": event_code},
+    )
+    
+    affected = result.rowcount if hasattr(result, 'rowcount') else 0
+    if affected > 0:
+        logger.info(
+            "[ML_EVENT_RESOLVED] sensor_id=%s event_code=%s resolved (value back to normal)",
+            sensor_id, event_code
+        )
+        # Sincronizar estado del sensor si no quedan eventos activos
+        try:
+            state_manager = SensorStateManager(conn)
+            state_manager.sync_state_with_events(sensor_id)
+        except Exception as e:
+            logger.warning(
+                "[ML_STATE_SYNC_ERROR] sensor_id=%s error=%s",
+                sensor_id, str(e)
+            )
+    return affected > 0
+
+
 def _insert_threshold_event_if_needed(
     conn: Connection,
     *,
@@ -387,15 +517,20 @@ def _insert_threshold_event_if_needed(
     elif cond == "equal_to" and vmin_f is not None and predicted_value == vmin_f:
         violated = True
 
-    if not violated:
-        return
-
     event_code = "PRED_THRESHOLD_BREACH"
-    if _should_dedupe_threshold_event(
-        conn, sensor_id=sensor_id, event_code=event_code, dedupe_minutes=dedupe_minutes
-    ):
+    
+    # =========================================================================
+    # FIX CRÍTICO: Si NO hay violación, resolver evento activo si existe
+    # Esto implementa la transición WARNING/ALERT -> NORMAL
+    # =========================================================================
+    if not violated:
+        _resolve_ml_event_if_exists(conn, sensor_id=sensor_id, event_code=event_code)
         return
 
+    # =========================================================================
+    # FIX CRÍTICO: Usar MERGE en lugar de INSERT
+    # 1 evento activo por sensor + event_code (sin dependencia de ventana temporal)
+    # =========================================================================
     sev = str(severity)
     if sev == "critical":
         event_type = "critical"
@@ -405,43 +540,31 @@ def _insert_threshold_event_if_needed(
         event_type = "notice"
 
     title = f"Predicción viola umbral: {thr_name}"
-    message = f"predicted_value={predicted_value} threshold_id={int(threshold_id)}"
+    message = f"predicted_value={predicted_value:.4f} threshold_id={int(threshold_id)}"
 
-    payload = (
-        "{"  # JSON simple para trazabilidad
-        f"\"threshold_id\": {int(threshold_id)}, "
-        f"\"condition_type\": \"{cond}\", "
-        f"\"threshold_value_min\": { 'null' if vmin is None else float(vmin) }, "
-        f"\"threshold_value_max\": { 'null' if vmax is None else float(vmax) }, "
-        f"\"predicted_value\": {predicted_value}"
-        "}"
+    payload = json.dumps({
+        "threshold_id": int(threshold_id),
+        "condition_type": cond,
+        "threshold_value_min": float(vmin) if vmin is not None else None,
+        "threshold_value_max": float(vmax) if vmax is not None else None,
+        "predicted_value": predicted_value,
+    }, ensure_ascii=False)
+
+    is_new, action = _upsert_ml_event(
+        conn,
+        sensor_id=sensor_id,
+        device_id=device_id,
+        prediction_id=prediction_id,
+        event_type=event_type,
+        event_code=event_code,
+        title=title,
+        message=message,
+        payload=payload,
     )
-
-    conn.execute(
-        text(
-            """
-            INSERT INTO dbo.ml_events (
-              device_id, sensor_id, prediction_id,
-              event_type, event_code, title, message,
-              status, created_at, payload
-            )
-            VALUES (
-              :device_id, :sensor_id, :prediction_id,
-              :event_type, :event_code, :title, :message,
-              'active', GETDATE(), :payload
-            )
-            """
-        ),
-        {
-            "device_id": device_id,
-            "sensor_id": sensor_id,
-            "prediction_id": prediction_id,
-            "event_type": event_type,
-            "event_code": event_code,
-            "title": title,
-            "message": message,
-            "payload": payload,
-        },
+    
+    logger.info(
+        "[ML_THRESHOLD_EVENT] sensor_id=%s event_code=%s action=%s predicted_value=%.4f",
+        sensor_id, event_code, action, predicted_value
     )
 
 
@@ -453,7 +576,14 @@ def _insert_anomaly_event(
     prediction_id: int,
     explanation: PredictionExplanation,
 ) -> None:
+    event_code = "ANOMALY_DETECTED"
+    
+    # =========================================================================
+    # FIX CRÍTICO: Si NO hay anomalía, resolver evento activo si existe
+    # Esto implementa la transición WARNING -> NORMAL para anomalías
+    # =========================================================================
     if not explanation.anomaly:
+        _resolve_ml_event_if_exists(conn, sensor_id=sensor_id, event_code=event_code)
         return
     
     # =========================================================================
@@ -466,6 +596,7 @@ def _insert_anomaly_event(
             "suppressing ANOMALY_DETECTED event",
             sensor_id, explanation.predicted_value
         )
+        _resolve_ml_event_if_exists(conn, sensor_id=sensor_id, event_code=event_code)
         return
     
     # =========================================================================
@@ -474,8 +605,7 @@ def _insert_anomaly_event(
     if not _can_sensor_emit_events(conn, sensor_id):
         return
 
-    event_code = "ANOMALY_DETECTED"
-    event_type = "warning"  # o "critical" según tu política
+    event_type = "warning"
 
     title = "Posible anomalía detectada por ML"
     message = (
@@ -484,46 +614,36 @@ def _insert_anomaly_event(
         f"trend={explanation.trend}"
     )
 
-    safe_expl = explanation.explanation.replace("\"", "'")
-    safe_action = explanation.recommended_action.replace("\"", "'")
-    payload = (
-        "{"  # JSON simple
-        f"\"severity\": \"{explanation.severity}\", "
-        f"\"action_required\": {str(explanation.action_required).lower()}, "
-        f"\"anomaly_score\": {explanation.anomaly_score:.4f}, "
-        f"\"trend\": \"{explanation.trend}\", "
-        f"\"predicted_value\": {explanation.predicted_value:.5f}, "
-        f"\"confidence\": {explanation.confidence:.4f}, "
-        f"\"recommended_action\": \"{safe_action}\", "
-        f"\"explanation\": \"{safe_expl}\""
-        "}"
-    )
+    payload = json.dumps({
+        "severity": explanation.severity,
+        "action_required": explanation.action_required,
+        "anomaly_score": explanation.anomaly_score,
+        "trend": explanation.trend,
+        "predicted_value": explanation.predicted_value,
+        "confidence": explanation.confidence,
+        "recommended_action": explanation.recommended_action,
+        "explanation": explanation.explanation,
+    }, ensure_ascii=False)
 
-    conn.execute(
-        text(
-            """
-            INSERT INTO dbo.ml_events (
-              device_id, sensor_id, prediction_id,
-              event_type, event_code, title, message,
-              status, created_at, payload
-            )
-            VALUES (
-              :device_id, :sensor_id, :prediction_id,
-              :event_type, :event_code, :title, :message,
-              'active', GETDATE(), :payload
-            )
-            """
-        ),
-        {
-            "device_id": device_id,
-            "sensor_id": sensor_id,
-            "prediction_id": prediction_id,
-            "event_type": event_type,
-            "event_code": event_code,
-            "title": title,
-            "message": message,
-            "payload": payload,
-        },
+    # =========================================================================
+    # FIX CRÍTICO: Usar MERGE en lugar de INSERT
+    # 1 evento activo por sensor + event_code (sin dependencia de ventana temporal)
+    # =========================================================================
+    is_new, action = _upsert_ml_event(
+        conn,
+        sensor_id=sensor_id,
+        device_id=device_id,
+        prediction_id=prediction_id,
+        event_type=event_type,
+        event_code=event_code,
+        title=title,
+        message=message,
+        payload=payload,
+    )
+    
+    logger.info(
+        "[ML_ANOMALY_EVENT] sensor_id=%s event_code=%s action=%s anomaly_score=%.4f",
+        sensor_id, event_code, action, explanation.anomaly_score
     )
 
 
