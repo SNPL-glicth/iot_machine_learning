@@ -28,7 +28,7 @@ class WorkShift(Enum):
     MORNING = "morning"      # 06:00 - 14:00
     AFTERNOON = "afternoon"  # 14:00 - 22:00
     NIGHT = "night"          # 22:00 - 06:00
-    WEEKEND = "weekend"      # Sábado y Domingo
+    WEEKEND = "weekend"      # Sábado y Domingo se supone quq indica el dia 
 
 
 class StaffAvailability(Enum):
@@ -123,7 +123,7 @@ class OperationalContextBuilder:
         WorkShift.WEEKEND: StaffAvailability.MINIMAL,
     }
     
-    # Tiempo de respuesta estimado por disponibilidad (minutos)
+    # Tiempo de respuesta estimado por disponibilidad o sea en minutos 
     RESPONSE_TIMES = {
         StaffAvailability.FULL: 15,
         StaffAvailability.REDUCED: 30,
@@ -160,10 +160,10 @@ class OperationalContextBuilder:
         # Determinar impacto en producción
         production_impact, affected = self._assess_production_impact(device_id, base_severity)
         
-        # Obtener historial de mantenimiento
+        # Obtener historial de mantenimiento 
         maintenance = self._get_maintenance_history(device_id)
         
-        # Obtener incidentes recientes
+        # Obtener informacion de incidentes recientes 
         incidents = self._get_recent_incidents(sensor_id)
         
         # Calcular multiplicador de severidad

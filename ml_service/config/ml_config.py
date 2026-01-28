@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-
+#tiene que haber una configuracion de regresion 
 @dataclass(frozen=True)
 class RegressionConfig:
     """Configuración de regresión por sensor (Linear / Ridge)."""
