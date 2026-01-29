@@ -1,21 +1,16 @@
 """Módulo de explicaciones para ML."""
 
-from .explanation_builder import (
-    PredictionExplanation,
-    build_explanation_text,
-)
+from .models import EnrichedContext, ExplanationResult
 from .contextual_explainer import (
-    EnrichedContext,
-    ExplanationResult,
     ContextualExplainer,
     create_contextual_explanation,
 )
+from .explanation_builder import ExplanationBuilder
 
 __all__ = [
-    "PredictionExplanation",
-    "build_explanation_text",
+    "ContextualExplainer",
     "EnrichedContext",
     "ExplanationResult",
-    "ContextualExplainer",
     "create_contextual_explanation",
+    "ExplanationBuilder",
 ]
