@@ -682,66 +682,67 @@ class SimpleMlOnlineProcessor:
         - ml_events: registro detallado del evento ML.
         - alert_notifications: estado de notificación (read/unread).
         
-        LÓGICA DE DOMINIO:
-        - DELTA_SPIKE es EVENTO (señal técnica), NO tiene cooldown
-        - Otros eventos ML (CURVE_ANOMALY, etc.) SÍ tienen cooldown de 5 min
+        LÓGICA DE DOMINIO (FIX 2026-01-28 - Auditoría Delta Spike):
+        - TODOS los eventos ML tienen cooldown de 5 min (incluyendo DELTA_SPIKE)
         - ALERT activo NO bloquea eventos ML (pueden coexistir)
-        - Deduplicación solo para eventos de ESTADO, no para DELTA_SPIKE
+        - Deduplicación para eventos activos del mismo tipo
+        
+        NOTA: DELTA_SPIKE ahora SÍ tiene cooldown para evitar spam de notificaciones.
+        El SP ya aplica cooldown, pero el ML Service también debe respetarlo.
         """
 
         engine = get_engine()
         with engine.begin() as conn:  # type: ignore[call-arg]
             # =========================================================================
-            # LÓGICA DE DOMINIO PARA EVENTOS ML
+            # LÓGICA DE DOMINIO PARA EVENTOS ML (FIX 2026-01-28)
             # =========================================================================
             # 
-            # REGLAS:
-            # 1. DELTA_SPIKE es EVENTO, no ESTADO → NO tiene cooldown
-            # 2. Otros eventos ML (CURVE_ANOMALY, etc.) SÍ tienen cooldown
-            # 3. ALERT activo NO bloquea eventos ML (pueden coexistir)
-            # 4. Deduplicación solo para eventos de ESTADO, no para DELTA_SPIKE
+            # REGLAS ACTUALIZADAS:
+            # 1. TODOS los eventos ML tienen cooldown de 5 min (incluyendo DELTA_SPIKE)
+            # 2. ALERT activo NO bloquea eventos ML (pueden coexistir)
+            # 3. Deduplicación para eventos activos del mismo tipo
+            #
+            # JUSTIFICACIÓN: DELTA_SPIKE generaba spam de notificaciones porque
+            # estaba exento de cooldown. El SP ya aplica cooldown, pero si el ML
+            # Service genera eventos por su cuenta, también debe respetarlo.
             #
             # =========================================================================
             
-            is_delta_spike = (event_code == 'DELTA_SPIKE')
+            # Verificar cooldown: no generar si hay evento reciente del mismo tipo
+            recent_event = conn.execute(
+                text("""
+                    SELECT TOP 1 1 FROM dbo.ml_events
+                    WHERE sensor_id = :sensor_id
+                      AND event_code = :event_code
+                      AND created_at >= DATEADD(MINUTE, -5, GETDATE())
+                """),
+                {"sensor_id": sensor_id, "event_code": event_code}
+            ).fetchone()
             
-            # Para eventos que NO son DELTA_SPIKE, aplicar cooldown y deduplicación
-            if not is_delta_spike:
-                # Verificar cooldown: no generar si hay evento reciente del mismo tipo
-                recent_event = conn.execute(
-                    text("""
-                        SELECT TOP 1 1 FROM dbo.ml_events
-                        WHERE sensor_id = :sensor_id
-                          AND event_code = :event_code
-                          AND created_at >= DATEADD(MINUTE, -5, GETDATE())
-                    """),
-                    {"sensor_id": sensor_id, "event_code": event_code}
-                ).fetchone()
-                
-                if recent_event:
-                    logger.debug(
-                        "[ML_COOLDOWN] sensor_id=%s event_code=%s in cooldown, skipping",
-                        sensor_id, event_code
-                    )
-                    return
-                
-                # Verificar deduplicación: no generar si ya hay evento activo del mismo tipo
-                active_same_event = conn.execute(
-                    text("""
-                        SELECT TOP 1 1 FROM dbo.ml_events
-                        WHERE sensor_id = :sensor_id
-                          AND event_code = :event_code
-                          AND status = 'active'
-                    """),
-                    {"sensor_id": sensor_id, "event_code": event_code}
-                ).fetchone()
-                
-                if active_same_event:
-                    logger.debug(
-                        "[ML_DEDUPE] sensor_id=%s already has active %s event, skipping",
-                        sensor_id, event_code
-                    )
-                    return
+            if recent_event:
+                logger.debug(
+                    "[ML_COOLDOWN] sensor_id=%s event_code=%s in cooldown, skipping",
+                    sensor_id, event_code
+                )
+                return
+            
+            # Verificar deduplicación: no generar si ya hay evento activo del mismo tipo
+            active_same_event = conn.execute(
+                text("""
+                    SELECT TOP 1 1 FROM dbo.ml_events
+                    WHERE sensor_id = :sensor_id
+                      AND event_code = :event_code
+                      AND status = 'active'
+                """),
+                {"sensor_id": sensor_id, "event_code": event_code}
+            ).fetchone()
+            
+            if active_same_event:
+                logger.debug(
+                    "[ML_DEDUPE] sensor_id=%s already has active %s event, skipping",
+                    sensor_id, event_code
+                )
+                return
 
             device_id = self._get_device_id(conn, sensor_id)
 
