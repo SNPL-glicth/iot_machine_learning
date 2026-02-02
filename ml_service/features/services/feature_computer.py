@@ -1,32 +1,76 @@
 """Feature computation service.
 
 Extracted from ml_features.py for modularity.
+
+FIX 2026-02-02: Agregado warm-up y cooldown para evitar falsos positivos.
 """
 
 from __future__ import annotations
 
 import time
+import logging
 from datetime import datetime, timezone
 from statistics import mean, stdev
-from typing import Tuple
+from typing import Tuple, Optional, Dict
 
 from ..models.ml_features import MLFeatures
 
+logger = logging.getLogger(__name__)
+
+# Constantes de warm-up y cooldown
+MIN_READINGS_FOR_FEATURES = 5  # Mínimo de lecturas para calcular features
+MIN_WINDOW_AGE_SECONDS = 30.0  # Ventana mínima de 30 segundos
+ANOMALY_COOLDOWN_SECONDS = 300.0  # 5 minutos entre anomalías del mismo sensor
+
 
 class FeatureComputer:
-    """Computes ML features from sensor data."""
+    """Computes ML features from sensor data.
+    
+    FIX 2026-02-02: Implementa warm-up y cooldown para evitar:
+    - Falsos positivos en primeras lecturas (ML-1)
+    - Spam de alertas por anomalías repetidas (ML-4)
+    """
+    
+    def __init__(self):
+        # Cooldown tracker: sensor_id -> last_anomaly_timestamp
+        self._anomaly_cooldowns: Dict[int, float] = {}
     
     def compute_features(
         self,
         window,
         current_value: float,
         current_timestamp: float,
-    ) -> MLFeatures:
-        """Compute features for a sensor reading."""
+    ) -> Optional[MLFeatures]:
+        """Compute features for a sensor reading.
         
+        Returns:
+            MLFeatures if enough data available, None if in warm-up period.
+        """
         # Get values and timestamps from window
         values = window.get_values()
         timestamps = window.get_timestamps()
+        
+        # =====================================================================
+        # VALIDACIÓN 1: WARM-UP - Mínimo de lecturas (ML-1)
+        # =====================================================================
+        if len(values) < MIN_READINGS_FOR_FEATURES:
+            logger.debug(
+                "SKIP warm_up: sensor_id=%d readings=%d required=%d",
+                window.sensor_id, len(values), MIN_READINGS_FOR_FEATURES
+            )
+            return None
+        
+        # =====================================================================
+        # VALIDACIÓN 2: WARM-UP - Ventana temporal mínima
+        # =====================================================================
+        if timestamps:
+            window_age = current_timestamp - min(timestamps)
+            if window_age < MIN_WINDOW_AGE_SECONDS:
+                logger.debug(
+                    "SKIP window_age: sensor_id=%d age=%.1fs required=%.1fs",
+                    window.sensor_id, window_age, MIN_WINDOW_AGE_SECONDS
+                )
+                return None
         
         # Basic metrics
         baseline = mean(values)
@@ -49,8 +93,13 @@ class FeatureComputer:
         # Pattern detection
         pattern_detected = self._detect_pattern(trend_slope, stability_score, z_score)
         
-        # Anomaly detection
-        is_anomalous, anomaly_score = self._detect_anomaly(z_score, deviation_pct)
+        # Anomaly detection with cooldown
+        is_anomalous, anomaly_score = self._detect_anomaly_with_cooldown(
+            sensor_id=window.sensor_id,
+            z_score=z_score,
+            deviation_pct=deviation_pct,
+            current_timestamp=current_timestamp,
+        )
         
         return MLFeatures(
             sensor_id=window.sensor_id,
@@ -144,14 +193,52 @@ class FeatureComputer:
         else:
             return "NORMAL"
     
-    def _detect_anomaly(self, z_score: float, deviation_pct: float) -> Tuple[bool, float]:
-        """Detect if current reading is anomalous."""
+    def _detect_anomaly_with_cooldown(
+        self,
+        sensor_id: int,
+        z_score: float,
+        deviation_pct: float,
+        current_timestamp: float,
+    ) -> Tuple[bool, float]:
+        """Detect if current reading is anomalous with cooldown.
+        
+        FIX 2026-02-02: Implementa cooldown para evitar spam de alertas (ML-4).
+        """
         # Anomaly score based on z-score (0-1 normalized)
-        # z_score of 3 = anomaly_score of ~0.5
-        # z_score of 5 = anomaly_score of ~0.8
         anomaly_score = min(1.0, abs(z_score) / 5.0)
         
-        # Is anomalous if z_score > 2.5 or deviation > 20%
-        is_anomalous = abs(z_score) > 2.5 or deviation_pct > 20.0
+        # Check if anomaly conditions are met
+        would_be_anomalous = abs(z_score) > 2.5 or deviation_pct > 20.0
         
-        return is_anomalous, anomaly_score
+        if not would_be_anomalous:
+            return False, anomaly_score
+        
+        # =====================================================================
+        # VALIDACIÓN: COOLDOWN - Evitar spam de anomalías (ML-4)
+        # =====================================================================
+        last_anomaly = self._anomaly_cooldowns.get(sensor_id, 0.0)
+        time_since_last = current_timestamp - last_anomaly
+        
+        if time_since_last < ANOMALY_COOLDOWN_SECONDS:
+            logger.debug(
+                "SKIP cooldown: sensor_id=%d remaining=%.1fs",
+                sensor_id, ANOMALY_COOLDOWN_SECONDS - time_since_last
+            )
+            return False, anomaly_score
+        
+        # Anomaly confirmed - update cooldown
+        self._anomaly_cooldowns[sensor_id] = current_timestamp
+        logger.info(
+            "ANOMALY detected: sensor_id=%d z_score=%.2f deviation_pct=%.2f%%",
+            sensor_id, z_score, deviation_pct
+        )
+        
+        return True, anomaly_score
+    
+    def clear_cooldown(self, sensor_id: int) -> None:
+        """Clear cooldown for a sensor (for testing)."""
+        self._anomaly_cooldowns.pop(sensor_id, None)
+    
+    def clear_all_cooldowns(self) -> None:
+        """Clear all cooldowns (for testing)."""
+        self._anomaly_cooldowns.clear()
