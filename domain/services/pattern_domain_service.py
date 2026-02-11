@@ -78,7 +78,7 @@ class PatternDomainService:
         """
         if self._pattern_detector is None:
             return PatternResult(
-                sensor_id=window.sensor_id,
+                series_id=str(window.sensor_id),
                 pattern_type=PatternType.STABLE,
                 confidence=0.0,
                 description="Sin detector de patrones configurado",
@@ -89,10 +89,10 @@ class PatternDomainService:
         except Exception as exc:
             logger.warning(
                 "pattern_detection_failed",
-                extra={"sensor_id": window.sensor_id, "error": str(exc)},
+                extra={"series_id": str(window.sensor_id), "error": str(exc)},
             )
             return PatternResult(
-                sensor_id=window.sensor_id,
+                series_id=str(window.sensor_id),
                 pattern_type=PatternType.STABLE,
                 confidence=0.0,
                 description=f"Error en detección: {exc}",

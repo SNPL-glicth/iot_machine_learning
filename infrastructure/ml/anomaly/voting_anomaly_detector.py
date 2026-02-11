@@ -154,7 +154,7 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
             raise RuntimeError("Detector no entrenado")
 
         if window.is_empty or window.last_value is None:
-            return AnomalyResult.normal(sensor_id=window.sensor_id)
+            return AnomalyResult.normal(series_id=str(window.sensor_id))
 
         value = window.last_value
         votes: Dict[str, float] = {}
@@ -194,7 +194,7 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         logger.debug(
             "voting_detection",
             extra={
-                "sensor_id": window.sensor_id,
+                "series_id": str(window.sensor_id),
                 "value": value,
                 "votes": {k: round(v, 3) for k, v in votes.items()},
                 "final_score": round(final_score, 3),
@@ -203,7 +203,7 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         )
 
         return AnomalyResult(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             is_anomaly=is_anomaly,
             score=final_score,
             method_votes=votes,

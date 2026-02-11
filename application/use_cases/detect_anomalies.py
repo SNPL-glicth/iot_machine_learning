@@ -68,7 +68,7 @@ class DetectAnomaliesUseCase:
 
         if window.is_empty:
             return AnomalyDTO(
-                sensor_id=sensor_id,
+                series_id=str(sensor_id),
                 is_anomaly=False,
                 score=0.0,
                 severity="none",
@@ -106,7 +106,7 @@ class DetectAnomaliesUseCase:
         )
 
         return AnomalyDTO(
-            sensor_id=result.sensor_id,
+            series_id=result.series_id,
             is_anomaly=result.is_anomaly,
             score=result.score,
             severity=result.severity.value,

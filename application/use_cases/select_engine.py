@@ -1,8 +1,8 @@
-"""Caso de uso: selección de motor de predicción por feature flags.
+"""Caso de uso: selección de motor de predicción.
 
-Extraído de ml/core/engine_factory.py.get_engine_for_sensor().
-Responsabilidad ÚNICA: dado un sensor_id y feature flags,
-decidir qué motor de predicción usar.
+Dual interface:
+- Legacy (IoT): ``select_engine_for_sensor(sensor_id, flags)`` — por sensor_id + whitelist.
+- Agnóstico: ``select_engine_for_series(profile, flags)`` — por características del dato.
 
 Esto es lógica de APLICACIÓN (no de factory ni de dominio):
 - Lee configuración (feature flags)
@@ -16,6 +16,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from iot_machine_learning.domain.entities.series_profile import SeriesProfile
     from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
@@ -91,3 +92,60 @@ def _kwargs_for_engine(name: str, flags: "FeatureFlags") -> dict:
             "horizon": flags.ML_TAYLOR_HORIZON,
         }
     return {}
+
+
+# ---------------------------------------------------------------------------
+# Selección agnóstica por SeriesProfile (Nivel 1 UTSAE)
+# ---------------------------------------------------------------------------
+
+
+def select_engine_for_series(
+    profile: "SeriesProfile",
+    flags: "FeatureFlags",
+) -> dict:
+    """Selecciona motor de predicción por características del dato.
+
+    No usa ``sensor_id`` ni whitelists.  Decide por:
+    - Estacionariedad (trend → Taylor, stationary → baseline)
+    - Volatilidad (high → ensemble)
+    - Cantidad de puntos (pocos → baseline)
+
+    Args:
+        profile: Perfil estadístico auto-detectado de la serie.
+        flags: Feature flags para panic button y parámetros.
+
+    Returns:
+        Dict con ``engine_name`` y ``kwargs`` para creación.
+    """
+    from iot_machine_learning.domain.entities.series_profile import (
+        StationarityHint,
+        VolatilityLevel,
+    )
+
+    # 1. Panic button
+    if flags.ML_ROLLBACK_TO_BASELINE:
+        return {"engine_name": "baseline_moving_average", "kwargs": {}}
+
+    # 2. Datos insuficientes → baseline
+    if not profile.has_sufficient_data:
+        return {"engine_name": "baseline_moving_average", "kwargs": {}}
+
+    # 3. Alta volatilidad → ensemble (si disponible)
+    if profile.volatility == VolatilityLevel.HIGH:
+        return {
+            "engine_name": "ensemble_weighted",
+            "kwargs": {},
+        }
+
+    # 4. Tendencia clara → Taylor
+    if profile.stationarity == StationarityHint.TREND and profile.n_points >= 5:
+        return {
+            "engine_name": "taylor",
+            "kwargs": _kwargs_for_engine("taylor", flags),
+        }
+
+    # 5. Default global
+    return {
+        "engine_name": flags.ML_DEFAULT_ENGINE,
+        "kwargs": _kwargs_for_engine(flags.ML_DEFAULT_ENGINE, flags),
+    }

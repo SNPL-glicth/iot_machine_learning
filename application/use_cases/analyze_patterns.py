@@ -66,7 +66,7 @@ class AnalyzePatternsUseCase:
 
         if window.is_empty:
             return PatternDTO(
-                sensor_id=sensor_id,
+                series_id=str(sensor_id),
                 pattern_type="stable",
                 confidence=0.0,
                 description="Sin datos disponibles",
@@ -121,7 +121,7 @@ class AnalyzePatternsUseCase:
         )
 
         return PatternDTO(
-            sensor_id=sensor_id,
+            series_id=str(sensor_id),
             pattern_type=pattern_result.pattern_type.value,
             confidence=pattern_result.confidence,
             description=pattern_result.description,

@@ -61,7 +61,7 @@ class AnomalyDomainService:
             ``AnomalyResult`` con score combinado y votos individuales.
         """
         if window.is_empty:
-            return AnomalyResult.normal(sensor_id=window.sensor_id)
+            return AnomalyResult.normal(series_id=str(window.sensor_id))
 
         trace_id = str(uuid.uuid4())[:12]
         votes: dict[str, float] = {}
@@ -72,7 +72,7 @@ class AnomalyDomainService:
                 if not detector.is_trained():
                     logger.debug(
                         "detector_not_trained_skip",
-                        extra={"detector": detector.name, "sensor_id": window.sensor_id},
+                        extra={"detector": detector.name, "series_id": str(window.sensor_id)},
                     )
                     continue
 
@@ -87,7 +87,7 @@ class AnomalyDomainService:
                     "detector_failed",
                     extra={
                         "detector": detector.name,
-                        "sensor_id": window.sensor_id,
+                        "series_id": str(window.sensor_id),
                         "error": str(exc),
                     },
                 )
@@ -96,7 +96,7 @@ class AnomalyDomainService:
 
         # Sin votos → normal
         if not votes:
-            return AnomalyResult.normal(sensor_id=window.sensor_id)
+            return AnomalyResult.normal(series_id=str(window.sensor_id))
 
         # Combinar votos (promedio ponderado uniforme)
         avg_score = sum(votes.values()) / len(votes)
@@ -116,7 +116,7 @@ class AnomalyDomainService:
         explanation = " | ".join(explanations) if explanations else "Valor normal"
 
         anomaly_result = AnomalyResult(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             is_anomaly=is_anomaly,
             score=avg_score,
             method_votes=votes,
@@ -130,7 +130,7 @@ class AnomalyDomainService:
         if self._audit is not None and is_anomaly:
             try:
                 self._audit.log_anomaly(
-                    sensor_id=window.sensor_id,
+                    sensor_id=window.sensor_id,  # AuditPort still uses sensor_id
                     value=window.last_value or 0.0,
                     score=avg_score,
                     explanation=explanation,
@@ -142,7 +142,7 @@ class AnomalyDomainService:
         logger.info(
             "anomaly_detection_complete",
             extra={
-                "sensor_id": window.sensor_id,
+                "series_id": str(window.sensor_id),
                 "is_anomaly": is_anomaly,
                 "score": round(avg_score, 4),
                 "votes": {k: round(v, 4) for k, v in votes.items()},

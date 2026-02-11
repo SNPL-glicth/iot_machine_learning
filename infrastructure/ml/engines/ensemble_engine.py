@@ -144,7 +144,7 @@ class EnsembleWeightedPredictor(PredictionPort):
                     "ensemble_engine_failed",
                     extra={
                         "engine": engine.name,
-                        "sensor_id": window.sensor_id,
+                        "series_id": str(window.sensor_id),
                         "error": str(exc),
                     },
                 )
@@ -162,7 +162,7 @@ class EnsembleWeightedPredictor(PredictionPort):
 
         if not valid_indices:
             raise RuntimeError(
-                f"Todos los engines fallaron para sensor {window.sensor_id}"
+                f"Todos los engines fallaron para serie {window.sensor_id}"
             )
 
         valid_preds = [predictions[i] for i in valid_indices]
@@ -202,7 +202,7 @@ class EnsembleWeightedPredictor(PredictionPort):
         logger.debug(
             "ensemble_prediction",
             extra={
-                "sensor_id": window.sensor_id,
+                "series_id": str(window.sensor_id),
                 "n_engines_used": len(valid_indices),
                 "weights": weight_map,
                 "final_value": round(final_value, 4),
@@ -211,7 +211,7 @@ class EnsembleWeightedPredictor(PredictionPort):
         )
 
         return Prediction(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             predicted_value=final_value,
             confidence_score=final_confidence,
             trend=final_trend,  # type: ignore[arg-type]

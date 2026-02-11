@@ -100,3 +100,17 @@ class SensorWindow:
         if len(self.readings) < 2:
             return 0.0
         return self.readings[-1].timestamp - self.readings[0].timestamp
+
+    def to_time_series(self) -> "TimeSeries":
+        """Convierte a TimeSeries agnóstica (Nivel 1 UTSAE).
+
+        Returns:
+            ``TimeSeries`` con ``series_id = str(sensor_id)``.
+        """
+        from .time_series import TimeSeries
+
+        return TimeSeries.from_values(
+            values=self.values,
+            timestamps=self.timestamps,
+            series_id=str(self.sensor_id),
+        )

@@ -1,8 +1,5 @@
 """Interfaces base para UTSAE — contratos que todo motor/filtro debe cumplir.
 
-Migrado desde ml/core/interfaces.py.
-Ubicación canónica: infrastructure/ml/interfaces.py
-
 Decisiones de diseño:
 - ABC en lugar de Protocol: queremos forzar herencia explícita para que
   errores de implementación se detecten al instanciar, no al llamar.
@@ -109,17 +106,17 @@ class SignalFilter(ABC):
     - ``filter``: para procesamiento batch (serie completa).
     - ``reset``: limpia estado interno (warmup, buffers).
 
-    Implementaciones deben mantener estado por ``sensor_id`` para que
-    sensores distintos no interfieran entre sí.
+    Implementaciones deben mantener estado por ``series_id`` para que
+    series distintas no interfieran entre sí.
     """
 
     @abstractmethod
-    def filter_value(self, sensor_id: int, value: float) -> float:
+    def filter_value(self, series_id: str, value: float) -> float:
         """Filtra un valor individual (stream online).
 
         Args:
-            sensor_id: ID del sensor (estado independiente por sensor).
-            value: Valor crudo de la lectura.
+            series_id: Identificador de la serie (estado independiente por serie).
+            value: Valor crudo de la observación.
 
         Returns:
             Valor filtrado/suavizado.
@@ -144,12 +141,12 @@ class SignalFilter(ABC):
         ...
 
     @abstractmethod
-    def reset(self, sensor_id: Optional[int] = None) -> None:
+    def reset(self, series_id: Optional[str] = None) -> None:
         """Reinicia estado interno del filtro.
 
         Args:
-            sensor_id: Si se provee, resetea solo ese sensor.
-                Si ``None``, resetea todos los sensores.
+            series_id: Si se provee, resetea solo esa serie.
+                Si ``None``, resetea todas las series.
         """
         ...
 
@@ -161,7 +158,7 @@ class IdentityFilter(SignalFilter):
     u otros filtros.  No mantiene estado.
     """
 
-    def filter_value(self, sensor_id: int, value: float) -> float:
+    def filter_value(self, series_id: str, value: float) -> float:
         """Retorna el valor sin modificar."""
         return value
 
@@ -173,6 +170,6 @@ class IdentityFilter(SignalFilter):
         """Retorna la serie sin modificar."""
         return list(values)
 
-    def reset(self, sensor_id: Optional[int] = None) -> None:
+    def reset(self, series_id: Optional[str] = None) -> None:
         """No-op: no hay estado que resetear."""
         pass

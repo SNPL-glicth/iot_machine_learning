@@ -42,7 +42,7 @@ class Prediction:
     información necesaria para persistencia, explicabilidad y auditoría.
 
     Attributes:
-        sensor_id: ID del sensor predicho.
+        series_id: Identificador de la serie predicha.
         predicted_value: Valor predicho.
         confidence_score: Confianza numérica (0.0–1.0).
         trend: Dirección de la tendencia.
@@ -56,7 +56,7 @@ class Prediction:
         audit_trace_id: ID de trazabilidad para auditoría ISO 27001.
     """
 
-    sensor_id: int
+    series_id: str
     predicted_value: float
     confidence_score: float
     trend: Literal["up", "down", "stable"]
@@ -80,7 +80,7 @@ class Prediction:
     def to_audit_dict(self) -> Dict[str, object]:
         """Serializa para audit log (ISO 27001 A.12.4.1)."""
         return {
-            "sensor_id": self.sensor_id,
+            "series_id": self.series_id,
             "predicted_value": self.predicted_value,
             "confidence_score": self.confidence_score,
             "confidence_level": self.confidence_level.value,

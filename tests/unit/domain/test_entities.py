@@ -96,7 +96,7 @@ class TestPrediction:
 
     def test_prediction_audit_dict(self) -> None:
         p = Prediction(
-            sensor_id=1,
+            series_id="1",
             predicted_value=22.5,
             confidence_score=0.85,
             trend="up",
@@ -104,20 +104,20 @@ class TestPrediction:
             audit_trace_id="abc123",
         )
         d = p.to_audit_dict()
-        assert d["sensor_id"] == 1
+        assert d["series_id"] == "1"
         assert d["predicted_value"] == 22.5
         assert d["confidence_level"] == "high"
         assert d["audit_trace_id"] == "abc123"
 
     def test_has_confidence_interval(self) -> None:
         p1 = Prediction(
-            sensor_id=1, predicted_value=22.5,
+            series_id="1", predicted_value=22.5,
             confidence_score=0.8, trend="stable", engine_name="test",
         )
         assert p1.has_confidence_interval is False
 
         p2 = Prediction(
-            sensor_id=1, predicted_value=22.5,
+            series_id="1", predicted_value=22.5,
             confidence_score=0.8, trend="stable", engine_name="test",
             confidence_interval=(21.0, 24.0),
         )
@@ -135,15 +135,15 @@ class TestAnomalyResult:
         assert AnomalySeverity.from_score(0.95) == AnomalySeverity.CRITICAL
 
     def test_normal_factory(self) -> None:
-        r = AnomalyResult.normal(sensor_id=42)
+        r = AnomalyResult.normal(series_id="42")
         assert r.is_anomaly is False
         assert r.score == 0.0
         assert r.severity == AnomalySeverity.NONE
-        assert r.sensor_id == 42
+        assert r.series_id == "42"
 
     def test_audit_dict(self) -> None:
         r = AnomalyResult(
-            sensor_id=1, is_anomaly=True, score=0.85,
+            series_id="1", is_anomaly=True, score=0.85,
             method_votes={"z_score": 0.9, "iqr": 0.8},
             explanation="Z-score alto",
             severity=AnomalySeverity.HIGH,
@@ -158,7 +158,7 @@ class TestPatternEntities:
 
     def test_pattern_result(self) -> None:
         p = PatternResult(
-            sensor_id=1,
+            series_id="1",
             pattern_type=PatternType.SPIKE,
             confidence=0.9,
             description="Spike detectado",

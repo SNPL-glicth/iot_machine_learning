@@ -1,7 +1,7 @@
 """Detección de puntos de cambio estructural: CUSUM + PELT.
 
 CUSUM (Cumulative Sum): detección online de cambios pequeños persistentes.
-Ideal para drift gradual en sensores IoT.
+Ideal para drift gradual en series temporales.
 
 PELT (Pruned Exact Linear Time): detección offline óptima de múltiples
 cambios.  Requiere ``ruptures`` (opcional, fallback a CUSUM si no está).
@@ -64,7 +64,7 @@ class CUSUMDetector(ChangePointDetectionPort):
         """Detecta cambio en modo online (1 valor a la vez).
 
         Args:
-            value: Nuevo valor del sensor.
+            value: Nueva observación de la serie.
 
         Returns:
             ``ChangePoint`` si se detectó cambio, ``None`` si no.

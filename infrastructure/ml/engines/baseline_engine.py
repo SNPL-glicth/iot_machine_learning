@@ -1,7 +1,6 @@
 """Motor baseline: media móvil simple.
 
-Migrado desde ml/baseline.py + ml/metadata.py + engine_factory.BaselineMovingAverageEngine.
-Responsabilidad ÚNICA: predicción por media móvil.
+Responsabilidad ÚNICA: predicción por media móvil. Agnóstico al dominio.
 Sin dependencias externas, sin I/O.
 """
 

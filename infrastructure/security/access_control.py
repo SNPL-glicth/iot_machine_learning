@@ -1,7 +1,7 @@
 """Control de acceso RBAC (Role-Based Access Control) — ISO 27001 A.9.2.
 
-Implementa políticas granulares de acceso a datos de sensores y
-operaciones ML.  Cada operación se valida contra el rol del usuario
+Implementa políticas granulares de acceso a datos de series temporales
+y operaciones ML.  Cada operación se valida contra el rol del usuario
 antes de ejecutarse.
 
 Roles:
@@ -11,7 +11,7 @@ Roles:
 - ``auditor``: Lectura de audit logs + métricas.
 
 Políticas por recurso:
-- ``sensor_data``: Acceso a lecturas de sensores.
+- ``series_data``: Acceso a datos de series temporales.
 - ``predictions``: Acceso a predicciones.
 - ``config``: Cambios de configuración.
 - ``audit_logs``: Lectura de logs de auditoría.
@@ -44,7 +44,8 @@ class Role(Enum):
 class Permission(Enum):
     """Permisos granulares."""
 
-    READ_SENSOR_DATA = "read_sensor_data"
+    READ_SERIES_DATA = "read_series_data"
+    READ_SENSOR_DATA = "read_series_data"  # Alias legacy
     READ_PREDICTIONS = "read_predictions"
     EXECUTE_PREDICTION = "execute_prediction"
     READ_ANOMALIES = "read_anomalies"
@@ -108,8 +109,9 @@ class UserContext:
 
     user_id: str
     roles: Set[Role] = field(default_factory=lambda: {Role.VIEWER})
-    allowed_sensor_ids: Set[int] = field(default_factory=set)
-    allowed_device_ids: Set[int] = field(default_factory=set)
+    allowed_series_ids: Set[str] = field(default_factory=set)
+    allowed_sensor_ids: Set[int] = field(default_factory=set)  # Legacy IoT
+    allowed_device_ids: Set[int] = field(default_factory=set)  # Legacy IoT
 
     @property
     def permissions(self) -> FrozenSet[Permission]:
@@ -123,16 +125,24 @@ class UserContext:
         """Verifica si el usuario tiene un permiso específico."""
         return permission in self.permissions
 
-    def can_access_sensor(self, sensor_id: int) -> bool:
-        """Verifica si el usuario puede acceder a un sensor.
+    def can_access_series(self, series_id: str) -> bool:
+        """Verifica si el usuario puede acceder a una serie.
 
-        Admin sin restricciones de sensor puede acceder a todos.
+        Admin sin restricciones puede acceder a todas.
+        Combina ``allowed_series_ids`` (agnóstico) y ``allowed_sensor_ids``
+        (legacy IoT, convertido a str).
         """
-        if Role.ADMIN in self.roles and not self.allowed_sensor_ids:
+        # Combinar ambos sets
+        combined = self.allowed_series_ids | {str(s) for s in self.allowed_sensor_ids}
+        if Role.ADMIN in self.roles and not combined:
             return True
-        if not self.allowed_sensor_ids:
-            return True  # Sin restricciones = acceso a todos
-        return sensor_id in self.allowed_sensor_ids
+        if not combined:
+            return True
+        return series_id in combined
+
+    def can_access_sensor(self, sensor_id: int) -> bool:
+        """Legacy: verifica acceso a sensor por ID numérico."""
+        return self.can_access_series(str(sensor_id))
 
 
 class AccessDeniedError(Exception):
@@ -237,37 +247,45 @@ class AccessControlService:
             },
         )
 
+    def check_series_access(
+        self,
+        user_id: str,
+        series_id: str,
+    ) -> None:
+        """Valida acceso a una serie temporal específica.
+
+        Args:
+            user_id: ID del usuario.
+            series_id: Identificador de la serie.
+
+        Raises:
+            AccessDeniedError: Si no tiene acceso a la serie.
+        """
+        user = self._users.get(user_id)
+
+        if user is None:
+            raise AccessDeniedError(user_id, "series_access", f"series_{series_id}")
+
+        if not user.can_access_series(series_id):
+            logger.warning(
+                "series_access_denied",
+                extra={
+                    "user_id": user_id,
+                    "series_id": series_id,
+                    "allowed_series": list(user.allowed_series_ids),
+                },
+            )
+            raise AccessDeniedError(
+                user_id, "series_access", f"series_{series_id}"
+            )
+
     def check_sensor_access(
         self,
         user_id: str,
         sensor_id: int,
     ) -> None:
-        """Valida acceso a un sensor específico.
-
-        Args:
-            user_id: ID del usuario.
-            sensor_id: ID del sensor.
-
-        Raises:
-            AccessDeniedError: Si no tiene acceso al sensor.
-        """
-        user = self._users.get(user_id)
-
-        if user is None:
-            raise AccessDeniedError(user_id, "sensor_access", f"sensor_{sensor_id}")
-
-        if not user.can_access_sensor(sensor_id):
-            logger.warning(
-                "sensor_access_denied",
-                extra={
-                    "user_id": user_id,
-                    "sensor_id": sensor_id,
-                    "allowed_sensors": list(user.allowed_sensor_ids),
-                },
-            )
-            raise AccessDeniedError(
-                user_id, "sensor_access", f"sensor_{sensor_id}"
-            )
+        """Legacy: valida acceso a sensor por ID numérico."""
+        self.check_series_access(user_id, str(sensor_id))
 
 
 # --- Contexto de sistema (para procesos internos) ---

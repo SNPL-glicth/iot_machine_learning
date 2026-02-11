@@ -45,14 +45,14 @@ class PatternResult:
     """Resultado de detección de patrón de comportamiento.
 
     Attributes:
-        sensor_id: ID del sensor analizado.
+        series_id: Identificador de la serie analizada.
         pattern_type: Tipo de patrón detectado.
         confidence: Confianza en la detección (0.0–1.0).
         description: Descripción legible del patrón.
         metadata: Información adicional (slopes, z-scores, etc.).
     """
 
-    sensor_id: int
+    series_id: str
     pattern_type: PatternType
     confidence: float
     description: str = ""

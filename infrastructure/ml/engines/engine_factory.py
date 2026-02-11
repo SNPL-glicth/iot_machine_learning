@@ -1,6 +1,5 @@
 """Factory para motores de predicción UTSAE con registro dinámico.
 
-Migrado desde ml/core/engine_factory.py.
 Responsabilidad ÚNICA: registrar y crear motores por nombre.
 Lógica de selección por feature flags en application/use_cases/select_engine.py.
 """

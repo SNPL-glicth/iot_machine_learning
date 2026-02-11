@@ -81,7 +81,7 @@ class _MockPredictionEngine(PredictionPort):
         values = window.values
         predicted = (sum(values) / len(values)) + self._offset
         return Prediction(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             predicted_value=predicted,
             confidence_score=0.8,
             trend="stable",
@@ -106,14 +106,14 @@ class _MockAnomalyDetector(AnomalyDetectionPort):
     def detect(self, window: SensorWindow) -> AnomalyResult:
         if self._always_anomaly:
             return AnomalyResult(
-                sensor_id=window.sensor_id,
+                series_id=str(window.sensor_id),
                 is_anomaly=True,
                 score=0.9,
                 method_votes={"mock": 0.9},
                 confidence=0.8,
                 explanation="Mock anomalía detectada",
             )
-        return AnomalyResult.normal(sensor_id=window.sensor_id)
+        return AnomalyResult.normal(series_id=str(window.sensor_id))
 
     def is_trained(self) -> bool:
         return self._trained
@@ -139,7 +139,7 @@ class TestPredictionDomainServiceFlow:
         window = _make_window(1, [20.0, 21.0, 22.0])
         prediction = service.predict(window)
 
-        assert prediction.sensor_id == 1
+        assert prediction.series_id == "1"
         assert prediction.engine_name == "baseline"
         assert prediction.audit_trace_id is not None
         assert prediction.confidence_score == 0.8

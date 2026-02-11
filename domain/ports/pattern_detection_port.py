@@ -1,8 +1,7 @@
 """Port de detección de patrones — contrato para detectores de patrones,
 change points y clasificación de spikes.
 
-Agrupa tres capacidades relacionadas bajo un solo port porque
-comparten el mismo contexto de entrada (ventana de sensor).
+Dual interface: acepta ``SensorWindow`` (legacy) o ``TimeSeries`` (agnóstico).
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from ..entities.pattern import (
     PatternResult,
 )
 from ..entities.sensor_reading import SensorWindow
+from ..entities.time_series import TimeSeries
 
 
 class PatternDetectionPort(ABC):
@@ -30,15 +30,36 @@ class PatternDetectionPort(ABC):
 
     @abstractmethod
     def detect_pattern(self, window: SensorWindow) -> PatternResult:
-        """Detecta el patrón de comportamiento actual.
+        """Detecta el patrón de comportamiento actual (legacy).
 
         Args:
-            window: Ventana temporal del sensor.
+            window: Ventana temporal.
 
         Returns:
             ``PatternResult`` con tipo, confianza y descripción.
         """
         ...
+
+    def detect_pattern_series(self, series: TimeSeries) -> PatternResult:
+        """Detecta patrón en una TimeSeries agnóstica.
+
+        Implementación por defecto delega a ``detect_pattern`` vía bridge.
+        """
+        from ..entities.sensor_reading import SensorReading
+
+        readings = [
+            SensorReading(
+                sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+                value=p.v,
+                timestamp=p.t,
+            )
+            for p in series.points
+        ]
+        sw = SensorWindow(
+            sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+            readings=readings,
+        )
+        return self.detect_pattern(sw)
 
 
 class ChangePointDetectionPort(ABC):
@@ -49,7 +70,7 @@ class ChangePointDetectionPort(ABC):
         """Detecta cambio en modo online (1 valor a la vez).
 
         Args:
-            value: Nuevo valor del sensor.
+            value: Nueva observación.
 
         Returns:
             ``ChangePoint`` si se detectó cambio, ``None`` si no.
@@ -112,7 +133,7 @@ class RegimeDetectionPort(ABC):
         """Predice régimen para un valor dado.
 
         Args:
-            value: Valor actual del sensor.
+            value: Valor actual de la serie.
 
         Returns:
             ``OperationalRegime`` más probable.

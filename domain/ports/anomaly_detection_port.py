@@ -2,6 +2,8 @@
 
 Desacopla el dominio de implementaciones concretas (IsolationForest,
 LOF, Z-score, Voting Ensemble, etc.).
+
+Dual interface: acepta ``SensorWindow`` (legacy) o ``TimeSeries`` (agnóstico).
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from typing import List
 
 from ..entities.anomaly import AnomalyResult
 from ..entities.sensor_reading import SensorWindow
+from ..entities.time_series import TimeSeries
 
 
 class AnomalyDetectionPort(ABC):
@@ -43,7 +46,7 @@ class AnomalyDetectionPort(ABC):
 
     @abstractmethod
     def detect(self, window: SensorWindow) -> AnomalyResult:
-        """Detecta anomalías en la ventana actual.
+        """Detecta anomalías en la ventana actual (legacy).
 
         Args:
             window: Ventana temporal del sensor.
@@ -52,6 +55,27 @@ class AnomalyDetectionPort(ABC):
             ``AnomalyResult`` con score, votos, explicación.
         """
         ...
+
+    def detect_series(self, series: TimeSeries) -> AnomalyResult:
+        """Detecta anomalías en una TimeSeries agnóstica.
+
+        Implementación por defecto delega a ``detect`` vía bridge.
+        """
+        from ..entities.sensor_reading import SensorReading
+
+        readings = [
+            SensorReading(
+                sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+                value=p.v,
+                timestamp=p.t,
+            )
+            for p in series.points
+        ]
+        sw = SensorWindow(
+            sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+            readings=readings,
+        )
+        return self.detect(sw)
 
     @abstractmethod
     def is_trained(self) -> bool:

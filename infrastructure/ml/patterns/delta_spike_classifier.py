@@ -5,9 +5,9 @@ Criterios de clasificación:
 2. **Persistencia:** ¿El nuevo nivel se mantiene post-spike?
 3. **Alineación con tendencia:** ¿El spike va en dirección del trend previo?
 
-Ejemplo real:
-- Válvula se abre → temp sube 10°C en 1s y se mantiene → DELTA_SPIKE
-- Sensor glitch → lectura outlier aislada → NOISE_SPIKE
+Ejemplo:
+- Cambio de estado → valor sube 10 unidades en 1 paso y se mantiene → DELTA_SPIKE
+- Glitch de medición → lectura outlier aislada → NOISE_SPIKE
 
 ISO 27001: Todas las decisiones incluyen razones cuantificadas
 para trazabilidad y auditoría.

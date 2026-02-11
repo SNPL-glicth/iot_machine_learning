@@ -1,17 +1,17 @@
 """Tests de producción para KalmanSignalFilter.
 
-Casos basados en patrones REALES de sensores IoT:
-- Warmup: primeras lecturas retornan valor crudo
+Casos basados en patrones reales de series temporales:
+- Warmup: primeras observaciones retornan valor crudo
 - Auto-calibración de R: varianza observada como proxy de ruido
 - Filtrado de ruido: señal constante + ruido gaussiano
-- Aislamiento de estado por sensor: sensores independientes
+- Aislamiento de estado por serie: series independientes
 - Reset: volver a warmup después de reset
 
 Cada test verifica:
 1. Fase de warmup vs filtering
 2. Que R se calibre correctamente
 3. Que el filtrado reduzca ruido sin distorsionar señal
-4. Que sensores no interfieran entre sí
+4. Que series no interfieran entre sí
 5. Que reset funcione correctamente
 """
 
@@ -36,7 +36,7 @@ class TestKalmanWarmup:
         raw_values = [20.0 + i * 0.1 for i in range(10)]
 
         for v in raw_values:
-            filtered = kf.filter_value(sensor_id=1, value=v)
+            filtered = kf.filter_value(series_id="1", value=v)
             assert filtered == v, (
                 f"Durante warmup, filter_value debe retornar valor crudo. "
                 f"Esperado {v}, obtenido {filtered}"
@@ -44,16 +44,16 @@ class TestKalmanWarmup:
 
         # Estado no debe estar inicializado durante warmup (antes de la 10ª)
         # Pero después de la 10ª lectura, SÍ debe estar inicializado
-        assert kf.is_initialized(sensor_id=1) is True
+        assert kf.is_initialized(series_id="1") is True
 
     def test_warmup_not_initialized_before_complete(self) -> None:
         """Estado no debe estar inicializado antes de completar warmup."""
         kf = KalmanSignalFilter(Q=1e-5, warmup_size=10)
 
         for i in range(9):
-            kf.filter_value(sensor_id=1, value=20.0 + i * 0.1)
+            kf.filter_value(series_id="1", value=20.0 + i * 0.1)
 
-        assert kf.is_initialized(sensor_id=1) is False
+        assert kf.is_initialized(series_id="1") is False
 
     def test_post_warmup_returns_filtered(self) -> None:
         """Después de warmup, filter_value debe retornar valor filtrado."""
@@ -61,11 +61,11 @@ class TestKalmanWarmup:
 
         # Completar warmup con valores constantes
         for _ in range(5):
-            kf.filter_value(sensor_id=1, value=20.0)
+            kf.filter_value(series_id="1", value=20.0)
 
         # Post-warmup: valor filtrado debe ser diferente del crudo
         # (a menos que sea exactamente igual al estimado)
-        filtered = kf.filter_value(sensor_id=1, value=25.0)
+        filtered = kf.filter_value(series_id="1", value=25.0)
 
         # Con Q muy bajo y R calibrada desde valores constantes (R≈0),
         # el filtro confía mucho en la medición.
@@ -86,9 +86,9 @@ class TestKalmanAutoCalibration:
         warmup_values = [20.0 + random.uniform(-5, 5) for _ in range(10)]
 
         for v in warmup_values:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        state = kf.get_state(sensor_id=1)
+        state = kf.get_state(series_id="1")
         assert state is not None
         assert state.initialized is True
 
@@ -113,9 +113,9 @@ class TestKalmanAutoCalibration:
         warmup_values = [20.0 + i * 0.0001 for i in range(10)]
 
         for v in warmup_values:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        state = kf.get_state(sensor_id=1)
+        state = kf.get_state(series_id="1")
         assert state is not None
 
         # R debe ser muy bajo pero >= _MIN_R (1e-6)
@@ -129,9 +129,9 @@ class TestKalmanAutoCalibration:
 
         warmup_values = [10.0, 12.0, 14.0, 16.0, 18.0]
         for v in warmup_values:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        state = kf.get_state(sensor_id=1)
+        state = kf.get_state(series_id="1")
         assert state is not None
 
         expected_mean = sum(warmup_values) / len(warmup_values)  # 14.0
@@ -154,7 +154,7 @@ class TestKalmanNoiseFiltering:
         filtered_values: list[float] = []
 
         for v in raw_values:
-            filtered = kf.filter_value(sensor_id=1, value=v)
+            filtered = kf.filter_value(series_id="1", value=v)
             filtered_values.append(filtered)
 
         # Solo comparar post-warmup
@@ -195,7 +195,7 @@ class TestKalmanNoiseFiltering:
 
         filtered: list[float] = []
         for v in values:
-            f = kf.filter_value(sensor_id=1, value=v)
+            f = kf.filter_value(series_id="1", value=v)
             filtered.append(f)
 
         # Después de suficientes lecturas a 30°C, el filtro debe converger
@@ -206,22 +206,22 @@ class TestKalmanNoiseFiltering:
 
 
 class TestKalmanStateIsolation:
-    """Aislamiento de estado por sensor."""
+    """Aislamiento de estado por serie."""
 
-    def test_state_isolation_by_sensor(self) -> None:
-        """Estados de sensores distintos deben ser independientes."""
+    def test_state_isolation_by_series(self) -> None:
+        """Estados de series distintas deben ser independientes."""
         kf = KalmanSignalFilter(Q=1e-5, warmup_size=5)
 
-        # Sensor 1: valores alrededor de 10
+        # Serie 1: valores alrededor de 10
         for v in [10.0, 10.1, 10.2, 10.3, 10.4]:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        # Sensor 2: valores alrededor de 50
+        # Serie 2: valores alrededor de 50
         for v in [50.0, 50.1, 50.2, 50.3, 50.4]:
-            kf.filter_value(sensor_id=2, value=v)
+            kf.filter_value(series_id="2", value=v)
 
-        state1 = kf.get_state(sensor_id=1)
-        state2 = kf.get_state(sensor_id=2)
+        state1 = kf.get_state(series_id="1")
+        state2 = kf.get_state(series_id="2")
 
         assert state1 is not None
         assert state2 is not None
@@ -231,57 +231,57 @@ class TestKalmanStateIsolation:
             f"Estados no están aislados: s1.x_hat={state1.x_hat}, s2.x_hat={state2.x_hat}"
         )
 
-        # Filtrar sensor 1 no debe afectar sensor 2
-        kf.filter_value(sensor_id=1, value=100.0)  # Valor extremo en sensor 1
-        state2_after = kf.get_state(sensor_id=2)
+        # Filtrar serie 1 no debe afectar serie 2
+        kf.filter_value(series_id="1", value=100.0)  # Valor extremo en serie 1
+        state2_after = kf.get_state(series_id="2")
         assert state2_after is not None
         assert state2_after.x_hat == state2.x_hat, (
-            "Filtrar sensor 1 afectó estado de sensor 2"
+            "Filtrar serie 1 afectó estado de serie 2"
         )
 
 
 class TestKalmanReset:
     """Funcionalidad de reset."""
 
-    def test_reset_single_sensor(self) -> None:
-        """Reset de un sensor debe volver a warmup."""
+    def test_reset_single_series(self) -> None:
+        """Reset de una serie debe volver a warmup."""
         kf = KalmanSignalFilter(Q=1e-5, warmup_size=5)
 
         # Completar warmup
         for v in [20.0, 20.1, 20.2, 20.3, 20.4]:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        assert kf.is_initialized(sensor_id=1) is True
+        assert kf.is_initialized(series_id="1") is True
 
         # Reset
-        kf.reset(sensor_id=1)
+        kf.reset(series_id="1")
 
-        assert kf.is_initialized(sensor_id=1) is False
-        assert kf.get_state(sensor_id=1) is None
+        assert kf.is_initialized(series_id="1") is False
+        assert kf.get_state(series_id="1") is None
 
         # Debe volver a warmup
-        filtered = kf.filter_value(sensor_id=1, value=25.0)
+        filtered = kf.filter_value(series_id="1", value=25.0)
         assert filtered == 25.0  # Warmup retorna crudo
 
-    def test_reset_all_sensors(self) -> None:
-        """Reset sin sensor_id debe limpiar todos los sensores."""
+    def test_reset_all_series(self) -> None:
+        """Reset sin series_id debe limpiar todas las series."""
         kf = KalmanSignalFilter(Q=1e-5, warmup_size=3)
 
-        # Inicializar 3 sensores
-        for sid in (1, 2, 3):
+        # Inicializar 3 series
+        for sid in ("1", "2", "3"):
             for v in [20.0, 20.1, 20.2]:
-                kf.filter_value(sensor_id=sid, value=v)
+                kf.filter_value(series_id=sid, value=v)
 
-        assert kf.is_initialized(1) is True
-        assert kf.is_initialized(2) is True
-        assert kf.is_initialized(3) is True
+        assert kf.is_initialized("1") is True
+        assert kf.is_initialized("2") is True
+        assert kf.is_initialized("3") is True
 
         # Reset all
         kf.reset()
 
-        assert kf.is_initialized(1) is False
-        assert kf.is_initialized(2) is False
-        assert kf.is_initialized(3) is False
+        assert kf.is_initialized("1") is False
+        assert kf.is_initialized("2") is False
+        assert kf.is_initialized("3") is False
 
     def test_reset_and_refilter(self) -> None:
         """Después de reset, filtrar de nuevo debe recalibrar."""
@@ -289,20 +289,20 @@ class TestKalmanReset:
 
         # Primera calibración con valores alrededor de 20
         for v in [20.0, 20.1, 20.2, 20.3, 20.4]:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        state_before = kf.get_state(sensor_id=1)
+        state_before = kf.get_state(series_id="1")
         assert state_before is not None
         x_hat_before = state_before.x_hat
 
         # Reset
-        kf.reset(sensor_id=1)
+        kf.reset(series_id="1")
 
         # Segunda calibración con valores alrededor de 50
         for v in [50.0, 50.1, 50.2, 50.3, 50.4]:
-            kf.filter_value(sensor_id=1, value=v)
+            kf.filter_value(series_id="1", value=v)
 
-        state_after = kf.get_state(sensor_id=1)
+        state_after = kf.get_state(series_id="1")
         assert state_after is not None
 
         # x_hat debe reflejar los nuevos valores (~50), no los viejos (~20)

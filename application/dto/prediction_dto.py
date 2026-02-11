@@ -15,7 +15,7 @@ class PredictionDTO:
     """DTO para transferir predicciones entre capas.
 
     Attributes:
-        sensor_id: ID del sensor.
+        series_id: Identificador de la serie.
         predicted_value: Valor predicho.
         confidence_score: Confianza numérica (0–1).
         confidence_level: Nivel cualitativo.
@@ -27,7 +27,7 @@ class PredictionDTO:
         audit_trace_id: ID de trazabilidad.
     """
 
-    sensor_id: int
+    series_id: str
     predicted_value: float
     confidence_score: float
     confidence_level: str
@@ -41,7 +41,7 @@ class PredictionDTO:
     def to_dict(self) -> Dict[str, object]:
         """Serializa a dict para respuestas API."""
         result: Dict[str, object] = {
-            "sensor_id": self.sensor_id,
+            "series_id": self.series_id,
             "predicted_value": self.predicted_value,
             "confidence_score": self.confidence_score,
             "confidence_level": self.confidence_level,
@@ -64,7 +64,7 @@ class PredictionDTO:
 class AnomalyDTO:
     """DTO para transferir resultados de anomalía."""
 
-    sensor_id: int
+    series_id: str
     is_anomaly: bool
     score: float
     severity: str
@@ -77,7 +77,7 @@ class AnomalyDTO:
 class PatternDTO:
     """DTO para transferir resultados de patrones."""
 
-    sensor_id: int
+    series_id: str
     pattern_type: str
     confidence: float
     description: str = ""
@@ -94,7 +94,7 @@ class SensorAnalysisDTO:
     para la capa de presentación.
     """
 
-    sensor_id: int
+    series_id: str
     prediction: Optional[PredictionDTO] = None
     anomaly: Optional[AnomalyDTO] = None
     pattern: Optional[PatternDTO] = None

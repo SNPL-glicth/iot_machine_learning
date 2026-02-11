@@ -39,7 +39,7 @@ class AnomalyResult:
     """Resultado de detección de anomalía del dominio.
 
     Attributes:
-        sensor_id: ID del sensor evaluado.
+        series_id: Identificador de la serie evaluada.
         is_anomaly: ``True`` si se detectó anomalía.
         score: Score de anomalía (0.0 = normal, 1.0 = anomalía fuerte).
         method_votes: Votos de cada método detector
@@ -51,7 +51,7 @@ class AnomalyResult:
         audit_trace_id: ID de trazabilidad ISO 27001.
     """
 
-    sensor_id: int
+    series_id: str
     is_anomaly: bool
     score: float
     method_votes: Dict[str, float] = field(default_factory=dict)
@@ -62,10 +62,10 @@ class AnomalyResult:
     audit_trace_id: Optional[str] = None
 
     @classmethod
-    def normal(cls, sensor_id: int) -> "AnomalyResult":
+    def normal(cls, series_id: str) -> "AnomalyResult":
         """Factory para resultado normal (sin anomalía)."""
         return cls(
-            sensor_id=sensor_id,
+            series_id=series_id,
             is_anomaly=False,
             score=0.0,
             confidence=0.95,
@@ -76,7 +76,7 @@ class AnomalyResult:
     def to_audit_dict(self) -> Dict[str, object]:
         """Serializa para audit log (ISO 27001 A.12.4.1)."""
         return {
-            "sensor_id": self.sensor_id,
+            "series_id": self.series_id,
             "is_anomaly": self.is_anomaly,
             "score": self.score,
             "method_votes": self.method_votes,

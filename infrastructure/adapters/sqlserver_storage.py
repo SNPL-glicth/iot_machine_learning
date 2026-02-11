@@ -129,8 +129,9 @@ class SqlServerStorageAdapter(StoragePort):
 
         Crea el modelo en dbo.ml_models si no existe.
         """
-        model_id = self._get_or_create_model_id(prediction.sensor_id, prediction.engine_name)
-        device_id = self.get_device_id_for_sensor(prediction.sensor_id)
+        _sensor_id = int(prediction.series_id)
+        model_id = self._get_or_create_model_id(_sensor_id, prediction.engine_name)
+        device_id = self.get_device_id_for_sensor(_sensor_id)
 
         target_ts = datetime.now(timezone.utc) + timedelta(
             minutes=prediction.horizon_steps * 10
@@ -154,7 +155,7 @@ class SqlServerStorageAdapter(StoragePort):
             ),
             {
                 "model_id": model_id,
-                "sensor_id": prediction.sensor_id,
+                "sensor_id": _sensor_id,
                 "device_id": device_id,
                 "predicted_value": prediction.predicted_value,
                 "confidence": prediction.confidence_score,
@@ -171,7 +172,7 @@ class SqlServerStorageAdapter(StoragePort):
             "storage_prediction_saved",
             extra={
                 "prediction_id": prediction_id,
-                "sensor_id": prediction.sensor_id,
+                "sensor_id": _sensor_id,
                 "engine": prediction.engine_name,
             },
         )
@@ -197,7 +198,7 @@ class SqlServerStorageAdapter(StoragePort):
             return None
 
         return Prediction(
-            sensor_id=sensor_id,
+            series_id=str(sensor_id),
             predicted_value=_safe_float(row[0]),
             confidence_score=_safe_float(row[1]),
             trend="stable",
@@ -212,7 +213,8 @@ class SqlServerStorageAdapter(StoragePort):
         prediction_id: Optional[int] = None,
     ) -> int:
         """Persiste un evento de anomalía en dbo.ml_events."""
-        device_id = self.get_device_id_for_sensor(anomaly.sensor_id)
+        _sensor_id = int(anomaly.series_id)
+        device_id = self.get_device_id_for_sensor(_sensor_id)
 
         event_type = "warning" if anomaly.is_anomaly else "info"
         if anomaly.severity.value == "critical":
@@ -236,10 +238,10 @@ class SqlServerStorageAdapter(StoragePort):
             ),
             {
                 "device_id": device_id,
-                "sensor_id": anomaly.sensor_id,
+                "sensor_id": _sensor_id,
                 "prediction_id": prediction_id,
                 "event_type": event_type,
-                "title": f"Anomalía detectada: sensor {anomaly.sensor_id}",
+                "title": f"Anomalía detectada: serie {anomaly.series_id}",
                 "message": anomaly.explanation,
             },
         ).fetchone()

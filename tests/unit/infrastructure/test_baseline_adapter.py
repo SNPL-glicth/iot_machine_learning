@@ -52,7 +52,7 @@ class TestBaselinePredictionAdapter:
         result = adapter.predict(window)
 
         assert isinstance(result, Prediction)
-        assert result.sensor_id == 1
+        assert result.series_id == "1"
         assert result.engine_name == "baseline_moving_average"
         assert 0.0 <= result.confidence_score <= 1.0
 

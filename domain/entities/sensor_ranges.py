@@ -1,10 +1,11 @@
-"""Rangos operativos por tipo de sensor — entidad de dominio.
+"""Rangos operativos por tipo de sensor — LEGACY IoT.
 
-Extraído de severity_classifier.py.DEFAULT_RANGES.
-Responsabilidad ÚNICA: definir rangos físicos recomendados por tipo de sensor.
+.. deprecated::
+    Usar ``SeriesContext.threshold`` (``series_context.py``) para rangos
+    agnósticos al dominio.  Este módulo se mantiene solo por backward
+    compatibility con ``ml_service/`` y ``severity_classifier.py``.
 
-Estos rangos son conocimiento de dominio (ingeniería industrial),
-no configuración de infraestructura ni preferencias de usuario.
+Responsabilidad ÚNICA: definir rangos físicos recomendados por tipo de sensor IoT.
 """
 
 from __future__ import annotations

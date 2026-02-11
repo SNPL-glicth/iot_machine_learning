@@ -51,7 +51,7 @@ class BaselinePredictionAdapter(PredictionPort):
 
         values = window.values
         if not values:
-            raise ValueError(f"Ventana vacía para sensor {window.sensor_id}")
+            raise ValueError(f"Ventana vacía para serie {window.sensor_id}")
 
         cfg = BaselineConfig(window=self._window)
         predicted_value, confidence = predict_moving_average(values, cfg)
@@ -66,7 +66,7 @@ class BaselinePredictionAdapter(PredictionPort):
                 trend = "down"
 
         return Prediction(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             predicted_value=predicted_value,
             confidence_score=confidence,
             trend=trend,

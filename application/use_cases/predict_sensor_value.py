@@ -110,7 +110,7 @@ class PredictSensorValueUseCase:
         elapsed_ms = (time.monotonic() - t_start) * 1000.0
 
         dto = PredictionDTO(
-            sensor_id=prediction.sensor_id,
+            series_id=prediction.series_id,
             predicted_value=prediction.predicted_value,
             confidence_score=prediction.confidence_score,
             confidence_level=prediction.confidence_level.value,

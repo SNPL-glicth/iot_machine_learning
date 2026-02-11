@@ -56,7 +56,7 @@ class TestTaylorPredictionAdapter:
         result = adapter.predict(window)
 
         assert isinstance(result, Prediction)
-        assert result.sensor_id == 1
+        assert result.series_id == "1"
         assert result.engine_name == "taylor_adapted"
         assert 0.0 <= result.confidence_score <= 1.0
         assert result.trend in ("up", "down", "stable")

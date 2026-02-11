@@ -1,11 +1,13 @@
 """Reglas de severidad — lógica de dominio pura.
 
-Extraído de severity_classifier.py.
-Responsabilidad ÚNICA: dado un valor predicho, tipo de sensor y estado de anomalía,
+Responsabilidad ÚNICA: dado un valor predicho y estado de anomalía,
 determinar nivel de riesgo, severidad y acción recomendada.
 
+Dual interface:
+- Legacy (IoT): ``classify_severity(sensor_type, ...)`` usa ``sensor_ranges.py``.
+- Agnóstico: ``classify_severity_agnostic(threshold, ...)`` usa ``Threshold``.
+
 No contiene I/O (no lee BD, no persiste).
-No depende de sqlalchemy ni de ningún framework.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from ..entities.sensor_ranges import get_default_range
+from ..entities.series_context import Threshold
 
 
 @dataclass(frozen=True)
@@ -206,4 +209,80 @@ def classify_severity(
         severity=severity,
         action_required=action_required,
         recommended_action=recommended_action,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Funciones agnósticas (Nivel 2 UTSAE) — usan Threshold en vez de sensor_type
+# ---------------------------------------------------------------------------
+
+
+def compute_risk_level_from_threshold(
+    value: float,
+    threshold: Optional[Threshold],
+) -> str:
+    """Clasifica riesgo usando ``Threshold`` genérico (agnóstico al dominio).
+
+    Args:
+        value: Valor a evaluar.
+        threshold: Umbral configurado, o ``None`` si no hay.
+
+    Returns:
+        ``'LOW'`` | ``'MEDIUM'`` | ``'HIGH'`` | ``'NONE'``
+    """
+    if threshold is None:
+        return "NONE"
+
+    sev = threshold.severity_for(value)
+    return {"normal": "LOW", "warning": "MEDIUM", "critical": "HIGH"}.get(sev, "NONE")
+
+
+def classify_severity_agnostic(
+    *,
+    value: float,
+    anomaly: bool,
+    threshold: Optional[Threshold] = None,
+    label: str = "",
+) -> SeverityResult:
+    """Clasificación de severidad agnóstica al dominio.
+
+    Usa ``Threshold`` genérico en vez de ``sensor_type`` + ``sensor_ranges``.
+
+    Args:
+        value: Valor predicho o actual.
+        anomaly: Si se detectó anomalía estadística.
+        threshold: Umbral configurado (de ``SeriesContext``).
+        label: Etiqueta descriptiva para la narrativa (e.g. "serie X").
+
+    Returns:
+        ``SeverityResult`` con risk_level, severity, action y recommended_action.
+    """
+    risk_level = compute_risk_level_from_threshold(value, threshold)
+
+    out_of_range = False
+    if threshold is not None:
+        sev = threshold.severity_for(value)
+        out_of_range = sev == "critical"
+
+    severity = compute_severity(
+        is_anomaly=anomaly,
+        risk_level=risk_level,
+        out_of_physical_range=out_of_range,
+    )
+
+    action_required = severity != "info"
+
+    # Narrativa agnóstica (sin "equipo" ni "condiciones ambientales")
+    if severity == "critical":
+        action_text = f"Condición crítica{f' en {label}' if label else ''}. Requiere atención inmediata."
+    elif severity == "warning":
+        action_text = f"Comportamiento inusual{f' en {label}' if label else ''}. Supervisar de cerca."
+    else:
+        action_text = "Valores dentro del rango esperado. No se requiere acción."
+
+    return SeverityResult(
+        risk_level=risk_level,
+        severity=severity,
+        action_required=action_required,
+        recommended_action=action_text,
     )

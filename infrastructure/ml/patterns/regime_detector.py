@@ -1,14 +1,14 @@
 """Detección de regímenes operacionales usando clustering.
 
-Identifica "modos" de operación del sensor (idle, activo, pico, etc.)
+Identifica "modos" de operación de una serie temporal (idle, activo, pico, etc.)
 usando K-means para segmentar la distribución de valores históricos.
 
 Versión simplificada sin dependencia de hmmlearn.  Usa sklearn.cluster
 (ya presente en el proyecto) para K-means.
 
-Ejemplo real:
-- Sensor de temperatura en horno: idle=25°C, calentando=80°C, pico=120°C
-- Saber el régimen actual contextualiza anomalías: 120°C es normal en "pico"
+Ejemplo:
+- Serie con 3 regímenes: idle=25, transición=80, pico=120
+- Saber el régimen actual contextualiza anomalías: 120 es normal en "pico"
   pero anómalo en "idle".
 
 ISO 27001: Entrenamiento y predicciones loggeadas con parámetros.
@@ -138,7 +138,7 @@ class RegimeDetector(RegimeDetectionPort):
         encontrar el régimen más cercano.
 
         Args:
-            value: Valor actual del sensor.
+            value: Valor actual de la serie.
 
         Returns:
             ``OperationalRegime`` más cercano.

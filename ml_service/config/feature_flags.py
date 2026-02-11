@@ -116,7 +116,10 @@ class FeatureFlags(BaseModel):
     # --- Default Engine ---
     ML_DEFAULT_ENGINE: str = "baseline_moving_average"
 
-    # --- Per-sensor Overrides ---
+    # --- Per-series Overrides (agnóstico) ---
+    ML_ENGINE_SERIES_OVERRIDES: Dict[str, str] = {}
+
+    # --- Per-sensor Overrides (legacy IoT) ---
     ML_ENGINE_OVERRIDES: Dict[int, str] = {}
 
     # --- Enterprise Features (Fase 3) ---
@@ -159,36 +162,44 @@ class FeatureFlags(BaseModel):
         """Warmup debe ser >= 2."""
         return max(2, v)
 
-    def is_sensor_in_whitelist(self, sensor_id: int) -> bool:
-        """Verifica si un sensor está en la whitelist de Taylor.
+    def is_series_in_whitelist(self, series_id: str) -> bool:
+        """Verifica si una serie está en la whitelist de Taylor.
 
-        Si la whitelist está vacía o es ``None``, TODOS los sensores
-        están permitidos (whitelist abierta).
+        Si la whitelist está vacía o es ``None``, TODAS las series
+        están permitidas (whitelist abierta).
 
         Args:
-            sensor_id: ID del sensor a verificar.
+            series_id: Identificador de la serie.
 
         Returns:
-            ``True`` si el sensor puede usar Taylor.
+            ``True`` si la serie puede usar Taylor.
         """
         if not self.ML_TAYLOR_SENSOR_WHITELIST:
-            # Whitelist vacía = todos permitidos
             return True
 
         allowed = _parse_int_set(self.ML_TAYLOR_SENSOR_WHITELIST)
-        return sensor_id in allowed
+        # Soporta tanto IDs numéricos como alfanuméricos
+        try:
+            return int(series_id) in allowed
+        except ValueError:
+            return False
 
-    def get_active_engine_name(self, sensor_id: int) -> str:
-        """Determina qué motor debe usar un sensor.
+    def is_sensor_in_whitelist(self, sensor_id: int) -> bool:
+        """Legacy: verifica si un sensor está en la whitelist."""
+        return self.is_series_in_whitelist(str(sensor_id))
+
+    def get_active_engine_for_series(self, series_id: str) -> str:
+        """Determina qué motor debe usar una serie (agnóstico).
 
         Prioridad:
         1. Panic button → baseline
-        2. Override por sensor
-        3. Taylor (si activo y sensor en whitelist)
-        4. Default global
+        2. Override por series_id (agnóstico)
+        3. Override por sensor_id (legacy, si series_id es numérico)
+        4. Taylor (si activo y serie en whitelist)
+        5. Default global
 
         Args:
-            sensor_id: ID del sensor.
+            series_id: Identificador de la serie.
 
         Returns:
             Nombre del motor a usar.
@@ -196,13 +207,26 @@ class FeatureFlags(BaseModel):
         if self.ML_ROLLBACK_TO_BASELINE:
             return "baseline_moving_average"
 
-        if sensor_id in self.ML_ENGINE_OVERRIDES:
-            return self.ML_ENGINE_OVERRIDES[sensor_id]
+        # Agnostic overrides first
+        if series_id in self.ML_ENGINE_SERIES_OVERRIDES:
+            return self.ML_ENGINE_SERIES_OVERRIDES[series_id]
 
-        if self.ML_USE_TAYLOR_PREDICTOR and self.is_sensor_in_whitelist(sensor_id):
+        # Legacy int overrides
+        try:
+            sid = int(series_id)
+            if sid in self.ML_ENGINE_OVERRIDES:
+                return self.ML_ENGINE_OVERRIDES[sid]
+        except ValueError:
+            pass
+
+        if self.ML_USE_TAYLOR_PREDICTOR and self.is_series_in_whitelist(series_id):
             return "taylor"
 
         return self.ML_DEFAULT_ENGINE
+
+    def get_active_engine_name(self, sensor_id: int) -> str:
+        """Legacy: determina motor por sensor_id numérico."""
+        return self.get_active_engine_for_series(str(sensor_id))
 
     @classmethod
     def from_env(cls) -> FeatureFlags:

@@ -73,7 +73,7 @@ class PredictionDomainService:
         """
         if window.is_empty:
             raise ValueError(
-                f"Ventana vacía para sensor {window.sensor_id}"
+                f"Ventana vacía para serie {window.sensor_id}"
             )
 
         trace_id = str(uuid.uuid4())[:12]
@@ -84,7 +84,7 @@ class PredictionDomainService:
         logger.info(
             "prediction_start",
             extra={
-                "sensor_id": window.sensor_id,
+                "series_id": str(window.sensor_id),
                 "engine": engine.name,
                 "n_points": window.size,
                 "trace_id": trace_id,
@@ -97,7 +97,7 @@ class PredictionDomainService:
 
             # Enriquecer con trace_id
             prediction = Prediction(
-                sensor_id=prediction.sensor_id,
+                series_id=prediction.series_id,
                 predicted_value=prediction.predicted_value,
                 confidence_score=prediction.confidence_score,
                 trend=prediction.trend,
@@ -113,7 +113,7 @@ class PredictionDomainService:
             logger.error(
                 "prediction_engine_failed",
                 extra={
-                    "sensor_id": window.sensor_id,
+                    "series_id": str(window.sensor_id),
                     "engine": engine.name,
                     "error": str(exc),
                     "trace_id": trace_id,
@@ -123,7 +123,7 @@ class PredictionDomainService:
             fallback = self._engines[-1]
             prediction = fallback.predict(window)
             prediction = Prediction(
-                sensor_id=prediction.sensor_id,
+                series_id=prediction.series_id,
                 predicted_value=prediction.predicted_value,
                 confidence_score=prediction.confidence_score,
                 trend=prediction.trend,
@@ -137,7 +137,7 @@ class PredictionDomainService:
         if self._audit is not None:
             try:
                 self._audit.log_prediction(
-                    sensor_id=prediction.sensor_id,
+                    sensor_id=prediction.series_id,
                     predicted_value=prediction.predicted_value,
                     confidence=prediction.confidence_score,
                     engine_name=prediction.engine_name,
@@ -149,7 +149,7 @@ class PredictionDomainService:
         logger.info(
             "prediction_complete",
             extra={
-                "sensor_id": prediction.sensor_id,
+                "series_id": prediction.series_id,
                 "predicted_value": prediction.predicted_value,
                 "confidence": prediction.confidence_score,
                 "engine": prediction.engine_name,

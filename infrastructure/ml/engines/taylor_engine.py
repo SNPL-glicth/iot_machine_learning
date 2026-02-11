@@ -1,6 +1,6 @@
 """Motor de predicción Taylor — orquesta cálculos de taylor_math.py.
 
-Migrado desde ml/core/taylor_predictor.py.
+Agnóstico al dominio. Opera sobre List[float] + timestamps.
 """
 
 from __future__ import annotations

@@ -71,7 +71,7 @@ class TaylorPredictionAdapter(PredictionPort):
 
         # Mapear PredictionResult → Prediction
         return Prediction(
-            sensor_id=window.sensor_id,
+            series_id=str(window.sensor_id),
             predicted_value=result.predicted_value,
             confidence_score=result.confidence,
             trend=result.trend,
@@ -110,7 +110,7 @@ class KalmanFilterAdapter:
         from ....domain.entities.sensor_reading import SensorReading, SensorWindow as SW
 
         filtered_values = [
-            self._filter.filter_value(window.sensor_id, v)
+            self._filter.filter_value(str(window.sensor_id), v)
             for v in window.values
         ]
 
@@ -127,4 +127,4 @@ class KalmanFilterAdapter:
 
     def reset(self, sensor_id: Optional[int] = None) -> None:
         """Resetea estado del filtro."""
-        self._filter.reset(sensor_id)
+        self._filter.reset(str(sensor_id) if sensor_id is not None else None)

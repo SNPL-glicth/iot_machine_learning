@@ -1,8 +1,7 @@
 """Funciones matemáticas puras para Filtro de Kalman 1D.
 
-Extraído de ml/core/kalman_filter.py.
 Responsabilidad ÚNICA: estado de Kalman, calibración y update.
-Sin I/O, sin threading, sin logging.
+Sin I/O, sin threading, sin logging. Agnóstico al dominio.
 
 Ecuaciones de Kalman 1D (proceso estacionario):
     Predicción:  x_pred = x_hat,  P_pred = P + Q
@@ -24,7 +23,7 @@ MIN_P: float = 1e-10
 
 @dataclass
 class KalmanState:
-    """Estado interno del filtro de Kalman para un sensor.
+    """Estado interno del filtro de Kalman para una serie temporal.
 
     Attributes:
         x_hat: Estimación actual del valor filtrado.
@@ -43,10 +42,10 @@ class KalmanState:
 
 @dataclass
 class WarmupBuffer:
-    """Buffer temporal para acumular lecturas durante warmup.
+    """Buffer temporal para acumular observaciones durante warmup.
 
     Attributes:
-        values: Lecturas acumuladas.
+        values: Observaciones acumuladas.
         target_size: Número de lecturas necesarias para completar warmup.
     """
 
@@ -98,8 +97,8 @@ def kalman_update(state: KalmanState, measurement: float) -> float:
     Modifica ``state`` in-place.
 
     Args:
-        state: Estado actual del sensor.
-        measurement: Nueva lectura.
+        state: Estado actual de la serie.
+        measurement: Nueva observación.
 
     Returns:
         Valor filtrado (x_hat actualizado).
