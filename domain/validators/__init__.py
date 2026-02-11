@@ -1,0 +1,1 @@
+"""Validadores de dominio."""

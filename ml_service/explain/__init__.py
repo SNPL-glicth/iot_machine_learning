@@ -5,12 +5,13 @@ from .contextual_explainer import (
     ContextualExplainer,
     create_contextual_explanation,
 )
-from .explanation_builder import ExplanationBuilder
+from .explanation_builder import PredictionExplanation, build_explanation_text
 
 __all__ = [
     "ContextualExplainer",
     "EnrichedContext",
     "ExplanationResult",
     "create_contextual_explanation",
-    "ExplanationBuilder",
+    "PredictionExplanation",
+    "build_explanation_text",
 ]

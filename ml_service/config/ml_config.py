@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from dataclasses import dataclass, field
+from typing import Dict, Literal
 
 #tiene que haber una configuracion de regresion 
 @dataclass(frozen=True)
@@ -58,10 +58,37 @@ class OnlineBehaviorConfig:
 
 
 @dataclass(frozen=True)
+class EngineConfig:
+    """Configuración de motores de predicción UTSAE (Fase 1).
+
+    Estos valores se usan como defaults cuando los feature flags no
+    especifican overrides.  Los feature flags tienen prioridad.
+    """
+
+    # Motor por defecto: "baseline_moving_average" | "taylor"
+    default_engine: str = "baseline_moving_average"
+
+    # Taylor
+    taylor_order: int = 2
+    taylor_horizon: int = 1
+
+    # Kalman
+    kalman_Q: float = 1e-5
+    kalman_warmup_size: int = 10
+
+    # Clamp
+    clamp_margin_pct: float = 0.3
+
+    # Per-sensor overrides: {sensor_id: engine_name}
+    sensor_overrides: Dict[int, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class GlobalMLConfig:
     regression: RegressionConfig = RegressionConfig()
     anomaly: AnomalyConfig = AnomalyConfig()
     online: OnlineBehaviorConfig = OnlineBehaviorConfig()
+    engine: EngineConfig = EngineConfig()
 
 
 # Config global por defecto utilizable en runners/servicios
