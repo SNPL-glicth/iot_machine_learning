@@ -17,6 +17,7 @@ Mapeo de interfaces:
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Optional
 
 from ....domain.entities.prediction import Prediction, PredictionConfidence
@@ -28,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 class TaylorPredictionAdapter(PredictionPort):
     """Adapter que expone TaylorPredictionEngine como PredictionPort.
+
+    .. deprecated:: 2.0
+        Use ``TaylorPredictionEngine(...).as_port()`` or
+        ``PredictionEnginePortBridge(engine)`` instead.
 
     Attributes:
         _engine: Instancia de TaylorPredictionEngine (Fase 1).
@@ -44,6 +49,12 @@ class TaylorPredictionAdapter(PredictionPort):
             order: Orden de Taylor (1–3).
             horizon: Pasos adelante a predecir.
         """
+        warnings.warn(
+            "TaylorPredictionAdapter is deprecated. "
+            "Use TaylorPredictionEngine(...).as_port() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from iot_machine_learning.infrastructure.ml.engines.taylor_engine import TaylorPredictionEngine
         self._engine = TaylorPredictionEngine(order=order, horizon=horizon)
 

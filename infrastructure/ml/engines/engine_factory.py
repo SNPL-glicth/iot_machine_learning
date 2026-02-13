@@ -2,14 +2,23 @@
 
 Responsabilidad ÚNICA: registrar y crear motores por nombre.
 Lógica de selección por feature flags en application/use_cases/select_engine.py.
+
+.. versionchanged:: 2.0
+    Added ``register_engine`` decorator for auto-registration (ROB-1).
+    Added ``discover_engines`` for plugin discovery.
 """
 
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Dict, List, Optional, Type
 
-from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
+from iot_machine_learning.infrastructure.ml.interfaces import (
+    PredictionEngine,
+    PredictionEnginePortBridge,
+    PredictionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +116,15 @@ class EngineFactory:
             return BaselineMovingAverageEngine()
 
     @classmethod
+    def create_as_port(cls, name: str, **kwargs: object) -> PredictionEnginePortBridge:
+        """Create an engine and wrap it as ``PredictionPort``.
+
+        Convenience method that combines ``create()`` + ``as_port()``.
+        """
+        engine = cls.create(name, **kwargs)
+        return engine.as_port()
+
+    @classmethod
     def get_engine_for_sensor(
         cls,
         sensor_id: int,
@@ -114,24 +132,79 @@ class EngineFactory:
     ) -> PredictionEngine:
         """Selecciona engine según feature flags.
 
-        .. deprecated::
-            Usar ``application.use_cases.select_engine.select_engine_for_sensor``
-            + ``EngineFactory.create()`` en su lugar.
+        .. deprecated:: 2.0
+            Use ``application.use_cases.select_engine.select_engine_for_sensor``
+            + ``EngineFactory.create()`` at the application layer instead.
+            This method will be removed in a future version.
         """
-        from iot_machine_learning.application.use_cases.select_engine import (
-            select_engine_for_sensor,
+        warnings.warn(
+            "EngineFactory.get_engine_for_sensor() is deprecated. "
+            "Use select_engine_for_sensor() + EngineFactory.create() "
+            "at the application layer instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
+        # Fallback to baseline — no longer imports from application layer
+        return BaselineMovingAverageEngine()
 
-        if not isinstance(flags, FeatureFlags):
-            logger.warning(
-                "invalid_flags_type_fallback",
-                extra={"type": type(flags).__name__},
-            )
-            return BaselineMovingAverageEngine()
 
-        selection = select_engine_for_sensor(sensor_id, flags)
-        return cls.create(selection["engine_name"], **selection["kwargs"])
+def register_engine(name: str):
+    """Class decorator: auto-register a ``PredictionEngine`` with ``EngineFactory``.
+
+    Usage::
+
+        @register_engine("my_engine")
+        class MyEngine(PredictionEngine):
+            ...
+
+    The engine is registered at class definition time — no need to
+    touch ``EngineFactory`` or ``engines/__init__.py``.
+
+    Args:
+        name: Registry name for the engine.
+    """
+    def decorator(cls: Type[PredictionEngine]) -> Type[PredictionEngine]:
+        EngineFactory.register(name, cls)
+        return cls
+    return decorator
+
+
+def discover_engines(package_path: str) -> List[str]:
+    """Import all modules in a package to trigger ``@register_engine`` decorators.
+
+    This enables plugin discovery: drop a new ``.py`` file with a
+    ``@register_engine`` decorated class into the engines package,
+    and it will be auto-registered.
+
+    Args:
+        package_path: Dotted package path (e.g.
+            ``"iot_machine_learning.infrastructure.ml.engines"``).
+
+    Returns:
+        List of newly discovered engine names.
+    """
+    import importlib
+    import pkgutil
+
+    before = set(EngineFactory.list_engines())
+    try:
+        pkg = importlib.import_module(package_path)
+        if hasattr(pkg, "__path__"):
+            for _importer, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
+                try:
+                    importlib.import_module(f"{package_path}.{modname}")
+                except Exception as exc:
+                    logger.debug(
+                        "engine_discovery_skip",
+                        extra={"module": modname, "error": str(exc)},
+                    )
+    except Exception as exc:
+        logger.warning(
+            "engine_discovery_failed",
+            extra={"package": package_path, "error": str(exc)},
+        )
+    after = set(EngineFactory.list_engines())
+    return sorted(after - before)
 
 
 # --- Auto-registro del baseline al importar ---

@@ -9,10 +9,11 @@ Dual interface: acepta ``SensorWindow`` (legacy) o ``TimeSeries`` (agnóstico).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from ..entities.anomaly import AnomalyResult
 from ..entities.sensor_reading import SensorWindow
+from ..validators.input_guard import safe_series_id_to_int
 from ..entities.time_series import TimeSeries
 
 
@@ -33,11 +34,18 @@ class AnomalyDetectionPort(ABC):
         ...
 
     @abstractmethod
-    def train(self, historical_values: List[float]) -> None:
+    def train(
+        self,
+        historical_values: List[float],
+        timestamps: Optional[List[float]] = None,
+    ) -> None:
         """Entrena el detector con datos históricos.
 
         Args:
             historical_values: Serie temporal de entrenamiento.
+            timestamps: Timestamps correspondientes (opcional).
+                Si se proveen, habilita features temporales
+                (velocidad, aceleración) en detectores que lo soporten.
 
         Raises:
             ValueError: Si no hay suficientes datos.
@@ -65,14 +73,14 @@ class AnomalyDetectionPort(ABC):
 
         readings = [
             SensorReading(
-                sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+                sensor_id=safe_series_id_to_int(series.series_id),
                 value=p.v,
                 timestamp=p.t,
             )
             for p in series.points
         ]
         sw = SensorWindow(
-            sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+            sensor_id=safe_series_id_to_int(series.series_id),
             readings=readings,
         )
         return self.detect(sw)

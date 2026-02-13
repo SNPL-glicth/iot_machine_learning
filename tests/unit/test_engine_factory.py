@@ -11,11 +11,18 @@ from __future__ import annotations
 
 import pytest
 
+from iot_machine_learning.application.use_cases.select_engine import (
+    select_engine_for_sensor,
+)
 from iot_machine_learning.infrastructure.ml.engines.engine_factory import (
     BaselineMovingAverageEngine,
     EngineFactory,
 )
-from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
+from iot_machine_learning.infrastructure.ml.interfaces import (
+    PredictionEngine,
+    PredictionEnginePortBridge,
+    PredictionResult,
+)
 from iot_machine_learning.infrastructure.ml.engines.taylor_engine import TaylorPredictionEngine
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
@@ -113,7 +120,7 @@ class TestEngineCreation:
 
 
 class TestEngineForSensor:
-    """Selección de motor por feature flags."""
+    """Selección de motor por feature flags (via select_engine_for_sensor)."""
 
     def test_panic_button_forces_baseline(self) -> None:
         """ML_ROLLBACK_TO_BASELINE=True debe forzar baseline."""
@@ -124,7 +131,8 @@ class TestEngineForSensor:
             ML_USE_TAYLOR_PREDICTOR=True,
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=1, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=1, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, BaselineMovingAverageEngine)
 
     def test_taylor_for_whitelisted_sensor(self) -> None:
@@ -136,7 +144,8 @@ class TestEngineForSensor:
             ML_TAYLOR_SENSOR_WHITELIST="1,5,42",
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=5, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=5, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, TaylorPredictionEngine)
 
     def test_baseline_for_non_whitelisted_sensor(self) -> None:
@@ -149,7 +158,8 @@ class TestEngineForSensor:
             ML_DEFAULT_ENGINE="baseline_moving_average",
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=99, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=99, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, BaselineMovingAverageEngine)
 
     def test_override_per_sensor(self) -> None:
@@ -162,7 +172,8 @@ class TestEngineForSensor:
             ML_ENGINE_OVERRIDES={42: "dummy"},
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=42, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=42, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, _DummyEngine)
 
     def test_empty_whitelist_allows_all(self) -> None:
@@ -174,7 +185,8 @@ class TestEngineForSensor:
             ML_TAYLOR_SENSOR_WHITELIST=None,
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=999, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=999, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, TaylorPredictionEngine)
 
     def test_taylor_disabled_uses_default(self) -> None:
@@ -184,8 +196,15 @@ class TestEngineForSensor:
             ML_DEFAULT_ENGINE="baseline_moving_average",
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=1, flags=flags)
+        sel = select_engine_for_sensor(sensor_id=1, flags=flags)
+        engine = EngineFactory.create(sel["engine_name"], **sel["kwargs"])
         assert isinstance(engine, BaselineMovingAverageEngine)
+
+    def test_deprecated_get_engine_for_sensor_warns(self) -> None:
+        """get_engine_for_sensor emits DeprecationWarning."""
+        flags = FeatureFlags(ML_ROLLBACK_TO_BASELINE=True)
+        with pytest.warns(DeprecationWarning, match="get_engine_for_sensor"):
+            EngineFactory.get_engine_for_sensor(sensor_id=1, flags=flags)
 
 
 class TestBaselineMovingAverageEngine:

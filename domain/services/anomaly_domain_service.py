@@ -43,6 +43,9 @@ class AnomalyDomainService:
         detectors: List[AnomalyDetectionPort],
         voting_threshold: float = _DEFAULT_VOTING_THRESHOLD,
         audit: Optional[AuditPort] = None,
+        *,
+        min_consensus_confidence: float = 0.5,
+        single_detector_confidence: float = 0.7,
     ) -> None:
         if not detectors:
             raise ValueError("Se requiere al menos un detector de anomalías")
@@ -50,6 +53,8 @@ class AnomalyDomainService:
         self._detectors = detectors
         self._voting_threshold = voting_threshold
         self._audit = audit
+        self._min_consensus_confidence = min_consensus_confidence
+        self._single_detector_confidence = single_detector_confidence
 
     def detect(self, window: SensorWindow) -> AnomalyResult:
         """Detecta anomalías combinando votos de todos los detectores.
@@ -108,9 +113,9 @@ class AnomalyDomainService:
             mean_s = sum(scores) / len(scores)
             variance = sum((s - mean_s) ** 2 for s in scores) / len(scores)
             std_s = variance ** 0.5
-            confidence = max(0.5, 1.0 - std_s)
+            confidence = max(self._min_consensus_confidence, 1.0 - std_s)
         else:
-            confidence = 0.7  # Un solo detector → confianza moderada
+            confidence = self._single_detector_confidence
 
         severity = AnomalySeverity.from_score(avg_score)
         explanation = " | ".join(explanations) if explanations else "Valor normal"
@@ -126,11 +131,11 @@ class AnomalyDomainService:
             audit_trace_id=trace_id,
         )
 
-        # Auditoría
+        # Auditoría (usa series_id agnóstico)
         if self._audit is not None and is_anomaly:
             try:
-                self._audit.log_anomaly(
-                    sensor_id=window.sensor_id,  # AuditPort still uses sensor_id
+                self._audit.log_series_anomaly(
+                    series_id=str(window.sensor_id),
                     value=window.last_value or 0.0,
                     score=avg_score,
                     explanation=explanation,
@@ -153,18 +158,29 @@ class AnomalyDomainService:
 
         return anomaly_result
 
-    def train_all(self, historical_values: List[float]) -> None:
+    def train_all(
+        self,
+        historical_values: List[float],
+        timestamps: Optional[List[float]] = None,
+    ) -> None:
         """Entrena todos los detectores con datos históricos.
 
         Args:
             historical_values: Serie temporal de entrenamiento.
+            timestamps: Timestamps correspondientes (opcional).
+                Si se proveen, habilita features temporales en
+                detectores que lo soporten (e.g. VotingAnomalyDetector).
         """
         for detector in self._detectors:
             try:
-                detector.train(historical_values)
+                detector.train(historical_values, timestamps=timestamps)
                 logger.info(
                     "detector_trained",
-                    extra={"detector": detector.name, "n_points": len(historical_values)},
+                    extra={
+                        "detector": detector.name,
+                        "n_points": len(historical_values),
+                        "temporal": timestamps is not None,
+                    },
                 )
             except Exception as exc:
                 logger.error(

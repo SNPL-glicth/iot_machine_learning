@@ -21,6 +21,17 @@ MIN_R: float = 1e-6
 MIN_P: float = 1e-10
 
 
+# Tamaño por defecto de la ventana de innovación para Q adaptativo
+DEFAULT_INNOVATION_WINDOW: int = 20
+
+# Factor de escala para convertir varianza de innovación a Q
+ADAPTIVE_Q_SCALE: float = 0.1
+
+# Límites de Q adaptativo para evitar inestabilidad
+MIN_Q: float = 1e-8
+MAX_Q: float = 1.0
+
+
 @dataclass
 class KalmanState:
     """Estado interno del filtro de Kalman para una serie temporal.
@@ -31,6 +42,8 @@ class KalmanState:
         Q: Varianza del proceso.
         R: Varianza de medición (auto-calibrada).
         initialized: ``True`` cuando el warmup completó.
+        _innovations: Ventana circular de innovaciones recientes
+            (para Q adaptativo).  Vacía si Q es fijo.
     """
 
     x_hat: float = 0.0
@@ -38,6 +51,8 @@ class KalmanState:
     Q: float = 1e-5
     R: float = 1.0
     initialized: bool = False
+    _innovations: List[float] = field(default_factory=list)
+    _innovation_window_size: int = 0
 
 
 @dataclass
@@ -92,7 +107,7 @@ def initialize_state(warmup_values: List[float], Q: float) -> KalmanState:
 
 
 def kalman_update(state: KalmanState, measurement: float) -> float:
-    """Aplica un paso de Kalman update.
+    """Aplica un paso de Kalman update (Q fijo).
 
     Modifica ``state`` in-place.
 
@@ -112,3 +127,63 @@ def kalman_update(state: KalmanState, measurement: float) -> float:
     state.P = max((1.0 - K) * P_pred, MIN_P)
 
     return state.x_hat
+
+
+def adaptive_kalman_update(state: KalmanState, measurement: float) -> float:
+    """Aplica un paso de Kalman update con Q adaptativo.
+
+    Q se ajusta basándose en la varianza de las innovaciones recientes
+    (diferencia entre predicción y medición).  Cuando la serie cambia
+    de régimen, las innovaciones crecen → Q sube → el filtro sigue
+    el cambio más rápido.
+
+    Modifica ``state`` in-place (incluyendo Q y _innovations).
+
+    Args:
+        state: Estado actual de la serie (debe tener
+            ``_innovation_window_size > 0``).
+        measurement: Nueva observación.
+
+    Returns:
+        Valor filtrado (x_hat actualizado).
+    """
+    x_pred = state.x_hat
+    innovation = measurement - x_pred
+
+    # --- Actualizar ventana de innovaciones ---
+    state._innovations.append(innovation)
+    win = state._innovation_window_size or DEFAULT_INNOVATION_WINDOW
+    if len(state._innovations) > win:
+        state._innovations = state._innovations[-win:]
+
+    # --- Adaptar Q si hay suficientes innovaciones ---
+    if len(state._innovations) >= 3:
+        state.Q = _compute_adaptive_Q(state._innovations)
+
+    # --- Kalman update estándar con Q adaptado ---
+    P_pred = state.P + state.Q
+    K = P_pred / (P_pred + state.R)
+
+    state.x_hat = x_pred + K * innovation
+    state.P = max((1.0 - K) * P_pred, MIN_P)
+
+    return state.x_hat
+
+
+def _compute_adaptive_Q(innovations: List[float]) -> float:
+    """Calcula Q adaptativo a partir de la varianza de innovaciones.
+
+    Q = clamp(scale * var(innovations), MIN_Q, MAX_Q)
+
+    Args:
+        innovations: Ventana de innovaciones recientes.
+
+    Returns:
+        Q adaptado.
+    """
+    n = len(innovations)
+    mean_innov = sum(innovations) / n
+    var_innov = sum((v - mean_innov) ** 2 for v in innovations) / max(n - 1, 1)
+
+    q = ADAPTIVE_Q_SCALE * var_innov
+    return max(MIN_Q, min(MAX_Q, q))

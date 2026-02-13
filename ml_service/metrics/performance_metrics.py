@@ -35,6 +35,14 @@ class MLMetrics:
     total_errors: int = 0
     error_rate: float = 0.0
     
+    # Persistence metrics
+    persistence_successes: int = 0
+    persistence_failures: int = 0
+    
+    # Anomaly detection metrics
+    total_anomalies_detected: int = 0
+    total_anomalies_normal: int = 0
+    
     # Broker metrics
     broker_connected: bool = False
     broker_type: str = "unknown"
@@ -60,6 +68,14 @@ class MLMetrics:
             "errors": {
                 "total": self.total_errors,
                 "rate": round(self.error_rate, 4),
+            },
+            "persistence": {
+                "successes": self.persistence_successes,
+                "failures": self.persistence_failures,
+            },
+            "anomalies": {
+                "detected": self.total_anomalies_detected,
+                "normal": self.total_anomalies_normal,
             },
             "broker": {
                 "connected": self.broker_connected,
@@ -95,6 +111,14 @@ class MetricsCollector:
         # Error tracking
         self._error_count = 0
         
+        # Persistence tracking
+        self._persistence_success_count = 0
+        self._persistence_failure_count = 0
+        
+        # Anomaly tracking
+        self._anomaly_detected_count = 0
+        self._anomaly_normal_count = 0
+        
         # Thread lock for updates
         self._update_lock = threading.Lock()
     
@@ -125,6 +149,24 @@ class MetricsCollector:
         """Record an error."""
         with self._update_lock:
             self._error_count += 1
+    
+    def record_persistence_success(self) -> None:
+        """Record a successful persistence operation."""
+        with self._update_lock:
+            self._persistence_success_count += 1
+    
+    def record_persistence_failure(self) -> None:
+        """Record a failed persistence operation."""
+        with self._update_lock:
+            self._persistence_failure_count += 1
+    
+    def record_anomaly_result(self, is_anomaly: bool) -> None:
+        """Record an anomaly detection result."""
+        with self._update_lock:
+            if is_anomaly:
+                self._anomaly_detected_count += 1
+            else:
+                self._anomaly_normal_count += 1
     
     def get_metrics(self) -> MLMetrics:
         """Get current metrics snapshot."""
@@ -180,6 +222,10 @@ class MetricsCollector:
                 max_processing_time_ms=max_reading_time,
                 total_errors=self._error_count,
                 error_rate=error_rate,
+                persistence_successes=self._persistence_success_count,
+                persistence_failures=self._persistence_failure_count,
+                total_anomalies_detected=self._anomaly_detected_count,
+                total_anomalies_normal=self._anomaly_normal_count,
                 broker_connected=broker_connected,
                 broker_type=broker_type,
                 uptime_seconds=uptime,
@@ -206,3 +252,18 @@ def record_reading_processed(duration_ms: float) -> None:
 def record_error() -> None:
     """Record an error."""
     MetricsCollector.get_instance().record_error()
+
+
+def record_persistence_success() -> None:
+    """Record a successful persistence operation."""
+    MetricsCollector.get_instance().record_persistence_success()
+
+
+def record_persistence_failure() -> None:
+    """Record a failed persistence operation."""
+    MetricsCollector.get_instance().record_persistence_failure()
+
+
+def record_anomaly_result(is_anomaly: bool) -> None:
+    """Record an anomaly detection result."""
+    MetricsCollector.get_instance().record_anomaly_result(is_anomaly)

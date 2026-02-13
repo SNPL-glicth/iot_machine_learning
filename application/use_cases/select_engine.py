@@ -13,6 +13,7 @@ Esto es lógica de APLICACIÓN (no de factory ni de dominio):
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,6 +28,11 @@ def select_engine_for_sensor(
     flags: "FeatureFlags",
 ) -> dict:
     """Selecciona motor de predicción según feature flags.
+
+    .. deprecated::
+        Usar ``select_engine_for_series(profile, flags)`` en su lugar.
+        Selección por ``sensor_id`` acopla a IoT; selección por
+        ``SeriesProfile`` es agnóstica al dominio.
 
     Retorna un dict con ``{"engine_name": str, "kwargs": dict}``
     que el caller puede usar para instanciar el motor.
@@ -45,6 +51,12 @@ def select_engine_for_sensor(
     Returns:
         Dict con ``engine_name`` y ``kwargs`` para creación.
     """
+    warnings.warn(
+        "select_engine_for_sensor(sensor_id) is deprecated. "
+        "Use select_engine_for_series(profile, flags) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     # 1. Panic button
     if flags.ML_ROLLBACK_TO_BASELINE:
         logger.info(

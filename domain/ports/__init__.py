@@ -10,6 +10,7 @@ from .anomaly_detection_port import AnomalyDetectionPort
 from .pattern_detection_port import PatternDetectionPort
 from .storage_port import StoragePort
 from .audit_port import AuditPort
+from .cognitive_memory_port import CognitiveMemoryPort
 
 __all__ = [
     "PredictionPort",
@@ -17,4 +18,5 @@ __all__ = [
     "PatternDetectionPort",
     "StoragePort",
     "AuditPort",
+    "CognitiveMemoryPort",
 ]

@@ -18,6 +18,9 @@ import random
 
 import pytest
 
+from iot_machine_learning.application.use_cases.select_engine import (
+    select_engine_for_sensor,
+)
 from iot_machine_learning.infrastructure.ml.engines.engine_factory import (
     BaselineMovingAverageEngine,
     EngineFactory,
@@ -282,7 +285,8 @@ class TestABWithFeatureFlags:
             ML_ENABLE_AB_TESTING=True,
         )
 
-        engine = EngineFactory.get_engine_for_sensor(sensor_id=1, flags=flags)
+        selection = select_engine_for_sensor(sensor_id=1, flags=flags)
+        engine = EngineFactory.create(selection["engine_name"], **selection["kwargs"])
         assert isinstance(engine, BaselineMovingAverageEngine)
 
     def test_whitelist_controls_ab_scope(self, _register_taylor: None) -> None:
@@ -292,8 +296,10 @@ class TestABWithFeatureFlags:
             ML_TAYLOR_SENSOR_WHITELIST="1,5",
         )
 
-        engine_in = EngineFactory.get_engine_for_sensor(sensor_id=1, flags=flags)
-        engine_out = EngineFactory.get_engine_for_sensor(sensor_id=99, flags=flags)
+        sel_in = select_engine_for_sensor(sensor_id=1, flags=flags)
+        sel_out = select_engine_for_sensor(sensor_id=99, flags=flags)
+        engine_in = EngineFactory.create(sel_in["engine_name"], **sel_in["kwargs"])
+        engine_out = EngineFactory.create(sel_out["engine_name"], **sel_out["kwargs"])
 
         assert isinstance(engine_in, TaylorPredictionEngine)
         assert isinstance(engine_out, BaselineMovingAverageEngine)

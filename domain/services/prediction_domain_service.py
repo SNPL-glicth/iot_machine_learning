@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import replace
 from typing import List, Optional
 
 from ..entities.prediction import Prediction
@@ -96,18 +97,7 @@ class PredictionDomainService:
             prediction = engine.predict(window)
 
             # Enriquecer con trace_id
-            prediction = Prediction(
-                series_id=prediction.series_id,
-                predicted_value=prediction.predicted_value,
-                confidence_score=prediction.confidence_score,
-                trend=prediction.trend,
-                engine_name=prediction.engine_name,
-                horizon_steps=prediction.horizon_steps,
-                confidence_interval=prediction.confidence_interval,
-                feature_contributions=prediction.feature_contributions,
-                metadata=prediction.metadata,
-                audit_trace_id=trace_id,
-            )
+            prediction = replace(prediction, audit_trace_id=trace_id)
 
         except Exception as exc:
             logger.error(
@@ -122,22 +112,18 @@ class PredictionDomainService:
             # Fallback al último motor (debe ser baseline)
             fallback = self._engines[-1]
             prediction = fallback.predict(window)
-            prediction = Prediction(
-                series_id=prediction.series_id,
-                predicted_value=prediction.predicted_value,
-                confidence_score=prediction.confidence_score,
-                trend=prediction.trend,
+            prediction = replace(
+                prediction,
                 engine_name=f"{prediction.engine_name}_fallback",
-                horizon_steps=prediction.horizon_steps,
                 metadata={**prediction.metadata, "fallback_reason": str(exc)},
                 audit_trace_id=trace_id,
             )
 
-        # Auditoría
+        # Auditoría (usa series_id agnóstico)
         if self._audit is not None:
             try:
-                self._audit.log_prediction(
-                    sensor_id=prediction.series_id,
+                self._audit.log_series_prediction(
+                    series_id=prediction.series_id,
                     predicted_value=prediction.predicted_value,
                     confidence=prediction.confidence_score,
                     engine_name=prediction.engine_name,

@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ...domain.entities.anomaly import AnomalyResult
+from ...domain.validators.input_guard import safe_series_id_to_int
 from ...domain.entities.prediction import Prediction
 from ...domain.entities.sensor_reading import SensorReading, SensorWindow
 from ...domain.ports.storage_port import StoragePort
@@ -124,17 +125,31 @@ class SqlServerStorageAdapter(StoragePort):
 
     # --- Predicciones ---
 
-    def save_prediction(self, prediction: Prediction) -> int:
+    def save_prediction(
+        self,
+        prediction: Prediction,
+        *,
+        horizon_minutes_per_step: int = 10,
+    ) -> int:
         """Persiste una predicción en dbo.predictions.
 
         Crea el modelo en dbo.ml_models si no existe.
+        Stores engine_name and trend for full traceability.
+
+        Args:
+            prediction: Prediction domain entity.
+            horizon_minutes_per_step: Minutes per horizon step for
+                target_timestamp calculation.
+
+        Returns:
+            ID of the persisted prediction.
         """
-        _sensor_id = int(prediction.series_id)
+        _sensor_id = safe_series_id_to_int(prediction.series_id)
         model_id = self._get_or_create_model_id(_sensor_id, prediction.engine_name)
         device_id = self.get_device_id_for_sensor(_sensor_id)
 
         target_ts = datetime.now(timezone.utc) + timedelta(
-            minutes=prediction.horizon_steps * 10
+            minutes=prediction.horizon_steps * horizon_minutes_per_step
         )
 
         row = self._conn.execute(
@@ -143,13 +158,15 @@ class SqlServerStorageAdapter(StoragePort):
                 INSERT INTO dbo.predictions (
                   model_id, sensor_id, device_id,
                   predicted_value, confidence,
-                  predicted_at, target_timestamp
+                  predicted_at, target_timestamp,
+                  engine_name, trend
                 )
                 OUTPUT INSERTED.id
                 VALUES (
                   :model_id, :sensor_id, :device_id,
                   :predicted_value, :confidence,
-                  GETDATE(), :target_timestamp
+                  GETDATE(), :target_timestamp,
+                  :engine_name, :trend
                 )
                 """
             ),
@@ -160,6 +177,8 @@ class SqlServerStorageAdapter(StoragePort):
                 "predicted_value": prediction.predicted_value,
                 "confidence": prediction.confidence_score,
                 "target_timestamp": target_ts.replace(tzinfo=None),
+                "engine_name": prediction.engine_name,
+                "trend": prediction.trend,
             },
         ).fetchone()
 
@@ -168,12 +187,14 @@ class SqlServerStorageAdapter(StoragePort):
 
         prediction_id = int(row[0])
 
-        logger.debug(
+        logger.info(
             "storage_prediction_saved",
             extra={
                 "prediction_id": prediction_id,
                 "sensor_id": _sensor_id,
                 "engine": prediction.engine_name,
+                "trend": prediction.trend,
+                "confidence": prediction.confidence_score,
             },
         )
 
@@ -185,7 +206,8 @@ class SqlServerStorageAdapter(StoragePort):
             text(
                 """
                 SELECT TOP 1
-                  predicted_value, confidence
+                  predicted_value, confidence,
+                  engine_name, trend
                 FROM dbo.predictions
                 WHERE sensor_id = :sensor_id
                 ORDER BY predicted_at DESC
@@ -201,8 +223,8 @@ class SqlServerStorageAdapter(StoragePort):
             series_id=str(sensor_id),
             predicted_value=_safe_float(row[0]),
             confidence_score=_safe_float(row[1]),
-            trend="stable",
-            engine_name="unknown",
+            trend=str(row[2] or "stable"),
+            engine_name=str(row[3] or "unknown"),
         )
 
     # --- Anomalías ---
@@ -212,13 +234,24 @@ class SqlServerStorageAdapter(StoragePort):
         anomaly: AnomalyResult,
         prediction_id: Optional[int] = None,
     ) -> int:
-        """Persiste un evento de anomalía en dbo.ml_events."""
-        _sensor_id = int(anomaly.series_id)
+        """Persiste un evento de anomalía en dbo.ml_events.
+
+        Stores score, confidence, method_votes and audit_trace_id
+        for full traceability and reproducibility.
+        """
+        import json
+
+        _sensor_id = safe_series_id_to_int(anomaly.series_id)
         device_id = self.get_device_id_for_sensor(_sensor_id)
 
         event_type = "warning" if anomaly.is_anomaly else "info"
         if anomaly.severity.value == "critical":
             event_type = "critical"
+
+        # Serialize method_votes for storage
+        votes_json = json.dumps(
+            {k: round(v, 6) for k, v in anomaly.method_votes.items()}
+        ) if anomaly.method_votes else None
 
         row = self._conn.execute(
             text(
@@ -226,12 +259,16 @@ class SqlServerStorageAdapter(StoragePort):
                 INSERT INTO dbo.ml_events (
                   device_id, sensor_id, prediction_id,
                   event_type, event_code, title, message,
+                  anomaly_score, anomaly_confidence,
+                  method_votes, audit_trace_id,
                   status, created_at
                 )
                 OUTPUT INSERTED.id
                 VALUES (
                   :device_id, :sensor_id, :prediction_id,
                   :event_type, 'ANOMALY_DETECTED', :title, :message,
+                  :anomaly_score, :anomaly_confidence,
+                  :method_votes, :audit_trace_id,
                   'active', GETDATE()
                 )
                 """
@@ -243,13 +280,31 @@ class SqlServerStorageAdapter(StoragePort):
                 "event_type": event_type,
                 "title": f"Anomalía detectada: serie {anomaly.series_id}",
                 "message": anomaly.explanation,
+                "anomaly_score": round(anomaly.score, 6),
+                "anomaly_confidence": round(anomaly.confidence, 6),
+                "method_votes": votes_json,
+                "audit_trace_id": anomaly.audit_trace_id,
             },
         ).fetchone()
 
         if not row:
             raise RuntimeError("Failed to insert anomaly event")
 
-        return int(row[0])
+        event_id = int(row[0])
+
+        logger.info(
+            "storage_anomaly_event_saved",
+            extra={
+                "event_id": event_id,
+                "sensor_id": _sensor_id,
+                "event_type": event_type,
+                "score": anomaly.score,
+                "confidence": anomaly.confidence,
+                "audit_trace_id": anomaly.audit_trace_id,
+            },
+        )
+
+        return event_id
 
     # --- Metadata ---
 
@@ -293,7 +348,11 @@ class SqlServerStorageAdapter(StoragePort):
     # --- Helpers privados ---
 
     def _get_or_create_model_id(self, sensor_id: int, engine_name: str) -> int:
-        """Obtiene o crea un modelo activo para el sensor."""
+        """Obtiene o crea un modelo activo para el sensor.
+
+        Uses the actual engine_name when creating a new model record
+        instead of always defaulting to baseline.
+        """
         row = self._conn.execute(
             text(
                 """
@@ -308,8 +367,6 @@ class SqlServerStorageAdapter(StoragePort):
 
         if row:
             return int(row[0])
-
-        from iot_machine_learning.infrastructure.ml.engines.baseline_engine import BASELINE_MOVING_AVERAGE
 
         created = self._conn.execute(
             text(
@@ -327,13 +384,22 @@ class SqlServerStorageAdapter(StoragePort):
             ),
             {
                 "sensor_id": sensor_id,
-                "model_name": BASELINE_MOVING_AVERAGE.name,
-                "model_type": BASELINE_MOVING_AVERAGE.model_type,
-                "version": BASELINE_MOVING_AVERAGE.version,
+                "model_name": engine_name,
+                "model_type": "prediction",
+                "version": "1.0",
             },
         ).fetchone()
 
         if not created:
             raise RuntimeError("Failed to create ml_models row")
+
+        logger.info(
+            "storage_model_created",
+            extra={
+                "sensor_id": sensor_id,
+                "engine_name": engine_name,
+                "model_id": int(created[0]),
+            },
+        )
 
         return int(created[0])

@@ -100,7 +100,7 @@ class _MockAnomalyDetector(AnomalyDetectionPort):
     def name(self) -> str:
         return "mock_detector"
 
-    def train(self, historical_values: List[float]) -> None:
+    def train(self, historical_values: List[float], timestamps=None) -> None:
         self._trained = True
 
     def detect(self, window: SensorWindow) -> AnomalyResult:

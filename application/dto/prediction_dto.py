@@ -37,6 +37,7 @@ class PredictionDTO:
     feature_contributions: Dict[str, float] = field(default_factory=dict)
     explanation_text: str = ""
     audit_trace_id: Optional[str] = None
+    memory_context: Optional[Dict[str, object]] = None
 
     def to_dict(self) -> Dict[str, object]:
         """Serializa a dict para respuestas API."""
@@ -57,6 +58,8 @@ class PredictionDTO:
             result["feature_contributions"] = self.feature_contributions
         if self.explanation_text:
             result["explanation"] = self.explanation_text
+        if self.memory_context:
+            result["memory_context"] = self.memory_context
         return result
 
 

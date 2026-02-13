@@ -42,11 +42,19 @@ class RegimeDetector(RegimeDetectionPort):
         _trained: ``True`` si el detector fue entrenado.
     """
 
-    def __init__(self, n_regimes: int = 3) -> None:
+    def __init__(
+        self,
+        n_regimes: int = 3,
+        *,
+        random_state: int = 42,
+        n_init: int = 10,
+    ) -> None:
         if n_regimes < 2:
             raise ValueError(f"n_regimes debe ser >= 2, recibido {n_regimes}")
 
         self._n_regimes = n_regimes
+        self._random_state = random_state
+        self._n_init = n_init
         self._regimes: List[OperationalRegime] = []
         self._trained: bool = False
 
@@ -78,8 +86,8 @@ class RegimeDetector(RegimeDetectionPort):
 
         kmeans = KMeans(
             n_clusters=self._n_regimes,
-            random_state=42,
-            n_init=10,
+            random_state=self._random_state,
+            n_init=self._n_init,
         )
         labels = kmeans.fit_predict(X)
 

@@ -69,6 +69,10 @@ class PatternDomainService:
     def detect_pattern(self, window: SensorWindow) -> PatternResult:
         """Detecta el patrón de comportamiento actual.
 
+        Enriquece el resultado con ``structural_analysis`` en metadata
+        para que consumidores downstream tengan acceso al análisis
+        estructural sin recomputar.
+
         Args:
             window: Ventana temporal del sensor.
 
@@ -77,26 +81,55 @@ class PatternDomainService:
             configurado, retorna ``STABLE`` con confianza 0.
         """
         if self._pattern_detector is None:
-            return PatternResult(
-                series_id=str(window.sensor_id),
-                pattern_type=PatternType.STABLE,
-                confidence=0.0,
-                description="Sin detector de patrones configurado",
+            return self._enrich_with_structural(
+                PatternResult(
+                    series_id=str(window.sensor_id),
+                    pattern_type=PatternType.STABLE,
+                    confidence=0.0,
+                    description="Sin detector de patrones configurado",
+                ),
+                window,
             )
 
         try:
-            return self._pattern_detector.detect_pattern(window)
+            result = self._pattern_detector.detect_pattern(window)
+            return self._enrich_with_structural(result, window)
         except Exception as exc:
             logger.warning(
                 "pattern_detection_failed",
                 extra={"series_id": str(window.sensor_id), "error": str(exc)},
             )
-            return PatternResult(
-                series_id=str(window.sensor_id),
-                pattern_type=PatternType.STABLE,
-                confidence=0.0,
-                description=f"Error en detección: {exc}",
+            return self._enrich_with_structural(
+                PatternResult(
+                    series_id=str(window.sensor_id),
+                    pattern_type=PatternType.STABLE,
+                    confidence=0.0,
+                    description=f"Error en detección: {exc}",
+                ),
+                window,
             )
+
+    @staticmethod
+    def _enrich_with_structural(
+        result: PatternResult,
+        window: SensorWindow,
+    ) -> PatternResult:
+        """Enriquece PatternResult con structural_analysis en metadata."""
+        if window.is_empty or window.size < 2:
+            return result
+
+        try:
+            sa = window.structural_analysis
+            enriched_meta = {**result.metadata, "structural_analysis": sa.to_dict()}
+            return PatternResult(
+                series_id=result.series_id,
+                pattern_type=result.pattern_type,
+                confidence=result.confidence,
+                description=result.description,
+                metadata=enriched_meta,
+            )
+        except Exception:
+            return result
 
     def detect_change_points(
         self, values: List[float]

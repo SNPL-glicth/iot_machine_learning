@@ -18,11 +18,27 @@ class RegressionConfig:
 
 @dataclass(frozen=True)
 class AnomalyConfig:
-    """Configuración de Isolation Forest por sensor."""
+    """Configuración de detección de anomalías (IF, LOF, Z-score, IQR)."""
 
     contamination: float = 0.05
     n_estimators: int = 100
     random_state: int = 42
+
+    # LOF
+    lof_max_neighbors: int = 20
+
+    # Minimum training points for VotingAnomalyDetector
+    min_training_points: int = 50
+
+    # Z-score vote thresholds (z > upper → 1.0, lower < z <= upper → linear)
+    z_vote_lower: float = 2.0
+    z_vote_upper: float = 3.0
+
+    # Severity score cutoffs: [none, low, medium, high, critical]
+    severity_none_max: float = 0.3
+    severity_low_max: float = 0.5
+    severity_medium_max: float = 0.7
+    severity_high_max: float = 0.9
 
 
 @dataclass(frozen=True)
@@ -71,6 +87,9 @@ class EngineConfig:
     # Taylor
     taylor_order: int = 2
     taylor_horizon: int = 1
+    taylor_trend_threshold: float = 0.01
+    taylor_min_confidence: float = 0.3
+    taylor_max_confidence: float = 0.95
 
     # Kalman
     kalman_Q: float = 1e-5

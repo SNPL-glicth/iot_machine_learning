@@ -13,8 +13,10 @@ from typing import Dict, List, Optional
 from iot_machine_learning.infrastructure.ml.interfaces import SignalFilter
 
 from .kalman_math import (
+    DEFAULT_INNOVATION_WINDOW,
     KalmanState,
     WarmupBuffer,
+    adaptive_kalman_update,
     initialize_state,
     kalman_update,
 )
@@ -30,14 +32,26 @@ class KalmanSignalFilter(SignalFilter):
     2. **Filtering**: aplica Kalman update y retorna x_hat filtrado.
     """
 
-    def __init__(self, Q: float = 1e-5, warmup_size: int = 10) -> None:
+    def __init__(
+        self,
+        Q: float = 1e-5,
+        warmup_size: int = 10,
+        adaptive_Q: bool = False,
+        innovation_window: int = DEFAULT_INNOVATION_WINDOW,
+    ) -> None:
         if Q <= 0:
             raise ValueError(f"Q debe ser > 0, recibido {Q}")
         if warmup_size < 2:
             raise ValueError(f"warmup_size debe ser >= 2, recibido {warmup_size}")
+        if innovation_window < 3:
+            raise ValueError(
+                f"innovation_window debe ser >= 3, recibido {innovation_window}"
+            )
 
         self._Q: float = Q
         self._warmup_size: int = warmup_size
+        self._adaptive_Q: bool = adaptive_Q
+        self._innovation_window: int = innovation_window
         self._states: Dict[str, KalmanState] = {}
         self._warmup_buffers: Dict[str, WarmupBuffer] = {}
         self._lock: threading.Lock = threading.Lock()
@@ -49,15 +63,20 @@ class KalmanSignalFilter(SignalFilter):
             if state is None or not state.initialized:
                 return self._handle_warmup(series_id, value)
 
-            filtered = kalman_update(state, value)
+            if self._adaptive_Q:
+                filtered = adaptive_kalman_update(state, value)
+            else:
+                filtered = kalman_update(state, value)
             logger.debug(
                 "kalman_update",
                 extra={
                     "series_id": series_id,
                     "phase": "filtering",
+                    "adaptive_Q": self._adaptive_Q,
                     "measurement": value,
                     "x_hat": state.x_hat,
                     "P": state.P,
+                    "Q": state.Q,
                 },
             )
             return filtered
@@ -74,6 +93,8 @@ class KalmanSignalFilter(SignalFilter):
         warmup_vals: List[float] = []
         state: Optional[KalmanState] = None
 
+        update_fn = adaptive_kalman_update if self._adaptive_Q else kalman_update
+
         for v in values:
             if state is None or not state.initialized:
                 warmup_vals.append(v)
@@ -81,8 +102,10 @@ class KalmanSignalFilter(SignalFilter):
 
                 if len(warmup_vals) >= self._warmup_size:
                     state = initialize_state(warmup_vals, self._Q)
+                    if self._adaptive_Q:
+                        state._innovation_window_size = self._innovation_window
             else:
-                filtered = kalman_update(state, v)
+                filtered = update_fn(state, v)
                 result.append(filtered)
 
         return result
@@ -130,6 +153,8 @@ class KalmanSignalFilter(SignalFilter):
 
         if buf.is_ready:
             state = initialize_state(buf.values, self._Q)
+            if self._adaptive_Q:
+                state._innovation_window_size = self._innovation_window
             self._states[series_id] = state
             del self._warmup_buffers[series_id]
 
@@ -141,6 +166,7 @@ class KalmanSignalFilter(SignalFilter):
                     "P": state.P,
                     "R": state.R,
                     "Q": state.Q,
+                    "adaptive_Q": self._adaptive_Q,
                 },
             )
 

@@ -144,6 +144,13 @@ class FeatureFlags(BaseModel):
     ML_ANOMALY_VOTING_THRESHOLD: float = 0.5
     ML_ANOMALY_CONTAMINATION: float = 0.1
 
+    # --- Cognitive Memory (Weaviate) ---
+    ML_ENABLE_COGNITIVE_MEMORY: bool = False
+    ML_COGNITIVE_MEMORY_DRY_RUN: bool = True
+    ML_COGNITIVE_MEMORY_ASYNC: bool = True
+    ML_COGNITIVE_MEMORY_URL: str = ""
+    ML_ENABLE_MEMORY_RECALL: bool = False
+
     @field_validator("ML_TAYLOR_ORDER")
     @classmethod
     def _clamp_taylor_order(cls, v: int) -> int:
@@ -178,11 +185,11 @@ class FeatureFlags(BaseModel):
             return True
 
         allowed = _parse_int_set(self.ML_TAYLOR_SENSOR_WHITELIST)
-        # Soporta tanto IDs numéricos como alfanuméricos
-        try:
-            return int(series_id) in allowed
-        except ValueError:
+        from iot_machine_learning.domain.validators.input_guard import safe_series_id_to_int
+        sid = safe_series_id_to_int(series_id, fallback=-1)
+        if sid == -1:
             return False
+        return sid in allowed
 
     def is_sensor_in_whitelist(self, sensor_id: int) -> bool:
         """Legacy: verifica si un sensor está en la whitelist."""
@@ -212,12 +219,10 @@ class FeatureFlags(BaseModel):
             return self.ML_ENGINE_SERIES_OVERRIDES[series_id]
 
         # Legacy int overrides
-        try:
-            sid = int(series_id)
-            if sid in self.ML_ENGINE_OVERRIDES:
-                return self.ML_ENGINE_OVERRIDES[sid]
-        except ValueError:
-            pass
+        from iot_machine_learning.domain.validators.input_guard import safe_series_id_to_int
+        sid = safe_series_id_to_int(series_id, fallback=-1)
+        if sid != -1 and sid in self.ML_ENGINE_OVERRIDES:
+            return self.ML_ENGINE_OVERRIDES[sid]
 
         if self.ML_USE_TAYLOR_PREDICTOR and self.is_series_in_whitelist(series_id):
             return "taylor"
@@ -255,6 +260,10 @@ class FeatureFlags(BaseModel):
             "ML_USE_TAYLOR_PREDICTOR",
             "ML_USE_KALMAN_FILTER",
             "ML_ENABLE_AB_TESTING",
+            "ML_ENABLE_COGNITIVE_MEMORY",
+            "ML_COGNITIVE_MEMORY_DRY_RUN",
+            "ML_COGNITIVE_MEMORY_ASYNC",
+            "ML_ENABLE_MEMORY_RECALL",
         ):
             env_val = os.environ.get(key)
             if env_val is not None:
@@ -285,7 +294,7 @@ class FeatureFlags(BaseModel):
                     )
 
         # Strings
-        for key in ("ML_TAYLOR_SENSOR_WHITELIST", "ML_DEFAULT_ENGINE"):
+        for key in ("ML_TAYLOR_SENSOR_WHITELIST", "ML_DEFAULT_ENGINE", "ML_COGNITIVE_MEMORY_URL"):
             env_val = os.environ.get(key)
             if env_val is not None:
                 kwargs[key] = env_val.strip()
@@ -301,6 +310,8 @@ class FeatureFlags(BaseModel):
                 "kalman": flags.ML_USE_KALMAN_FILTER,
                 "ab_testing": flags.ML_ENABLE_AB_TESTING,
                 "default_engine": flags.ML_DEFAULT_ENGINE,
+                "cognitive_memory": flags.ML_ENABLE_COGNITIVE_MEMORY,
+                "cognitive_memory_dry_run": flags.ML_COGNITIVE_MEMORY_DRY_RUN,
             },
         )
 

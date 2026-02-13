@@ -12,6 +12,7 @@ No contiene I/O (no lee BD, no persiste).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -38,6 +39,9 @@ def compute_risk_level(
 ) -> str:
     """Clasifica nivel de riesgo físico basado en rangos del sensor.
 
+    .. deprecated::
+        Usar ``compute_risk_level_from_threshold`` con ``Threshold`` agnóstico.
+
     Regla de dominio pura — sin I/O.
 
     Args:
@@ -47,6 +51,12 @@ def compute_risk_level(
     Returns:
         ``'LOW'`` | ``'MEDIUM'`` | ``'HIGH'`` | ``'NONE'``
     """
+    warnings.warn(
+        "compute_risk_level(sensor_type) is deprecated. "
+        "Use compute_risk_level_from_threshold(value, threshold) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     rng = get_default_range(sensor_type)
     if rng is None:
         return "NONE"
@@ -172,6 +182,9 @@ def classify_severity(
 ) -> SeverityResult:
     """Clasificación completa de severidad — función de dominio pura.
 
+    .. deprecated::
+        Usar ``classify_severity_agnostic`` con ``Threshold`` agnóstico.
+
     Combina riesgo físico, anomalía estadística y rangos del usuario.
 
     Args:
@@ -184,6 +197,12 @@ def classify_severity(
     Returns:
         ``SeverityResult`` con risk_level, severity, action_required, recommended_action.
     """
+    warnings.warn(
+        "classify_severity(sensor_type) is deprecated. "
+        "Use classify_severity_agnostic(value, threshold=...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     risk_level = compute_risk_level(sensor_type, predicted_value)
 
     # Rango efectivo: usuario > default

@@ -13,6 +13,7 @@ from typing import List, Optional, Union
 
 from ..entities.prediction import Prediction
 from ..entities.sensor_reading import SensorWindow
+from ..validators.input_guard import safe_series_id_to_int
 from ..entities.time_series import TimeSeries
 
 
@@ -64,14 +65,14 @@ class PredictionPort(ABC):
 
         readings = [
             SensorReading(
-                sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+                sensor_id=safe_series_id_to_int(series.series_id),
                 value=p.v,
                 timestamp=p.t,
             )
             for p in series.points
         ]
         sw = SensorWindow(
-            sensor_id=int(series.series_id) if series.series_id.isdigit() else 0,
+            sensor_id=safe_series_id_to_int(series.series_id),
             readings=readings,
         )
         return self.predict(sw)

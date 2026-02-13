@@ -1,25 +1,20 @@
 """Ensemble de detectores de anomalías con voting ponderado.
 
-REFACTORIZADO: Delega cálculos a statistical_methods.py y texto a anomaly_narrator.py.
+Compone sub-detectores individuales (cada uno = una responsabilidad)
+y una VotingStrategy desacoplada para combinar votos.
 
-Antes (God Object — 5 responsabilidades):
-  - Cálculos Z-score, IQR, varianza (Modeling)
-  - Entrenamiento sklearn IF/LOF (Infra)
-  - Voting ponderado (Decisión)
-  - Orquestación de 4 métodos (Orchestration)
-  - Generación de texto explicativo (Narrative)
-
-Ahora (Orchestrator — 2 responsabilidades):
-  - Orquesta sub-detectores (sklearn + estadísticos)
-  - Delega math a statistical_methods.py (funciones puras)
-  - Delega texto a anomaly_narrator.py (narrativa pura)
-
-Módulos extraídos:
-  - statistical_methods.py (Modeling puro — compute_z_score, weighted_vote, etc.)
-  - anomaly_narrator.py (Narrative puro — build_anomaly_explanation)
+Arquitectura:
+  SubDetector[] → votos individuales [0, 1]
+  VotingStrategy → score final + decisión anomalía
+  AnomalyNarrator → explicación legible
 
 ISO 27001: Cada voto individual se registra en el resultado para
 trazabilidad completa de la decisión.
+
+.. versionchanged:: 2.0
+    ``VotingAnomalyDetector`` now accepts optional ``sub_detectors``
+    via constructor for dependency injection (MOD-2, ROB-2).
+    ``create_default_detectors()`` extracts the default ensemble.
 """
 
 from __future__ import annotations
@@ -31,39 +26,90 @@ from ....domain.entities.anomaly import AnomalyResult, AnomalySeverity
 from ....domain.entities.sensor_reading import SensorWindow
 from ....domain.ports.anomaly_detection_port import AnomalyDetectionPort
 
+from .anomaly_config import AnomalyDetectorConfig
 from .anomaly_narrator import build_anomaly_explanation
-from .statistical_methods import (
-    TrainingStats,
-    compute_consensus_confidence,
-    compute_iqr_vote,
-    compute_training_stats,
-    compute_z_score,
-    compute_z_vote,
-    weighted_vote,
+from .detector_protocol import SubDetector
+from .detectors import (
+    AccelerationZDetector,
+    IQRDetector,
+    IsolationForestDetector,
+    LOFDetector,
+    VelocityZDetector,
+    ZScoreDetector,
 )
+from .detectors.isolation_forest_detector import IsolationForestNDDetector
+from .detectors.lof_detector import LOFNDDetector
+from .scoring_functions import compute_z_score
+from .temporal_stats import TemporalTrainingStats
+from .training_stats import TrainingStats
+from .voting_strategy import VotingStrategy
 
 logger = logging.getLogger(__name__)
 
-# Pesos por defecto para cada método
-_DEFAULT_WEIGHTS: Dict[str, float] = {
-    "isolation_forest": 0.40,
-    "z_score": 0.25,
-    "iqr": 0.15,
-    "local_outlier_factor": 0.20,
-}
+
+def create_default_detectors(
+    config: AnomalyDetectorConfig,
+) -> List[SubDetector]:
+    """Create the default ensemble of 8 sub-detectors.
+
+    This factory function extracts the hardcoded detector list so it can
+    be reused, overridden, or extended.  Pass the result to
+    ``VotingAnomalyDetector(sub_detectors=...)`` to customize.
+
+    Args:
+        config: Anomaly detector configuration.
+
+    Returns:
+        List of 8 default sub-detectors.
+    """
+    return [
+        ZScoreDetector(
+            lower=config.z_vote_lower,
+            upper=config.z_vote_upper,
+        ),
+        IQRDetector(),
+        IsolationForestDetector(
+            contamination=config.contamination,
+            n_estimators=config.n_estimators,
+            random_state=config.random_state,
+        ),
+        LOFDetector(
+            contamination=config.contamination,
+            max_neighbors=config.lof_max_neighbors,
+        ),
+        VelocityZDetector(
+            lower=config.z_vote_lower,
+            upper=config.z_vote_upper,
+        ),
+        AccelerationZDetector(
+            lower=config.z_vote_lower,
+            upper=config.z_vote_upper,
+        ),
+        IsolationForestNDDetector(
+            contamination=config.contamination,
+            n_estimators=config.n_estimators,
+            random_state=config.random_state,
+            min_training_points=config.min_training_points,
+        ),
+        LOFNDDetector(
+            contamination=config.contamination,
+            max_neighbors=config.lof_max_neighbors,
+            min_training_points=config.min_training_points,
+        ),
+    ]
 
 
 class VotingAnomalyDetector(AnomalyDetectionPort):
     """Ensemble de detectores de anomalías con voting.
 
+    Compone sub-detectores individuales y delega la decisión
+    a una VotingStrategy desacoplada.
+
     Attributes:
-        _contamination: Fracción esperada de anomalías (para IF y LOF).
-        _voting_threshold: Score > threshold → anomalía.
-        _weights: Pesos por método.
-        _trained: ``True`` si fue entrenado.
-        _stats: Estadísticas de entrenamiento (TrainingStats).
-        _if_model: IsolationForest entrenado (o None).
-        _lof_model: LocalOutlierFactor entrenado (o None).
+        _config: Configuración centralizada.
+        _sub_detectors: Lista de sub-detectores individuales.
+        _strategy: Estrategia de voting.
+        _trained_flag: ``True`` si fue entrenado.
     """
 
     def __init__(
@@ -71,78 +117,109 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         contamination: float = 0.1,
         voting_threshold: float = 0.5,
         weights: Optional[Dict[str, float]] = None,
+        *,
+        n_estimators: int = 100,
+        random_state: int = 42,
+        lof_max_neighbors: int = 20,
+        min_training_points: int = 50,
+        config: Optional[AnomalyDetectorConfig] = None,
+        sub_detectors: Optional[List[SubDetector]] = None,
     ) -> None:
-        if not 0.0 < contamination < 0.5:
-            raise ValueError(
-                f"contamination debe estar en (0, 0.5), recibido {contamination}"
-            )
-        if not 0.0 < voting_threshold < 1.0:
-            raise ValueError(
-                f"voting_threshold debe estar en (0, 1), recibido {voting_threshold}"
+        if config is not None:
+            self._config = config
+        else:
+            self._config = AnomalyDetectorConfig(
+                contamination=contamination,
+                voting_threshold=voting_threshold,
+                min_training_points=min_training_points,
+                n_estimators=n_estimators,
+                random_state=random_state,
+                lof_max_neighbors=lof_max_neighbors,
+                weights=weights or AnomalyDetectorConfig().weights,
             )
 
-        self._contamination = contamination
-        self._voting_threshold = voting_threshold
-        self._weights = weights or dict(_DEFAULT_WEIGHTS)
+        if sub_detectors is not None:
+            self._sub_detectors: List[SubDetector] = list(sub_detectors)
+        else:
+            self._sub_detectors = create_default_detectors(self._config)
+
+        self._strategy = VotingStrategy(
+            weights=self._config.weights,
+            threshold=self._config.voting_threshold,
+        )
+
         self._trained_flag: bool = False
 
-        # Estadísticas (delegadas a statistical_methods)
+        # Backward-compatible attributes for tests that inspect internals
         self._stats: TrainingStats = TrainingStats(
             mean=0.0, std=1e-9, q1=0.0, q3=0.0, iqr=0.0
         )
-
-        # Modelos sklearn (lazy init)
-        self._if_model: object = None
-        self._lof_model: object = None
+        self._temporal_stats: TemporalTrainingStats = TemporalTrainingStats.empty()
 
     @property
     def name(self) -> str:
         return "voting_anomaly_detector"
 
-    def train(self, historical_values: List[float]) -> None:
+    def train(
+        self,
+        historical_values: List[float],
+        timestamps: Optional[List[float]] = None,
+    ) -> None:
         """Entrena todos los sub-detectores con datos históricos.
 
         Args:
-            historical_values: Serie temporal de entrenamiento (>= 50 puntos).
+            historical_values: Serie temporal de entrenamiento.
+            timestamps: Timestamps correspondientes (opcional).
 
         Raises:
             ValueError: Si no hay suficientes datos.
         """
-        if len(historical_values) < 50:
+        if len(historical_values) < self._config.min_training_points:
             raise ValueError(
-                f"Se requieren >= 50 puntos para entrenar, "
+                f"Se requieren >= {self._config.min_training_points} puntos para entrenar, "
                 f"recibidos {len(historical_values)}"
             )
 
-        n = len(historical_values)
+        kwargs: dict = {}
+        if timestamps is not None and len(timestamps) == len(historical_values):
+            kwargs["timestamps"] = timestamps
 
-        # --- Estadísticas (delegado a statistical_methods) ---
-        self._stats = compute_training_stats(historical_values)
-
-        # --- IsolationForest (infra: sklearn) ---
-        self._if_model = self._train_isolation_forest(historical_values, n)
-
-        # --- LocalOutlierFactor (infra: sklearn) ---
-        self._lof_model = self._train_lof(historical_values, n)
+        for detector in self._sub_detectors:
+            try:
+                detector.train(historical_values, **kwargs)
+            except Exception as exc:
+                logger.warning(
+                    "sub_detector_training_failed",
+                    extra={"detector": detector.method_name, "error": str(exc)},
+                )
 
         self._trained_flag = True
+
+        # Update backward-compatible stats attributes
+        from .training_stats import compute_training_stats
+        from .temporal_stats import compute_temporal_training_stats
+
+        self._stats = compute_training_stats(historical_values)
+        if "timestamps" in kwargs:
+            self._temporal_stats = compute_temporal_training_stats(
+                historical_values, kwargs["timestamps"]
+            )
+        else:
+            self._temporal_stats = TemporalTrainingStats.empty()
 
         logger.info(
             "voting_detector_trained",
             extra={
-                "n_points": n,
+                "n_points": len(historical_values),
                 "mean": round(self._stats.mean, 4),
                 "std": round(self._stats.std, 4),
-                "q1": round(self._stats.q1, 4),
-                "q3": round(self._stats.q3, 4),
-                "iqr": round(self._stats.iqr, 4),
-                "if_available": self._if_model is not None,
-                "lof_available": self._lof_model is not None,
+                "temporal_trained": self._temporal_stats.has_temporal,
+                "n_sub_detectors": len(self._sub_detectors),
             },
         )
 
     def detect(self, window: SensorWindow) -> AnomalyResult:
-        """Detecta anomalías usando voting ponderado.
+        """Detecta anomalías usando voting ponderado de sub-detectores.
 
         Args:
             window: Ventana temporal del sensor.
@@ -157,39 +234,39 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
             return AnomalyResult.normal(series_id=str(window.sensor_id))
 
         value = window.last_value
+
+        # Build context for sub-detectors
+        vote_kwargs = self._build_vote_context(window)
+
+        # Collect votes from all sub-detectors
         votes: Dict[str, float] = {}
+        for detector in self._sub_detectors:
+            if not detector.is_trained:
+                continue
+            try:
+                v = detector.vote(value, **vote_kwargs)
+                if v is not None:
+                    votes[detector.method_name] = v
+            except Exception as exc:
+                logger.debug(
+                    "sub_detector_vote_failed",
+                    extra={"detector": detector.method_name, "error": str(exc)},
+                )
 
-        # --- 1. Z-score (delegado a statistical_methods) ---
-        z = compute_z_score(value, self._stats.mean, self._stats.std)
-        votes["z_score"] = compute_z_vote(z)
-
-        # --- 2. IQR (delegado a statistical_methods) ---
-        votes["iqr"] = compute_iqr_vote(
-            value, self._stats.q1, self._stats.q3, self._stats.iqr
-        )
-
-        # --- 3. IsolationForest (infra: sklearn) ---
-        if_vote = self._score_isolation_forest(value)
-        if if_vote is not None:
-            votes["isolation_forest"] = if_vote
-
-        # --- 4. LocalOutlierFactor (infra: sklearn) ---
-        lof_vote = self._score_lof(value)
-        if lof_vote is not None:
-            votes["local_outlier_factor"] = lof_vote
-
-        # --- Voting ponderado (delegado a statistical_methods) ---
-        final_score = weighted_vote(votes, self._weights)
-        is_anomaly = final_score > self._voting_threshold
-
-        # Confianza (delegado a statistical_methods)
-        confidence = compute_consensus_confidence(votes)
-
-        # Severidad
+        # Combine votes via strategy
+        final_score = self._strategy.combine(votes)
+        is_anomaly = self._strategy.is_anomaly(final_score)
+        confidence = self._strategy.confidence(votes)
         severity = AnomalySeverity.from_score(final_score)
 
-        # Explicación (delegado a anomaly_narrator)
-        explanation = build_anomaly_explanation(votes, z_score=z)
+        # Compute z-scores for narrator
+        z = compute_z_score(value, self._stats.mean, self._stats.std)
+        vel_z = self._extract_vel_z(window)
+        acc_z = self._extract_acc_z(window)
+
+        explanation = build_anomaly_explanation(
+            votes, z_score=z, vel_z_score=vel_z, acc_z_score=acc_z,
+        )
 
         logger.debug(
             "voting_detection",
@@ -199,6 +276,7 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
                 "votes": {k: round(v, 3) for k, v in votes.items()},
                 "final_score": round(final_score, 3),
                 "is_anomaly": is_anomaly,
+                "temporal_active": self._temporal_stats.has_temporal,
             },
         )
 
@@ -215,71 +293,59 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
     def is_trained(self) -> bool:
         return self._trained_flag
 
-    # --- Métodos privados: sklearn wrappers ---
+    # --- Private helpers ---
 
-    def _train_isolation_forest(
-        self, values: List[float], n: int
-    ) -> object:
-        """Entrena IsolationForest. Retorna modelo o None."""
-        try:
-            from sklearn.ensemble import IsolationForest
-            import numpy as np
+    def _build_vote_context(self, window: SensorWindow) -> dict:
+        """Builds kwargs context for sub-detector vote() calls."""
+        ctx: dict = {}
 
-            X = np.array(values).reshape(-1, 1)
-            model = IsolationForest(
-                contamination=self._contamination,
-                random_state=42,
-                n_estimators=100,
-            )
-            model.fit(X)
-            logger.debug("voting_if_trained", extra={"n_points": n})
-            return model
-        except ImportError:
-            logger.warning("sklearn_not_available_if_disabled")
-            return None
+        if self._temporal_stats.has_temporal and window.size >= 2:
+            try:
+                ctx["temporal_features"] = window.temporal_features
+            except Exception:
+                pass
 
-    def _train_lof(self, values: List[float], n: int) -> object:
-        """Entrena LocalOutlierFactor. Retorna modelo o None."""
-        try:
-            from sklearn.neighbors import LocalOutlierFactor
-            import numpy as np
+        if self._temporal_stats.has_temporal and window.size >= 3:
+            try:
+                import numpy as np
+                tf = window.temporal_features
+                if tf.has_velocity and tf.has_acceleration:
+                    ctx["nd_features"] = np.array([[
+                        window.last_value,
+                        tf.last_velocity,
+                        tf.last_acceleration,
+                    ]])
+            except Exception:
+                pass
 
-            X = np.array(values).reshape(-1, 1)
-            model = LocalOutlierFactor(
-                n_neighbors=min(20, n // 3),
-                contamination=self._contamination,
-                novelty=True,
-            )
-            model.fit(X)
-            logger.debug("voting_lof_trained", extra={"n_points": n})
-            return model
-        except (ImportError, Exception) as exc:
-            logger.warning(
-                "lof_training_failed",
-                extra={"error": str(exc)},
-            )
-            return None
+        return ctx
 
-    def _score_isolation_forest(self, value: float) -> Optional[float]:
-        """Score de IsolationForest para un valor. None si no disponible."""
-        if self._if_model is None:
-            return None
-        try:
-            import numpy as np
-            X = np.array([[value]])
-            if_score = self._if_model.decision_function(X)[0]
-            return 1.0 if if_score < 0 else 0.0
-        except Exception:
+    def _extract_vel_z(self, window: SensorWindow) -> float:
+        if not self._temporal_stats.has_temporal or window.size < 2:
             return 0.0
-
-    def _score_lof(self, value: float) -> Optional[float]:
-        """Score de LOF para un valor. None si no disponible."""
-        if self._lof_model is None:
-            return None
         try:
-            import numpy as np
-            X = np.array([[value]])
-            lof_score = self._lof_model.decision_function(X)[0]
-            return max(0.0, min(1.0, (-lof_score - 1.0) / 2.0))
+            tf = window.temporal_features
+            if tf.has_velocity:
+                return compute_z_score(
+                    tf.last_velocity,
+                    self._temporal_stats.vel_mean,
+                    self._temporal_stats.vel_std,
+                )
         except Exception:
+            pass
+        return 0.0
+
+    def _extract_acc_z(self, window: SensorWindow) -> float:
+        if not self._temporal_stats.has_temporal or window.size < 3:
             return 0.0
+        try:
+            tf = window.temporal_features
+            if tf.has_acceleration:
+                return compute_z_score(
+                    tf.last_acceleration,
+                    self._temporal_stats.acc_mean,
+                    self._temporal_stats.acc_std,
+                )
+        except Exception:
+            pass
+        return 0.0

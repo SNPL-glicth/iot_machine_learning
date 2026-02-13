@@ -1,6 +1,12 @@
-"""Motor de predicción Taylor — orquesta cálculos de taylor_math.py.
+"""Taylor prediction engine — orchestrator.
 
-Agnóstico al dominio. Opera sobre List[float] + timestamps.
+Delegates all math to the ``taylor/`` package and focuses on:
+1. Input validation
+2. Order negotiation
+3. Clamping raw predictions to observed range
+4. Trend classification from first derivative
+5. Confidence estimation from stability indicator
+6. Assembling metadata with TaylorDiagnostic
 """
 
 from __future__ import annotations
@@ -9,22 +15,24 @@ import logging
 from typing import List, Optional
 
 from iot_machine_learning.domain.validators.numeric import (
-    ValidationError,
     clamp_prediction,
     validate_window,
 )
-from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
+from iot_machine_learning.infrastructure.ml.interfaces import (
+    PredictionEngine,
+    PredictionResult,
+)
 
-from .taylor_math import (
-    compute_accel_variance,
+from .taylor import (
+    DerivativeMethod,
+    compute_diagnostic,
     compute_dt,
-    compute_finite_differences,
-    taylor_expand,
+    estimate_derivatives,
+    project,
 )
 
 logger = logging.getLogger(__name__)
 
-# Constantes de configuración
 _TREND_THRESHOLD: float = 0.01
 _MIN_CONFIDENCE: float = 0.3
 _MAX_CONFIDENCE: float = 0.95
@@ -32,23 +40,32 @@ _CLAMP_MARGIN_PCT: float = 0.3
 
 
 class TaylorPredictionEngine(PredictionEngine):
-    """Motor de predicción basado en Series de Taylor.
+    """Taylor-series prediction engine.
 
-    Calcula derivadas numéricas (velocidad, aceleración, jerk) y usa la
-    expansión de Taylor para extrapolar el siguiente valor.
-
-    Attributes:
-        _order: Orden máximo de Taylor (1–3).
-        _horizon: Pasos adelante a predecir (en unidades de Δt).
+    See ``taylor/`` package for mathematical specification.
+    Configurable derivative method: backward, central, least_squares.
     """
 
-    def __init__(self, order: int = 2, horizon: int = 1) -> None:
+    def __init__(
+        self,
+        order: int = 2,
+        horizon: int = 1,
+        *,
+        derivative_method: DerivativeMethod = DerivativeMethod.BACKWARD,
+        trend_threshold: float = _TREND_THRESHOLD,
+        min_confidence: float = _MIN_CONFIDENCE,
+        max_confidence: float = _MAX_CONFIDENCE,
+        clamp_margin_pct: float = _CLAMP_MARGIN_PCT,
+    ) -> None:
         if horizon < 1:
             raise ValueError(f"horizon debe ser >= 1, recibido {horizon}")
-
-        self._order: int = max(1, min(order, 3))
-        self._horizon: int = horizon
-
+        self._order = max(1, min(order, 3))
+        self._horizon = horizon
+        self._method = derivative_method
+        self._trend_threshold = trend_threshold
+        self._min_confidence = min_confidence
+        self._max_confidence = max_confidence
+        self._clamp_margin_pct = clamp_margin_pct
         if order != self._order:
             logger.warning(
                 "taylor_order_clamped",
@@ -68,108 +85,87 @@ class TaylorPredictionEngine(PredictionEngine):
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
         validate_window(values, min_size=1)
-
         n = len(values)
         dt = compute_dt(timestamps)
 
         if not self.can_handle(n):
-            return self._fallback_prediction(values)
+            return self._fallback(values)
 
-        effective_order = self._order
-        while effective_order > 0 and n < effective_order + 1:
-            effective_order -= 1
+        coeffs = estimate_derivatives(values, dt, self._order, self._method)
+        if coeffs.estimated_order == 0:
+            return self._fallback(values)
 
-        if effective_order == 0:
-            return self._fallback_prediction(values)
-
-        derivs = compute_finite_differences(values, dt, effective_order)
         h = float(self._horizon) * dt
-        predicted_raw = taylor_expand(derivs, h, effective_order)
+        predicted_raw = project(coeffs, h, coeffs.estimated_order)
+        predicted, clamped = clamp_prediction(
+            predicted_raw, values, margin_pct=self._clamp_margin_pct,
+        )
+        trend = self._classify_trend(coeffs.local_slope)
+        diag = compute_diagnostic(coeffs, values, dt)
+        confidence = self._confidence_from_stability(diag.stability_indicator)
 
-        predicted, was_clamped = clamp_prediction(
-            predicted_raw, values, margin_pct=_CLAMP_MARGIN_PCT
+        from iot_machine_learning.domain.entities.structural_analysis import (
+            StructuralAnalysis,
         )
 
-        f_prime = derivs["f_prime"]
-        if f_prime > _TREND_THRESHOLD:
-            trend = "up"
-        elif f_prime < -_TREND_THRESHOLD:
-            trend = "down"
-        else:
-            trend = "stable"
-
-        confidence = self._compute_confidence(values, dt, derivs["f_t"])
+        structural = StructuralAnalysis.from_taylor_diagnostic(diag, values)
 
         metadata: dict = {
-            "order": effective_order,
-            "derivatives": {
-                "f_t": derivs["f_t"],
-                "f_prime": derivs["f_prime"],
-                "f_double_prime": derivs["f_double_prime"],
-                "f_triple_prime": derivs["f_triple_prime"],
-            },
+            "order": coeffs.estimated_order,
+            "derivatives": coeffs.to_dict(),
             "dt": dt,
             "horizon_steps": self._horizon,
             "fallback": None,
-            "clamped": was_clamped,
+            "clamped": clamped,
+            "diagnostic": diag.to_dict(),
+            "structural_analysis": structural.to_dict(),
         }
-
         logger.debug(
             "taylor_prediction",
             extra={
-                "n_points": n,
-                "order": self._order,
-                "effective_order": effective_order,
-                "f_prime": f_prime,
-                "predicted_raw": predicted_raw,
-                "predicted_value": predicted,
-                "clamped": was_clamped,
-                "confidence": confidence,
+                "n_points": n, "effective_order": coeffs.estimated_order,
+                "method": coeffs.method, "predicted": predicted,
+                "clamped": clamped, "confidence": confidence,
+                "stability": diag.stability_indicator,
             },
         )
-
         return PredictionResult(
-            predicted_value=predicted,
-            confidence=confidence,
-            trend=trend,
-            metadata=metadata,
+            predicted_value=predicted, confidence=confidence,
+            trend=trend, metadata=metadata,
         )
 
     def supports_uncertainty(self) -> bool:
         return False
 
-    def _fallback_prediction(self, values: List[float]) -> PredictionResult:
+    # -- private helpers --------------------------------------------------
+
+    def _classify_trend(self, slope: float) -> str:
+        if slope > self._trend_threshold:
+            return "up"
+        if slope < -self._trend_threshold:
+            return "down"
+        return "stable"
+
+    def _confidence_from_stability(self, stability: float) -> float:
+        instability = min(stability, 0.7)
+        c = max(self._min_confidence, 1.0 - instability)
+        return min(c, self._max_confidence)
+
+    def _fallback(self, values: List[float]) -> PredictionResult:
         tail = values[-min(3, len(values)):]
         predicted = sum(tail) / len(tail)
-        logger.debug("taylor_fallback", extra={"n_points": len(values), "predicted": predicted})
+        logger.debug("taylor_fallback", extra={"n": len(values)})
         return PredictionResult(
             predicted_value=predicted,
-            confidence=max(_MIN_CONFIDENCE, min(0.5, len(values) / 10.0)),
+            confidence=max(self._min_confidence, min(0.5, len(values) / 10.0)),
             trend="stable",
             metadata={
                 "order": 0,
-                "derivatives": {
-                    "f_t": values[-1] if values else 0.0,
-                    "f_prime": 0.0,
-                    "f_double_prime": 0.0,
-                    "f_triple_prime": 0.0,
-                },
-                "dt": 1.0,
-                "horizon_steps": self._horizon,
+                "derivatives": {"f_t": values[-1] if values else 0.0,
+                                "f_prime": 0.0, "f_double_prime": 0.0,
+                                "f_triple_prime": 0.0},
+                "dt": 1.0, "horizon_steps": self._horizon,
                 "fallback": "insufficient_data",
-                "clamped": False,
+                "clamped": False, "diagnostic": None,
             },
         )
-
-    def _compute_confidence(
-        self,
-        values: List[float],
-        dt: float,
-        f_t: float,
-    ) -> float:
-        accel_var = compute_accel_variance(values, dt)
-        normalizer = abs(f_t) if abs(f_t) > 1e-6 else 1.0
-        instability = min(accel_var / normalizer, 0.7)
-        confidence = max(_MIN_CONFIDENCE, 1.0 - instability)
-        confidence = min(confidence, _MAX_CONFIDENCE)
-        return confidence

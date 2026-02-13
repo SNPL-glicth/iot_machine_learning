@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from iot_machine_learning.domain.entities.results.anomaly import AnomalySeverity
 from ..models.enriched_context import EnrichedContext
 from ..models.explanation_result import ExplanationResult
 
@@ -90,22 +91,33 @@ class TemplateExplanationGenerator:
         )
     
     def _determine_severity(self, context: EnrichedContext) -> str:
-        """Determina la severidad basada en el contexto."""
+        """Determina la severidad basada en el contexto.
+
+        Delegates anomaly-score classification to the domain's
+        ``AnomalySeverity.from_score()`` — single source of truth
+        for severity thresholds (COG-4).
+        """
         out_of_range = False
         if context.user_threshold_min is not None:
             out_of_range = context.predicted_value < context.user_threshold_min
         if context.user_threshold_max is not None:
             out_of_range = out_of_range or context.predicted_value > context.user_threshold_max
-        
+
         if out_of_range:
             return "CRITICAL"
-        
-        if context.is_anomaly and context.anomaly_score >= 0.8:
+
+        domain_severity = AnomalySeverity.from_score(context.anomaly_score)
+
+        if context.is_anomaly and domain_severity in (
+            AnomalySeverity.HIGH, AnomalySeverity.CRITICAL,
+        ):
             return "HIGH"
-        
-        if context.is_anomaly or context.anomaly_score >= 0.5:
+
+        if context.is_anomaly or domain_severity in (
+            AnomalySeverity.MEDIUM, AnomalySeverity.HIGH, AnomalySeverity.CRITICAL,
+        ):
             return "MEDIUM"
-        
+
         return "LOW"
     
     def _build_explanation_text(self, context: EnrichedContext, severity: str) -> str:

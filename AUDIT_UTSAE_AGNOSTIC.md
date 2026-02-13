@@ -1,10 +1,10 @@
 # AUDITORÍA UTSAE — Agnosticismo de Dominio
 
 **Auditor:** Cascade (Senior Architecture Auditor)
-**Fecha:** 2026-02-10
+**Fecha:** 2026-02-10 (original) | **Última actualización:** 2026-02-12
 **Alcance:** `iot_machine_learning/` completo
 **Estándar:** ISO 27001 + Principios UTSAE + Arquitectura Hexagonal
-**Versión:** 2.0 (post-migración)
+**Versión:** 3.0 (post-hardening completo)
 
 ---
 
@@ -20,9 +20,10 @@
 | Violaciones de dirección de dependencia | **0** | **0** |
 | `sensor_id: int` en interfaces de dominio | **14 archivos** | **0** (migrado a `series_id: str`) |
 | `SensorWindow` / `SensorReading` en core | **12 archivos** | **12** (coexisten con `TimeSeries` vía dual interface) |
-| Tests pasando | 413 | 413 |
+| Bridges `int(series_id)` inseguros | **14 sitios** | **0** (`safe_series_id_to_int()` centralizado) |
+| Tests pasando | 413 | 1096 |
 
-**Veredicto post-migración:** El core (domain/application/infrastructure) es ahora **agnóstico al dominio**. `series_id: str` reemplaza `sensor_id: int` en todas las entidades, DTOs y ports. Los ports ofrecen dual interface (`SensorWindow` legacy + `TimeSeries` agnóstico). La capa `ml_service/` mantiene `sensor_id: int` como bridge IoT. UTSAE puede operar sobre ventas, latencia de red o mercado financiero sin modificar el core.
+**Veredicto post-hardening:** El core (domain/application/infrastructure) es **agnóstico al dominio**. `series_id: str` reemplaza `sensor_id: int` en todas las entidades, DTOs y ports. Los ports ofrecen dual interface (`SensorWindow` legacy + `TimeSeries` agnóstico). Bridges usan `safe_series_id_to_int()` centralizado (nunca `int()` directo). La capa `ml_service/` mantiene `sensor_id: int` como bridge IoT. UTSAE puede operar sobre ventas, latencia de red o mercado financiero sin modificar el core. Plan de sunset documentado en `MIGRATION_SCORECARD.md`.
 
 ---
 
@@ -103,15 +104,17 @@ Las funciones legacy (`classify_severity`, `compute_risk_level`) se mantienen pa
 
 #### NIVEL 3 — Ports y Services
 
-##### ✅ PORTS — Dual interface implementada (S4)
+##### ✅ PORTS — Dual interface implementada (S4) + bridges seguros (DEBT-1)
 
 | Port | Legacy | Agnóstico (nuevo) | Estado |
 |------|--------|-------------------|--------|
 | `PredictionPort` | `predict(window: SensorWindow)` | `predict_series(series: TimeSeries)` | ✅ |
 | `AnomalyDetectionPort` | `detect(window: SensorWindow)` | `detect_series(series: TimeSeries)` | ✅ |
 | `PatternDetectionPort` | `detect_pattern(window: SensorWindow)` | `detect_pattern_series(series: TimeSeries)` | ✅ |
-| `StoragePort` | `load_sensor_window(sensor_id: int)` | Pendiente (trabajo futuro) | ⚠️ |
-| `AuditPort` | `log_prediction(sensor_id: int)` | Pendiente (trabajo futuro) | ⚠️ |
+| `StoragePort` | `load_sensor_window(sensor_id: int)` | `load_series_window(series_id: str)` bridge | ✅ Dual |
+| `AuditPort` | `log_prediction(sensor_id: int)` | `log_series_prediction(series_id: str)` bridge | ✅ Dual |
+
+> **DEBT-1 resuelto:** Todos los bridges de conversión `series_id → sensor_id` usan `safe_series_id_to_int()` centralizado. 14 sitios reemplazados en 7 archivos. Nunca se usa `int(series_id)` directamente.
 
 Los métodos agnósticos tienen implementación default que delega al legacy vía bridge.
 
@@ -564,19 +567,26 @@ class AccessControlService:
 
 ## F) CONCLUSIÓN
 
-### Estado actual de UTSAE (post-migración)
+### Estado actual de UTSAE (post-hardening)
 
 | Capacidad | Estado | Evidencia |
-|-----------|--------|-----------|
+|-----------|--------|----------|
 | Dato agnóstico (`TimeSeries`) | ✅ | `series_id: str` en todas las entidades core |
 | Contexto inyectable (`SeriesContext`) | ✅ | `Threshold.severity_for()` reemplaza hardcode |
 | Selección por datos (`SeriesProfile`) | ✅ | `select_engine_for_series()` implementado |
 | IDs genéricos | ✅ | `series_id: str` en domain/application/infrastructure |
 | Dual interface en ports | ✅ | `predict_series()`, `detect_series()`, `detect_pattern_series()` |
+| Conversión segura de identidad | ✅ | `safe_series_id_to_int()` centralizado en 7 archivos |
 | Narrativa agnóstica | ✅ | `classify_severity_agnostic()` sin lenguaje IoT |
+| Severidad unificada | ✅ | `AnomalySeverity.from_score()` fuente única de verdad |
 | Backward compatibility | ✅ | `ml_service/` sigue usando `sensor_id: int` sin cambios |
 | ISO 27001 trazabilidad | ✅ | `audit_trace_id`, `to_audit_dict()`, logging estructurado |
-| Tests | ✅ | **413 tests pasando** — cero regresiones |
+| Explicabilidad | ✅ | `Explanation` → `ExplanationBuilder` → `ExplanationRenderer` |
+| Extensibilidad | ✅ | `@register_engine`, `@register_detector`, `engine.as_port()` |
+| Inmutabilidad | ✅ | `dataclasses.replace()` para entidades frozen |
+| Pipeline latency | ✅ | `PipelineTimer` per-phase + budget guard (500ms) |
+| Architectural guards | ✅ | Meta-tests enforzan reglas de complejidad y delegación |
+| Tests | ✅ | **1096 tests pasando** — cero regresiones |
 
 ### Lo que UTSAE puede hacer ahora (que antes no podía)
 
@@ -586,6 +596,10 @@ class AccessControlService:
 4. **Seleccionar motor por características del dato** — no por quién lo generó
 5. **Controlar acceso por serie** — `can_access_series("AAPL")` funciona
 6. **Operar con `TimeSeries` directamente** — sin pasar por `SensorWindow`
+7. **Agregar engines/detectores sin tocar código existente** — `@register_engine`, `@register_detector`
+8. **Explicar cada predicción** — traza de razonamiento completa con fases dinámicas
+9. **Medir latencia por fase** — `PipelineTimer` con budget guard automático
+10. **Convertir identidad de forma segura** — `safe_series_id_to_int()` nunca lanza excepciones
 
 ### Trabajo futuro (no bloqueante)
 
@@ -593,10 +607,14 @@ class AccessControlService:
 |------|-----------|-------------|
 | Migrar `SensorWindow` a `infrastructure/adapters/iot/` | Media | Mover de domain/ a infra como bridge IoT |
 | Renombrar `PredictSensorValueUseCase` | Baja | → `PredictSeriesValueUseCase` |
-| `AuditPort.log_prediction(sensor_id=...)` → `series_id` | Baja | Requiere actualizar `FileAuditLogger` |
 | Eliminar `sensor_ranges.py` completamente | Baja | Cuando `ml_service/severity_classifier.py` migre |
+| Eliminar adapters manuales (Taylor, Cognitive) | Baja | Tras confirmar 0 call-sites |
+| Eliminar `SignalProfile` (cognitive/types.py) | Baja | Tras confirmar 0 call-sites |
+| Wire orchestrator en use cases principales | Media | `PredictionDomainService` recibe orchestrator como engine |
 | Tests agnósticos puros (sin `SensorWindow`) | Media | `test_agnostic_prediction.py`, `test_agnostic_anomaly.py` |
+
+Ver `MIGRATION_SCORECARD.md` para el inventario completo de APIs legacy vs agnósticas y el plan de sunset.
 
 ---
 
-*Fin del informe de auditoría. Versión 2.0 — post-migración completa.*
+*Fin del informe de auditoría. Versión 3.0 — post-hardening completo. 1096 tests, 6 skipped.*

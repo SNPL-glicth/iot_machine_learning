@@ -1,152 +1,59 @@
-"""Funciones matemáticas puras para Series de Taylor con diferencias finitas.
+"""Backward-compatible facade for the Taylor math package.
 
-Extraído de ml/core/taylor_predictor.py.
-Responsabilidad ÚNICA: cálculos numéricos de derivadas, expansión Taylor
-y varianza de aceleración. Sin I/O, sin estado, sin logging.
+This module re-exports all public symbols from the ``taylor/`` package
+so that existing callers (``from .taylor_math import ...``) continue
+to work without modification.
 
-Fórmulas:
-    f'(t)   ≈ (f(t) - f(t-1)) / Δt                          (velocidad)
-    f''(t)  ≈ (f(t) - 2·f(t-1) + f(t-2)) / Δt²              (aceleración)
-    f'''(t) ≈ (f(t) - 3·f(t-1) + 3·f(t-2) - f(t-3)) / Δt³   (jerk)
-    f(t+h)  ≈ f(t) + f'(t)·h + f''(t)·h²/2! + f'''(t)·h³/3!
+New code should import directly from ``taylor/`` sub-modules:
+    from .taylor import estimate_derivatives, project, compute_diagnostic
+    from .taylor.types import TaylorCoefficients, TaylorDiagnostic
+
+Mathematical documentation is in each sub-module's docstring:
+    taylor/types.py       — data structures
+    taylor/derivatives.py — backward, central, least-squares methods
+    taylor/polynomial.py  — projection + local fit error
+    taylor/diagnostics.py — stability analysis
+    taylor/time_step.py   — robust Δt estimation
 """
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import List
 
-# Mínimo de puntos para calcular varianza de aceleración
-MIN_ACCEL_HISTORY: int = 4
+# Re-export canonical API from taylor/ package
+from .taylor import (  # noqa: F401
+    DerivativeMethod,
+    TaylorCoefficients,
+    TaylorDiagnostic,
+    compute_diagnostic,
+    compute_dt,
+    compute_local_fit_error,
+    estimate_derivatives,
+    project,
+)
+from .taylor.diagnostics import (  # noqa: F401
+    compute_accel_variance,
+    compute_stability_indicator,
+)
 
+
+# ---------------------------------------------------------------------------
+# Backward-compatible aliases (legacy callers)
+# ---------------------------------------------------------------------------
 
 def compute_finite_differences(
-    values: List[float],
-    dt: float,
-    order: int,
-) -> Dict[str, float]:
-    """Calcula derivadas por diferencias finitas hacia atrás.
-
-    Args:
-        values: Serie temporal (más reciente al final).
-        dt: Paso temporal (Δt) entre muestras consecutivas.
-        order: Orden máximo de derivada a calcular (1–3).
-
-    Returns:
-        Dict con ``f_t``, ``f_prime``, ``f_double_prime``, ``f_triple_prime``.
-    """
-    n = len(values)
-    f_t = values[-1]
-
-    f_prime = 0.0
-    if order >= 1 and n >= 2:
-        f_prime = (values[-1] - values[-2]) / dt
-
-    f_double_prime = 0.0
-    if order >= 2 and n >= 3:
-        f_double_prime = (values[-1] - 2.0 * values[-2] + values[-3]) / (dt * dt)
-
-    f_triple_prime = 0.0
-    if order >= 3 and n >= 4:
-        f_triple_prime = (
-            values[-1]
-            - 3.0 * values[-2]
-            + 3.0 * values[-3]
-            - values[-4]
-        ) / (dt * dt * dt)
-
-    return {
-        "f_t": f_t,
-        "f_prime": f_prime,
-        "f_double_prime": f_double_prime,
-        "f_triple_prime": f_triple_prime,
-    }
+    values: List[float], dt: float, order: int,
+) -> dict:
+    """Legacy wrapper — returns plain dict.  Use ``estimate_derivatives``."""
+    return estimate_derivatives(values, dt, order).to_dict()
 
 
-def taylor_expand(
-    derivs: Dict[str, float],
-    h: float,
-    order: int,
-) -> float:
-    """Evalúa la expansión de Taylor: f(t+h).
-
-    Args:
-        derivs: Diccionario de derivadas (output de ``compute_finite_differences``).
-        h: Horizonte de predicción (en unidades de Δt).
-        order: Orden de la expansión (1–3).
-
-    Returns:
-        Valor predicho f(t+h).
-    """
-    result = derivs["f_t"]
-
-    if order >= 1:
-        result += derivs["f_prime"] * h
-    if order >= 2:
-        result += derivs["f_double_prime"] * (h * h) / 2.0
-    if order >= 3:
-        result += derivs["f_triple_prime"] * (h * h * h) / 6.0
-
-    return result
-
-
-def compute_accel_variance(values: List[float], dt: float) -> float:
-    """Calcula la varianza de la aceleración (f'') sobre los últimos puntos.
-
-    Se usa para estimar la estabilidad de la serie.
-
-    Args:
-        values: Serie temporal.
-        dt: Paso temporal.
-
-    Returns:
-        Varianza de f''. Retorna 0.0 si no hay suficientes puntos.
-    """
-    n = len(values)
-    if n < MIN_ACCEL_HISTORY:
-        return 0.0
-
-    accels: List[float] = []
-    dt_sq = dt * dt
-    for i in range(2, n):
-        accel = (values[i] - 2.0 * values[i - 1] + values[i - 2]) / dt_sq
-        accels.append(accel)
-
-    if len(accels) < 2:
-        return 0.0
-
-    mean_accel = sum(accels) / len(accels)
-    variance = sum((a - mean_accel) ** 2 for a in accels) / len(accels)
-    return variance
-
-
-def compute_dt(timestamps: list[float] | None) -> float:
-    """Calcula Δt a partir de timestamps o usa default 1.0.
-
-    Usa la mediana de las diferencias consecutivas para robustez.
-
-    Args:
-        timestamps: Timestamps Unix opcionales.
-
-    Returns:
-        Δt > 0. Mínimo 1e-6.
-    """
-    if timestamps is None or len(timestamps) < 2:
-        return 1.0
-
-    diffs = [
-        timestamps[i] - timestamps[i - 1]
-        for i in range(1, len(timestamps))
-        if timestamps[i] > timestamps[i - 1]
-    ]
-
-    if not diffs:
-        return 1.0
-
-    diffs_sorted = sorted(diffs)
-    mid = len(diffs_sorted) // 2
-    if len(diffs_sorted) % 2 == 0:
-        dt = (diffs_sorted[mid - 1] + diffs_sorted[mid]) / 2.0
-    else:
-        dt = diffs_sorted[mid]
-
-    return max(dt, 1e-6)
+def taylor_expand(derivs: dict, h: float, order: int) -> float:
+    """Legacy wrapper — accepts plain dict.  Use ``project``."""
+    coeffs = TaylorCoefficients(
+        f_t=derivs["f_t"],
+        f_prime=derivs["f_prime"],
+        f_double_prime=derivs["f_double_prime"],
+        f_triple_prime=derivs["f_triple_prime"],
+    )
+    return project(coeffs, h, order)

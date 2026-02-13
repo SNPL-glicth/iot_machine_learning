@@ -7,6 +7,15 @@ Decisiones de diseño:
   para logging y serialización sin copias defensivas.
 - IdentityFilter incluido aquí como fallback canónico (no en archivo aparte)
   para evitar imports circulares y mantener el contrato junto al no-op.
+- PredictionEnginePortBridge: adaptador genérico que envuelve cualquier
+  PredictionEngine como PredictionPort, eliminando la necesidad de
+  adaptadores específicos por engine.
+
+.. versionchanged:: 2.0
+    Added ``PredictionEnginePortBridge`` and ``PredictionEngine.as_port()``
+    to bridge the ``PredictionEngine`` / ``PredictionPort`` gap.
+    Per-engine adapters (TaylorPredictionAdapter, CognitivePredictionAdapter)
+    are deprecated in favor of the generic bridge.
 """
 
 from __future__ import annotations
@@ -14,6 +23,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Literal, Optional
+
+from iot_machine_learning.domain.ports.prediction_port import PredictionPort
 
 
 @dataclass(frozen=True)
@@ -96,6 +107,82 @@ class PredictionEngine(ABC):
             ``True`` si metadata incluye ``confidence_interval``.
         """
         return False
+
+    def as_port(self) -> "PredictionEnginePortBridge":
+        """Wrap this engine as a ``PredictionPort``.
+
+        Returns a generic bridge that adapts the
+        ``predict(values, timestamps) → PredictionResult`` interface
+        to ``predict(window: SensorWindow) → Prediction``.
+
+        This eliminates the need for per-engine adapters.
+        """
+        return PredictionEnginePortBridge(self)
+
+
+class PredictionEnginePortBridge(PredictionPort):
+    """Generic adapter: wraps any ``PredictionEngine`` as ``PredictionPort``.
+
+    Replaces per-engine adapters (TaylorPredictionAdapter,
+    CognitivePredictionAdapter) with a single generic bridge.
+
+    Mapping:
+        ``PredictionEngine.predict(values, timestamps) → PredictionResult``
+        becomes
+        ``PredictionPort.predict(window: SensorWindow) → Prediction``
+    """
+
+    def __init__(self, engine: PredictionEngine) -> None:
+        self._engine = engine
+
+    @property
+    def name(self) -> str:
+        return self._engine.name
+
+    def can_handle(self, n_points: int) -> bool:
+        return self._engine.can_handle(n_points)
+
+    def predict(self, window: "SensorWindow") -> "Prediction":
+        """Bridge: SensorWindow → values/timestamps, PredictionResult → Prediction."""
+        from iot_machine_learning.domain.entities.prediction import Prediction
+
+        values = window.values
+        timestamps = window.timestamps if window.timestamps else None
+        result = self._engine.predict(values, timestamps)
+
+        return Prediction(
+            series_id=str(window.sensor_id),
+            predicted_value=result.predicted_value,
+            confidence_score=result.confidence,
+            trend=result.trend,
+            engine_name=self._engine.name,
+            metadata=result.metadata,
+        )
+
+    def predict_series(self, series: "TimeSeries") -> "Prediction":
+        """Bridge: TimeSeries → values/timestamps, PredictionResult → Prediction."""
+        from iot_machine_learning.domain.entities.prediction import Prediction
+
+        values = [p.v for p in series.points]
+        timestamps = [p.t for p in series.points]
+        result = self._engine.predict(values, timestamps)
+
+        return Prediction(
+            series_id=series.series_id,
+            predicted_value=result.predicted_value,
+            confidence_score=result.confidence,
+            trend=result.trend,
+            engine_name=self._engine.name,
+            metadata=result.metadata,
+        )
+
+    def supports_confidence_interval(self) -> bool:
+        return self._engine.supports_uncertainty()
+
+    @property
+    def engine(self) -> PredictionEngine:
+        """Access the wrapped engine."""
+        return self._engine
 
 
 class SignalFilter(ABC):
