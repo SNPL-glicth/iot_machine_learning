@@ -1,6 +1,14 @@
-"""Escritor de predicciones.
+"""Escritor de predicciones — LEGACY.
 
 Responsabilidad única: Persistir predicciones en la base de datos.
+
+.. deprecated::
+    Used only by the legacy dev/test batch runner
+    (``ml_service.runners.ml_batch_runner``).
+    The official production writer is:
+        ``infrastructure.adapters.sqlserver_storage.SqlServerStorageAdapter.save_prediction()``
+    Both writers now write the same 16 columns. This module will be
+    consolidated into the enterprise path in a future cleanup.
 """
 
 from __future__ import annotations

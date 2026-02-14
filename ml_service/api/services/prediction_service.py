@@ -23,12 +23,24 @@ Módulos extraídos:
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 
 from sqlalchemy.engine import Connection
 
+from iot_machine_learning.application.explainability.explanation_renderer import (
+    ExplanationRenderer,
+)
 from iot_machine_learning.application.use_cases.predict_sensor_value import (
     PredictSensorValueUseCase,
+)
+from iot_machine_learning.domain.entities.explainability.explanation import (
+    Explanation,
+    Outcome,
+)
+from iot_machine_learning.domain.entities.explainability.signal_snapshot import (
+    SignalSnapshot,
 )
 from iot_machine_learning.domain.services.prediction_domain_service import (
     PredictionDomainService,
@@ -64,6 +76,7 @@ class PredictionService:
         # --- Wiring enterprise ---
         self._storage = SqlServerStorageAdapter(conn)
         self._threshold_repo = ThresholdRepository(conn)
+        self._renderer = ExplanationRenderer()
 
         baseline_engine = BaselinePredictionAdapter(window=60)
         prediction_domain_service = PredictionDomainService(
@@ -97,6 +110,8 @@ class PredictionService:
         Raises:
             ValueError: If no recent readings available
         """
+        t_start = time.monotonic()
+
         # 1. Delegar predicción al use case enterprise
         dto = self._use_case.execute(sensor_id=sensor_id, window_size=window)
 
@@ -124,6 +139,31 @@ class PredictionService:
             dedupe_minutes=dedupe_minutes,
         )
 
+        # 4. Enriquecimiento cognitivo (fail-safe)
+        enrichment = self._compute_enrichment(
+            sensor_id=sensor_id,
+            window_size=window,
+            dto=dto,
+        )
+
+        elapsed_ms = round((time.monotonic() - t_start) * 1000.0, 2)
+
+        # 5. Audit log estructurado
+        logger.info(
+            "prediction_enriched",
+            extra={
+                "sensor_id": sensor_id,
+                "predicted_value": dto.predicted_value,
+                "confidence": dto.confidence_score,
+                "trend": dto.trend,
+                "engine_used": dto.engine_name,
+                "regime": enrichment.get("structural_analysis", {}).get("regime"),
+                "certainty": enrichment.get("metacognitive", {}).get("certainty"),
+                "elapsed_ms": elapsed_ms,
+                "trace_id": dto.audit_trace_id,
+            },
+        )
+
         return {
             "sensor_id": sensor_id,
             "model_id": model_id,
@@ -133,6 +173,14 @@ class PredictionService:
             "target_timestamp": target_ts,
             "horizon_minutes": horizon_minutes,
             "window": window,
+            # --- Enrichment fields ---
+            "trend": dto.trend,
+            "engine_used": dto.engine_name,
+            "confidence_level": dto.confidence_level,
+            "structural_analysis": enrichment.get("structural_analysis"),
+            "metacognitive": enrichment.get("metacognitive"),
+            "audit_trace_id": dto.audit_trace_id,
+            "processing_time_ms": elapsed_ms,
         }
 
     def _eval_thresholds(
@@ -175,6 +223,84 @@ class PredictionService:
             prediction_id=prediction_id,
             violation=violation,
         )
+
+    def _compute_enrichment(
+        self,
+        *,
+        sensor_id: int,
+        window_size: int,
+        dto: "PredictionDTO",
+    ) -> Dict[str, Any]:
+        """Computa structural analysis + metacognitive classification.
+
+        Fail-safe: si algo falla, retorna dict vacío sin romper el flujo.
+        No modifica domain ni engines — solo lee datos ya computados.
+        """
+        try:
+            # Cargar ventana para structural analysis
+            sensor_window = self._storage.load_sensor_window(
+                sensor_id=sensor_id,
+                limit=window_size,
+            )
+            if sensor_window.is_empty:
+                return {}
+
+            # Compute structural analysis (domain pure function)
+            sa = sensor_window.structural_analysis
+            structural_dict = {
+                "regime": sa.regime.value,
+                "slope": round(sa.slope, 6),
+                "curvature": round(sa.curvature, 6),
+                "noise_ratio": round(sa.noise_ratio, 6),
+                "stability": round(sa.stability, 6),
+                "trend_strength": round(sa.trend_strength, 6),
+                "mean": round(sa.mean, 6),
+                "std": round(sa.std, 6),
+                "n_points": sa.n_points,
+            }
+
+            # Build minimal Explanation for metacognitive classification
+            signal = SignalSnapshot(
+                n_points=sa.n_points,
+                mean=sa.mean,
+                std=sa.std,
+                noise_ratio=sa.noise_ratio,
+                slope=sa.slope,
+                curvature=sa.curvature,
+                regime=sa.regime.value,
+                dt=sa.dt if hasattr(sa, "dt") else 1.0,
+            )
+            outcome = Outcome(
+                kind="prediction",
+                predicted_value=dto.predicted_value,
+                confidence=dto.confidence_score,
+                trend=dto.trend,
+            )
+            explanation = Explanation(
+                series_id=dto.series_id,
+                signal=signal,
+                outcome=outcome,
+                audit_trace_id=dto.audit_trace_id,
+            )
+
+            # Render metacognitive classifications
+            rendered = self._renderer.render_structured_json(explanation)
+            metacognitive = rendered.get("metacognitive", {})
+
+            return {
+                "structural_analysis": structural_dict,
+                "metacognitive": metacognitive,
+            }
+
+        except Exception as exc:
+            logger.warning(
+                "enrichment_failed",
+                extra={
+                    "sensor_id": sensor_id,
+                    "error": str(exc),
+                },
+            )
+            return {}
 
     def _get_latest_prediction_id(self, sensor_id: int) -> int:
         """Obtiene el ID de la última predicción insertada."""

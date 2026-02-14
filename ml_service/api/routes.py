@@ -10,7 +10,13 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from .dependencies import DbConnDep
-from .schemas import PredictRequest, PredictResponse, HealthResponse
+from .schemas import (
+    MetacognitiveResponse,
+    PredictRequest,
+    PredictResponse,
+    HealthResponse,
+    StructuralAnalysisResponse,
+)
 from .services import PredictionService
 
 logger = logging.getLogger(__name__)
@@ -20,10 +26,7 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Health check endpoint."""
-    logger.info("[ML-SERVICE] Health check")
-    
-    # Get broker health if available
+    """Liveness probe — always returns ok if process is running."""
     broker_health = None
     try:
         from ..broker import get_broker_health
@@ -35,6 +38,18 @@ async def health() -> HealthResponse:
         status="ok",
         broker=broker_health,
     )
+
+
+@router.get("/ready")
+async def ready(conn: DbConnDep) -> dict:
+    """Readiness probe — checks DB connectivity."""
+    try:
+        from sqlalchemy import text
+        conn.execute(text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception as e:
+        logger.warning("[ML-SERVICE] Readiness check failed: %s", e)
+        raise HTTPException(status_code=503, detail="not ready")
 
 
 @router.post("/ml/predict", response_model=PredictResponse)
@@ -64,8 +79,19 @@ async def ml_predict(payload: PredictRequest, conn: DbConnDep) -> PredictRespons
             window=payload.window,
             dedupe_minutes=payload.dedupe_minutes,
         )
-        
+
+        # Build enrichment sub-models (None-safe)
+        sa_data = result.get("structural_analysis")
+        structural_analysis = (
+            StructuralAnalysisResponse(**sa_data) if sa_data else None
+        )
+        mc_data = result.get("metacognitive")
+        metacognitive = (
+            MetacognitiveResponse(**mc_data) if mc_data else None
+        )
+
         return PredictResponse(
+            # Base fields
             sensor_id=result["sensor_id"],
             model_id=result["model_id"],
             prediction_id=result["prediction_id"],
@@ -74,6 +100,14 @@ async def ml_predict(payload: PredictRequest, conn: DbConnDep) -> PredictRespons
             target_timestamp=result["target_timestamp"],
             horizon_minutes=result["horizon_minutes"],
             window=result["window"],
+            # Enrichment fields
+            trend=result.get("trend"),
+            engine_used=result.get("engine_used"),
+            confidence_level=result.get("confidence_level"),
+            structural_analysis=structural_analysis,
+            metacognitive=metacognitive,
+            audit_trace_id=result.get("audit_trace_id"),
+            processing_time_ms=result.get("processing_time_ms"),
         )
     except ValueError as e:
         logger.warning("[ML-SERVICE] Prediction failed: %s", str(e))

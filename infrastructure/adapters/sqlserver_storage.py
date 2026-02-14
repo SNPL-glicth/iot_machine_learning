@@ -152,6 +152,19 @@ class SqlServerStorageAdapter(StoragePort):
             minutes=prediction.horizon_steps * horizon_minutes_per_step
         )
 
+        # Extract optional enrichment from metadata (if engine provided it)
+        meta = prediction.metadata or {}
+        _is_anomaly = 1 if meta.get("is_anomaly") else 0
+        _anomaly_score = _safe_float(meta.get("anomaly_score"), default=0.0) if meta.get("anomaly_score") is not None else None
+        _severity = str(meta.get("severity", "info"))
+        if _severity not in ("info", "warning", "critical"):
+            _severity = "info"
+        _risk_level = str(meta.get("risk_level", "NONE"))
+        if _risk_level not in ("NONE", "LOW", "MEDIUM", "HIGH"):
+            _risk_level = "NONE"
+        _explanation = str(meta.get("explanation", "")) or None
+        _horizon_minutes = prediction.horizon_steps * horizon_minutes_per_step
+
         row = self._conn.execute(
             text(
                 """
@@ -159,14 +172,22 @@ class SqlServerStorageAdapter(StoragePort):
                   model_id, sensor_id, device_id,
                   predicted_value, confidence,
                   predicted_at, target_timestamp,
-                  engine_name, trend
+                  horizon_minutes, window_points,
+                  engine_name, trend,
+                  is_anomaly, anomaly_score,
+                  risk_level, severity,
+                  explanation, status
                 )
                 OUTPUT INSERTED.id
                 VALUES (
                   :model_id, :sensor_id, :device_id,
                   :predicted_value, :confidence,
                   GETDATE(), :target_timestamp,
-                  :engine_name, :trend
+                  :horizon_minutes, :window_points,
+                  :engine_name, :trend,
+                  :is_anomaly, :anomaly_score,
+                  :risk_level, :severity,
+                  :explanation, 'active'
                 )
                 """
             ),
@@ -177,8 +198,15 @@ class SqlServerStorageAdapter(StoragePort):
                 "predicted_value": prediction.predicted_value,
                 "confidence": prediction.confidence_score,
                 "target_timestamp": target_ts.replace(tzinfo=None),
+                "horizon_minutes": _horizon_minutes,
+                "window_points": 0,
                 "engine_name": prediction.engine_name,
                 "trend": prediction.trend,
+                "is_anomaly": _is_anomaly,
+                "anomaly_score": _anomaly_score,
+                "risk_level": _risk_level,
+                "severity": _severity,
+                "explanation": _explanation,
             },
         ).fetchone()
 

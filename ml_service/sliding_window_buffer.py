@@ -1,21 +1,24 @@
+"""Sliding window buffer with LRU + TTL eviction (RC-3 fix)."""
+
 from __future__ import annotations
 
-from collections import deque
-from dataclasses import dataclass
+import logging
+import threading
+import time
+from collections import OrderedDict, deque
+from dataclasses import dataclass, field
 from math import sqrt
 from typing import Deque, Dict, Iterable, Tuple
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_MAX_SENSORS: int = 1000
+_DEFAULT_TTL_SECONDS: float = 3600.0
 
 
 @dataclass(frozen=True)
 class WindowStats:
-    """Estadísticos agregados para una ventana de tiempo.
-
-    Se calculan sobre lecturas recientes dentro de [now - window, now].
-
-    Además de media/mínimo/máximo y tendencia, expone la desviación estándar
-    simple de la ventana (`std_dev`) para poder calcular tolerancias dinámicas
-    (p.ej. z-score) y el último valor observado (`last_value`).
-    """
+    """Estadísticos agregados para una ventana de tiempo."""
 
     window_seconds: float
     mean: float
@@ -27,19 +30,29 @@ class WindowStats:
     last_value: float
 
 
+@dataclass
+class _BufferEntry:
+    """Internal entry wrapping a deque with last-access monotonic time."""
+    buf: Deque[Tuple[float, float]]
+    last_accessed: float = field(default_factory=time.monotonic)
+
+
 class SlidingWindowBuffer:
-    """Buffer deslizante en memoria por sensor.
+    """Buffer deslizante en memoria por sensor con LRU + TTL eviction."""
 
-    - Mantiene un buffer por sensor con las últimas lecturas hasta
-      `max_horizon_seconds`.
-    - Permite calcular ventanas deslizantes (p.ej. 1s, 5s, 10s) con
-      agregados simples: avg, min, max, tendencia.
-    """
-
-    def __init__(self, max_horizon_seconds: float = 10.0) -> None:
+    def __init__(
+        self,
+        max_horizon_seconds: float = 10.0,
+        max_sensors: int = _DEFAULT_MAX_SENSORS,
+        ttl_seconds: float = _DEFAULT_TTL_SECONDS,
+    ) -> None:
         self._max_horizon_seconds = float(max_horizon_seconds)
-        # sensor_id -> deque[(timestamp, value)]
-        self._buffers: Dict[int, Deque[Tuple[float, float]]] = {}
+        self._max_sensors = max(1, max_sensors)
+        self._ttl = float(ttl_seconds)
+        self._entries: OrderedDict[int, _BufferEntry] = OrderedDict()
+        self._lock = threading.Lock()
+        self._evictions_lru: int = 0
+        self._evictions_ttl: int = 0
 
     def add_reading(
         self,
@@ -48,21 +61,27 @@ class SlidingWindowBuffer:
         timestamp: float,
         windows: Iterable[float] = (1.0, 5.0, 10.0),
     ) -> Dict[str, WindowStats]:
-        """Añade una lectura y devuelve stats por ventana.
+        """Añade una lectura y devuelve stats por ventana."""
+        now = time.monotonic()
+        with self._lock:
+            self._cleanup_expired(now)
+            if sensor_id in self._entries:
+                entry = self._entries[sensor_id]
+                self._entries.move_to_end(sensor_id)
+            else:
+                self._evict_lru_if_full()
+                entry = _BufferEntry(buf=deque(), last_accessed=now)
+                self._entries[sensor_id] = entry
 
-        Devuelve un dict tipo {"w1": WindowStats, "w5": WindowStats, ...}.
-        Solo se incluyen ventanas que tengan al menos 1 punto.
-        """
+            entry.buf.append((timestamp, float(value)))
+            entry.last_accessed = now
 
-        buf = self._buffers.setdefault(sensor_id, deque())
-        buf.append((timestamp, float(value)))
+            # Recortar lecturas fuera del horizonte máximo
+            cutoff = timestamp - self._max_horizon_seconds
+            while entry.buf and entry.buf[0][0] < cutoff:
+                entry.buf.popleft()
 
-        # Recortar lecturas fuera del horizonte máximo
-        cutoff = timestamp - self._max_horizon_seconds
-        while buf and buf[0][0] < cutoff:
-            buf.popleft()
-
-        return self._compute_stats(buf, timestamp, windows)
+            return self._compute_stats(entry.buf, timestamp, windows)
 
     def _compute_stats(
         self,
@@ -86,8 +105,6 @@ class SlidingWindowBuffer:
             v_max = max(values)
             v_mean = sum(values) / len(values)
 
-            # Desviación estándar poblacional simple (sin Bessel) suficiente
-            # para tolerancias dinámicas en ventanas cortas.
             if len(values) >= 2:
                 mean_diff_sq = [(v - v_mean) ** 2 for v in values]
                 std_dev = sqrt(sum(mean_diff_sq) / len(values))
@@ -115,3 +132,40 @@ class SlidingWindowBuffer:
             )
 
         return result
+
+    # ------------------------------------------------------------------
+    # Metrics
+    # ------------------------------------------------------------------
+
+    def get_metrics(self) -> Dict:
+        """Return eviction / occupancy metrics for monitoring."""
+        with self._lock:
+            return {
+                "active_sensors": len(self._entries),
+                "max_sensors": self._max_sensors,
+                "evictions_lru": self._evictions_lru,
+                "evictions_ttl": self._evictions_ttl,
+            }
+
+    # ------------------------------------------------------------------
+    # Internal eviction
+    # ------------------------------------------------------------------
+
+    def _evict_lru_if_full(self) -> None:
+        """Pop oldest entry when at capacity (caller holds lock)."""
+        while len(self._entries) >= self._max_sensors:
+            evicted_id, _ = self._entries.popitem(last=False)
+            self._evictions_lru += 1
+            logger.debug("buffer_lru_evict sensor_id=%d", evicted_id)
+
+    def _cleanup_expired(self, now: float) -> None:
+        """Remove entries idle longer than TTL (caller holds lock)."""
+        cutoff = now - self._ttl
+        expired = [
+            sid for sid, e in self._entries.items()
+            if e.last_accessed < cutoff
+        ]
+        for sid in expired:
+            del self._entries[sid]
+            self._evictions_ttl += 1
+            logger.debug("buffer_ttl_evict sensor_id=%d", sid)

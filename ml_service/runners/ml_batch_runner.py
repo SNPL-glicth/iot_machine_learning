@@ -1,15 +1,15 @@
-"""ML Batch Runner - ORQUESTADOR PURO.
+"""ML Batch Runner — runner INTERNO del servicio ML (sklearn regression).
 
-Este módulo coordina el procesamiento batch de sensores sin implementar
-lógica de negocio directamente. Toda la lógica está delegada a:
-- common/sensor_processor: Procesamiento individual de sensores
-- common/model_manager: Gestión de modelos ML
-- common/prediction_writer: Persistencia de predicciones
-- common/event_writer: Gestión de eventos ML
-- common/severity_classifier: Clasificación de severidad
+⚠️  NO es el orquestador de producción.
+    El batch runner de producción vive en:
+    ``iot_ingest_services/jobs/ml_batch_runner.py``
 
-Complejidad: O(n) donde n = número de sensores activos.
-Preparado para paralelización por sensor.
+Este módulo es un runner secundario que usa sklearn regression +
+IsolationForest para predicción y anomalía. Se usa para desarrollo
+y testing del stack ML, NO para el loop de producción.
+
+El bridge enterprise (feature flags, adapters, wiring) está conectado
+al runner de producción en iot_ingest_services, no aquí.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import argparse
 import logging
 import time
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
 from sqlalchemy.engine import Connection
 
@@ -27,11 +27,14 @@ from iot_ingest_services.common.db import get_engine
 
 # Imports internos de ML
 from iot_machine_learning.ml_service.config.ml_config import GlobalMLConfig
+from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags, get_feature_flags
 from iot_machine_learning.ml_service.repository.sensor_repository import list_active_sensors
 from iot_machine_learning.ml_service.trainers.isolation_trainer import IsolationForestTrainer
 
 # Imports de módulos refactorizados
 from .common.sensor_processor import SensorProcessor
+from .bridge_config.batch_flags import should_use_enterprise
+from .monitoring.ab_metrics import ABMetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +58,40 @@ class MLBatchRunner:
     Coordina:
     - Iteración sobre sensores activos
     - Procesamiento individual via SensorProcessor
+    - Routing enterprise/legacy via feature flags
     - Manejo de errores sin romper el batch
     
     Preparado para paralelización futura.
     """
     
-    def __init__(self, ml_cfg: GlobalMLConfig):
+    def __init__(
+        self,
+        ml_cfg: GlobalMLConfig,
+        flags: Optional[FeatureFlags] = None,
+    ):
         self._ml_cfg = ml_cfg
+        self._flags = flags or FeatureFlags()
         self._sensor_processor = SensorProcessor()
         self._iso_trainer = IsolationForestTrainer(ml_cfg.anomaly)
+        self._ab_metrics = ABMetricsCollector()
+        self._enterprise_container = None
     
+    def _get_enterprise_adapter(self, engine):
+        """Lazy-init enterprise container and return adapter, or None."""
+        if self._enterprise_container is None:
+            try:
+                from .wiring.container import BatchEnterpriseContainer
+                self._enterprise_container = BatchEnterpriseContainer(
+                    engine=engine,
+                    flags=self._flags,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[ML_BATCH] Enterprise container init failed: %s", exc
+                )
+                return None
+        return self._enterprise_container.get_prediction_adapter()
+
     def run_once(self) -> int:
         """Ejecuta un ciclo de procesamiento.
         
@@ -74,6 +101,20 @@ class MLBatchRunner:
         engine = get_engine()
         processed = 0
         errors = 0
+        enterprise_count = 0
+        baseline_count = 0
+        
+        # Lazy-init enterprise adapter (None if flags off or init fails)
+        enterprise_adapter_instance = None
+        any_enterprise = (
+            self._flags.ML_BATCH_USE_ENTERPRISE
+            or self._flags.ML_BATCH_ENTERPRISE_SENSORS
+        )
+        if any_enterprise and not self._flags.ML_ROLLBACK_TO_BASELINE:
+            try:
+                enterprise_adapter_instance = self._get_enterprise_adapter(engine)
+            except Exception as exc:
+                logger.warning("[ML_BATCH] Enterprise adapter unavailable: %s", exc)
         
         with engine.begin() as conn:
             sensors = list(_iter_sensors(conn))
@@ -83,20 +124,37 @@ class MLBatchRunner:
             
             for sensor_id in sensors:
                 try:
+                    # Decide route per sensor
+                    use_enterprise = (
+                        enterprise_adapter_instance is not None
+                        and should_use_enterprise(sensor_id, self._flags)
+                    )
+                    adapter_for_sensor = (
+                        enterprise_adapter_instance if use_enterprise else None
+                    )
+
                     self._sensor_processor.process(
                         conn,
                         sensor_id,
                         self._ml_cfg,
                         self._iso_trainer,
+                        enterprise_adapter=adapter_for_sensor,
                     )
                     processed += 1
+
+                    if use_enterprise:
+                        enterprise_count += 1
+                    else:
+                        baseline_count += 1
+
                 except Exception:
                     errors += 1
                     logger.exception("[ML_BATCH] Error procesando sensor_id=%s", sensor_id)
         
         logger.info(
-            "[ML_BATCH] Ciclo completado: %d/%d procesados, %d errores",
-            processed, total, errors
+            "[ML_BATCH] Ciclo completado: %d/%d procesados, %d errores, "
+            "enterprise=%d baseline=%d",
+            processed, total, errors, enterprise_count, baseline_count,
         )
         return processed
     
@@ -161,13 +219,14 @@ def main() -> None:
     logger.info("[ML_BATCH] Iniciando ML batch runner (sklearn + IsolationForest)")
 
     ml_cfg = GlobalMLConfig()
+    flags = get_feature_flags()
     config = RunnerConfig(
         interval_seconds=args.interval_seconds,
         once=bool(args.once),
         dedupe_minutes=args.dedupe_minutes,
     )
 
-    runner = MLBatchRunner(ml_cfg)
+    runner = MLBatchRunner(ml_cfg, flags=flags)
     runner.run_loop(config)
 
 

@@ -1,5 +1,17 @@
+"""Legacy prediction repository — DEPRECATED.
+
+.. deprecated::
+    This module is dead code. No callers import it.
+    The official production writer is:
+        ``infrastructure.adapters.sqlserver_storage.SqlServerStorageAdapter.save_prediction()``
+    The legacy batch runner writer is:
+        ``ml_service.runners.common.prediction_writer.PredictionWriter``
+    Do NOT add new callers to this module. It will be removed in a future cleanup.
+"""
+
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 
 from sqlalchemy import text
@@ -54,6 +66,14 @@ def insert_prediction(
     confidence: float,
     target_ts_utc: datetime,
 ) -> int:
+    warnings.warn(
+        "prediction_repository.insert_prediction() is deprecated. "
+        "Use SqlServerStorageAdapter.save_prediction() instead. "
+        "This function writes only 6 of 16 columns (missing severity, "
+        "anomaly, explanation, etc.).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     row = conn.execute(
         text(
             """

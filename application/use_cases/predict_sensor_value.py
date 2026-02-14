@@ -1,13 +1,7 @@
 """Caso de uso: Predecir valor de sensor.
 
-Orquesta el flujo completo de predicción:
-1. Cargar ventana de datos del sensor (vía StoragePort).
-2. Aplicar filtro de señal si está configurado.
-3. Generar predicción (vía PredictionDomainService).
-4. Persistir resultado (vía StoragePort).
-5. Retornar DTO para la capa de presentación.
-
-Cumple ISO 27001: toda operación genera trace_id auditable.
+Orquesta: cargar datos → predecir → persistir → retornar DTO.
+ISO 27001: toda operación genera trace_id auditable.
 """
 
 from __future__ import annotations
@@ -32,19 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class PredictSensorValueUseCase:
-    """Caso de uso para predicción de valor de sensor.
-
-    Recibe dependencias por constructor (inyección).
-    No conoce SQL Server, Redis ni implementaciones concretas.
-
-    Attributes:
-        _prediction_service: Servicio de dominio de predicción.
-        _storage: Port de almacenamiento.
-        _audit: Port de auditoría (opcional).
-        _window_size: Tamaño de ventana por defecto.
-        _recall_enricher: Memory recall enricher (optional, created if cognitive port provided).
-        _flags: Feature flags (optional, controls memory recall).
-    """
+    """Predicción de sensor. DI puro, sin conocer implementaciones."""
 
     def __init__(
         self,
@@ -70,18 +52,7 @@ class PredictSensorValueUseCase:
         sensor_id: int,
         window_size: Optional[int] = None,
     ) -> PredictionDTO:
-        """Ejecuta el caso de uso de predicción.
-
-        Args:
-            sensor_id: ID del sensor a predecir.
-            window_size: Tamaño de ventana (override del default).
-
-        Returns:
-            ``PredictionDTO`` con resultado de predicción.
-
-        Raises:
-            ValueError: Si el sensor no tiene datos.
-        """
+        """Ejecuta predicción cargando datos de storage."""
         t_start = time.monotonic()
         effective_window = window_size or self._window_size
 
@@ -107,48 +78,68 @@ class PredictSensorValueUseCase:
         # 2. Generar predicción
         prediction = self._prediction_service.predict(window)
 
-        # 3. Persistir
+        # 3. Persistir + build DTO
+        self._persist(prediction, sensor_id)
+
+        # 3.5. Memory recall enrichment (optional, fail-safe)
+        memory_context = self._try_recall(prediction, sensor_id)
+
+        elapsed_ms = (time.monotonic() - t_start) * 1000.0
+        dto = self._build_dto(prediction, memory_context)
+
+        logger.info(
+            "use_case_predict_complete",
+            extra={
+                "sensor_id": sensor_id,
+                "predicted_value": prediction.predicted_value,
+                "engine": prediction.engine_name,
+                "elapsed_ms": round(elapsed_ms, 2),
+                "trace_id": prediction.audit_trace_id,
+            },
+        )
+        return dto
+
+    def execute_with_window(self, sensor_window: SensorWindow) -> PredictionDTO:
+        """Execute prediction with a pre-loaded SensorWindow (no SQL reload)."""
+        t_start = time.monotonic()
+        if sensor_window.is_empty:
+            raise ValueError(
+                f"Sensor {sensor_window.sensor_id} no tiene lecturas disponibles"
+            )
+        logger.info(
+            "use_case_predict_preloaded_start",
+            extra={"sensor_id": sensor_window.sensor_id, "window_size": sensor_window.size},
+        )
+        prediction = self._prediction_service.predict(sensor_window)
+        self._persist(prediction, sensor_window.sensor_id)
+        elapsed_ms = (time.monotonic() - t_start) * 1000.0
+        dto = self._build_dto(prediction)
+        logger.info(
+            "use_case_predict_preloaded_complete",
+            extra={
+                "sensor_id": sensor_window.sensor_id,
+                "predicted_value": prediction.predicted_value,
+                "engine": prediction.engine_name,
+                "elapsed_ms": round(elapsed_ms, 2),
+                "trace_id": prediction.audit_trace_id,
+            },
+        )
+        return dto
+
+    # -- private helpers --------------------------------------------------
+
+    def _persist(self, prediction, sensor_id) -> None:
         try:
             self._storage.save_prediction(prediction)
         except Exception as exc:
             logger.error(
                 "prediction_persistence_failed",
-                extra={
-                    "sensor_id": sensor_id,
-                    "error": str(exc),
-                    "trace_id": prediction.audit_trace_id,
-                },
+                extra={"sensor_id": sensor_id, "error": str(exc),
+                       "trace_id": prediction.audit_trace_id},
             )
-            # No fallar el use case por error de persistencia
 
-        # 3.5. Memory recall enrichment (optional, fail-safe)
-        memory_context = None
-        if self._should_recall():
-            try:
-                recall_ctx = self._recall_enricher.enrich(prediction)
-                if recall_ctx.has_context:
-                    memory_context = recall_ctx.to_dict()
-                    logger.debug(
-                        "memory_recall_enriched",
-                        extra={
-                            "series_id": prediction.series_id,
-                            "explanations": len(recall_ctx.similar_explanations),
-                            "anomalies": len(recall_ctx.similar_anomalies),
-                        },
-                    )
-            except Exception as exc:
-                logger.warning(
-                    "memory_recall_failed",
-                    extra={
-                        "sensor_id": sensor_id,
-                        "error": str(exc),
-                    },
-                )
-
-        # 4. Construir DTO
-        elapsed_ms = (time.monotonic() - t_start) * 1000.0
-
-        dto = PredictionDTO(
+    def _build_dto(self, prediction, memory_context=None) -> PredictionDTO:
+        return PredictionDTO(
             series_id=prediction.series_id,
             predicted_value=prediction.predicted_value,
             confidence_score=prediction.confidence_score,
@@ -161,18 +152,19 @@ class PredictSensorValueUseCase:
             memory_context=memory_context,
         )
 
-        logger.info(
-            "use_case_predict_complete",
-            extra={
-                "sensor_id": sensor_id,
-                "predicted_value": prediction.predicted_value,
-                "engine": prediction.engine_name,
-                "elapsed_ms": round(elapsed_ms, 2),
-                "trace_id": prediction.audit_trace_id,
-            },
-        )
-
-        return dto
+    def _try_recall(self, prediction, sensor_id):
+        if not self._should_recall():
+            return None
+        try:
+            recall_ctx = self._recall_enricher.enrich(prediction)
+            if recall_ctx.has_context:
+                return recall_ctx.to_dict()
+        except Exception as exc:
+            logger.warning(
+                "memory_recall_failed",
+                extra={"sensor_id": sensor_id, "error": str(exc)},
+            )
+        return None
 
     def _should_recall(self) -> bool:
         """Check if memory recall is enabled and available."""

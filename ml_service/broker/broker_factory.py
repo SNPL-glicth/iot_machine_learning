@@ -64,7 +64,8 @@ def create_broker(
     
     try:
         redis_broker = RedisReadingBroker(redis_url=redis_url)
-        # Test connection
+        # Attempt connection before checking health
+        redis_broker._connect()
         health = redis_broker.health_check()
         if health.get("connected"):
             logger.info("[BROKER_FACTORY] Redis broker connected successfully")

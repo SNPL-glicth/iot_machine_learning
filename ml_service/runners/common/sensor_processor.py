@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy.engine import Connection
 
@@ -46,6 +46,9 @@ except ImportError:
 if TYPE_CHECKING:
     from iot_machine_learning.ml_service.config.ml_config import GlobalMLConfig
     from iot_machine_learning.ml_service.trainers.isolation_trainer import IsolationForestTrainer
+    from iot_machine_learning.ml_service.runners.adapters.enterprise_prediction import (
+        EnterprisePredictionAdapter,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,7 @@ class SensorProcessor:
         sensor_id: int,
         ml_cfg: "GlobalMLConfig",
         iso_trainer: "IsolationForestTrainer",
+        enterprise_adapter: Optional["EnterprisePredictionAdapter"] = None,
     ) -> None:
         """Procesa un sensor y genera predicción.
 
@@ -83,6 +87,7 @@ class SensorProcessor:
             sensor_id: ID del sensor a procesar
             ml_cfg: Configuración ML global
             iso_trainer: Trainer de IsolationForest
+            enterprise_adapter: Adapter enterprise (opcional, controlado por flags)
         """
         from iot_machine_learning.ml_service.repository.sensor_repository import (
             load_sensor_series,
@@ -110,17 +115,38 @@ class SensorProcessor:
 
         reg_cfg = ml_cfg.regression
 
-        # 2. Calcular predicción (Modeling — delegado a RegressionPredictionService)
-        reg_model, last_minutes = train_regression_for_sensor(conn, sensor_id, reg_cfg)
-
-        if reg_model is None or last_minutes is None:
-            pred_result = self._regression_service.predict_fallback(
-                series.values, reg_cfg
+        # 2. Calcular predicción
+        # 2a. Ruta enterprise (si adapter disponible)
+        if enterprise_adapter is not None:
+            enterprise_result = enterprise_adapter.predict(
+                sensor_id=sensor_id,
+                window_size=reg_cfg.window_points,
+            )
+            logger.info(
+                "[SENSOR_PROC] enterprise sensor=%s engine=%s conf=%.2f",
+                sensor_id, enterprise_result.engine_used, enterprise_result.confidence,
+            )
+            from .regression_prediction_service import PredictionResult as _PR
+            pred_result = _PR(
+                predicted_value=enterprise_result.predicted_value,
+                trend=enterprise_result.trend,
+                confidence=enterprise_result.confidence,
+                anomaly=enterprise_result.anomaly_score > 0.5,
+                anomaly_score=enterprise_result.anomaly_score,
+                window_points_effective=reg_cfg.window_points,
             )
         else:
-            pred_result = self._regression_service.predict_with_model(
-                series, reg_model, last_minutes, reg_cfg, iso_trainer, sensor_id
-            )
+            # 2b. Ruta legacy (Modeling — delegado a RegressionPredictionService)
+            reg_model, last_minutes = train_regression_for_sensor(conn, sensor_id, reg_cfg)
+
+            if reg_model is None or last_minutes is None:
+                pred_result = self._regression_service.predict_fallback(
+                    series.values, reg_cfg
+                )
+            else:
+                pred_result = self._regression_service.predict_with_model(
+                    series, reg_model, last_minutes, reg_cfg, iso_trainer, sensor_id
+                )
 
         # 3. Subordinar anomalía a umbrales del usuario (Decisión)
         anomaly = pred_result.anomaly

@@ -144,6 +144,33 @@ class FeatureFlags(BaseModel):
     ML_ANOMALY_VOTING_THRESHOLD: float = 0.5
     ML_ANOMALY_CONTAMINATION: float = 0.1
 
+    # --- Batch Runner Enterprise Bridge ---
+    ML_BATCH_USE_ENTERPRISE: bool = False
+    ML_BATCH_ENTERPRISE_SENSORS: Optional[str] = None
+    ML_BATCH_BASELINE_ONLY_SENSORS: Optional[str] = None
+
+    # --- Performance Fixes (H-ML-4, H-ML-8, H-ING-2) ---
+    ML_ENTERPRISE_USE_PRELOADED_DATA: bool = True
+    ML_STREAM_USE_SLIDING_WINDOW: bool = True
+    ML_MQTT_ASYNC_PROCESSING: bool = True
+    ML_MQTT_QUEUE_SIZE: int = 1000
+    ML_MQTT_NUM_WORKERS: int = 4
+
+    # --- Batch Parallelism (E-4 / RC-2 fix) ---
+    ML_BATCH_PARALLEL_WORKERS: int = 1  # 1 = sequential (backward compat)
+
+    # --- Stream Prediction Dedup (E-2 / RC-1 fix) ---
+    ML_STREAM_PREDICTIONS_ENABLED: bool = False  # Default: batch only
+
+    # --- Sliding Window Eviction (E-1 / RC-3 fix) ---
+    ML_SLIDING_WINDOW_MAX_SENSORS: int = 1000
+    ML_SLIDING_WINDOW_TTL_SECONDS: int = 3600
+
+    # --- Ingest Circuit Breaker (E-3 / RC-4 fix) ---
+    ML_INGEST_CIRCUIT_BREAKER_ENABLED: bool = True
+    ML_INGEST_CB_FAILURE_THRESHOLD: int = 5
+    ML_INGEST_CB_TIMEOUT_SECONDS: int = 30
+
     # --- Cognitive Memory (Weaviate) ---
     ML_ENABLE_COGNITIVE_MEMORY: bool = False
     ML_COGNITIVE_MEMORY_DRY_RUN: bool = True
@@ -293,8 +320,20 @@ class FeatureFlags(BaseModel):
                         extra={"field": key, "invalid_value": env_val},
                     )
 
+        # Batch enterprise booleans
+        for key in ("ML_BATCH_USE_ENTERPRISE",):
+            env_val = os.environ.get(key)
+            if env_val is not None:
+                kwargs[key] = _parse_bool(env_val)
+
         # Strings
-        for key in ("ML_TAYLOR_SENSOR_WHITELIST", "ML_DEFAULT_ENGINE", "ML_COGNITIVE_MEMORY_URL"):
+        for key in (
+            "ML_TAYLOR_SENSOR_WHITELIST",
+            "ML_DEFAULT_ENGINE",
+            "ML_COGNITIVE_MEMORY_URL",
+            "ML_BATCH_ENTERPRISE_SENSORS",
+            "ML_BATCH_BASELINE_ONLY_SENSORS",
+        ):
             env_val = os.environ.get(key)
             if env_val is not None:
                 kwargs[key] = env_val.strip()
