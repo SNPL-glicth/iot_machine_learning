@@ -26,8 +26,8 @@ from ...domain.ports.storage_port import StoragePort
 from ...ml_service.config.feature_flags import FeatureFlags
 from .cognitive_storage_decorator import CognitiveStorageDecorator
 from .null_cognitive import NullCognitiveAdapter
-from .sqlserver_storage import SqlServerStorageAdapter
-from .weaviate_cognitive import WeaviateCognitiveAdapter
+from ..persistence.sql.storage import SqlServerStorageAdapter
+from .weaviate import WeaviateCognitiveAdapter
 
 logger = logging.getLogger(__name__)
 

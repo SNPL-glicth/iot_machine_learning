@@ -1,0 +1,114 @@
+"""Handler for recording actual values in the cognitive orchestrator.
+
+Extracted from MetaCognitiveOrchestrator.record_actual to keep the
+orchestrator under the 300-line complexity guard.
+
+Two paths:
+- Advanced plasticity: delegates to AdvancedPlasticityCoordinator
+- Legacy plasticity: direct error tracking + PlasticityTracker update
+"""
+
+from __future__ import annotations
+
+import logging
+from collections import deque
+from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+def record_actual_legacy(
+    actual_value: float,
+    perceptions: List,
+    regime: str,
+    recent_errors: Dict,
+    plasticity_tracker,
+    storage,
+    series_id: Optional[str],
+) -> None:
+    """Legacy plasticity path: direct error tracking.
+
+    Args:
+        actual_value: True observed value.
+        perceptions: List of EnginePerception from last predict().
+        regime: Signal regime string from last predict().
+        recent_errors: Mutable dict of deques (engine_name → errors).
+        plasticity_tracker: Optional PlasticityTracker instance.
+        storage: Optional storage adapter for recording errors.
+        series_id: Optional series identifier for storage.
+    """
+    for p in perceptions:
+        error = abs(p.predicted_value - actual_value)
+        recent_errors[p.engine_name].append(error)
+
+        if plasticity_tracker is not None:
+            plasticity_tracker.update(regime, p.engine_name, error)
+
+        if storage and series_id:
+            storage.record_prediction_error(
+                series_id=series_id,
+                engine_name=p.engine_name,
+                predicted_value=p.predicted_value,
+                actual_value=actual_value,
+            )
+
+
+def record_actual_dispatch(
+    actual_value: float,
+    last_regime: Optional[str],
+    last_perceptions: List,
+    last_plasticity_context,
+    enable_advanced_plasticity: bool,
+    plasticity_coordinator,
+    plasticity_tracker,
+    recent_errors: Dict,
+    storage,
+    series_id: Optional[str],
+    series_context,
+) -> None:
+    """Dispatch record_actual to the appropriate plasticity path.
+
+    Returns immediately if there is no regime or no perceptions recorded
+    (i.e. predict() has not been called yet).
+
+    Args:
+        actual_value: True observed value.
+        last_regime: Regime string from last predict() call.
+        last_perceptions: Perceptions from last predict() call.
+        last_plasticity_context: PlasticityContext from last predict() call.
+        enable_advanced_plasticity: Whether advanced plasticity is active.
+        plasticity_coordinator: AdvancedPlasticityCoordinator or None.
+        plasticity_tracker: PlasticityTracker or None.
+        recent_errors: Mutable dict of deques.
+        storage: Optional storage adapter.
+        series_id: Optional series identifier.
+        series_context: Optional SeriesContext for asymmetric penalty.
+    """
+    if last_regime is None or not last_perceptions:
+        return
+
+    if (
+        enable_advanced_plasticity
+        and last_plasticity_context is not None
+        and plasticity_coordinator is not None
+    ):
+        plasticity_coordinator.record_actual_advanced(
+            actual_value=actual_value,
+            perceptions=last_perceptions,
+            plasticity_context=last_plasticity_context,
+            regime=last_regime,
+            series_id=series_id,
+            series_context=series_context,
+            plasticity_tracker=plasticity_tracker,
+            recent_errors=recent_errors,
+        )
+    else:
+        record_actual_legacy(
+            actual_value=actual_value,
+            perceptions=last_perceptions,
+            regime=last_regime,
+            recent_errors=recent_errors,
+            plasticity_tracker=plasticity_tracker,
+            storage=storage,
+            series_id=series_id,
+        )

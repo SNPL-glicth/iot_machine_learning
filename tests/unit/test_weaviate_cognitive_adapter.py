@@ -34,7 +34,7 @@ from iot_machine_learning.domain.entities.prediction import Prediction
 from iot_machine_learning.domain.ports.cognitive_memory_port import (
     CognitiveMemoryPort,
 )
-from iot_machine_learning.infrastructure.adapters.weaviate_cognitive import (
+from iot_machine_learning.infrastructure.adapters.weaviate import (
     WeaviateCognitiveAdapter,
 )
 

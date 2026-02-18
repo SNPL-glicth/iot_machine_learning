@@ -16,7 +16,7 @@ Package structure:
 from __future__ import annotations
 
 from .engine_selector import WeightedFusion
-from .explanation_builder import ExplanationBuilder
+from .builder import ExplanationBuilder
 from .inhibition import InhibitionGate
 from .orchestrator import MetaCognitiveOrchestrator
 from .plasticity import PlasticityTracker

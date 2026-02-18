@@ -17,12 +17,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlalchemy import text
-
-from iot_ingest_services.common.db import get_engine
 from iot_machine_learning.ml_service.config.ml_config import (
     DEFAULT_ML_CONFIG,
     OnlineBehaviorConfig,
@@ -35,6 +31,7 @@ from iot_machine_learning.ml_service.features.ml_features import (
 )
 
 from .models import SensorState, OnlineAnalysis
+from .prediction_deviation_checker import check_prediction_deviation
 from .services import (
     WindowAnalyzer,
     ThresholdValidator,
@@ -197,7 +194,17 @@ class SimpleMlOnlineProcessor:
 
         # Autovalidación de predicción
         try:
-            self._check_prediction_deviation(sensor_id=sensor_id, reading=reading, analysis=analysis)
+            check_prediction_deviation(
+                sensor_id=sensor_id,
+                reading_value=float(reading.value),
+                reading_timestamp=float(reading.timestamp),
+                sensor_type=reading.sensor_type,
+                cfg=self._cfg,
+                threshold_validator=self._threshold_validator,
+                event_persister=self._event_persister,
+                explanation_builder=self._explanation_builder,
+                analysis=analysis,
+            )
         except Exception:
             logger.exception(
                 "Error evaluando desviación de predicción para sensor_id=%s", sensor_id
@@ -222,96 +229,6 @@ class SimpleMlOnlineProcessor:
                 "[ML_FEATURES_PUBLISH_ERROR] sensor_id=%s error=%s",
                 features.sensor_id, str(e)
             )
-
-    def _check_prediction_deviation(
-        self,
-        *,
-        sensor_id: int,
-        reading: Reading,
-        analysis: OnlineAnalysis,
-    ) -> None:
-        """Verifica desviación entre predicción y valor real."""
-        cfg = self._cfg
-        
-        if self._threshold_validator.is_value_within_warning_range(sensor_id, float(reading.value)):
-            return
-        
-        engine = get_engine()
-        reading_dt = datetime.fromtimestamp(float(reading.timestamp), tz=timezone.utc)
-
-        with engine.connect() as conn:
-            row = conn.execute(
-                text(
-                    """
-                    SELECT TOP 1 id, [predicted_value], target_timestamp
-                    FROM dbo.predictions
-                    WHERE sensor_id = :sensor_id
-                      AND ABS(DATEDIFF(second, target_timestamp, :ts)) <= :tol
-                    ORDER BY ABS(DATEDIFF(second, target_timestamp, :ts)) ASC
-                    """
-                ),
-                {
-                    "sensor_id": sensor_id,
-                    "ts": reading_dt.replace(tzinfo=None),
-                    "tol": cfg.prediction_time_tolerance_seconds,
-                },
-            ).fetchone()
-
-            if not row:
-                return
-
-            prediction_id, predicted_value, _target_ts = row
-            predicted_value_f = float(predicted_value) if predicted_value is not None else 0.0
-
-            error_abs = abs(float(reading.value) - predicted_value_f)
-            denom = max(abs(predicted_value_f), 1e-6)
-            error_rel = error_abs / denom
-
-            if (
-                error_abs < cfg.prediction_error_absolute
-                and error_rel < cfg.prediction_error_relative
-            ):
-                return
-
-            if self._event_persister.should_dedupe_prediction_deviation(
-                conn, sensor_id=sensor_id, dedupe_minutes=cfg.dedupe_minutes_prediction_deviation
-            ):
-                return
-
-        severity_label = "WARN" if error_rel < 0.5 else "CRITICAL"
-        event_type = self._explanation_builder.map_severity_to_event_type(severity_label)
-
-        explanation = (
-            "Desviación significativa entre la predicción del modelo y el valor real. "
-            f"real={float(reading.value):.4f} predicho={predicted_value_f:.4f} "
-            f"error_abs={error_abs:.4f} error_rel={error_rel:.2%}."
-        )
-        recommended_action = (
-            "Revisar la configuración del modelo y las condiciones del sensor. "
-            "Si la desviación persiste, considerar recalibrar o reentrenar el modelo."
-        )
-
-        extra_payload = {
-            "prediction_id": int(prediction_id),
-            "predicted_value": predicted_value_f,
-            "error_abs": error_abs,
-            "error_rel": error_rel,
-        }
-
-        self._event_persister.insert_ml_event(
-            sensor_id=sensor_id,
-            sensor_type=reading.sensor_type,
-            severity_label=severity_label,
-            event_type=event_type,
-            event_code="PREDICTION_DEVIATION",
-            title="ML online: PREDICTION_DEVIATION",
-            explanation=explanation,
-            recommended_action=recommended_action,
-            analysis=analysis,
-            ts_utc=float(reading.timestamp),
-            prediction_id=int(prediction_id),
-            extra_payload=extra_payload,
-        )
 
 
 def run_stream(broker: ReadingBroker) -> None:

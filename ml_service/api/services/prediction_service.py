@@ -50,7 +50,7 @@ from iot_machine_learning.domain.services.threshold_evaluator import (
     is_threshold_violated,
     is_within_warning_range,
 )
-from iot_machine_learning.infrastructure.adapters.sqlserver_storage import (
+from iot_machine_learning.infrastructure.persistence.sql.storage import (
     SqlServerStorageAdapter,
 )
 from iot_machine_learning.infrastructure.ml.engines.baseline_adapter import (

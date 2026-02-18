@@ -28,6 +28,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, Dict, List, Optional
 
+# ab_metrics imported lazily inside methods to avoid circular import at module load
+
 logger = logging.getLogger(__name__)
 
 # Mínimo de muestras para calcular resultados significativos
@@ -160,60 +162,19 @@ class ABTester:
         Returns:
             ``ABTestResult`` o ``None`` si no hay suficientes muestras.
         """
+        from .ab_metrics import compute_ab_result
+
         with self._lock:
             data = self._raw_data.get(sensor_id)
             if data is None or len(data.actual) < _MIN_SAMPLES:
                 return None
-
-            # Copiar datos bajo lock para calcular fuera del lock
             actual = list(data.actual)
             baseline_preds = list(data.baseline)
             taylor_preds = list(data.taylor)
 
-        n = len(actual)
-
-        # MAE
-        baseline_errors = [abs(a - b) for a, b in zip(actual, baseline_preds)]
-        taylor_errors = [abs(a - t) for a, t in zip(actual, taylor_preds)]
-
-        baseline_mae = sum(baseline_errors) / n
-        taylor_mae = sum(taylor_errors) / n
-
-        # RMSE
-        baseline_sq_errors = [e * e for e in baseline_errors]
-        taylor_sq_errors = [e * e for e in taylor_errors]
-
-        baseline_rmse = math.sqrt(sum(baseline_sq_errors) / n)
-        taylor_rmse = math.sqrt(sum(taylor_sq_errors) / n)
-
-        # Winner con margen
-        if baseline_mae > 0 and taylor_mae < baseline_mae * (1.0 - _WINNER_MARGIN):
-            winner = "taylor"
-        elif taylor_mae > 0 and baseline_mae < taylor_mae * (1.0 - _WINNER_MARGIN):
-            winner = "baseline"
-        else:
-            winner = "tie"
-
-        # Improvement %
-        if baseline_mae > 1e-12:
-            improvement_pct = ((baseline_mae - taylor_mae) / baseline_mae) * 100.0
-        else:
-            improvement_pct = 0.0
-
-        # Confianza basada en número de muestras (satura en 100)
-        confidence = min(1.0, n / 100.0)
-
-        result = ABTestResult(
-            sensor_id=sensor_id,
-            baseline_mae=baseline_mae,
-            baseline_rmse=baseline_rmse,
-            taylor_mae=taylor_mae,
-            taylor_rmse=taylor_rmse,
-            winner=winner,
-            confidence=confidence,
-            n_samples=n,
-            improvement_pct=improvement_pct,
-        )
+        result = compute_ab_result(sensor_id, actual, baseline_preds, taylor_preds)
+        if result is None:
+            return None
 
         with self._lock:
             self._results[sensor_id] = result
@@ -222,16 +183,15 @@ class ABTester:
             "ab_test_result",
             extra={
                 "sensor_id": sensor_id,
-                "winner": winner,
-                "baseline_mae": round(baseline_mae, 6),
-                "taylor_mae": round(taylor_mae, 6),
-                "baseline_rmse": round(baseline_rmse, 6),
-                "taylor_rmse": round(taylor_rmse, 6),
-                "improvement_pct": round(improvement_pct, 2),
-                "n_samples": n,
+                "winner": result.winner,
+                "baseline_mae": round(result.baseline_mae, 6),
+                "taylor_mae": round(result.taylor_mae, 6),
+                "baseline_rmse": round(result.baseline_rmse, 6),
+                "taylor_rmse": round(result.taylor_rmse, 6),
+                "improvement_pct": round(result.improvement_pct, 2),
+                "n_samples": result.n_samples,
             },
         )
-
         return result
 
     def compute_all_results(self) -> Dict[int, ABTestResult]:
@@ -259,32 +219,12 @@ class ABTester:
             Dict con estadísticas agregadas.  Si no hay datos,
             retorna ``{"status": "no_data"}``.
         """
-        with self._lock:
-            if not self._results:
-                return {"status": "no_data"}
+        from .ab_metrics import aggregate_summary
 
+        with self._lock:
             results = list(self._results.values())
 
-        taylor_wins = sum(1 for r in results if r.winner == "taylor")
-        baseline_wins = sum(1 for r in results if r.winner == "baseline")
-        ties = sum(1 for r in results if r.winner == "tie")
-
-        avg_taylor_mae = sum(r.taylor_mae for r in results) / len(results)
-        avg_baseline_mae = sum(r.baseline_mae for r in results) / len(results)
-        avg_improvement = sum(r.improvement_pct for r in results) / len(results)
-        total_samples = sum(r.n_samples for r in results)
-
-        return {
-            "status": "active",
-            "total_sensors": len(results),
-            "taylor_wins": taylor_wins,
-            "baseline_wins": baseline_wins,
-            "ties": ties,
-            "avg_taylor_mae": round(avg_taylor_mae, 6),
-            "avg_baseline_mae": round(avg_baseline_mae, 6),
-            "avg_improvement_pct": round(avg_improvement, 2),
-            "total_samples": total_samples,
-        }
+        return aggregate_summary(results)
 
     def get_sensor_result(self, sensor_id: int) -> Optional[ABTestResult]:
         """Retorna el último resultado calculado para un sensor.

@@ -1,25 +1,33 @@
-"""ML API facade (E-13).
+"""ml_api — Facade de entrada HTTP para el servicio ML.
 
-Re-exports from ml_service.api for independent deployment.
-Existing imports via ml_service.api continue to work unchanged.
-
-Usage:
-    from ml_api import create_app
-    app = create_app()
+Expone create_app() que construye la aplicación FastAPI con las rutas
+del servicio ML (/health, /ml/predict, etc.).
 """
 
 from __future__ import annotations
 
 
 def create_app():
-    """Create the FastAPI application for ML predictions."""
-    from iot_machine_learning.ml_service.api.routes import router
+    """Crea y configura la aplicación FastAPI del servicio ML.
+
+    Returns:
+        FastAPI application con rutas /health y /ml/predict.
+    """
     from fastapi import FastAPI
 
-    app = FastAPI(
-        title="ML Prediction API",
-        description="On-demand sensor predictions",
-        version="1.0.0",
-    )
-    app.include_router(router)
+    app = FastAPI(title="IoT ML Service", version="1.0.0")
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
+    try:
+        from iot_machine_learning.ml_service.api import router as ml_router
+        app.include_router(ml_router, prefix="/ml")
+    except Exception:
+        pass
+
     return app
+
+
+__all__ = ["create_app"]

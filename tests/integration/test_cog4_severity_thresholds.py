@@ -25,6 +25,9 @@ class TestUnifiedSeverityThresholds:
             sensor_type="temperature",
             location="Room A",
             unit="°C",
+            device_id=1,  # Added
+            device_name="Device 1",  # Added
+            device_type="IoT Sensor",  # Added
             current_value=22.0,
             predicted_value=23.0,
             trend="rising",
@@ -37,7 +40,10 @@ class TestUnifiedSeverityThresholds:
             user_threshold_min=None,
             user_threshold_max=None,
             recent_avg=None,
+            recent_min=None,  # Added
+            recent_max=None,  # Added
             recent_std=None,
+            last_similar_event_at=None,  # Added
         )
         defaults.update(overrides)
         return EnrichedContext(**defaults)

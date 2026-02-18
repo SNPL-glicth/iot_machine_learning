@@ -28,75 +28,16 @@ from ....domain.ports.anomaly_detection_port import AnomalyDetectionPort
 
 from .anomaly_config import AnomalyDetectorConfig
 from .anomaly_narrator import build_anomaly_explanation
+from .detector_factory import create_default_detectors
 from .detector_protocol import SubDetector
-from .detectors import (
-    AccelerationZDetector,
-    IQRDetector,
-    IsolationForestDetector,
-    LOFDetector,
-    VelocityZDetector,
-    ZScoreDetector,
-)
-from .detectors.isolation_forest_detector import IsolationForestNDDetector
-from .detectors.lof_detector import LOFNDDetector
 from .scoring_functions import compute_z_score
 from .temporal_stats import TemporalTrainingStats
 from .training_stats import TrainingStats
+from .vote_context_builder import build_vote_context, extract_acc_z, extract_vel_z
 from .voting_strategy import VotingStrategy
 
 logger = logging.getLogger(__name__)
 
-
-def create_default_detectors(
-    config: AnomalyDetectorConfig,
-) -> List[SubDetector]:
-    """Create the default ensemble of 8 sub-detectors.
-
-    This factory function extracts the hardcoded detector list so it can
-    be reused, overridden, or extended.  Pass the result to
-    ``VotingAnomalyDetector(sub_detectors=...)`` to customize.
-
-    Args:
-        config: Anomaly detector configuration.
-
-    Returns:
-        List of 8 default sub-detectors.
-    """
-    return [
-        ZScoreDetector(
-            lower=config.z_vote_lower,
-            upper=config.z_vote_upper,
-        ),
-        IQRDetector(),
-        IsolationForestDetector(
-            contamination=config.contamination,
-            n_estimators=config.n_estimators,
-            random_state=config.random_state,
-        ),
-        LOFDetector(
-            contamination=config.contamination,
-            max_neighbors=config.lof_max_neighbors,
-        ),
-        VelocityZDetector(
-            lower=config.z_vote_lower,
-            upper=config.z_vote_upper,
-        ),
-        AccelerationZDetector(
-            lower=config.z_vote_lower,
-            upper=config.z_vote_upper,
-        ),
-        IsolationForestNDDetector(
-            contamination=config.contamination,
-            n_estimators=config.n_estimators,
-            random_state=config.random_state,
-            min_training_points=config.min_training_points,
-        ),
-        LOFNDDetector(
-            contamination=config.contamination,
-            max_neighbors=config.lof_max_neighbors,
-            min_training_points=config.min_training_points,
-        ),
-    ]
 
 
 class VotingAnomalyDetector(AnomalyDetectionPort):
@@ -261,8 +202,8 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
 
         # Compute z-scores for narrator
         z = compute_z_score(value, self._stats.mean, self._stats.std)
-        vel_z = self._extract_vel_z(window)
-        acc_z = self._extract_acc_z(window)
+        vel_z = extract_vel_z(window, self._temporal_stats)
+        acc_z = extract_acc_z(window, self._temporal_stats)
 
         explanation = build_anomaly_explanation(
             votes, z_score=z, vel_z_score=vel_z, acc_z_score=acc_z,
@@ -297,55 +238,4 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
 
     def _build_vote_context(self, window: SensorWindow) -> dict:
         """Builds kwargs context for sub-detector vote() calls."""
-        ctx: dict = {}
-
-        if self._temporal_stats.has_temporal and window.size >= 2:
-            try:
-                ctx["temporal_features"] = window.temporal_features
-            except Exception:
-                pass
-
-        if self._temporal_stats.has_temporal and window.size >= 3:
-            try:
-                import numpy as np
-                tf = window.temporal_features
-                if tf.has_velocity and tf.has_acceleration:
-                    ctx["nd_features"] = np.array([[
-                        window.last_value,
-                        tf.last_velocity,
-                        tf.last_acceleration,
-                    ]])
-            except Exception:
-                pass
-
-        return ctx
-
-    def _extract_vel_z(self, window: SensorWindow) -> float:
-        if not self._temporal_stats.has_temporal or window.size < 2:
-            return 0.0
-        try:
-            tf = window.temporal_features
-            if tf.has_velocity:
-                return compute_z_score(
-                    tf.last_velocity,
-                    self._temporal_stats.vel_mean,
-                    self._temporal_stats.vel_std,
-                )
-        except Exception:
-            pass
-        return 0.0
-
-    def _extract_acc_z(self, window: SensorWindow) -> float:
-        if not self._temporal_stats.has_temporal or window.size < 3:
-            return 0.0
-        try:
-            tf = window.temporal_features
-            if tf.has_acceleration:
-                return compute_z_score(
-                    tf.last_acceleration,
-                    self._temporal_stats.acc_mean,
-                    self._temporal_stats.acc_std,
-                )
-        except Exception:
-            pass
-        return 0.0
+        return build_vote_context(window, self._temporal_stats)

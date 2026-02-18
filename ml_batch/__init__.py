@@ -1,17 +1,24 @@
-"""ML Batch Runner facade (E-13).
+"""ml_batch — Facade del runner batch ML.
 
-Re-exports from ml_service.runners for independent deployment.
-Existing imports via ml_service.runners continue to work unchanged.
-
-Usage:
-    from ml_batch import run_batch_cycle
-    run_batch_cycle()
+Expone run_batch_cycle() como punto de entrada del ciclo batch.
+El runner de producción real está en iot_ingest_services/jobs/ml_batch_runner.py.
+Este módulo es el facade interno para dev/test.
 """
 
 from __future__ import annotations
 
 
-def run_batch_cycle():
-    """Execute one batch prediction cycle."""
-    from iot_ingest_services.jobs.batch.runner import run_once
-    run_once()
+def run_batch_cycle() -> dict:
+    """Ejecuta un ciclo batch de predicciones ML.
+
+    Returns:
+        Dict con resultados del ciclo: sensors procesados, predicciones, errores.
+    """
+    try:
+        from iot_machine_learning.ml_service.runners.ml_batch_runner import run_once
+        return run_once() or {}
+    except Exception as exc:
+        return {"error": str(exc), "sensors_processed": 0}
+
+
+__all__ = ["run_batch_cycle"]

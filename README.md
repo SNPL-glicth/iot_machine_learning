@@ -349,34 +349,36 @@ sensor_id = safe_series_id_to_int("room_temp")   # → 0 (fallback, logged)
 sensor_id = safe_series_id_to_int("abc", fallback=-1)  # → -1
 ```
 
-**Nunca** usar `int(series_id)` directamente. `safe_series_id_to_int` está aplicado en todos los ports y adapters.
+Nunca usar `int(series_id)` directamente.
 
 ---
 
 ## Pipelines de ejecución
 
 ### Predicción puntual (HTTP)
-
 ```
 POST /ml/predict → FastAPI → PredictionService → EngineFactory → Motor → dbo.predictions
 ```
 
 ### Pipeline batch
-
 ```
-ml_batch_runner → sensores activos → SensorProcessor → predicción + anomalía + severidad + narrativa → dbo.predictions + dbo.ml_events
+ml_batch_runner → sensores activos → SensorProcessor → predicción + anomalía + severidad → dbo.predictions + dbo.ml_events
 ```
 
 ### Pipeline online (stream)
-
 ```
-ml_stream_runner → ReadingBroker → SlidingWindowBuffer → patrones (1s/5s/10s) → dbo.ml_events + dbo.alert_notifications
+ml_stream_runner → ReadingBroker → SlidingWindowBuffer → patrones (1s/5s/10s) → dbo.ml_events
 ```
 
 ### Pipeline cognitivo
-
 ```
-MetaCognitiveOrchestrator → Perceive(signal) → Predict(engines) → Inhibit(unstable) → Adapt(plasticity) → Fuse(weights) → Explain(builder) → Explanation
+MetaCognitiveOrchestrator
+  → Perceive  (SignalAnalyzer → StructuralAnalysis)
+  → Predict   (engines paralelos)
+  → Inhibit   (InhibitionGate → supresión por fallos)
+  → Adapt     (PlasticityTracker + AdvancedPlasticityCoordinator)
+  → Fuse      (WeightedFusion → peso adaptativo)
+  → Explain   (ExplanationBuilder → domain Explanation)
 ```
 
 ---
@@ -384,12 +386,12 @@ MetaCognitiveOrchestrator → Perceive(signal) → Predict(engines) → Inhibit(
 ## Comunicación con otros servicios
 
 | Servicio | Dirección | Detalle |
-|----------|-----------|---------|
-| **SQL Server** (`iot_database`) | Lee/Escribe | `sensor_readings`, `predictions`, `ml_models`, `ml_events`, `alert_thresholds`, `alert_notifications` |
+|---|---|---|
+| **SQL Server** (`iot_database`) | Lee/Escribe | `sensor_readings`, `predictions`, `ml_models`, `ml_events`, `alert_thresholds` |
 | **Ingesta** (`iot_ingest_services`) | Lee | `ReadingBroker` (in-memory), conexión BD compartida |
 | **AI Explainer** (`ai-explainer`) | HTTP | `/explain/anomaly` — fallback a templates si no disponible |
 | **Weaviate** | HTTP | Memoria cognitiva: `recall_similar_explanations`, `recall_similar_anomalies` |
-| **Backend** (`iot_monitor_backend`) | Indirecto | Consume `predictions`, `ml_events`, `notifications` vía BD |
+| **Backend** (`iot_monitor_backend`) | Indirecto | Consume `predictions`, `ml_events` vía BD |
 
 ---
 
@@ -397,54 +399,45 @@ MetaCognitiveOrchestrator → Perceive(signal) → Predict(engines) → Inhibit(
 
 - **Umbrales del usuario tienen prioridad**: si el valor está dentro del rango WARNING configurado, no se genera evento ML.
 - **Estados operacionales bloquean ML**: sensores en `INITIALIZING` o `STALE` no generan eventos.
-- **Fallbacks claros**: si AI Explainer no responde, se usan templates determinísticos.
-- **Severidad unificada**: `AnomalySeverity.from_score()` es la fuente única de verdad para clasificación de severidad.
+- **Severidad unificada**: `AnomalySeverity.from_score()` es la fuente única de verdad.
 - **Inmutabilidad**: todas las entidades de dominio son `frozen=True`. Modificaciones vía `dataclasses.replace()`.
+- **Fallbacks claros**: si AI Explainer no responde, se usan templates determinísticos.
 
 ---
 
 ## Tests
 
 ```bash
-# Ejecutar suite completa (1096 tests)
-python -m pytest iot_machine_learning/tests/ -v
+# Suite completa
+python -m pytest tests/ -v
 
-# Solo tests unitarios
-python -m pytest iot_machine_learning/tests/unit/ -v
+# Solo unitarios
+python -m pytest tests/unit/ -v
 
-# Solo tests de integración
-python -m pytest iot_machine_learning/tests/integration/ -v
+# Solo integración
+python -m pytest tests/integration/ -v
 ```
 
-| Capa | Tests | Cobertura |
-|------|-------|-----------|
-| Domain (entidades, servicios, validadores, structural analysis) | ~200 | Lógica pura, sin mocks |
-| Infrastructure (motores, filtros, cognitivo, anomalía, DI) | ~400 | Math puro + adapters + extensibilidad |
-| Application (use cases, renderer, select_engine) | ~80 | Mocks de ports |
-| ML Service (prediction, narrator, severity, memory recall) | ~100 | Mocks de BD |
-| Integration (A/B, enterprise flow, COG-4, wiring) | ~295 | End-to-end sin BD real |
-
-### Progresión de tests
-
-```
-413 → 576 → 636 → 769 → 789 → 830 → 845 → 922 → 960 → 1014 → 1035 → 1056 → 1075 → 1096
-```
+| Capa | Tests |
+|---|---|
+| Domain (entidades, servicios, validadores) | ~200 |
+| Infrastructure (motores, filtros, cognitivo, anomalía) | ~450 |
+| Application (use cases, renderer) | ~80 |
+| ML Service (runners, metrics, narrator) | ~100 |
+| Integration (A/B, enterprise, cognitivo) | ~370 |
+| **Total** | **~1203** |
 
 ---
 
 ## Decisiones técnicas
 
-- **Arquitectura hexagonal**: domain puro (sin I/O) → application (use cases) → infrastructure (implementaciones). Dependencias apuntan hacia adentro.
+- **Arquitectura hexagonal**: domain puro → application (use cases) → infrastructure. Dependencias apuntan hacia adentro.
 - **UTSAE agnóstico**: `series_id: str` como identidad universal. `ml_service/` mantiene `sensor_id: int` como bridge IoT.
-- **Feature flags**: todo motor nuevo se activa gradualmente vía flags, con rollback instantáneo a baseline.
-- **Archivos < 180 líneas**: cada módulo tiene responsabilidad única. Math puro separado de orquestación.
+- **Archivos ≤ 300 líneas**: cada módulo tiene responsabilidad única. Math puro separado de orquestación.
 - **Plugin architecture**: `@register_engine` y `@register_detector` permiten agregar engines/detectores sin modificar código existente.
 - **Dual interface en ports**: métodos legacy (`SensorWindow`) coexisten con agnósticos (`TimeSeries`).
-- **`dataclasses.replace()`**: para modificar entidades frozen sin reconstrucción manual.
-- **`safe_series_id_to_int()`**: conversión centralizada y segura para bridges legacy.
 - **Explicabilidad como capa**: domain (value objects) → infra (builder) → application (renderer). Sin acoplamiento.
-- **MetaDiagnostic deprecated**: usar `last_explanation` (domain `Explanation`) en vez de `last_diagnostic`.
-- **Persistencia en BD**: `predictions`, `ml_events`, `alert_notifications` con `engine_name`, `trend`, `method_votes`, `audit_trace_id` para trazabilidad completa.
+- **Feature flags**: todo motor nuevo se activa gradualmente vía `FeatureFlags`, con rollback instantáneo a baseline.
 
 ---
 
@@ -454,21 +447,3 @@ python -m pytest iot_machine_learning/tests/integration/ -v
 - No gestiona usuarios/auth (eso es `iot_monitor_backend`).
 - No define esquemas SQL ni ejecuta migraciones (eso es `iot_database`).
 - No garantiza tiempo real end-to-end (broker in-memory, no distribuido).
-
----
-
-## Hallazgos arquitectónicos resueltos
-
-| ID | Hallazgo | Resolución | Fase |
-|----|----------|------------|------|
-| ARQ-1 | Dual interface PredictionEngine vs PredictionPort | `PredictionEnginePortBridge` + `engine.as_port()` | Phase 2 |
-| ARQ-2 | Reverse import application → infra en EngineFactory | `get_engine_for_sensor()` deprecated, sin import inverso | Phase 2 |
-| MOD-2 | VotingAnomalyDetector hardcodea 8 detectores | DI vía `sub_detectors` param + `create_default_detectors()` | Phase 3 |
-| ROB-1 | Agregar engine requiere tocar 4+ archivos | `@register_engine` — 1 archivo nuevo | Phase 3 |
-| ROB-2 | No se pueden inyectar detectores custom | `DetectorRegistry` + `@register_detector` | Phase 3 |
-| DEBT-1 | Bridges `int(series_id)` inseguros en 7 archivos | `safe_series_id_to_int()` centralizado | Phase 4 |
-| DEBT-4 | Reconstrucción manual de Prediction (12 campos) | `dataclasses.replace()` | Phase 4 |
-| COG-1 | `_classify_regime()` duplicado en 2 archivos | Unificado en `structural_analysis.py` (domain) | Phase 1-Cog |
-| COG-2 | `SignalProfile` ≈ `StructuralAnalysis` duplicados | `StructuralAnalysis` como tipo único | Phase 1-Cog |
-| COG-3 | `MetaDiagnostic` redundante con `Explanation` | Deprecated con DeprecationWarning | Phase 4 |
-| COG-4 | Umbrales de severidad duplicados renderer vs domain | `template_generator` delega a `AnomalySeverity.from_score()` | Phase 4 |

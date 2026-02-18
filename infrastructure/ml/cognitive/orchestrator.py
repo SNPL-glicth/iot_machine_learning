@@ -18,6 +18,9 @@ from .plasticity import PlasticityTracker
 from .signal_analyzer import SignalAnalyzer
 from .explanation_builder import ExplanationBuilder
 from .types import EnginePerception, MetaDiagnostic, PipelineTimer
+from .orchestrator_helpers import collect_perceptions, create_fallback_result
+from .plasticity_factory import build_advanced_plasticity, null_advanced_plasticity
+from .record_actual_handler import record_actual_dispatch
 
 from iot_machine_learning.domain.entities.series.structural_analysis import (
     StructuralAnalysis,
@@ -40,6 +43,8 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         inhibition_config: Optional[InhibitionConfig] = None,
         enable_plasticity: bool = True,
         budget_ms: float = 500.0,
+        storage_adapter=None,  # type: ignore[assignment]
+        enable_advanced_plasticity: bool = False,  # FASE 7: Advanced plasticity flag
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -62,7 +67,41 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._last_regime: Optional[str] = None
         self._last_perceptions: List[EnginePerception] = []
         self._budget_ms = budget_ms
+        # FASE 3: Storage adapter for adaptive weights (optional)
+        self._storage = storage_adapter
+        self._adaptive_epsilon = 0.01  # Prevent division by zero
         self._last_timer: Optional[PipelineTimer] = None
+        
+        # Weight adjustment service
+        from .weight_adjustment_service import WeightAdjustmentService
+        self._weight_service = WeightAdjustmentService(
+            base_weights=self._base_weights,
+            storage_adapter=storage_adapter,
+            plasticity_tracker=self._plasticity,
+            epsilon=self._adaptive_epsilon,
+        )
+        
+        # FASE 7: Advanced Plasticity System
+        self._enable_advanced_plasticity = enable_advanced_plasticity
+        if enable_advanced_plasticity:
+            (
+                self._plasticity_coordinator,
+                self._adaptive_lr,
+                self._asymmetric_penalty,
+                self._contextual_tracker,
+                self._health_monitor,
+            ) = build_advanced_plasticity(storage_adapter)
+        else:
+            (
+                self._plasticity_coordinator,
+                self._adaptive_lr,
+                self._asymmetric_penalty,
+                self._contextual_tracker,
+                self._health_monitor,
+            ) = null_advanced_plasticity()
+        
+        # Store last context for advanced plasticity
+        self._last_plasticity_context = None
 
     @property
     def name(self) -> str:
@@ -86,15 +125,23 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         builder = ExplanationBuilder(series_id)
         builder.set_signal(profile)
         timer.stop("perceive")
+        
+        # FASE 7: Create PlasticityContext for advanced plasticity
+        if self._enable_advanced_plasticity and self._plasticity_coordinator:
+            self._last_plasticity_context = self._plasticity_coordinator.create_plasticity_context(
+                profile, series_id
+            )
+        else:
+            self._last_plasticity_context = None
 
         # Phase: PREDICT
         timer.start()
-        perceptions = self._collect_perceptions(values, timestamps)
+        perceptions = collect_perceptions(self._engines, values, timestamps)
         timer.stop("predict")
 
         if not perceptions:
             self._last_timer = timer
-            return self._fallback(values, profile, builder, timer)
+            return self._handle_fallback(values, profile, builder, timer, "no_valid_perceptions")
 
         # Budget guard: if perceive+predict already over budget, cut to fallback
         if timer.total_ms > timer.budget_ms:
@@ -103,10 +150,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
                 "budget_ms": timer.budget_ms,
             })
             self._last_timer = timer
-            return self._fallback(
-                values, profile, builder, timer,
-                reason="budget_exceeded",
-            )
+            return self._handle_fallback(values, profile, builder, timer, "budget_exceeded")
 
         builder.set_perceptions(perceptions, n_engines_total=len(self._engines))
 
@@ -114,7 +158,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         timer.start()
         adapted = (self._plasticity is not None
                    and self._plasticity.has_history(regime_str))
-        weights = self._resolve_weights(regime_str, perceptions)
+        weights = self._weight_service.resolve_weights(regime_str, [p.engine_name for p in perceptions], series_id=series_id)
         builder.set_adaptation(adapted=adapted, regime=regime_str)
         timer.stop("adapt")
 
@@ -162,26 +206,51 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         if timer.is_over_budget:
             logger.warning("pipeline_over_budget", extra=timer.to_dict())
 
+        # FASE 4: Add confidence interval to metadata (optional, non-breaking)
+        metadata = {
+            "cognitive_diagnostic": diag.to_dict(),
+            "explanation": self._last_explanation.to_dict(),
+            "pipeline_timing": timer.to_dict(),
+        }
+        
+        if self._storage and series_id != "unknown":
+            ci = self._storage.compute_confidence_interval(
+                series_id, selected, fused_val
+            )
+            if ci:
+                metadata["confidence_interval"] = ci
+
         return PredictionResult(
             predicted_value=fused_val, confidence=fused_conf,
             trend=fused_trend,
-            metadata={
-                "cognitive_diagnostic": diag.to_dict(),
-                "explanation": self._last_explanation.to_dict(),
-                "pipeline_timing": timer.to_dict(),
-            },
+            metadata=metadata,
         )
 
-    def record_actual(self, actual_value: float) -> None:
-        """Record true value for plasticity learning and error tracking."""
-        if self._last_regime is None or not self._last_perceptions:
-            return
-        regime = self._last_regime
-        for p in self._last_perceptions:
-            error = abs(p.predicted_value - actual_value)
-            self._recent_errors[p.engine_name].append(error)
-            if self._plasticity is not None:
-                self._plasticity.update(regime, p.engine_name, error)
+    def record_actual(
+        self,
+        actual_value: float,
+        series_id: Optional[str] = None,
+        series_context=None,  # type: ignore[assignment]  # SeriesContext for asymmetric penalty
+    ) -> None:
+        """Record true value for plasticity learning and error tracking.
+
+        FASE 1: Also records prediction errors to database for adaptive learning.
+        FASE 7: Integrates advanced plasticity system when enabled.
+        """
+        record_actual_dispatch(
+            actual_value=actual_value,
+            last_regime=self._last_regime,
+            last_perceptions=self._last_perceptions,
+            last_plasticity_context=self._last_plasticity_context,
+            enable_advanced_plasticity=self._enable_advanced_plasticity,
+            plasticity_coordinator=self._plasticity_coordinator,
+            plasticity_tracker=self._plasticity,
+            recent_errors=self._recent_errors,
+            storage=self._storage,
+            series_id=series_id,
+            series_context=series_context,
+        )
+    
 
     @property
     def last_diagnostic(self) -> Optional[MetaDiagnostic]:
@@ -208,72 +277,20 @@ class MetaCognitiveOrchestrator(PredictionEngine):
     def last_pipeline_timing(self) -> Optional[PipelineTimer]:
         """Per-phase latency of the last predict() call."""
         return self._last_timer
-
-    # -- private -----------------------------------------------------------
-
-    def _collect_perceptions(
-        self, values: List[float], ts: Optional[List[float]],
-    ) -> List[EnginePerception]:
-        out: List[EnginePerception] = []
-        for eng in self._engines:
-            if not eng.can_handle(len(values)):
-                continue
-            try:
-                r = eng.predict(values, ts)
-                d = r.metadata.get("diagnostic", {}) or {}
-                out.append(EnginePerception(
-                    engine_name=eng.name,
-                    predicted_value=r.predicted_value,
-                    confidence=r.confidence, trend=r.trend,
-                    stability=d.get("stability_indicator", 0.0) if isinstance(d, dict) else 0.0,
-                    local_fit_error=d.get("local_fit_error", 0.0) if isinstance(d, dict) else 0.0,
-                    metadata=r.metadata,
-                ))
-            except Exception as exc:
-                logger.warning("engine_failed", extra={
-                    "engine": eng.name, "error": str(exc)})
-        return out
-
-    def _resolve_weights(
-        self, regime: str, perceptions: List[EnginePerception],
-    ) -> Dict[str, float]:
-        names = [p.engine_name for p in perceptions]
-        if self._plasticity and self._plasticity.has_history(regime):
-            return self._plasticity.get_weights(regime, names)
-        return {n: self._base_weights.get(n, 1.0 / len(names)) for n in names}
-
-    def _fallback(
-        self,
-        values: List[float],
-        profile: StructuralAnalysis,
-        builder: ExplanationBuilder,
-        timer: Optional[PipelineTimer] = None,
-        reason: str = "no_valid_perceptions",
+    
+    def _handle_fallback(
+        self, values: List[float], profile: StructuralAnalysis,
+        builder: ExplanationBuilder, timer: PipelineTimer, reason: str
     ) -> PredictionResult:
-        tail = values[-min(3, len(values)):] if values else [0.0]
-        predicted = sum(tail) / len(tail)
-        builder.set_fallback(predicted, reason=reason)
-
-        fallback_reason = reason
-        diag = MetaDiagnostic(
+        """Handle fallback case and update internal state."""
+        result = create_fallback_result(values, profile, builder, timer, reason)
+        self._last_diagnostic = MetaDiagnostic(
             signal_profile=profile, perceptions=[], inhibition_states=[],
             final_weights={}, selected_engine="none",
             selection_reason="all_engines_failed",
-            fusion_method="fallback", fallback_reason=fallback_reason,
+            fusion_method="fallback", fallback_reason=reason,
         )
-        self._last_diagnostic = diag
         self._last_explanation = builder.build()
         self._last_regime = profile.regime.value
         self._last_perceptions = []
-
-        metadata: dict = {
-            "cognitive_diagnostic": diag.to_dict(),
-            "explanation": self._last_explanation.to_dict(),
-        }
-        if timer is not None:
-            metadata["pipeline_timing"] = timer.to_dict()
-
-        return PredictionResult(
-            predicted_value=predicted, confidence=0.2, trend="stable",
-            metadata=metadata,
-        )
+        return result

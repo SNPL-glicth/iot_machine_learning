@@ -28,7 +28,7 @@ from iot_machine_learning.domain.entities.pattern import (
     PatternType,
 )
 from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.infrastructure.adapters.weaviate_cognitive import (
+from iot_machine_learning.infrastructure.adapters.weaviate import (
     WeaviateCognitiveAdapter,
 )
 

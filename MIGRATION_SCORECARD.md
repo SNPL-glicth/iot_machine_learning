@@ -2,7 +2,7 @@
 
 **Última actualización:** 2026-02-12  
 **Estrategia:** Dual interface con sunset gradual  
-**Tests:** 1096 passed, 6 skipped
+**Tests:** 1203 passed, 39 skipped
 
 ---
 

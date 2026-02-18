@@ -21,7 +21,7 @@ from iot_machine_learning.domain.ports.storage_port import StoragePort
 from iot_machine_learning.domain.services.prediction_domain_service import (
     PredictionDomainService,
 )
-from iot_machine_learning.infrastructure.adapters.sqlserver_storage import (
+from iot_machine_learning.infrastructure.persistence.sql.storage import (
     SqlServerStorageAdapter,
 )
 from iot_machine_learning.infrastructure.security.audit_logger import (

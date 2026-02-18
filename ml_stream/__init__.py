@@ -1,20 +1,24 @@
-"""ML Stream Consumer facade (E-13).
+"""ml_stream — Facade del consumer de stream ML.
 
-Re-exports from ml_service.consumers for independent deployment.
-Existing imports via ml_service.consumers continue to work unchanged.
-
-Usage:
-    from ml_stream import start_consumer
-    start_consumer()
+Expone start_consumer() como punto de entrada del procesador online.
 """
 
 from __future__ import annotations
 
 
-def start_consumer(redis_url: str | None = None):
-    """Start the readings stream consumer."""
-    from iot_machine_learning.ml_service.consumers.stream_consumer import (
-        ReadingsStreamConsumer,
-    )
-    consumer = ReadingsStreamConsumer(redis_url=redis_url)
-    consumer.start()
+def start_consumer() -> None:
+    """Inicia el consumer de stream ML (ReadingBroker → SlidingWindowBuffer).
+
+    Bloquea hasta que el consumer se detenga o reciba señal de parada.
+    """
+    try:
+        from iot_machine_learning.ml_service.consumers.stream_consumer import (
+            ReadingsStreamConsumer,
+        )
+        consumer = ReadingsStreamConsumer()
+        consumer.start()
+    except Exception as exc:
+        raise RuntimeError(f"Error iniciando stream consumer: {exc}") from exc
+
+
+__all__ = ["start_consumer"]
