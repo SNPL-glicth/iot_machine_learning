@@ -121,25 +121,62 @@ iot_machine_learning/
 │       └── access_control.py              # RBAC (series_id + sensor_id dual)
 │
 ├── ml_service/                          # Servicio HTTP + runners (orquestación IoT)
-│   ├── main.py                          # FastAPI app
+│   ├── main.py                          # FastAPI app (puerto 8002)
 │   ├── config/
 │   │   ├── ml_config.py                 # GlobalMLConfig, AnomalyConfig, EngineConfig
 │   │   └── feature_flags.py             # FeatureFlags (dual: series_id + sensor_id)
-│   ├── api/services/
-│   │   └── prediction_service.py        # Servicio HTTP de predicción
-│   ├── runners/                         # Pipeline batch + stream
+│   ├── api/
+│   │   └── services/
+│   │       └── prediction_service.py    # PredictionService (HTTP)
+│   ├── runners/                         # Pipeline batch + stream (ver runners/README.md)
+│   │   ├── ml_batch_runner.py           # Orquestador batch (sensor_id loop)
+│   │   ├── ml_stream_runner.py          # Consumer stream (ReadingBroker → SlidingWindow)
+│   │   ├── adapters/                    # Adapters de entrada (SensorWindow → TimeSeries)
+│   │   ├── bridge_config/               # BatchEnterpriseContainer, FeatureFlags bridge
+│   │   ├── common/                      # SensorProcessor, utilidades compartidas
+│   │   ├── models/                      # RunnerConfig, SensorBatchResult
+│   │   ├── monitoring/                  # MetricsCollector, HealthChecker
+│   │   ├── services/                    # SensorProcessingService
+│   │   └── wiring/                      # DI: crea engines, detectores, orquestador
+│   ├── metrics/                         # Métricas y A/B testing (ver metrics/README.md)
+│   │   ├── ab_testing.py                # ABTester (thread-safe, por sensor)
+│   │   └── ab_metrics.py                # ABTestResult, winner, improvement
+│   ├── broker/                          # ReadingBroker (in-memory pub/sub)
+│   ├── consumers/                       # StreamConsumer (suscriptor del broker)
 │   ├── explain/                         # AI Explainer + TemplateExplanationGenerator
-│   ├── metrics/                         # MetricsCollector, A/B testing
+│   │   ├── models/                      # ExplanationRequest, ExplanationResponse
+│   │   └── services/                    # AIExplainerClient, TemplateGenerator
 │   ├── memory/                          # Weaviate cognitive memory
-│   └── correlation/                     # Correlación entre sensores
+│   │   ├── models/                      # MemoryEntry, RecallResult
+│   │   └── services/                    # WeaviateMemoryService
+│   ├── context/                         # Contexto de series (perfil, umbrales)
+│   │   ├── models/
+│   │   └── services/
+│   ├── features/                        # Feature engineering para ML
+│   │   ├── models/
+│   │   ├── persistence/
+│   │   └── services/
+│   ├── orchestrator/                    # Orquestador de alto nivel
+│   │   ├── models/
+│   │   └── services/
+│   ├── correlation/                     # Correlación entre sensores
+│   ├── trainers/                        # Entrenamiento de modelos
+│   ├── repository/                      # Repositorio ML (predicciones, modelos)
+│   ├── logging/                         # Logging estructurado ML
+│   ├── models/                          # Modelos Pydantic del servicio
+│   └── utils/                           # Utilidades: numeric_precision, safe_float
 │
-└── tests/                               # 1096 tests
+├── ml_api/                              # Facade HTTP (create_app → FastAPI + /health)
+├── ml_batch/                            # Facade batch (run_batch_cycle)
+├── ml_stream/                           # Facade stream (start_consumer)
+│
+└── tests/                               # ~1203 tests
     ├── unit/
     │   ├── domain/                      # Entidades, servicios, validadores
     │   ├── infrastructure/              # Motores, filtros, cognitivo, DI
     │   ├── application/                 # Use cases, renderer
-    │   └── ml_service/                  # Servicio HTTP, runners
-    └── integration/                     # A/B, enterprise flow, COG-4
+    │   └── ml_service/                  # Servicio HTTP, runners, métricas
+    └── integration/                     # A/B, enterprise flow, cognitivo
 ```
 
 ---
