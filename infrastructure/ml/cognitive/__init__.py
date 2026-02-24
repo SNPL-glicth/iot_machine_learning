@@ -6,11 +6,18 @@ Package structure:
     inhibition.py      — weight suppression for unstable engines
     plasticity.py      — regime-contextual weight learning
     engine_selector.py — weighted fusion + engine ranking
-    orchestrator.py    — MetaCognitiveOrchestrator (top-level coordinator)
+    orchestration/     — MetaCognitiveOrchestrator (modularized)
+        orchestrator.py      — Core orchestrator class
+        pipeline_executor.py — Pipeline execution logic
+        fallback_handler.py  — Fallback handling
 
 .. versionchanged:: 2.0
     ``SignalAnalyzer.analyze()`` now returns ``StructuralAnalysis`` (domain)
     instead of ``SignalProfile`` (infra).  ``SignalProfile`` is deprecated.
+
+.. versionchanged:: 2.1
+    ``orchestrator.py`` modularized into ``orchestration/`` subpackage.
+    Backward compatibility maintained via re-exports.
 """
 
 from __future__ import annotations
@@ -18,10 +25,10 @@ from __future__ import annotations
 from .engine_selector import WeightedFusion
 from .builder import ExplanationBuilder
 from .inhibition import InhibitionGate
-from .orchestrator import MetaCognitiveOrchestrator
+from .orchestration import MetaCognitiveOrchestrator
 from .plasticity import PlasticityTracker
-from .signal_analyzer import SignalAnalyzer
-from .types import (
+from .analysis import SignalAnalyzer
+from .analysis.types import (
     EnginePerception,
     InhibitionState,
     MetaDiagnostic,

@@ -9,8 +9,8 @@ import time
 import pytest
 from datetime import datetime
 
-from iot_machine_learning.infrastructure.ml.cognitive.contextual_plasticity_tracker import ContextualPlasticityTracker
-from iot_machine_learning.infrastructure.ml.cognitive.engine_health_monitor import EngineHealthMonitor
+from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import ContextualPlasticityTracker
+from iot_machine_learning.infrastructure.ml.cognitive.monitoring.engine_health_monitor import EngineHealthMonitor
 from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext, RegimeType
 
 

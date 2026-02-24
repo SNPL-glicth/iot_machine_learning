@@ -20,7 +20,7 @@ from iot_machine_learning.domain.entities.explainability.reasoning_trace import 
     ReasoningPhase,
 )
 
-from .types import InhibitionState
+from .analysis.types import InhibitionState
 
 if TYPE_CHECKING:
     from .builder import ExplanationBuilder

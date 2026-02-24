@@ -8,7 +8,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.inhibition import (
     InhibitionConfig,
     InhibitionGate,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.types import (
+from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
     EnginePerception,
     InhibitionState,
 )

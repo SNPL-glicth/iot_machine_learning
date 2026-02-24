@@ -15,7 +15,7 @@ from unittest.mock import patch
 from iot_machine_learning.domain.entities.plasticity.engine_plasticity_state import (
     EnginePlasticityState,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.engine_health_monitor import (
+from iot_machine_learning.infrastructure.ml.cognitive.monitoring.engine_health_monitor import (
     EngineHealthMonitor,
 )
 

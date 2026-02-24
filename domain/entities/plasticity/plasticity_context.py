@@ -81,12 +81,19 @@ class PlasticityContext:
     def context_key(self) -> str:
         """Generate context key for performance tracking.
         
-        Format: "{regime}|{hour}|{volatility_bucket}"
+        Format: "{regime}|{time_block}|{volatility_binary}"
         
-        Volatility buckets:
-        - 0.0-0.3: "low"
-        - 0.3-0.7: "medium"
-        - 0.7-1.0: "high"
+        Time blocks (6-hour windows):
+        - 0-5: "0" (night)
+        - 6-11: "1" (morning)
+        - 12-17: "2" (afternoon)
+        - 18-23: "3" (evening)
+        
+        Volatility binary:
+        - 0.0-0.6: "stable"
+        - >0.6: "volatile"
+        
+        This reduces context space from 288 (4×24×3) to 32 (4×4×2).
         
         Returns:
             Context key string for grouping similar contexts
@@ -97,17 +104,15 @@ class PlasticityContext:
             ...                         consecutive_failures=0, error_magnitude=1.0,
             ...                         is_critical_zone=False)
             >>> ctx.context_key
-            'stable|14|low'
+            'stable|2|stable'
         """
-        # Bucket volatility for grouping
-        if self.volatility < 0.3:
-            vol_bucket = "low"
-        elif self.volatility < 0.7:
-            vol_bucket = "medium"
-        else:
-            vol_bucket = "high"
+        # Group hours into 6-hour blocks
+        time_block = self.time_of_day // 6
         
-        return f"{self.regime.value}|{self.time_of_day}|{vol_bucket}"
+        # Binary volatility classification
+        vol_binary = "volatile" if self.volatility > 0.6 else "stable"
+        
+        return f"{self.regime.value}|{time_block}|{vol_binary}"
     
     @classmethod
     def create_default(cls, regime: RegimeType = RegimeType.UNKNOWN) -> PlasticityContext:

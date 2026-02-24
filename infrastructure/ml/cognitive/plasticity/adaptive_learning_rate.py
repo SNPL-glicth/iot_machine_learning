@@ -63,6 +63,7 @@ class AdaptiveLearningRate:
         noise_penalty: float = 0.5,
         failure_boost: float = 2.0,
         failure_threshold: int = 5,
+        momentum: float = 0.9,
     ) -> None:
         """Initialize adaptive learning rate calculator.
         
@@ -90,6 +91,8 @@ class AdaptiveLearningRate:
             raise ValueError(f"failure_boost must be >= 1, got {failure_boost}")
         if failure_threshold < 1:
             raise ValueError(f"failure_threshold must be >= 1, got {failure_threshold}")
+        if not 0 <= momentum < 1:
+            raise ValueError(f"momentum must be in [0, 1), got {momentum}")
         
         self.base_lr = base_lr
         self.lr_min = lr_min
@@ -98,11 +101,14 @@ class AdaptiveLearningRate:
         self.noise_penalty = noise_penalty
         self.failure_boost = failure_boost
         self.failure_threshold = failure_threshold
+        self.momentum = momentum
+        self._velocity: Dict[str, float] = {}
     
     def compute_adaptive_lr(
         self,
         error: float,
         context: PlasticityContext,
+        engine_name: Optional[str] = None,
     ) -> float:
         """Compute adaptive learning rate based on error and context.
         
@@ -112,11 +118,13 @@ class AdaptiveLearningRate:
         3. Adjust for regime (STABLE=1.0, TRENDING=1.2, VOLATILE=1.5, NOISY=0.8)
         4. Reduce by noise_penalty if noise_ratio > 0.3
         5. Boost by failure_boost if consecutive_failures > threshold
-        6. Clip to [lr_min, lr_max]
+        6. Apply momentum if engine_name provided
+        7. Clip to [lr_min, lr_max]
         
         Args:
             error: Absolute prediction error
             context: Plasticity context with regime, noise, failures
+            engine_name: Optional engine name for momentum tracking
         
         Returns:
             Adaptive learning rate in [lr_min, lr_max]
@@ -170,7 +178,13 @@ class AdaptiveLearningRate:
                 },
             )
         
-        # 6. Apply safety limits
+        # 6. Apply momentum if engine_name provided
+        if engine_name is not None and self.momentum > 0:
+            prev_velocity = self._velocity.get(engine_name, self.base_lr)
+            lr = self.momentum * prev_velocity + (1.0 - self.momentum) * lr
+            self._velocity[engine_name] = lr
+        
+        # 7. Apply safety limits
         lr = np.clip(lr, self.lr_min, self.lr_max)
         
         logger.debug(

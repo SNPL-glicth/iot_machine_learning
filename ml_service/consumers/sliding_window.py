@@ -5,6 +5,7 @@ Fixes RC-3 (memory leak): inactive sensors are now evicted automatically.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import threading
 import time
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_SENSORS: int = 1000
 _DEFAULT_TTL_SECONDS: float = 3600.0
+_DEFAULT_CLEANUP_ENABLED: bool = True
 
 
 @dataclass
@@ -48,6 +50,7 @@ class SlidingWindowStore:
         max_size: int = 20,
         max_sensors: int = _DEFAULT_MAX_SENSORS,
         ttl_seconds: float = _DEFAULT_TTL_SECONDS,
+        enable_proactive_cleanup: bool = _DEFAULT_CLEANUP_ENABLED,
     ) -> None:
         self._max_size = max_size
         self._max_sensors = max(1, max_sensors)
@@ -56,6 +59,17 @@ class SlidingWindowStore:
         self._lock = threading.Lock()
         self._evictions_lru: int = 0
         self._evictions_ttl: int = 0
+        self._stop_event = threading.Event()
+        self._cleanup_thread: Optional[threading.Thread] = None
+        
+        if enable_proactive_cleanup and ttl_seconds > 0:
+            self._cleanup_thread = threading.Thread(
+                target=self._periodic_cleanup,
+                daemon=True,
+                name="SlidingWindowCleanup"
+            )
+            self._cleanup_thread.start()
+            atexit.register(self.close)
 
     # ------------------------------------------------------------------
     # Public API (backward-compatible)
@@ -139,3 +153,30 @@ class SlidingWindowStore:
             del self._entries[sid]
             self._evictions_ttl += 1
             logger.debug("ttl_evict sensor_id=%d", sid)
+    
+    def _periodic_cleanup(self) -> None:
+        """Background thread for proactive TTL cleanup."""
+        interval = self._ttl / 2.0
+        while not self._stop_event.wait(timeout=interval):
+            now = time.monotonic()
+            with self._lock:
+                self._cleanup_expired(now)
+    
+    def close(self) -> None:
+        """Stop cleanup thread and release resources."""
+        if self._cleanup_thread and self._cleanup_thread.is_alive():
+            self._stop_event.set()
+            self._cleanup_thread.join(timeout=2.0)
+            if self._cleanup_thread.is_alive():
+                logger.warning("cleanup_thread_did_not_stop_gracefully")
+        try:
+            atexit.unregister(self.close)
+        except Exception:
+            pass
+    
+    def __del__(self) -> None:
+        """Cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass

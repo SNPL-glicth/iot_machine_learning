@@ -14,7 +14,7 @@ from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
     PlasticityContext,
     RegimeType,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.adaptive_learning_rate import (
+from iot_machine_learning.infrastructure.ml.cognitive.plasticity.adaptive_learning_rate import (
     AdaptiveLearningRate,
 )
 

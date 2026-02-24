@@ -7,7 +7,7 @@ import pytest
 from iot_machine_learning.infrastructure.ml.cognitive.engine_selector import (
     WeightedFusion,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.types import (
+from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
     EnginePerception,
     InhibitionState,
 )

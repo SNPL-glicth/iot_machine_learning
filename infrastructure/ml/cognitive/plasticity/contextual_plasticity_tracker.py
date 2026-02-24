@@ -47,6 +47,7 @@ class ContextualPlasticityTracker:
         window_size: int = 50,
         min_samples: int = 5,
         epsilon: float = 0.1,
+        max_contexts_per_engine: int = 20,
     ) -> None:
         """Initialize contextual plasticity tracker.
         
@@ -54,6 +55,7 @@ class ContextualPlasticityTracker:
             window_size: Maximum errors to keep per context
             min_samples: Minimum samples required for weight calculation
             epsilon: Small value to prevent division by zero
+            max_contexts_per_engine: Maximum contexts per engine before LRU eviction
         
         Raises:
             ValueError: If parameters are invalid
@@ -66,14 +68,22 @@ class ContextualPlasticityTracker:
             raise ValueError(f"min_samples ({min_samples}) cannot exceed window_size ({window_size})")
         if epsilon <= 0:
             raise ValueError(f"epsilon must be > 0, got {epsilon}")
+        if max_contexts_per_engine < 1:
+            raise ValueError(f"max_contexts_per_engine must be >= 1, got {max_contexts_per_engine}")
         
         self.window_size = window_size
         self.min_samples = min_samples
         self.epsilon = epsilon
+        self.max_contexts_per_engine = max_contexts_per_engine
         
         # Structure: {series_id: {engine_name: {context_key: deque[errors]}}}
         self._errors: Dict[str, Dict[str, Dict[str, deque]]] = defaultdict(
             lambda: defaultdict(lambda: defaultdict(lambda: deque(maxlen=window_size)))
+        )
+        
+        # LRU tracking: {series_id: {engine_name: {context_key: timestamp}}}
+        self._context_access_time: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(
+            lambda: defaultdict(dict)
         )
         
         # Thread safety: RLock for protecting shared dictionary
@@ -103,7 +113,21 @@ class ContextualPlasticityTracker:
         context_key = context.context_key
         
         with self._lock:
+            import time
+            now = time.time()
+            
             self._errors[series_id][engine_name][context_key].append(error)
+            self._context_access_time[series_id][engine_name][context_key] = now
+            
+            # LRU eviction if over limit
+            contexts = self._errors[series_id][engine_name]
+            if len(contexts) > self.max_contexts_per_engine:
+                oldest_ctx = min(
+                    self._context_access_time[series_id][engine_name],
+                    key=self._context_access_time[series_id][engine_name].get
+                )
+                del self._errors[series_id][engine_name][oldest_ctx]
+                del self._context_access_time[series_id][engine_name][oldest_ctx]
         
         logger.debug(
             "contextual_error_recorded",

@@ -115,7 +115,18 @@ class EngineHealthMonitor:
             # Update state based on error
             is_success = error <= self.error_tolerance
             
-            if is_success:
+            # Check for thermal recovery attempt
+            if state.should_attempt_recovery() and is_success:
+                state = state.with_recovery()
+                logger.info(
+                    "engine_recovered_from_inhibition",
+                    extra={
+                        "series_id": series_id,
+                        "engine_name": engine_name,
+                        "error": error,
+                    },
+                )
+            elif is_success:
                 state = state.with_success(error)
             else:
                 state = state.with_failure(error)

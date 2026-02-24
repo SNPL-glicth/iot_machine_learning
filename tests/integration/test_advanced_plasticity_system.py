@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import List
 from unittest.mock import Mock
 
-from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import MetaCognitiveOrchestrator
+from iot_machine_learning.infrastructure.ml.cognitive.orchestration import MetaCognitiveOrchestrator
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
 from iot_machine_learning.domain.entities.series.series_context import SeriesContext, Threshold
 

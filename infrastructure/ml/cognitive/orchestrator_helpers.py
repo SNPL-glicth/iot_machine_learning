@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from .types import EnginePerception, PipelineTimer
+from .analysis.types import EnginePerception, PipelineTimer
 from .explanation_builder import ExplanationBuilder
 from ..interfaces import PredictionResult
 from ....domain.entities.series.structural_analysis import StructuralAnalysis
@@ -72,7 +72,7 @@ def create_fallback_result(
     Returns:
         PredictionResult with fallback prediction
     """
-    from .types import MetaDiagnostic
+    from .analysis.types import MetaDiagnostic
     
     tail = values[-min(3, len(values)):] if values else [0.0]
     predicted = sum(tail) / len(tail)

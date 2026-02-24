@@ -7,7 +7,7 @@ adaptive plasticity system.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 
@@ -28,6 +28,7 @@ class EnginePlasticityState:
         last_failure_time: Timestamp of last failed prediction
         is_inhibited: Whether engine is currently inhibited
         inhibition_reason: Reason for inhibition (if inhibited)
+        inhibition_cooldown_until: Timestamp when inhibition cooldown expires
         total_predictions: Total number of predictions made
         total_errors: Total number of errors
         
@@ -54,6 +55,7 @@ class EnginePlasticityState:
     last_failure_time: Optional[datetime] = None
     is_inhibited: bool = False
     inhibition_reason: Optional[str] = None
+    inhibition_cooldown_until: Optional[datetime] = None
     total_predictions: int = 0
     total_errors: int = 0
     
@@ -95,6 +97,18 @@ class EnginePlasticityState:
         delta = datetime.now() - self.last_success_time
         return delta.total_seconds() / 3600.0
     
+    def should_attempt_recovery(self) -> bool:
+        """Check if engine should attempt recovery from inhibition.
+        
+        Returns:
+            True if inhibited and cooldown period has expired
+        """
+        if not self.is_inhibited:
+            return False
+        if self.inhibition_cooldown_until is None:
+            return False
+        return datetime.now() >= self.inhibition_cooldown_until
+    
     @classmethod
     def create_initial(cls, engine_name: str, series_id: str) -> EnginePlasticityState:
         """Create initial state for a new engine.
@@ -116,6 +130,7 @@ class EnginePlasticityState:
             last_failure_time=None,
             is_inhibited=False,
             inhibition_reason=None,
+            inhibition_cooldown_until=None,
             total_predictions=0,
             total_errors=0,
         )
@@ -137,8 +152,9 @@ class EnginePlasticityState:
             last_error=error,
             last_success_time=datetime.now(),
             last_failure_time=self.last_failure_time,
-            is_inhibited=False,  # Reset inhibition on success
+            is_inhibited=False,
             inhibition_reason=None,
+            inhibition_cooldown_until=None,
             total_predictions=self.total_predictions + 1,
             total_errors=self.total_errors,
         )
@@ -162,15 +178,17 @@ class EnginePlasticityState:
             last_failure_time=datetime.now(),
             is_inhibited=self.is_inhibited,
             inhibition_reason=self.inhibition_reason,
+            inhibition_cooldown_until=self.inhibition_cooldown_until,
             total_predictions=self.total_predictions + 1,
             total_errors=self.total_errors + 1,
         )
     
-    def with_inhibition(self, reason: str) -> EnginePlasticityState:
+    def with_inhibition(self, reason: str, cooldown_minutes: int = 5) -> EnginePlasticityState:
         """Create new state with inhibition applied.
         
         Args:
             reason: Reason for inhibition
+            cooldown_minutes: Minutes until recovery attempt allowed (default: 5)
         
         Returns:
             New EnginePlasticityState with inhibition set
@@ -185,6 +203,28 @@ class EnginePlasticityState:
             last_failure_time=self.last_failure_time,
             is_inhibited=True,
             inhibition_reason=reason,
+            inhibition_cooldown_until=datetime.now() + timedelta(minutes=cooldown_minutes),
+            total_predictions=self.total_predictions,
+            total_errors=self.total_errors,
+        )
+    
+    def with_recovery(self) -> EnginePlasticityState:
+        """Create new state with inhibition cleared after successful recovery.
+        
+        Returns:
+            New EnginePlasticityState with inhibition cleared
+        """
+        return EnginePlasticityState(
+            engine_name=self.engine_name,
+            series_id=self.series_id,
+            consecutive_failures=0,
+            consecutive_successes=1,
+            last_error=self.last_error,
+            last_success_time=datetime.now(),
+            last_failure_time=self.last_failure_time,
+            is_inhibited=False,
+            inhibition_reason=None,
+            inhibition_cooldown_until=None,
             total_predictions=self.total_predictions,
             total_errors=self.total_errors,
         )

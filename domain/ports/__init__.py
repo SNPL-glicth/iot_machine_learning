@@ -12,6 +12,7 @@ from .storage_port import StoragePort
 from .audit_port import AuditPort
 from .cognitive_memory_port import CognitiveMemoryPort
 from .sliding_window_port import ISlidingWindowStore, WindowConfig
+from .plasticity_port import PlasticityPort
 
 __all__ = [
     "PredictionPort",
@@ -22,4 +23,5 @@ __all__ = [
     "CognitiveMemoryPort",
     "ISlidingWindowStore",
     "WindowConfig",
+    "PlasticityPort",
 ]

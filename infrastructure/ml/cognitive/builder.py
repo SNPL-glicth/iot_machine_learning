@@ -28,7 +28,7 @@ from iot_machine_learning.domain.entities.series.structural_analysis import (
     StructuralAnalysis,
 )
 
-from .types import EnginePerception, InhibitionState
+from .analysis.types import EnginePerception, InhibitionState
 from . import phase_setters
 
 

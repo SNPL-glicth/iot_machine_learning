@@ -178,6 +178,7 @@ def _classify_regime(
     slope: float,
     std: float,
     mean: float = 0.0,
+    hour_of_day: Optional[int] = None,
 ) -> RegimeType:
     """Clasificación de régimen basada en umbrales.
 
@@ -186,6 +187,16 @@ def _classify_regime(
         trending — significant slope relative to signal magnitude
         noisy    — high noise ratio (σ/|μ| > 0.5)
         volatile — moderate noise ratio (0.15 < σ/|μ| ≤ 0.5)
+    
+    Args:
+        noise_ratio: Ratio of std to mean
+        slope: Rate of change
+        std: Standard deviation
+        mean: Mean value
+        hour_of_day: Optional hour (0-23) for temporal context
+    
+    Returns:
+        RegimeType classification, potentially escalated based on hour
     """
     if noise_ratio > 0.5:
         return RegimeType.NOISY
@@ -195,5 +206,10 @@ def _classify_regime(
     if slope_ratio > 0.005 and abs_slope > 0.01:
         return RegimeType.TRENDING
     if std > 0 and noise_ratio > 0.15:
-        return RegimeType.VOLATILE
+        base_regime = RegimeType.VOLATILE
+        
+        # Contextual escalation: volatile during night hours is more suspicious
+        if hour_of_day is not None and (hour_of_day >= 22 or hour_of_day <= 6):
+            return RegimeType.NOISY
+        return base_regime
     return RegimeType.STABLE

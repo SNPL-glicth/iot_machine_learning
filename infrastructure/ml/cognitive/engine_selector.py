@@ -13,9 +13,9 @@ Pure logic — no I/O, no state, no logging.
 
 from __future__ import annotations
 
-from typing import Dict, List, Literal, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
-from .types import EnginePerception, InhibitionState
+from .analysis.types import EnginePerception, InhibitionState
 
 
 class WeightedFusion:
@@ -25,12 +25,19 @@ class WeightedFusion:
         self,
         perceptions: List[EnginePerception],
         inhibition_states: List[InhibitionState],
+        neighbor_trends: Optional[Dict[str, str]] = None,
+        signal_std: float = 0.0,
     ) -> Tuple[float, float, str, Dict[str, float], str, str]:
         """Compute weighted fusion of engine perceptions.
 
         Args:
             perceptions: Each engine's perception.
             inhibition_states: Post-inhibition weights.
+            neighbor_trends: Optional dict of {series_id: "up"/"down"/"stable"}
+                from correlated neighbours. When provided, a small spatial bias
+                (10% of signal_std) is applied to the fused value.
+            signal_std: Standard deviation of the current signal window,
+                used to scale the neighbour bias. Defaults to 0 (no bias).
 
         Returns:
             Tuple of:
@@ -69,6 +76,13 @@ class WeightedFusion:
             fused_value += p.predicted_value * w
             fused_confidence += p.confidence * w
             trend_votes[p.trend] += w
+
+        # Apply spatial bias from correlated neighbours
+        if neighbor_trends and signal_std > 1e-9:
+            up_count = sum(1 for t in neighbor_trends.values() if t == "up")
+            down_count = sum(1 for t in neighbor_trends.values() if t == "down")
+            bias_factor = (up_count - down_count) / max(len(neighbor_trends), 1)
+            fused_value += bias_factor * signal_std * 0.1
 
         # Majority vote for trend
         fused_trend = max(trend_votes, key=trend_votes.get)  # type: ignore[arg-type]

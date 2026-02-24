@@ -27,7 +27,7 @@ from iot_machine_learning.domain.entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.types import (
+from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
     EnginePerception,
     InhibitionState,
 )
@@ -342,7 +342,7 @@ class TestOrchestratorIntegration:
         return _MockEngine()
 
     def test_predict_produces_explanation(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
 
@@ -367,7 +367,7 @@ class TestOrchestratorIntegration:
         assert exp.outcome.predicted_value == pytest.approx(25.0)
 
     def test_predict_explanation_has_dynamic_phases(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
 
@@ -389,7 +389,7 @@ class TestOrchestratorIntegration:
         assert not exp.trace.has_adaptation
 
     def test_fallback_produces_explanation(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
 
@@ -407,7 +407,7 @@ class TestOrchestratorIntegration:
         assert exp.trace.phase_kinds == ["perceive"]
 
     def test_explanation_json_roundtrip_from_orchestrator(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
 
@@ -425,7 +425,7 @@ class TestOrchestratorIntegration:
         assert parsed["outcome"]["predicted_value"] == pytest.approx(25.0, abs=1e-4)
 
     def test_series_id_passed_through(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
 

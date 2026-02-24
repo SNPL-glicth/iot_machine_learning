@@ -21,11 +21,11 @@ def build_advanced_plasticity(
         Tuple of (coordinator, adaptive_lr, asymmetric_penalty,
                   contextual_tracker, health_monitor)
     """
-    from .adaptive_learning_rate import AdaptiveLearningRate
-    from .contextual_plasticity_tracker import ContextualPlasticityTracker
-    from .engine_health_monitor import EngineHealthMonitor
+    from .plasticity.adaptive_learning_rate import AdaptiveLearningRate
+    from .plasticity.contextual_plasticity_tracker import ContextualPlasticityTracker
+    from .monitoring.engine_health_monitor import EngineHealthMonitor
     from ....domain.services.asymmetric_penalty_service import AsymmetricPenaltyService
-    from .advanced_plasticity_coordinator import AdvancedPlasticityCoordinator
+    from .plasticity.advanced_plasticity_coordinator import AdvancedPlasticityCoordinator
 
     adaptive_lr = AdaptiveLearningRate()
     asymmetric_penalty = AsymmetricPenaltyService()

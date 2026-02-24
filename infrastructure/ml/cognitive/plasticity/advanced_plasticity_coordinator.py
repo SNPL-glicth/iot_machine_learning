@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,59 @@ class AdvancedPlasticityCoordinator:
         self._contextual_tracker = contextual_tracker
         self._health_monitor = health_monitor
         self._storage = storage_adapter
+        self._legacy_tracker = None
     
+    def set_legacy_tracker(self, tracker) -> None:
+        """Attach the legacy PlasticityTracker for fallback weight resolution."""
+        self._legacy_tracker = tracker
+
+    def get_weights(
+        self,
+        regime: str,
+        engine_names: List[str],
+        context=None,
+    ) -> Dict[str, float]:
+        """Return normalized weights. Contextual tracker takes priority over legacy EMA."""
+        if self._contextual_tracker and context is not None:
+            weights = self._contextual_tracker.get_contextual_weights(
+                series_id="_global",
+                engine_names=engine_names,
+                context=context,
+            )
+            if weights is not None:
+                return weights
+        if self._legacy_tracker is not None and self._legacy_tracker.has_history(regime):
+            return self._legacy_tracker.get_weights(regime, engine_names)
+        n = len(engine_names)
+        if n == 0:
+            return {}
+        uniform = 1.0 / n
+        return {name: uniform for name in engine_names}
+
+    def record_error(
+        self,
+        engine_name: str,
+        error: float,
+        regime: str,
+        context=None,
+    ) -> None:
+        """Record a prediction error, routing to contextual tracker and legacy EMA."""
+        if self._contextual_tracker and context is not None:
+            self._contextual_tracker.record_error(
+                series_id="_global",
+                engine_name=engine_name,
+                error=error,
+                context=context,
+            )
+        if self._legacy_tracker is not None:
+            self._legacy_tracker.update(regime, engine_name, error)
+
+    def has_history(self, regime: str) -> bool:
+        """True if any plasticity data exists for this regime."""
+        if self._legacy_tracker is not None:
+            return self._legacy_tracker.has_history(regime)
+        return False
+
     def create_plasticity_context(self, profile, series_id: str):
         """Create PlasticityContext from signal profile.
         
@@ -139,9 +191,13 @@ class AdvancedPlasticityCoordinator:
         if not series_id or not plasticity_context:
             return
         
+        # Calculate mean error across all engines for consensus penalty
+        errors_dict = {p.engine_name: abs(p.predicted_value - actual_value) for p in perceptions}
+        mean_error = sum(errors_dict.values()) / len(errors_dict) if errors_dict else 0.0
+        
         for p in perceptions:
             # 1. Calculate base error
-            error = abs(p.predicted_value - actual_value)
+            error = errors_dict[p.engine_name]
             
             # 2. Apply asymmetric penalty (FASE 2)
             penalty = error
@@ -153,11 +209,15 @@ class AdvancedPlasticityCoordinator:
                     context=series_context,
                 )
             
+            # 2.5. Apply consensus penalty (gradient-based)
+            consensus_penalty = abs(error - mean_error) / (mean_error + 1e-6)
+            adjusted_error = penalty * (1.0 + 0.5 * consensus_penalty)
+            
             # 3. Calculate adaptive learning rate (FASE 1)
             learning_rate = 0.15  # Default
             if self._adaptive_lr:
                 learning_rate = self._adaptive_lr.compute_adaptive_lr(
-                    error=penalty,
+                    error=adjusted_error,
                     context=plasticity_context,
                 )
             
@@ -166,9 +226,7 @@ class AdvancedPlasticityCoordinator:
                 recent_errors[p.engine_name].append(error)
             
             if plasticity_tracker is not None:
-                # Override alpha with adaptive learning rate
-                plasticity_tracker._alpha = learning_rate
-                plasticity_tracker.update(regime, p.engine_name, error)
+                plasticity_tracker.update(regime, p.engine_name, error, alpha=learning_rate)
             
             # 5. Record contextual error (FASE 3)
             if self._contextual_tracker:

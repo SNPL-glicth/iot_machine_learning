@@ -210,7 +210,7 @@ class TestAdapterDeprecation:
             TaylorPredictionAdapter(order=2)
 
     def test_cognitive_adapter_warns(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         from iot_machine_learning.infrastructure.ml.cognitive.cognitive_adapter import (

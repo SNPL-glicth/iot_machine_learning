@@ -17,7 +17,7 @@ import warnings
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
     MetaCognitiveOrchestrator,
 )
 from iot_machine_learning.infrastructure.ml.cognitive.inhibition import (

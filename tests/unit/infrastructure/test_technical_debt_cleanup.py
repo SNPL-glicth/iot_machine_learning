@@ -226,7 +226,7 @@ class TestDataclassesReplace:
 class TestMetaDiagnosticDeprecation:
 
     def test_last_diagnostic_emits_deprecation_warning(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         from iot_machine_learning.infrastructure.ml.interfaces import (
@@ -254,7 +254,7 @@ class TestMetaDiagnosticDeprecation:
             _ = orch.last_diagnostic
 
     def test_last_explanation_no_warning(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         from iot_machine_learning.infrastructure.ml.interfaces import (
@@ -286,7 +286,7 @@ class TestMetaDiagnosticDeprecation:
 
     def test_record_actual_works_without_diagnostic(self) -> None:
         """record_actual uses internal state, not MetaDiagnostic."""
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         from iot_machine_learning.infrastructure.ml.interfaces import (
@@ -313,7 +313,7 @@ class TestMetaDiagnosticDeprecation:
         orch.record_actual(10.5)  # no crash
 
     def test_record_actual_before_predict_is_noop(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         from iot_machine_learning.infrastructure.ml.interfaces import (

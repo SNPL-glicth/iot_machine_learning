@@ -11,7 +11,7 @@ from iot_machine_learning.domain.entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.signal_analyzer import (
+from iot_machine_learning.infrastructure.ml.cognitive.analysis.signal_analyzer import (
     SignalAnalyzer,
 )
 

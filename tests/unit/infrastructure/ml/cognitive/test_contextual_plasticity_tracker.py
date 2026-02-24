@@ -14,7 +14,7 @@ from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
     PlasticityContext,
     RegimeType,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.contextual_plasticity_tracker import (
+from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import (
     ContextualPlasticityTracker,
 )
 

@@ -26,7 +26,7 @@ from iot_machine_learning.domain.entities.series.structural_analysis import (
     StructuralAnalysis,
 )
 
-from .types import EnginePerception
+from .analysis.types import EnginePerception
 
 if TYPE_CHECKING:
     from .builder import ExplanationBuilder

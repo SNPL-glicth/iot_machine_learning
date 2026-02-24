@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.cognitive.types import PipelineTimer
+from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import PipelineTimer
 
 
 # ── ⚠️1: PipelineTimer unit tests ─────────────────────────────
@@ -115,7 +115,7 @@ class TestOrchestratorPipelineTiming:
         return eng
 
     def test_predict_includes_pipeline_timing(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         eng = self._make_engine("test_eng", 25.0)
@@ -129,7 +129,7 @@ class TestOrchestratorPipelineTiming:
         assert timing["total_ms"] >= 0.0
 
     def test_last_pipeline_timing_property(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         eng = self._make_engine("test_eng", 25.0)
@@ -141,7 +141,7 @@ class TestOrchestratorPipelineTiming:
         assert timer.total_ms > 0.0
 
     def test_fallback_includes_timing(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         eng = MagicMock()
@@ -153,7 +153,7 @@ class TestOrchestratorPipelineTiming:
         assert "pipeline_timing" in result.metadata
 
     def test_budget_ms_configurable(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         eng = self._make_engine("test_eng", 25.0)
@@ -226,7 +226,7 @@ class TestLegacyDeprecationWarnings:
     """Verify that legacy APIs emit DeprecationWarning."""
 
     def test_last_diagnostic_warns(self) -> None:
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestrator import (
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             MetaCognitiveOrchestrator,
         )
         eng = MagicMock()

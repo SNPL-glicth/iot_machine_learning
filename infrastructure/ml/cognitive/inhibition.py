@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from .types import EnginePerception, InhibitionState
+from .analysis.types import EnginePerception, InhibitionState
 
 
 @dataclass
@@ -34,6 +34,7 @@ class InhibitionConfig:
         recent_error_threshold: Mean recent |error| above this triggers suppression.
         min_weight: Floor — never suppress below this.
         max_suppression: Maximum suppression factor (0.95 = reduce to 5%).
+        suppression_smoothing: EMA alpha for smoothing suppression (0.3 = moderate smoothing).
     """
 
     stability_threshold: float = 0.6
@@ -41,6 +42,7 @@ class InhibitionConfig:
     recent_error_threshold: float = 10.0
     min_weight: float = 0.02
     max_suppression: float = 0.95
+    suppression_smoothing: float = 0.3
 
 
 class InhibitionGate:
@@ -52,6 +54,7 @@ class InhibitionGate:
 
     def __init__(self, config: Optional[InhibitionConfig] = None) -> None:
         self._cfg = config or InhibitionConfig()
+        self._prev_suppression: Dict[str, float] = {}
 
     def compute(
         self,
@@ -74,7 +77,7 @@ class InhibitionGate:
 
         for p in perceptions:
             bw = base_weights.get(p.engine_name, 0.0)
-            suppression = 0.0
+            instant_suppression = 0.0
             reason = "none"
 
             # Rule 1: instability
@@ -84,8 +87,8 @@ class InhibitionGate:
                     / (1.0 - self._cfg.stability_threshold + 1e-9),
                     self._cfg.max_suppression,
                 )
-                if s > suppression:
-                    suppression = s
+                if s > instant_suppression:
+                    instant_suppression = s
                     reason = f"instability={p.stability:.3f}"
 
             # Rule 2: local fit error
@@ -95,8 +98,8 @@ class InhibitionGate:
                     / (self._cfg.fit_error_threshold + 1e-9),
                     self._cfg.max_suppression,
                 )
-                if s > suppression:
-                    suppression = s
+                if s > instant_suppression:
+                    instant_suppression = s
                     reason = f"fit_error={p.local_fit_error:.3f}"
 
             # Rule 3: recent prediction errors
@@ -109,13 +112,21 @@ class InhibitionGate:
                         / (self._cfg.recent_error_threshold + 1e-9),
                         self._cfg.max_suppression,
                     )
-                    if s > suppression:
-                        suppression = s
+                    if s > instant_suppression:
+                        instant_suppression = s
                         reason = f"recent_error={mean_err:.3f}"
+
+            # Apply EMA smoothing to suppression
+            prev = self._prev_suppression.get(p.engine_name, 0.0)
+            smoothed_suppression = (
+                (1.0 - self._cfg.suppression_smoothing) * prev +
+                self._cfg.suppression_smoothing * instant_suppression
+            )
+            self._prev_suppression[p.engine_name] = smoothed_suppression
 
             inhibited = max(
                 self._cfg.min_weight,
-                bw * (1.0 - suppression),
+                bw * (1.0 - smoothed_suppression),
             )
 
             states.append(InhibitionState(
@@ -123,7 +134,7 @@ class InhibitionGate:
                 base_weight=bw,
                 inhibited_weight=inhibited,
                 inhibition_reason=reason,
-                suppression_factor=suppression,
+                suppression_factor=smoothed_suppression,
             ))
 
         return states

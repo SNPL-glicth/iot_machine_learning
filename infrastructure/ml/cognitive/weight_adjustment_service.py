@@ -17,7 +17,7 @@ class WeightAdjustmentService:
     
     Responsibilities:
     - Compute adaptive weights from rolling MAE
-    - Fallback to plasticity weights
+    - Fallback to plasticity weights (via PlasticityPort or PlasticityTracker)
     - Fallback to uniform weights
     - Weight normalization
     """
@@ -34,7 +34,8 @@ class WeightAdjustmentService:
         Args:
             base_weights: Base weights for engines
             storage_adapter: Optional storage for rolling MAE
-            plasticity_tracker: Optional PlasticityTracker
+            plasticity_tracker: PlasticityPort, PlasticityTracker, or any object
+                with has_history(regime) and get_weights(regime, names) methods.
             epsilon: Small value to prevent division by zero
         """
         self._base_weights = base_weights
