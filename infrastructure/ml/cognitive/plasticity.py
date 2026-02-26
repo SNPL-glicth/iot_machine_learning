@@ -25,6 +25,15 @@ from typing import Dict, List, Optional
 # Exponential smoothing factor for accuracy updates
 _ALPHA: float = 0.15
 
+# Regime-specific alpha values for adaptive learning rates
+_REGIME_ALPHA: Dict[str, float] = {
+    "STABLE": 0.15,
+    "TRENDING": 0.22,
+    "VOLATILE": 0.45,
+    "NOISY": 0.08,
+    "TRANSITIONAL": 0.20,
+}
+
 # Minimum weight floor to prevent total suppression
 _MIN_WEIGHT: float = 0.05
 
@@ -83,18 +92,31 @@ class PlasticityTracker:
         
         now = time.monotonic()
         
-        # TTL decay: if regime hasn't been updated in TTL period, decay all weights by 50%
+        # TTL decay: exponential decay to equilibrium (uniform distribution)
         if regime in self._regime_last_update:
             elapsed = now - self._regime_last_update[regime]
             if elapsed > self._regime_ttl_seconds:
-                for eng in self._accuracy[regime]:
-                    self._accuracy[regime][eng] *= 0.5
+                import math
+                n_engines = len(self._accuracy[regime])
+                if n_engines > 0:
+                    w_eq = 1.0 / n_engines
+                    decay_rate = 1.0 / self._regime_ttl_seconds
+                    decay_factor = math.exp(-decay_rate * elapsed)
+                    
+                    for eng in self._accuracy[regime]:
+                        w_0 = self._accuracy[regime][eng]
+                        w_t = w_0 * decay_factor + w_eq * (1.0 - decay_factor)
+                        self._accuracy[regime][eng] = max(self._min_weight, min(1.0, w_t))
         
         # Update access and update times
         self._regime_last_access[regime] = now
         self._regime_last_update[regime] = now
         
-        effective_alpha = alpha if alpha is not None else self._alpha
+        if alpha is not None:
+            effective_alpha = alpha
+        else:
+            effective_alpha = _REGIME_ALPHA.get(regime, self._alpha)
+        
         inv_error = 1.0 / (abs(prediction_error) + 1e-9)
         prev = self._accuracy[regime].get(engine_name)
 
@@ -129,9 +151,21 @@ class PlasticityTracker:
             uniform = 1.0 / n
             return {name: uniform for name in engine_names}
         
-        # Update access time for LRU tracking
-        if regime in self._regime_last_access:
-            self._regime_last_access[regime] = time.monotonic()
+        now = time.monotonic()
+        
+        if regime in self._regime_last_update:
+            elapsed = now - self._regime_last_update[regime]
+            if elapsed > self._regime_ttl_seconds:
+                import math
+                w_eq = 1.0 / len(regime_data)
+                decay_rate = 1.0 / self._regime_ttl_seconds
+                decay_factor = math.exp(-decay_rate * elapsed)
+                
+                regime_data = {
+                    eng: max(self._min_weight, min(1.0, 
+                        w * decay_factor + w_eq * (1.0 - decay_factor)))
+                    for eng, w in regime_data.items()
+                }
 
         raw: Dict[str, float] = {}
         for name in engine_names:

@@ -6,6 +6,7 @@ from threading import RLock
 from typing import Dict, List, Optional, Tuple
 
 from ...domain.ports.series_correlation_port import SeriesCorrelationPort
+from ...domain.services.interaction_field_service import InteractionFieldService
 
 logger = logging.getLogger(__name__)
 
@@ -193,3 +194,63 @@ class SqlCorrelationAdapter(SeriesCorrelationPort):
             return 0.0
         
         return numerator / denominator
+    
+    def smooth_with_field(
+        self,
+        predictions: Dict[str, float],
+        smoothing_factor: float = 0.3,
+    ) -> Dict[str, float]:
+        """Apply Laplacian smoothing using interaction field.
+        
+        Optional method that uses InteractionFieldService to enforce
+        consistency across correlated series. Falls back to original
+        predictions if numpy unavailable or matrix singular.
+        
+        Args:
+            predictions: Dict mapping series_id to prediction value
+            smoothing_factor: Smoothing strength (0-1)
+        
+        Returns:
+            Smoothed predictions dict (or original if smoothing fails)
+        """
+        try:
+            series_ids = list(predictions.keys())
+            if len(series_ids) < 2:
+                return predictions
+            
+            try:
+                import numpy as np
+            except ImportError:
+                return predictions
+            
+            corr_matrix = np.zeros((len(series_ids), len(series_ids)))
+            for i, sid_i in enumerate(series_ids):
+                for j, sid_j in enumerate(series_ids):
+                    if i == j:
+                        corr_matrix[i, j] = 1.0
+                    else:
+                        with self._lock:
+                            cached = self._cache.get(sid_i, [])
+                        for neighbor_id, corr in cached:
+                            if neighbor_id == sid_j:
+                                corr_matrix[i, j] = corr
+                                break
+            
+            field_service = InteractionFieldService(corr_matrix, series_ids)
+            return field_service.smooth_predictions(predictions, smoothing_factor)
+        except Exception:
+            return predictions
+    
+    def get_cache_age(self, series_id: str) -> float:
+        """Get cache age in seconds for a series.
+        
+        Args:
+            series_id: Series identifier
+        
+        Returns:
+            Age in seconds, or infinity if not cached
+        """
+        with self._lock:
+            if series_id not in self._cache_time:
+                return float('inf')
+            return time.time() - self._cache_time[series_id]

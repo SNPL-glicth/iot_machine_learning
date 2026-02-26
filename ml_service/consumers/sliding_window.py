@@ -51,14 +51,17 @@ class SlidingWindowStore:
         max_sensors: int = _DEFAULT_MAX_SENSORS,
         ttl_seconds: float = _DEFAULT_TTL_SECONDS,
         enable_proactive_cleanup: bool = _DEFAULT_CLEANUP_ENABLED,
+        max_total_entries: int = 50000,
     ) -> None:
         self._max_size = max_size
         self._max_sensors = max(1, max_sensors)
+        self._max_total_entries = max(1, max_total_entries)
         self._ttl = float(ttl_seconds)
         self._entries: OrderedDict[int, _WindowEntry] = OrderedDict()
         self._lock = threading.Lock()
         self._evictions_lru: int = 0
         self._evictions_ttl: int = 0
+        self._evictions_global: int = 0
         self._stop_event = threading.Event()
         self._cleanup_thread: Optional[threading.Thread] = None
         
@@ -92,6 +95,7 @@ class SlidingWindowStore:
                 self._entries[sid] = entry
             entry.window.append(reading)
             entry.last_accessed = now
+            self._evict_global_if_needed()
             return len(entry.window)
 
     def get_window(self, sensor_id: int) -> List[Reading]:
@@ -129,6 +133,8 @@ class SlidingWindowStore:
                 "max_sensors": self._max_sensors,
                 "evictions_lru": self._evictions_lru,
                 "evictions_ttl": self._evictions_ttl,
+                "evictions_global": self._evictions_global,
+                "total_entries": self._get_total_entries(),
             }
 
     # ------------------------------------------------------------------
@@ -142,6 +148,17 @@ class SlidingWindowStore:
             self._evictions_lru += 1
             logger.debug("lru_evict sensor_id=%d", evicted_id)
 
+    def _get_total_entries(self) -> int:
+        """Count total entries across all sensors (caller holds lock)."""
+        return sum(len(entry.window) for entry in self._entries.values())
+    
+    def _evict_global_if_needed(self) -> None:
+        """Evict LRU sensor when global entry limit exceeded (caller holds lock)."""
+        while self._get_total_entries() > self._max_total_entries and self._entries:
+            evicted_id, _ = self._entries.popitem(last=False)
+            self._evictions_global += 1
+            logger.debug("global_evict sensor_id=%d", evicted_id)
+    
     def _cleanup_expired(self, now: float) -> None:
         """Remove entries idle longer than TTL (caller holds lock)."""
         cutoff = now - self._ttl

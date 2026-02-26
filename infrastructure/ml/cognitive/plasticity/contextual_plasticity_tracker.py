@@ -89,6 +89,25 @@ class ContextualPlasticityTracker:
         # Thread safety: RLock for protecting shared dictionary
         self._lock = RLock()
     
+    def _aggregate_context_key(self, context: PlasticityContext) -> str:
+        """Aggregate context to reduce entropy from 288 to 8 buckets.
+        
+        Maps contexts to: {regime}|{volatility_binary}
+        - 4 regimes: STABLE, TRENDING, VOLATILE, NOISY
+        - 2 volatility levels: stable (≤0.6), volatile (>0.6)
+        - Eliminates temporal dimension completely
+        
+        Result: Maximum 8 contexts per engine (not 288).
+        
+        Args:
+            context: Full plasticity context
+        
+        Returns:
+            Aggregated context key
+        """
+        vol_binary = "volatile" if context.volatility > 0.6 else "stable"
+        return f"{context.regime.value}|{vol_binary}"
+    
     def record_error(
         self,
         series_id: str,
@@ -110,7 +129,7 @@ class ContextualPlasticityTracker:
         if error < 0:
             raise ValueError(f"error must be >= 0, got {error}")
         
-        context_key = context.context_key
+        context_key = self._aggregate_context_key(context)
         
         with self._lock:
             import time
@@ -156,7 +175,7 @@ class ContextualPlasticityTracker:
         Returns:
             MAE if enough samples, None otherwise
         """
-        context_key = context.context_key
+        context_key = self._aggregate_context_key(context)
         
         with self._lock:
             if series_id not in self._errors:
@@ -208,7 +227,7 @@ class ContextualPlasticityTracker:
                 "contextual_weights_computed",
                 extra={
                     "series_id": series_id,
-                    "context_key": context.context_key,
+                    "context_key": self._aggregate_context_key(context),
                     "maes": {k: v for k, v in maes.items() if v is not None},
                     "weights": weights,
                 },
@@ -232,7 +251,7 @@ class ContextualPlasticityTracker:
         Returns:
             Number of samples
         """
-        context_key = context.context_key
+        context_key = self._aggregate_context_key(context)
         
         if series_id not in self._errors:
             return 0

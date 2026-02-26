@@ -18,8 +18,11 @@ Pure logic — no I/O, no persistence.
 
 from __future__ import annotations
 
+import math
+import time
+from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .analysis.types import EnginePerception, InhibitionState
 
@@ -52,15 +55,18 @@ class InhibitionGate:
     returns inhibition states.
     """
 
-    def __init__(self, config: Optional[InhibitionConfig] = None) -> None:
+    def __init__(self, config: Optional[InhibitionConfig] = None, max_entries: int = 10000) -> None:
         self._cfg = config or InhibitionConfig()
-        self._prev_suppression: Dict[str, float] = {}
+        self._prev_suppression: OrderedDict[Tuple[str, str], float] = OrderedDict()
+        self._last_update: Dict[Tuple[str, str], float] = {}
+        self._max_entries = max_entries
 
     def compute(
         self,
         perceptions: List[EnginePerception],
         base_weights: Dict[str, float],
         recent_errors: Optional[Dict[str, List[float]]] = None,
+        series_id: Optional[str] = None,
     ) -> List[InhibitionState]:
         """Apply inhibition rules to each engine's weight.
 
@@ -74,6 +80,8 @@ class InhibitionGate:
         """
         errors = recent_errors or {}
         states: List[InhibitionState] = []
+        now = time.monotonic()
+        sid = series_id if series_id else "_default"
 
         for p in perceptions:
             bw = base_weights.get(p.engine_name, 0.0)
@@ -116,13 +124,32 @@ class InhibitionGate:
                         instant_suppression = s
                         reason = f"recent_error={mean_err:.3f}"
 
+            # Apply exponential decay to previous suppression
+            key = (sid, p.engine_name)
+            if key in self._prev_suppression:
+                elapsed = now - self._last_update.get(key, now)
+                decay_rate = 0.1
+                decay_factor = math.exp(-decay_rate * elapsed)
+                prev = self._prev_suppression[key] * decay_factor
+            else:
+                prev = 0.0
+            
             # Apply EMA smoothing to suppression
-            prev = self._prev_suppression.get(p.engine_name, 0.0)
             smoothed_suppression = (
                 (1.0 - self._cfg.suppression_smoothing) * prev +
                 self._cfg.suppression_smoothing * instant_suppression
             )
-            self._prev_suppression[p.engine_name] = smoothed_suppression
+            
+            # LRU eviction
+            if len(self._prev_suppression) >= self._max_entries:
+                oldest = min(self._last_update, key=self._last_update.get)
+                self._prev_suppression.pop(oldest, None)
+                self._last_update.pop(oldest, None)
+            
+            self._prev_suppression[key] = smoothed_suppression
+            self._last_update[key] = now
+            if key in self._prev_suppression:
+                self._prev_suppression.move_to_end(key)
 
             inhibited = max(
                 self._cfg.min_weight,

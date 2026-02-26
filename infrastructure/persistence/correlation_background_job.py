@@ -34,10 +34,12 @@ class CorrelationBackgroundJob:
         adapter,
         storage,
         interval_seconds: int = _DEFAULT_INTERVAL_SECONDS,
+        max_refresh_per_cycle: int = 100,
     ) -> None:
         self._adapter = adapter
         self._storage = storage
         self._interval = interval_seconds
+        self._max_refresh = max_refresh_per_cycle
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
@@ -67,8 +69,38 @@ class CorrelationBackgroundJob:
             logger.error("correlation_job_list_failed: %s", exc)
             return
 
-        refreshed, failed = 0, 0
+        priorities = []
         for sid in series_ids:
+            try:
+                cache_age = self._adapter.get_cache_age(sid)
+            except Exception:
+                cache_age = float('inf')
+            
+            volatility = 0.0
+            gradient = 0.0
+            try:
+                sensor_id = int(sid) if sid.isdigit() else 0
+                if sensor_id > 0:
+                    window = self._storage.load_sensor_window(sensor_id, limit=10)
+                    if len(window.readings) >= 3:
+                        values = [r.value for r in window.readings]
+                        import math
+                        mean_val = sum(values) / len(values)
+                        volatility = math.sqrt(sum((v - mean_val) ** 2 for v in values) / len(values))
+                        gradient = abs(values[-1] - values[0]) / max(len(values) - 1, 1)
+            except Exception:
+                pass
+            
+            priority = cache_age * (1.0 + volatility + gradient)
+            priorities.append((priority, sid))
+        
+        priorities.sort(reverse=True, key=lambda x: x[0])
+        
+        top_series = [sid for _, sid in priorities[:self._max_refresh]]
+        total_series = len(series_ids)
+
+        refreshed, failed = 0, 0
+        for sid in top_series:
             if self._stop_event.is_set():
                 break
             try:
@@ -79,7 +111,7 @@ class CorrelationBackgroundJob:
                 logger.debug("correlation_refresh_failed series=%s: %s", sid, exc)
 
         logger.info(
-            "correlation_job_done refreshed=%d failed=%d", refreshed, failed
+            "correlation_job_done refreshed=%d failed=%d total=%d", refreshed, failed, total_series
         )
 
     def _run(self) -> None:

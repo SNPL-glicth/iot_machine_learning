@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Optional
+from collections import OrderedDict
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -64,6 +65,7 @@ class AdaptiveLearningRate:
         failure_boost: float = 2.0,
         failure_threshold: int = 5,
         momentum: float = 0.9,
+        momentum_decay: float = 0.95,
     ) -> None:
         """Initialize adaptive learning rate calculator.
         
@@ -75,6 +77,7 @@ class AdaptiveLearningRate:
             noise_penalty: Penalty factor for high noise (0.5 = 50% reduction)
             failure_boost: Boost factor for consecutive failures
             failure_threshold: Number of failures to trigger boost
+            momentum_decay: Decay factor for velocity (default: 0.95)
         
         Raises:
             ValueError: If parameters are invalid
@@ -93,6 +96,8 @@ class AdaptiveLearningRate:
             raise ValueError(f"failure_threshold must be >= 1, got {failure_threshold}")
         if not 0 <= momentum < 1:
             raise ValueError(f"momentum must be in [0, 1), got {momentum}")
+        if not 0 < momentum_decay <= 1:
+            raise ValueError(f"momentum_decay must be in (0, 1], got {momentum_decay}")
         
         self.base_lr = base_lr
         self.lr_min = lr_min
@@ -102,13 +107,16 @@ class AdaptiveLearningRate:
         self.failure_boost = failure_boost
         self.failure_threshold = failure_threshold
         self.momentum = momentum
-        self._velocity: Dict[str, float] = {}
+        self.momentum_decay = momentum_decay
+        self._velocity: OrderedDict[Tuple[str, str], float] = OrderedDict()
+        self._max_velocity_entries = 10000
     
     def compute_adaptive_lr(
         self,
         error: float,
         context: PlasticityContext,
         engine_name: Optional[str] = None,
+        series_id: Optional[str] = None,
     ) -> float:
         """Compute adaptive learning rate based on error and context.
         
@@ -180,9 +188,18 @@ class AdaptiveLearningRate:
         
         # 6. Apply momentum if engine_name provided
         if engine_name is not None and self.momentum > 0:
-            prev_velocity = self._velocity.get(engine_name, self.base_lr)
+            key = (series_id, engine_name) if series_id else (engine_name, engine_name)
+            prev_velocity = self._velocity.get(key, self.base_lr)
+            prev_velocity *= self.momentum_decay
             lr = self.momentum * prev_velocity + (1.0 - self.momentum) * lr
-            self._velocity[engine_name] = lr
+            
+            # LRU eviction
+            if len(self._velocity) >= self._max_velocity_entries:
+                self._velocity.popitem(last=False)
+            
+            self._velocity[key] = lr
+            if key in self._velocity:
+                self._velocity.move_to_end(key)
         
         # 7. Apply safety limits
         lr = np.clip(lr, self.lr_min, self.lr_max)

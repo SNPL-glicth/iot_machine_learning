@@ -5,6 +5,39 @@ from typing import Dict, List
 from .analysis.types import InhibitionState
 
 
+class ForceBalanceService:
+    """Physics-based force balance for weight mediation.
+    
+    Models plasticity as attractive force and inhibition as repulsive force.
+    Computes equilibrium weight using: w_eq = (F_plastic - F_inhibition) / (mass + damping)
+    """
+    
+    @staticmethod
+    def compute_equilibrium_weight(
+        plastic_force: float,
+        inhibition_force: float,
+        mass: float = 1.0,
+        damping: float = 0.3,
+    ) -> float:
+        """Compute equilibrium weight from force balance.
+        
+        At equilibrium: F_plastic - F_inhibition = m·a + b·v
+        When a=0, v=0: w_eq = net_force / (mass + damping)
+        
+        Args:
+            plastic_force: Attraction force (proportional to historical accuracy)
+            inhibition_force: Repulsion force (proportional to current instability)
+            mass: Engine "mass" (resistance to change)
+            damping: Viscous damping coefficient
+        
+        Returns:
+            Equilibrium weight in [0.0, 1.0]
+        """
+        net_force = plastic_force - inhibition_force
+        equilibrium_displacement = net_force / (mass + damping)
+        return max(0.0, min(1.0, equilibrium_displacement))
+
+
 class WeightMediator:
     """Mediates between plasticity attraction and inhibition repulsion.
     
@@ -22,7 +55,7 @@ class WeightMediator:
         plasticity_weights: Dict[str, float],
         inhibition_states: List[InhibitionState],
     ) -> Dict[str, float]:
-        """Apply damped coupling between plasticity and inhibition.
+        """Apply force balance between plasticity and inhibition.
         
         Args:
             plasticity_weights: Weights from PlasticityTracker.
@@ -32,24 +65,22 @@ class WeightMediator:
             Mediated weights dict, normalized to sum to 1.0.
         """
         mediated = {}
+        force_balance = ForceBalanceService()
 
         for state in inhibition_states:
             name = state.engine_name
             plastic_w = plasticity_weights.get(name, 0.0)
             inhibited_w = state.inhibited_weight
-            base_w = state.base_weight
-
-            prev_inh = self._last_inhibitions.get(name, 0.0)
-
-            # If storage-MAE already penalized this engine (plastic_w dropped
-            # more than 40 % below its base weight), reduce coupling so we do
-            # not apply a second penalization on top.
-            already_penalized = (base_w > 1e-9) and (plastic_w < base_w * 0.6)
-            effective_coupling = 0.2 if already_penalized else self._coupling
-
-            damping = 1.0 - effective_coupling * prev_inh
-
-            mediated[name] = plastic_w * damping + inhibited_w * (1.0 - damping)
+            
+            plastic_force = plastic_w
+            inhibition_force = state.suppression_factor
+            
+            mediated[name] = force_balance.compute_equilibrium_weight(
+                plastic_force=plastic_force,
+                inhibition_force=inhibition_force,
+                mass=1.0,
+                damping=0.3,
+            )
             self._last_inhibitions[name] = state.suppression_factor
         
         total = sum(mediated.values())

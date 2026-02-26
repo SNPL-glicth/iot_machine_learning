@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
-from typing import TYPE_CHECKING
+import time
+from collections import OrderedDict
+from threading import RLock
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 if TYPE_CHECKING:
     from typing import List, Optional
@@ -15,6 +18,103 @@ from ..analysis.types import MetaDiagnostic, PipelineTimer
 from .fallback_handler import handle_fallback
 
 logger = logging.getLogger(__name__)
+
+
+class WeightCache:
+    def __init__(self, max_entries: int = 1000, ttl_seconds: float = 60.0):
+        self._cache: OrderedDict[Tuple[str, str], Tuple[Dict[str, float], float]] = OrderedDict()
+        self._lock = RLock()
+        self._max_entries = max_entries
+        self._ttl = ttl_seconds
+    
+    def get(self, series_id: str, regime: str) -> Optional[Dict[str, float]]:
+        with self._lock:
+            key = (series_id, regime)
+            if key not in self._cache:
+                return None
+            weights, timestamp = self._cache[key]
+            if time.time() - timestamp >= self._ttl:
+                del self._cache[key]
+                return None
+            self._cache.move_to_end(key)
+            return weights
+    
+    def set(self, series_id: str, regime: str, weights: Dict[str, float]):
+        with self._lock:
+            key = (series_id, regime)
+            while len(self._cache) >= self._max_entries:
+                self._cache.popitem(last=False)
+            self._cache[key] = (weights, time.time())
+
+
+_weight_cache = WeightCache()
+
+
+def _compute_robust_gradient(values: list) -> float:
+    """Compute OLS gradient over values."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    x_mean = (n - 1) / 2.0
+    y_mean = sum(values) / n
+    num = sum((i - x_mean) * (y - y_mean) for i, y in enumerate(values))
+    den = sum((i - x_mean) ** 2 for i in range(n))
+    return num / den if abs(den) > 1e-9 else 0.0
+
+
+def _apply_spatial_correction(
+    base_prediction: float,
+    neighbors: list,
+    neighbor_values: dict,
+    max_correction_pct: float = 0.15,
+    min_gradient_samples: int = 3,
+) -> float:
+    """Apply spatial gradient correction from correlated neighbors.
+    
+    Computes weighted gradient: Σ(correlation_i × gradient_i) / Σ|correlation_i|
+    Correction: gradient × (Σ|correlation_i| / n_neighbors)
+    
+    Args:
+        base_prediction: Base prediction value
+        neighbors: List of (neighbor_id, correlation) tuples
+        neighbor_values: Dict of {neighbor_id: [values]}
+        max_correction_pct: Maximum correction as percentage of base (default 15%)
+        min_gradient_samples: Minimum samples required for gradient (default 3)
+    
+    Returns:
+        Corrected prediction value
+    """
+    if not neighbors:
+        return base_prediction
+    
+    valid_neighbors = []
+    for neighbor_id, correlation in neighbors:
+        if abs(correlation) > 0.5 and neighbor_id in neighbor_values:
+            values = neighbor_values[neighbor_id]
+            if len(values) >= min_gradient_samples:
+                gradient = _compute_robust_gradient(values)
+                valid_neighbors.append((neighbor_id, correlation, gradient))
+    
+    if not valid_neighbors:
+        return base_prediction
+    
+    weighted_gradient = 0.0
+    total_abs_correlation = 0.0
+    
+    for neighbor_id, correlation, gradient in valid_neighbors:
+        weighted_gradient += correlation * gradient
+        total_abs_correlation += abs(correlation)
+    
+    if total_abs_correlation < 1e-9:
+        return base_prediction
+    
+    gradient = weighted_gradient / total_abs_correlation
+    correction = gradient * (total_abs_correlation / len(valid_neighbors))
+    
+    max_correction = abs(base_prediction) * max_correction_pct
+    correction = max(-max_correction, min(max_correction, correction))
+    
+    return base_prediction + correction
 
 
 def execute_pipeline(
@@ -44,13 +144,15 @@ def execute_pipeline(
     builder.set_signal(profile)
     
     neighbor_trends = {}
+    neighbors = []
+    neighbor_values_dict = {}
     if orchestrator._correlation_port and series_id != "unknown":
         try:
             neighbors = orchestrator._correlation_port.get_correlated_series(series_id, max_neighbors=3)
             if neighbors:
                 neighbor_ids = [n[0] for n in neighbors]
-                neighbor_values = orchestrator._correlation_port.get_recent_values_multi(neighbor_ids, window=5)
-                for nid, nvals in neighbor_values.items():
+                neighbor_values_dict = orchestrator._correlation_port.get_recent_values_multi(neighbor_ids, window=5)
+                for nid, nvals in neighbor_values_dict.items():
                     if len(nvals) >= 2:
                         slope = (nvals[-1] - nvals[0]) / max(len(nvals) - 1, 1)
                         neighbor_trends[nid] = "up" if slope > 0.1 else "down" if slope < -0.1 else "stable"
@@ -100,16 +202,10 @@ def execute_pipeline(
     error_dict = {k: list(v) for k, v in orchestrator._recent_errors.items()}
     engine_names = [p.engine_name for p in perceptions]
 
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            adapt_future = executor.submit(
-                orchestrator._weight_service.resolve_weights,
-                regime_str, engine_names, series_id
-            )
-            plasticity_weights = adapt_future.result(timeout=0.1)
-    except (concurrent.futures.TimeoutError, Exception) as e:
-        logger.debug(f"parallel adapt failed, falling back to sequential: {e}")
+    plasticity_weights = _weight_cache.get(series_id, regime_str)
+    if plasticity_weights is None:
         plasticity_weights = orchestrator._weight_service.resolve_weights(regime_str, engine_names, series_id)
+        _weight_cache.set(series_id, regime_str, plasticity_weights)
 
     adapted = (orchestrator._plasticity is not None and orchestrator._plasticity.has_history(regime_str))
     builder.set_adaptation(adapted=adapted, regime=regime_str)
@@ -128,6 +224,35 @@ def execute_pipeline(
     (fused_val, fused_conf, fused_trend,
      final_weights, selected, reason) = orchestrator._fusion.fuse(
         perceptions, inh_states, neighbor_trends=neighbor_trends, signal_std=profile.std)
+
+    fused_val = _apply_spatial_correction(fused_val, neighbors, neighbor_values_dict)
+    
+    if orchestrator._correlation_port and neighbors:
+        high_corr_neighbors = [(nid, corr) for nid, corr in neighbors if abs(corr) > 0.7]
+        if high_corr_neighbors:
+            try:
+                predictions_to_smooth = {series_id: fused_val}
+                for neighbor_id, _ in high_corr_neighbors:
+                    if orchestrator._storage:
+                        neighbor_pred = orchestrator._storage.get_latest_prediction_for_series(neighbor_id)
+                        if neighbor_pred and hasattr(neighbor_pred, 'predicted_value'):
+                            predictions_to_smooth[neighbor_id] = neighbor_pred.predicted_value
+                
+                if len(predictions_to_smooth) >= 2:
+                    smoothed = orchestrator._correlation_port.smooth_with_field(
+                        predictions_to_smooth,
+                        smoothing_factor=0.2,
+                    )
+                    if smoothed and series_id in smoothed:
+                        original_val = fused_val
+                        fused_val = smoothed[series_id]
+                        logger.debug("field_smoothing_applied", extra={
+                            "original": round(original_val, 4),
+                            "smoothed": round(fused_val, 4),
+                            "n_neighbors": len(predictions_to_smooth) - 1,
+                        })
+            except Exception as e:
+                logger.debug(f"field_smoothing_failed: {e}")
 
     method = "weighted_average" if len(perceptions) > 1 else "single_engine"
     builder.set_fusion(
