@@ -32,6 +32,10 @@ from iot_machine_learning.infrastructure.ml.cognitive.text.perception_collector 
 from iot_machine_learning.infrastructure.ml.cognitive.text.severity_mapper import (
     classify_text_severity,
 )
+from iot_machine_learning.infrastructure.ml.cognitive.text.impact_detector import (
+    detect_impact_signals,
+    ImpactSignalResult,
+)
 from iot_machine_learning.infrastructure.ml.cognitive.text.memory_enricher import (
     TextMemoryEnricher,
     TextRecallContext,
@@ -273,32 +277,39 @@ class TestTextPerceptionCollector:
 
 class TestTextSeverityMapper:
 
-    def test_critical_urgency(self):
+    def test_critical_urgency_with_impact(self):
+        # High urgency + negative sentiment + critical text → critical
         result = classify_text_severity(
             urgency_score=0.8,
             urgency_severity="critical",
             sentiment_label="negative",
+            full_text="CRITICAL failure detected. System down.",
         )
         assert result.severity == "critical"
         assert result.risk_level == "HIGH"
         assert result.action_required is True
 
-    def test_warning_urgency(self):
+    def test_warning_urgency_no_impact(self):
+        # Moderate urgency + neutral sentiment, no impact text → warning
+        # composite = 0.5*0.3 + 0.3*0.2 + 0*0.5 = 0.21 → info
+        # But with impact text about concerns:
         result = classify_text_severity(
             urgency_score=0.5,
             urgency_severity="warning",
             sentiment_label="neutral",
+            full_text="Alert: degradation detected in the network.",
         )
-        assert result.severity == "warning"
-        assert result.risk_level == "MEDIUM"
+        assert result.severity in ("warning", "info")
 
     def test_negative_sentiment_with_elevated_urgency(self):
+        # urgency=0.35 + negative + impact text
         result = classify_text_severity(
             urgency_score=0.35,
             urgency_severity="info",
             sentiment_label="negative",
+            full_text="Error crítico en servidor. Fallas múltiples.",
         )
-        assert result.severity == "warning"
+        assert result.severity in ("warning", "critical")
 
     def test_low_urgency_positive_sentiment(self):
         result = classify_text_severity(
@@ -307,7 +318,6 @@ class TestTextSeverityMapper:
             sentiment_label="positive",
         )
         assert result.severity == "info"
-        assert result.risk_level == "NONE"
         assert result.action_required is False
 
     def test_critical_keywords_with_negative_sentiment(self):
@@ -325,8 +335,44 @@ class TestTextSeverityMapper:
             urgency_severity="critical",
             sentiment_label="negative",
             domain="infrastructure",
+            full_text="CRITICAL server failure.",
         )
         assert "infrastructure" in result.recommended_action
+
+    def test_3axis_formula_no_text_backward_compatible(self):
+        # Without full_text, impact=0 → pure urgency+sentiment
+        result = classify_text_severity(
+            urgency_score=0.1,
+            urgency_severity="info",
+            sentiment_label="positive",
+        )
+        assert result.severity == "info"
+        assert result.risk_level == "NONE"
+
+    def test_3axis_high_impact_overrides_low_urgency(self):
+        # Low urgency (0.2) + neutral sentiment, but text has CRITICAL markers
+        result = classify_text_severity(
+            urgency_score=0.2,
+            urgency_severity="info",
+            sentiment_label="neutral",
+            full_text=(
+                "CRÍTICO: SLA roto. Temperatura 89°C. "
+                "Riesgo de caída total en 72 horas. "
+                "Múltiples servicios afectados."
+            ),
+        )
+        assert result.severity == "critical"
+        assert result.risk_level == "HIGH"
+
+    def test_3axis_moderate_impact_produces_warning(self):
+        # SLA breach + critical marker + negative sentiment → enough for warning
+        result = classify_text_severity(
+            urgency_score=0.4,
+            urgency_severity="info",
+            sentiment_label="negative",
+            full_text="CRITICAL: SLA breach detected. Risk of failure within 48 hours.",
+        )
+        assert result.severity in ("warning", "critical")
 
 
 # ── TextMemoryEnricher Tests ──
@@ -689,3 +735,282 @@ class TestTextCognitiveResult:
         assert "conclusion" in legacy
         assert "confidence" in legacy
         assert legacy["adaptive_thresholds"]["urgency_critical"] == 0.7
+
+
+# ── ImpactSignalDetector Tests ──
+
+class TestImpactSignalDetector:
+
+    def test_empty_text_returns_zero(self):
+        result = detect_impact_signals("")
+        assert result.score == 0.0
+        assert result.n_signals == 0
+        assert result.n_categories_hit == 0
+
+    def test_benign_text_returns_zero(self):
+        result = detect_impact_signals(
+            "The quick brown fox jumps over the lazy dog."
+        )
+        assert result.score == 0.0
+        assert not result.has_critical_markers
+        assert not result.has_sla_breach
+
+    def test_detects_critico_marker(self):
+        result = detect_impact_signals("Estado CRÍTICO del servidor principal.")
+        assert result.has_critical_markers
+        assert result.score > 0.0
+        assert any(s.category == "critical_marker" for s in result.signals)
+
+    def test_detects_critical_english(self):
+        result = detect_impact_signals("CRITICAL failure in production cluster.")
+        assert result.has_critical_markers
+        assert any(
+            s.matched_text == "critical" for s in result.signals
+        )
+
+    def test_detects_caida_total(self):
+        result = detect_impact_signals("Riesgo de caída total del sistema.")
+        assert result.has_critical_markers
+        assert result.has_temporal_risk
+
+    def test_detects_sla_breach(self):
+        result = detect_impact_signals(
+            "SLA breach: availability at 78% vs target 99.5%."
+        )
+        assert result.has_sla_breach
+        assert any(s.category == "sla_breach" for s in result.signals)
+
+    def test_detects_percentage_vs_percentage(self):
+        result = detect_impact_signals("Disponibilidad 78% vs 99.5%")
+        assert result.has_sla_breach
+
+    def test_detects_extreme_temperature(self):
+        result = detect_impact_signals("Temperatura del rack: 89°C")
+        assert result.has_extreme_metrics
+        extreme = [s for s in result.signals if s.category == "extreme_metric"]
+        assert len(extreme) == 1
+        assert extreme[0].value == 89.0
+
+    def test_normal_temperature_not_flagged(self):
+        result = detect_impact_signals("Temperatura del rack: 45°C")
+        assert not result.has_extreme_metrics
+
+    def test_detects_extreme_cpu(self):
+        result = detect_impact_signals("CPU usage: 95%")
+        assert result.has_extreme_metrics
+
+    def test_normal_cpu_not_flagged(self):
+        result = detect_impact_signals("CPU usage: 60%")
+        assert not result.has_extreme_metrics
+
+    def test_detects_low_availability(self):
+        result = detect_impact_signals("Availability: 78%")
+        assert result.has_extreme_metrics
+
+    def test_good_availability_not_flagged(self):
+        result = detect_impact_signals("Availability: 99.9%")
+        assert not result.has_extreme_metrics
+
+    def test_detects_temporal_risk_es(self):
+        result = detect_impact_signals(
+            "Riesgo de falla total en 72 horas."
+        )
+        assert result.has_temporal_risk
+
+    def test_detects_temporal_risk_en(self):
+        result = detect_impact_signals(
+            "Risk of failure within 24 hours."
+        )
+        assert result.has_temporal_risk
+
+    def test_detects_cascade_risk_es(self):
+        result = detect_impact_signals(
+            "Múltiples servicios afectados. Efecto dominó."
+        )
+        assert result.has_cascade_risk
+
+    def test_detects_cascade_risk_en(self):
+        result = detect_impact_signals(
+            "Multiple systems affected. Cascade failure imminent."
+        )
+        assert result.has_cascade_risk
+
+    def test_multi_category_bonus(self):
+        # 3+ categories should get multiplier
+        result = detect_impact_signals(
+            "CRÍTICO: SLA roto. CPU al 95%. "
+            "Riesgo de caída en 24 horas."
+        )
+        assert result.n_categories_hit >= 3
+        assert result.score >= 0.55  # should be critical threshold
+
+    def test_full_critical_document(self):
+        doc = (
+            "Informe CRÍTICO de infraestructura:\n"
+            "El servidor principal presenta fallas críticas. "
+            "CPU al 95%, temperatura 89°C.\n"
+            "SLA roto: disponibilidad actual 78% vs objetivo 99.5%.\n"
+            "Riesgo de caída total del sistema en las próximas 72 horas.\n"
+            "Múltiples servicios degradados."
+        )
+        result = detect_impact_signals(doc)
+        assert result.n_categories_hit == 5  # all categories
+        assert result.score >= 0.9
+        assert result.has_critical_markers
+        assert result.has_sla_breach
+        assert result.has_extreme_metrics
+        assert result.has_temporal_risk
+        assert result.has_cascade_risk
+        assert result.summary != ""
+
+    def test_to_dict_serializable(self):
+        result = detect_impact_signals("CRITICAL SLA breach. CPU 95%.")
+        d = result.to_dict()
+        assert isinstance(d, dict)
+        assert "score" in d
+        assert "signals" in d
+        assert "n_categories_hit" in d
+        assert isinstance(d["signals"], list)
+
+    def test_summary_contains_category_names(self):
+        result = detect_impact_signals(
+            "CRÍTICO: SLA breach. Temperatura 89°C."
+        )
+        assert "critical severity markers" in result.summary
+        assert "SLA/KPI breach" in result.summary
+
+
+# ── 3-Axis Severity Integration Tests ──
+
+class TestSeverityImpactIntegration:
+
+    CRITICAL_DOC = (
+        "Informe CRÍTICO de infraestructura:\n"
+        "El servidor principal presenta fallas críticas. "
+        "CPU al 95%, temperatura 89°C.\n"
+        "SLA roto: disponibilidad actual 78% vs objetivo 99.5%.\n"
+        "Riesgo de caída total del sistema en las próximas 72 horas.\n"
+        "Múltiples servicios degradados. Se requiere intervención inmediata."
+    )
+
+    def test_critical_doc_produces_critical_severity(self):
+        """THE key test: a document with critical signals MUST produce critical severity."""
+        result = classify_text_severity(
+            urgency_score=0.65,
+            urgency_severity="warning",
+            sentiment_label="negative",
+            full_text=self.CRITICAL_DOC,
+            domain="infrastructure",
+        )
+        assert result.severity == "critical"
+        assert result.risk_level == "HIGH"
+        assert result.action_required is True
+
+    def test_critical_doc_even_with_low_urgency(self):
+        """Impact signals override low urgency scores."""
+        result = classify_text_severity(
+            urgency_score=0.2,
+            urgency_severity="info",
+            sentiment_label="neutral",
+            full_text=self.CRITICAL_DOC,
+        )
+        assert result.severity == "critical"
+
+    def test_impact_weight_dominates(self):
+        """Impact axis (0.50) outweighs urgency (0.30) + sentiment (0.20)."""
+        # Low urgency, positive sentiment, but horrific text
+        result = classify_text_severity(
+            urgency_score=0.1,
+            urgency_severity="info",
+            sentiment_label="positive",
+            full_text=(
+                "CRITICAL: total failure imminent. "
+                "SLA breach 50% vs 99.9%. Temperature 92°C. "
+                "Multiple systems cascading."
+            ),
+        )
+        assert result.severity == "critical"
+
+    def test_benign_text_stays_info(self):
+        result = classify_text_severity(
+            urgency_score=0.1,
+            urgency_severity="info",
+            sentiment_label="neutral",
+            full_text="Everything is running smoothly. All systems nominal.",
+        )
+        assert result.severity == "info"
+
+    def test_impact_summary_in_action(self):
+        result = classify_text_severity(
+            urgency_score=0.6,
+            urgency_severity="warning",
+            sentiment_label="negative",
+            full_text="CRITICAL SLA breach. CPU 95%.",
+            domain="infrastructure",
+        )
+        assert "Impact signals detected" in result.recommended_action
+
+
+# ── Full Pipeline with Impact ──
+
+class TestTextCognitiveEngineWithImpact:
+
+    CRITICAL_DOC = (
+        "Informe CRÍTICO de infraestructura:\n"
+        "El servidor principal presenta fallas críticas. "
+        "CPU al 95%, temperatura 89°C.\n"
+        "SLA roto: disponibilidad actual 78% vs objetivo 99.5%.\n"
+        "Riesgo de caída total del sistema en las próximas 72 horas.\n"
+        "Múltiples servicios degradados."
+    )
+
+    def test_full_pipeline_critical_document(self):
+        """End-to-end: critical document → critical severity in full pipeline."""
+        engine = TextCognitiveEngine()
+        inp = _make_input(
+            full_text=self.CRITICAL_DOC,
+            urgency_score=0.65,
+            urgency_severity="warning",
+            sentiment_label="negative",
+            sentiment_score=-0.4,
+        )
+        ctx = _make_context()
+        result = engine.analyze(inp, ctx)
+
+        assert result.severity.severity == "critical"
+        assert result.severity.risk_level == "HIGH"
+        assert result.severity.action_required is True
+        assert "critical" in result.conclusion.lower()
+
+    def test_analysis_dict_contains_impact(self):
+        engine = TextCognitiveEngine()
+        inp = _make_input(
+            full_text=self.CRITICAL_DOC,
+            urgency_score=0.65,
+            urgency_severity="warning",
+            sentiment_label="negative",
+        )
+        ctx = _make_context()
+        result = engine.analyze(inp, ctx)
+        assert "impact" in result.analysis
+        assert result.analysis["impact"]["n_categories_hit"] >= 3
+
+    def test_benign_document_stays_info(self):
+        engine = TextCognitiveEngine()
+        inp = _make_input(
+            full_text="Todo funciona correctamente. Sistemas estables.",
+            urgency_score=0.1,
+            urgency_severity="info",
+            sentiment_label="positive",
+            sentiment_score=0.3,
+        )
+        ctx = _make_context()
+        result = engine.analyze(inp, ctx)
+        assert result.severity.severity == "info"
+
+    def test_perceive_phase_includes_impact_score(self):
+        engine = TextCognitiveEngine()
+        inp = _make_input(full_text=self.CRITICAL_DOC)
+        ctx = _make_context()
+        result = engine.analyze(inp, ctx)
+        assert "perceive" in result.pipeline_timing

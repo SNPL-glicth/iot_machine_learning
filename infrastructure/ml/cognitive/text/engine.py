@@ -39,6 +39,7 @@ from .types import TextAnalysisContext, TextAnalysisInput, TextCognitiveResult
 from .signal_profiler import TextSignalProfiler
 from .perception_collector import TextPerceptionCollector, DEFAULT_TEXT_WEIGHTS
 from .severity_mapper import classify_text_severity
+from .impact_detector import detect_impact_signals
 from .memory_enricher import TextMemoryEnricher
 from .explanation_assembler import TextExplanationAssembler
 
@@ -131,11 +132,20 @@ class TextCognitiveEngine:
             embedded_numeric_count=inp.readability_embedded_numeric_count,
             pattern_summary=inp.pattern_summary,
         )
+
+        # Impact signal detection (scans text once, reused by severity_mapper)
+        impact_result = detect_impact_signals(inp.full_text)
+
         perceive_ms = (time.monotonic() - t0) * 1000
         timing["perceive"] = perceive_ms
         phases.append({
             "kind": "perceive",
-            "summary": {"word_count": inp.word_count, "domain": domain},
+            "summary": {
+                "word_count": inp.word_count,
+                "domain": domain,
+                "impact_score": impact_result.score,
+                "impact_categories_hit": impact_result.n_categories_hit,
+            },
             "duration_ms": perceive_ms,
         })
 
@@ -204,13 +214,15 @@ class TextCognitiveEngine:
             "weighted_average" if len(perceptions) > 1 else "single_engine"
         )
 
-        # Severity classification
+        # Severity classification (3-axis: urgency + sentiment + impact)
         severity = classify_text_severity(
             urgency_score=inp.urgency_score,
             urgency_severity=inp.urgency_severity,
             sentiment_label=inp.sentiment_label,
             has_critical_keywords=inp.urgency_severity == "critical",
             domain=domain,
+            full_text=inp.full_text,
+            impact_result=impact_result,
         )
 
         fuse_ms = (time.monotonic() - t0) * 1000
@@ -248,10 +260,14 @@ class TextCognitiveEngine:
         confidence = self._compute_confidence(inp, recall_ctx.has_context)
 
         # ── Build analysis dict (backward-compatible) ──
-        analysis = self._build_analysis_dict(inp, signal, perceptions, final_weights)
+        analysis = self._build_analysis_dict(
+            inp, signal, perceptions, final_weights, impact_result,
+        )
 
         # ── Build basic conclusion (caller may enrich with build_semantic_conclusion) ──
-        conclusion = self._build_basic_conclusion(domain, severity, inp)
+        conclusion = self._build_basic_conclusion(
+            domain, severity, inp, impact_result,
+        )
 
         logger.debug(
             "text_cognitive_pipeline",
@@ -329,9 +345,10 @@ class TextCognitiveEngine:
         signal: Any,
         perceptions: List[Any],
         final_weights: Dict[str, float],
+        impact_result: Any = None,
     ) -> Dict[str, Any]:
         """Build backward-compatible analysis dict."""
-        return {
+        d: Dict[str, Any] = {
             "sentiment": inp.sentiment_label,
             "sentiment_score": inp.sentiment_score,
             "urgency_score": inp.urgency_score,
@@ -364,12 +381,16 @@ class TextCognitiveEngine:
                 "signal_profile": signal.to_dict(),
             },
         }
+        if impact_result is not None:
+            d["impact"] = impact_result.to_dict()
+        return d
 
     def _build_basic_conclusion(
         self,
         domain: str,
         severity: Any,
         inp: TextAnalysisInput,
+        impact_result: Any = None,
     ) -> str:
         """Build a basic conclusion from severity and domain.
 
@@ -384,6 +405,10 @@ class TextCognitiveEngine:
 
         # Severity line
         parts.append(f"Severity: {severity.severity}")
+
+        # Impact signals
+        if impact_result is not None and impact_result.summary:
+            parts.append(impact_result.summary)
 
         # Key signals
         if inp.urgency_severity in ("critical", "warning"):

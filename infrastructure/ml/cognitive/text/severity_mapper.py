@@ -1,16 +1,36 @@
-"""TextSeverityMapper — maps text urgency/sentiment to SeverityResult.
+"""TextSeverityMapper — 3-axis severity classification.
+
+Combines three independent axes to compute real-world severity:
+
+    **urgency**   × 0.30  — keyword-based urgency score [0, 1]
+    **sentiment** × 0.20  — negative sentiment weight [0, 1]
+    **impact**    × 0.50  — hard impact signals (SLA breach, extreme
+                            metrics, temporal risk, cascade failure)
 
 Produces the same ``SeverityResult`` dataclass used by the IoT pipeline
 (``domain.services.severity_rules``) but without requiring the
 IoT-specific ``Threshold`` entity.
 
-No imports from ml_service — only domain layer.
+No imports from ml_service — only domain layer + sibling modules.
 Single entry point: ``classify_text_severity()``.
 """
 
 from __future__ import annotations
 
+from typing import Optional
+
 from iot_machine_learning.domain.services.severity_rules import SeverityResult
+
+from .impact_detector import ImpactSignalResult, detect_impact_signals
+
+# Axis weights for the composite severity score
+_W_URGENCY = 0.30
+_W_SENTIMENT = 0.20
+_W_IMPACT = 0.50
+
+# Severity thresholds on composite score [0, 1]
+_THRESHOLD_CRITICAL = 0.55
+_THRESHOLD_WARNING = 0.30
 
 
 def classify_text_severity(
@@ -20,8 +40,14 @@ def classify_text_severity(
     sentiment_label: str,
     has_critical_keywords: bool = False,
     domain: str = "general",
+    full_text: str = "",
+    impact_result: Optional[ImpactSignalResult] = None,
 ) -> SeverityResult:
-    """Classify text document severity from analysis scores.
+    """Classify text document severity from analysis scores + impact signals.
+
+    Uses a 3-axis formula::
+
+        composite = urgency * 0.30 + sentiment * 0.20 + impact * 0.50
 
     Args:
         urgency_score: Urgency level [0, 1].
@@ -32,17 +58,42 @@ def classify_text_severity(
         has_critical_keywords: Whether critical urgency keywords
             were detected in the text.
         domain: Classified document domain for action text.
+        full_text: Full document text for impact signal scanning.
+            If empty and ``impact_result`` is ``None``, impact axis
+            scores zero (backward-compatible).
+        impact_result: Pre-computed ``ImpactSignalResult``. If
+            provided, ``full_text`` is not re-scanned.
 
     Returns:
         ``SeverityResult`` with risk_level, severity,
         action_required, and recommended_action.
     """
-    severity, risk_level = _compute_severity(
-        urgency_score, urgency_severity, sentiment_label, has_critical_keywords
+    # ── Impact axis ──
+    if impact_result is None and full_text:
+        impact_result = detect_impact_signals(full_text)
+
+    impact_score = impact_result.score if impact_result is not None else 0.0
+
+    # ── Sentiment axis ──
+    sentiment_weight = _sentiment_to_weight(sentiment_label)
+
+    # ── Composite score ──
+    composite = (
+        _W_URGENCY * urgency_score
+        + _W_SENTIMENT * sentiment_weight
+        + _W_IMPACT * impact_score
     )
 
+    # ── Hard overrides (any single axis can force critical) ──
+    if impact_result is not None and impact_result.n_categories_hit >= 3:
+        composite = max(composite, _THRESHOLD_CRITICAL)
+    if has_critical_keywords and sentiment_label == "negative":
+        composite = max(composite, _THRESHOLD_CRITICAL)
+
+    # ── Map to severity ──
+    severity, risk_level = _score_to_severity(composite)
     action_required = severity != "info"
-    recommended_action = _build_action(severity, domain)
+    recommended_action = _build_action(severity, domain, impact_result)
 
     return SeverityResult(
         risk_level=risk_level,
@@ -52,48 +103,50 @@ def classify_text_severity(
     )
 
 
-def _compute_severity(
-    urgency_score: float,
-    urgency_severity: str,
-    sentiment_label: str,
-    has_critical_keywords: bool,
-) -> tuple:
-    """Compute severity and risk level from text signals.
+def _sentiment_to_weight(label: str) -> float:
+    """Convert sentiment label to a [0, 1] weight for the composite."""
+    if label == "negative":
+        return 0.8
+    if label == "neutral":
+        return 0.3
+    return 0.0  # positive
 
-    Returns:
-        Tuple of (severity, risk_level).
-    """
-    # Critical: explicit critical urgency OR critical keywords + negative sentiment
-    if urgency_severity == "critical":
+
+def _score_to_severity(composite: float) -> tuple:
+    """Map composite score to (severity, risk_level)."""
+    if composite >= _THRESHOLD_CRITICAL:
         return "critical", "HIGH"
-    if has_critical_keywords and sentiment_label == "negative":
-        return "critical", "HIGH"
-
-    # Warning: moderate urgency OR negative sentiment with elevated urgency
-    if urgency_severity == "warning":
+    if composite >= _THRESHOLD_WARNING:
         return "warning", "MEDIUM"
-    if sentiment_label == "negative" and urgency_score > 0.3:
-        return "warning", "MEDIUM"
-
-    # Info
-    if urgency_score > 0.2 or sentiment_label == "negative":
+    if composite >= 0.15:
         return "info", "LOW"
-
     return "info", "NONE"
 
 
-def _build_action(severity: str, domain: str) -> str:
+def _build_action(
+    severity: str,
+    domain: str,
+    impact: Optional[ImpactSignalResult],
+) -> str:
     """Build human-readable recommended action."""
     domain_label = domain if domain != "general" else "document"
 
     if severity == "critical":
-        return (
+        base = (
             f"Critical issues detected in {domain_label}. "
             "Immediate review and action required."
         )
+        if impact is not None and impact.summary:
+            base += f" {impact.summary}"
+        return base
+
     if severity == "warning":
-        return (
+        base = (
             f"Concerns identified in {domain_label}. "
             "Schedule review and monitor closely."
         )
+        if impact is not None and impact.summary:
+            base += f" {impact.summary}"
+        return base
+
     return "No immediate action required. Continue standard monitoring."
