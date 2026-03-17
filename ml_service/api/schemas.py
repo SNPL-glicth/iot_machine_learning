@@ -6,7 +6,7 @@ Request and response models for API endpoints.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -84,3 +84,30 @@ class BrokerHealthResponse(BaseModel):
     type: str
     consumer_running: bool | None = None
     last_error: str | None = None
+
+
+class AnalyzeDocumentRequest(BaseModel):
+    """Request schema for document analysis endpoint."""
+    document_id: str = Field(..., description="UUID del documento")
+    content_type: str = Field(..., description="Tipo de contenido: tabular, text, image, audio, binary")
+    normalized_payload: Dict[str, Any] = Field(..., description="Payload normalizado del parser")
+
+
+class TriggerActivated(BaseModel):
+    """Trigger activado durante el análisis."""
+    type: str = Field(description="Tipo: warning o critical")
+    field: str = Field(description="Campo que activó el trigger")
+    value: float = Field(description="Valor que activó el trigger")
+    threshold: float = Field(description="Umbral del trigger")
+    message: str = Field(description="Mensaje descriptivo")
+
+
+class AnalyzeDocumentResponse(BaseModel):
+    """Response schema for document analysis endpoint."""
+    document_id: str
+    content_type: str
+    analysis: Dict[str, Any] = Field(description="Resultados del análisis (patrones, anomalías, predicciones)")
+    adaptive_thresholds: Dict[str, float] = Field(description="Umbrales adaptativos calculados")
+    conclusion: str = Field(description="Conclusión en texto natural")
+    confidence: float = Field(description="Confianza del análisis 0-1")
+    processing_time_ms: float = Field(description="Tiempo de procesamiento")

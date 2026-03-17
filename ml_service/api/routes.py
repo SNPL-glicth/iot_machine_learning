@@ -137,6 +137,8 @@ async def ml_metrics() -> dict:
         from ..metrics import get_metrics
         metrics = get_metrics()
         return metrics.to_dict()
+
+
     except Exception as e:
         logger.exception("[ML-SERVICE] Metrics error: %s", str(e))
         return {"error": str(e)}
