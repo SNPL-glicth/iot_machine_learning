@@ -1,21 +1,45 @@
 """Full text document analysis pipeline.
 
 Orchestrates all text sub-analyzers (sentiment, urgency, readability,
-structural) and assembles the final result dict with triggers,
-thresholds, conclusion, and Explanation value object.
+structural, chunking, embedding, semantic recall, pattern detection),
+feeds pre-computed scores into ``TextCognitiveEngine`` for deep
+cognitive reasoning, and assembles the final result dict.
+
+The ml_service layer runs the analyzers and owns Weaviate I/O.
+The engine (infrastructure layer) does cognitive reasoning only.
 
 Single entry point: ``analyze_text_document(document_id, payload)``.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, List, Optional
 
 from .text_sentiment import compute_sentiment
 from .text_urgency import compute_urgency
 from .text_readability import compute_readability
 from .text_structural import compute_text_structure
-from .conclusion_builder import build_text_conclusion, build_text_explanation
+from .text_chunker import chunk_text
+from .text_embedder import store_chunks
+from .text_recall import recall_similar_documents, RecallResult
+from .text_pattern import detect_text_patterns
+from .conclusion_builder import (
+    build_text_conclusion,
+    build_text_explanation,
+    build_semantic_conclusion,
+)
+
+from iot_machine_learning.infrastructure.ml.cognitive.text import (
+    TextAnalysisContext,
+    TextAnalysisInput,
+    TextCognitiveEngine,
+)
+
+logger = logging.getLogger(__name__)
+
+# Module-level engine instance (stateless per-call, safe to reuse)
+_engine = TextCognitiveEngine()
 
 
 def analyze_text_document(
@@ -26,6 +50,10 @@ def analyze_text_document(
     Args:
         document_id: UUID of document.
         payload: Normalized payload with ``data.full_text``, etc.
+            Optional keys for semantic enrichment:
+            - ``_weaviate_url``: Weaviate base URL (enables embedding + recall).
+            - ``_tenant_id``: Tenant identifier for isolation.
+            - ``_analysis_id``: Reference to analysis_results row.
 
     Returns:
         Result dict with ``analysis``, ``adaptive_thresholds``,
@@ -36,43 +64,78 @@ def analyze_text_document(
     paragraph_count = data.get("paragraph_count", 0)
     full_text = data.get("full_text", "")
 
+    # Semantic context (optional — passed by zenin_queue_poller)
+    weaviate_url: Optional[str] = payload.get("_weaviate_url")
+    tenant_id: str = str(payload.get("_tenant_id", ""))
+    analysis_id: str = str(payload.get("_analysis_id", document_id))
+
+    # ── Core analysis (always runs) ──
     sentiment = compute_sentiment(full_text)
     urgency = compute_urgency(full_text)
     readability = compute_readability(full_text, word_count)
     structural = compute_text_structure(readability.sentences)
 
-    # ── Analysis dict (preserves existing interface) ──
-    analysis: Dict[str, Any] = {
-        "sentiment": sentiment.label,
-        "sentiment_score": sentiment.score,
-        "urgency_score": urgency.score,
-        "urgency_hits": urgency.hits,
-        "readability": {
-            "avg_sentence_length": readability.avg_sentence_length,
-            "n_sentences": readability.n_sentences,
-            "vocabulary_richness": readability.vocabulary_richness,
-            "embedded_numeric_values": readability.embedded_numeric_count,
-        },
-        "structural": {
-            "sentence_length_regime": structural.regime,
-            "sentence_length_trend": structural.trend,
-            "sentence_length_stability": structural.stability,
-            "sentence_length_noise": structural.noise,
-        } if structural.available else {},
-        "triggers_activated": _build_triggers(sentiment, urgency),
-    }
+    # ── Pattern detection on sentence signal ──
+    patterns = detect_text_patterns(readability.sentences)
 
-    # ── Confidence ──
-    confidence = 0.75
-    if word_count > 100:
-        confidence = 0.80
-    if word_count > 500:
-        confidence = 0.85
-    if structural.available:
-        confidence += 0.05
+    # ── Semantic enrichment (graceful-fail if Weaviate is down) ──
+    chunks = chunk_text(full_text)
+    recall_results: List[RecallResult] = []
 
-    # ── Conclusion ──
-    conclusion = build_text_conclusion(
+    if weaviate_url and chunks:
+        # Recall FIRST (before storing current doc, to avoid self-match)
+        recall_results = recall_similar_documents(
+            weaviate_url,
+            full_text,
+            tenant_id=tenant_id,
+            limit=3,
+            min_certainty=0.7,
+            exclude_analysis_id=analysis_id,
+        )
+
+    # ── Build TextAnalysisInput from pre-computed scores ──
+    inp = TextAnalysisInput(
+        full_text=full_text,
+        word_count=word_count,
+        paragraph_count=paragraph_count,
+        sentiment_score=sentiment.score,
+        sentiment_label=sentiment.label,
+        sentiment_positive_count=sentiment.positive_count,
+        sentiment_negative_count=sentiment.negative_count,
+        urgency_score=urgency.score,
+        urgency_severity=urgency.severity,
+        urgency_total_hits=urgency.total_hits,
+        urgency_hits=urgency.hits,
+        readability_avg_sentence_length=readability.avg_sentence_length,
+        readability_n_sentences=readability.n_sentences,
+        readability_vocabulary_richness=readability.vocabulary_richness,
+        readability_embedded_numeric_count=readability.embedded_numeric_count,
+        readability_sentences=readability.sentences,
+        structural_regime=structural.regime,
+        structural_trend=structural.trend,
+        structural_stability=structural.stability,
+        structural_noise=structural.noise,
+        structural_available=structural.available,
+        pattern_n_patterns=patterns.n_patterns,
+        pattern_change_points=patterns.change_points,
+        pattern_spikes=patterns.spikes,
+        pattern_available=patterns.available,
+        pattern_summary=patterns.summary,
+    )
+
+    ctx = TextAnalysisContext(
+        document_id=document_id,
+        tenant_id=tenant_id,
+        filename=str(payload.get("_filename", "")),
+        weaviate_url=weaviate_url,
+    )
+
+    # ── Run cognitive engine ──
+    cognitive_result = _engine.analyze(inp, ctx)
+
+    # ── Enrich conclusion with full semantic detail ──
+    conclusion = build_semantic_conclusion(
+        full_text=full_text,
         word_count=word_count,
         n_sentences=readability.n_sentences,
         paragraph_count=paragraph_count,
@@ -88,25 +151,34 @@ def analyze_text_document(
         structural_trend=structural.trend,
         structural_available=structural.available,
         embedded_numeric_count=readability.embedded_numeric_count,
+        recall_results=recall_results,
+        pattern_summary=patterns.summary,
     )
 
-    # ── Structured explanation (Explanation value object) ──
-    explanation_dict = build_text_explanation(
-        document_id=document_id,
-        sentiment_label=sentiment.label,
-        sentiment_score=sentiment.score,
-        urgency_score=urgency.score,
-        urgency_severity=urgency.severity,
-        urgency_hits=urgency.hits,
-        readability_avg_sentence_len=readability.avg_sentence_length,
-        readability_vocabulary_richness=readability.vocabulary_richness,
-        structural_regime=structural.regime,
-        structural_trend=structural.trend,
-        structural_noise=structural.noise,
-        confidence=confidence,
-    )
-    if explanation_dict:
-        analysis["explanation"] = explanation_dict
+    # ── Merge cognitive analysis with existing fields ──
+    analysis = cognitive_result.analysis
+    analysis["triggers_activated"] = _build_triggers(sentiment, urgency)
+    analysis["semantic"] = {
+        "n_chunks": len(chunks),
+        "n_recall_matches": len(recall_results),
+        "recall_scores": [round(r.score, 3) for r in recall_results],
+    } if chunks else {}
+
+    # Add Explanation domain object to analysis
+    analysis["explanation"] = cognitive_result.explanation.to_dict()
+
+    # ── Store chunks AFTER conclusion is built (for future recall) ──
+    if weaviate_url and chunks:
+        chunk_ids = store_chunks(
+            weaviate_url,
+            chunks,
+            tenant_id=tenant_id,
+            analysis_id=analysis_id,
+            filename=str(payload.get("_filename", "")),
+            conclusion=conclusion,
+        )
+        if "semantic" in analysis and isinstance(analysis["semantic"], dict):
+            analysis["semantic"]["n_chunks_stored"] = len(chunk_ids)
 
     return {
         "analysis": analysis,
@@ -116,7 +188,7 @@ def analyze_text_document(
             "sentiment_negative": -0.2,
         },
         "conclusion": conclusion,
-        "confidence": round(confidence, 3),
+        "confidence": round(cognitive_result.confidence, 3),
     }
 
 

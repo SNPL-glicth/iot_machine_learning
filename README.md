@@ -2,7 +2,7 @@
 
 Motor de Machine Learning cognitivo y agnóstico para el sistema IoT **Sandevistan**.
 
-**Tests:** ~1207 passed, 35 skipped | **Arquitectura:** Hexagonal + UTSAE | **Identidad:** `series_id: str` (agnóstico)
+**Tests:** ~1260 passed, 39 skipped | **Arquitectura:** Hexagonal + UTSAE | **Identidad:** `series_id: str` (agnóstico)
 
 ---
 
@@ -89,7 +89,15 @@ iot_machine_learning/
 │   │   │   ├── engine_selector.py       # WeightedFusion
 │   │   │   ├── inhibition.py            # InhibitionGate (supresión de engines inestables)
 │   │   │   ├── plasticity.py            # PlasticityTracker (pesos adaptativos)
-│   │   │   └── types.py                 # EnginePerception, InhibitionState, MetaDiagnostic
+│   │   │   ├── types.py                 # EnginePerception, InhibitionState, MetaDiagnostic
+│   │   │   └── text/                    # TextCognitiveEngine (análisis profundo de texto)
+│   │   │       ├── engine.py            # TextCognitiveEngine (orquestador principal)
+│   │   │       ├── types.py             # TextAnalysisContext, TextAnalysisInput, TextCognitiveResult
+│   │   │       ├── signal_profiler.py   # TextSignalProfiler → SignalSnapshot
+│   │   │       ├── perception_collector.py # Sub-analyzers → EnginePerception[]
+│   │   │       ├── severity_mapper.py   # classify_text_severity() → SeverityResult
+│   │   │       ├── memory_enricher.py   # TextMemoryEnricher → TextRecallContext
+│   │   │       └── explanation_assembler.py # Builds Explanation domain object
 │   │   ├── filters/
 │   │   │   ├── kalman_filter.py         # KalmanSignalFilter (adaptive Q opcional)
 │   │   │   ├── kalman_math.py           # KalmanState, calibración, update
@@ -254,6 +262,65 @@ Capacidades:
 
 ---
 
+## TextCognitiveEngine — Análisis profundo de texto
+
+Motor cognitivo reutilizable para análisis de texto, al mismo nivel que `MetaCognitiveOrchestrator`. Vive en `infrastructure/ml/cognitive/text/` — **no** en `ml_service/` — porque es un engine de infraestructura, no lógica de servicio HTTP.
+
+Pipeline: **Perceive → Analyze → Remember → Reason → Explain**
+
+```python
+from iot_machine_learning.infrastructure.ml.cognitive.text import (
+    TextCognitiveEngine, TextAnalysisContext, TextAnalysisInput,
+)
+
+engine = TextCognitiveEngine()
+result = engine.analyze(inp, ctx)
+
+result.explanation   # Explanation (domain value object — mismo tipo que MetaCognitiveOrchestrator)
+result.severity      # SeverityResult (critical / warning / info)
+result.confidence    # float [0, 1]
+result.domain        # Auto-detectado: infrastructure, security, operations, business, general
+result.analysis      # Dict backward-compatible con formato legacy
+result.to_dict()     # Serialización completa
+result.to_legacy_dict()  # Formato legacy para callers existentes
+```
+
+### Arquitectura por capas
+
+```
+ml_service/api/services/analyzers/           ← Capa de servicio: ejecuta sub-analyzers
+    text_sentiment.py, text_urgency.py, ...      (produce scores primitivos)
+    text_analyzer.py                             (llama engine, enriquece conclusión)
+            ↓ TextAnalysisInput (primitivos)
+infrastructure/ml/cognitive/text/            ← Capa de infraestructura: razonamiento cognitivo
+    engine.py                                    (orquesta 5 fases)
+    perception_collector.py                      (scores → EnginePerception[])
+    signal_profiler.py                           (métricas → SignalSnapshot)
+    severity_mapper.py                           (urgency+sentiment → SeverityResult)
+    memory_enricher.py                           (CognitiveMemoryPort → TextRecallContext)
+    explanation_assembler.py                     (→ Explanation domain object)
+```
+
+Dependencias apuntan hacia adentro: `ml_service → infrastructure → domain`. El engine **no importa nada de ml_service** — recibe scores pre-computados via `TextAnalysisInput` (primitivos puros).
+
+### Subcomponentes
+
+| Componente | Archivo | Responsabilidad |
+|---|---|---|
+| **TextSignalProfiler** | `signal_profiler.py` | Mapea métricas de texto → `SignalSnapshot` (word_count→n_points, sentiment→slope, urgency→curvature) |
+| **TextPerceptionCollector** | `perception_collector.py` | Convierte 5 sub-analyzers a `EnginePerception[]` (reutiliza `InhibitionGate`, `WeightedFusion`) |
+| **classify_text_severity** | `severity_mapper.py` | Urgency + sentiment → `SeverityResult` (critical/warning/info) |
+| **TextMemoryEnricher** | `memory_enricher.py` | Recall semántico de documentos similares via `CognitiveMemoryPort`. Graceful-fail si Weaviate cae. |
+| **TextExplanationAssembler** | `explanation_assembler.py` | Construye `Explanation` domain object con contribuciones, traza, outcome |
+
+### Degradación graciosa
+
+- **Sin Weaviate**: memory recall se desactiva, pipeline continúa sin enrichment
+- **Sin PlasticityTracker**: usa pesos por defecto (`text_urgency=0.30, text_sentiment=0.20, text_pattern=0.20, text_readability=0.15, text_structural=0.15`)
+- **Sub-analyzer no disponible**: retorna `EnginePerception` con `confidence=0.3`, `predicted_value=0.5`
+
+---
+
 ## Filtros de señal
 
 | Filtro | Ubicación | Descripción |
@@ -412,7 +479,7 @@ ml_batch_runner → sensores activos → SensorProcessor → predicción + anoma
 ml_stream_runner → ReadingBroker → SlidingWindowBuffer → patrones (1s/5s/10s) → dbo.ml_events
 ```
 
-### Pipeline cognitivo
+### Pipeline cognitivo (series temporales)
 ```
 MetaCognitiveOrchestrator
   → Perceive  (SignalAnalyzer → StructuralAnalysis)
@@ -421,6 +488,21 @@ MetaCognitiveOrchestrator
   → Adapt     (PlasticityTracker + AdvancedPlasticityCoordinator)
   → Fuse      (WeightedFusion → peso adaptativo)
   → Explain   (ExplanationBuilder → domain Explanation)
+```
+
+### Pipeline cognitivo (texto — TextCognitiveEngine)
+```
+text_analyzer.py (ml_service)
+  → compute_sentiment, compute_urgency, compute_readability, etc.
+  → TextAnalysisInput (primitivos)
+  → TextCognitiveEngine.analyze(inp, ctx)
+      → Perceive  (TextSignalProfiler → SignalSnapshot)
+      → Analyze   (TextPerceptionCollector → EnginePerception[] × 5)
+      → Remember  (TextMemoryEnricher → TextRecallContext)
+      → Reason    (InhibitionGate → WeightedFusion → classify_text_severity)
+      → Explain   (TextExplanationAssembler → domain Explanation)
+  → build_semantic_conclusion() (ml_service — enriquecimiento humano)
+  → Dict legacy (backward-compatible)
 ```
 
 ### Pipeline Zenin — Poller de ingesta de texto
@@ -494,11 +576,11 @@ python -m pytest tests/integration/ -v
 | Capa | Tests |
 |---|---|
 | Domain (entidades, servicios, validadores) | ~200 |
-| Infrastructure (motores, filtros, cognitivo, anomalía) | ~450 |
+| Infrastructure (motores, filtros, cognitivo, anomalía, text engine) | ~500 |
 | Application (use cases, renderer) | ~80 |
 | ML Service (runners, metrics, narrator, poller) | ~100 |
 | Integration (A/B, enterprise, cognitivo) | ~370 |
-| **Total** | **~1207** |
+| **Total** | **~1260** |
 
 ---
 

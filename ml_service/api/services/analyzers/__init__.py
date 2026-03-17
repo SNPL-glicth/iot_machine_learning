@@ -9,13 +9,17 @@ Top-level pipelines:
 - ``media_analyzer.analyze_image / analyze_audio / analyze_binary``
 
 Building blocks:
-- ``keyword_config``   — centralized keyword lists
-- ``text_sentiment``   — sentiment scoring
-- ``text_urgency``     — urgency + severity
-- ``text_readability`` — readability metrics
-- ``text_structural``  — structural signal analysis
-- ``numeric_analyzer`` — per-column ML pipeline
-- ``conclusion_builder`` — Explanation + conclusion rendering
+- ``keyword_config``     — centralized keyword lists + domain/action mappings
+- ``text_sentiment``     — sentiment scoring
+- ``text_urgency``       — urgency + severity
+- ``text_readability``   — readability metrics
+- ``text_structural``    — structural signal analysis
+- ``text_chunker``       — semantic chunking by paragraph
+- ``text_embedder``      — Weaviate text2vec vectorization
+- ``text_recall``        — semantic recall of similar past documents
+- ``text_pattern``       — change-point detection on sentence signals
+- ``numeric_analyzer``   — per-column ML pipeline
+- ``conclusion_builder`` — Explanation + semantic conclusion rendering
 """
 
 from .text_analyzer import analyze_text_document

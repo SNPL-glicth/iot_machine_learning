@@ -25,9 +25,20 @@ from __future__ import annotations
 from .engine_selector import WeightedFusion
 from .builder import ExplanationBuilder
 from .inhibition import InhibitionGate
-from .orchestration import MetaCognitiveOrchestrator
-from .plasticity import PlasticityTracker
-from .analysis import SignalAnalyzer
+try:
+    from .orchestration import MetaCognitiveOrchestrator
+except (ImportError, ModuleNotFoundError):
+    MetaCognitiveOrchestrator = None  # type: ignore[assignment,misc]
+
+try:
+    from .plasticity import PlasticityTracker
+except (ImportError, ModuleNotFoundError):
+    PlasticityTracker = None  # type: ignore[assignment,misc]
+
+try:
+    from .analysis import SignalAnalyzer
+except (ImportError, ModuleNotFoundError):
+    SignalAnalyzer = None  # type: ignore[assignment,misc]
 from .analysis.types import (
     EnginePerception,
     InhibitionState,

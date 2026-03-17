@@ -124,6 +124,14 @@ class ZeninQueuePoller:
         # 2. Build payload + analyze
         normalized_payload = build_payload(item)
 
+        # Inject semantic context for text analysis enrichment
+        normalized_payload["_weaviate_url"] = self._weaviate_url
+        normalized_payload["_tenant_id"] = str(item.tenant_id)
+        normalized_payload["_analysis_id"] = str(
+            item.metadata.get("analysis_result_id", item.queue_id)
+        )
+        normalized_payload["_filename"] = item.filename
+
         analysis = self.document_analyzer.analyze(
             document_id=str(item.queue_id),
             content_type=item.content_type,
