@@ -14,11 +14,20 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+# Load .env from the iot_machine_learning root directory
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_env_path, override=False)
+
 logger = logging.getLogger(__name__)
+
+_zenin_poller = None  # Keep reference for stats/health
 
 
 @asynccontextmanager
@@ -27,6 +36,8 @@ async def lifespan(app: FastAPI):
     
     Handles startup and shutdown events.
     """
+    global _zenin_poller
+
     # Startup
     logger.info("[ML-SERVICE] Starting up...")
     
@@ -43,6 +54,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[ML-SERVICE] Broker initialization failed: %s", str(e))
     
+    # Initialize Zenin Queue Poller if enabled
+    _poller_flag = os.environ.get("ZENIN_QUEUE_POLLER_ENABLED", "false")
+    logger.info("[ML-SERVICE] ZENIN_QUEUE_POLLER_ENABLED=%s (from env)", _poller_flag)
+    if _poller_flag.lower() == "true":
+        try:
+            from .workers.zenin_queue_poller import ZeninQueuePoller
+            _zenin_poller = ZeninQueuePoller()
+            poller_thread = threading.Thread(
+                target=_zenin_poller.start,
+                name="zenin-queue-poller",
+                daemon=True,
+            )
+            poller_thread.start()
+            logger.info("[ML-SERVICE] Zenin Queue Poller started (daemon thread)")
+        except Exception as e:
+            logger.warning("[ML-SERVICE] Zenin Queue Poller failed to start: %s", str(e))
+    else:
+        logger.info("[ML-SERVICE] Zenin Queue Poller disabled (ZENIN_QUEUE_POLLER_ENABLED != true)")
+    
     yield
     
     # Shutdown
@@ -50,6 +80,11 @@ async def lifespan(app: FastAPI):
     try:
         from .broker import reset_broker
         reset_broker()
+    except Exception:
+        pass
+    try:
+        from ..infrastructure.persistence.sql.zenin_db_connection import ZeninDbConnection
+        ZeninDbConnection.dispose()
     except Exception:
         pass
 

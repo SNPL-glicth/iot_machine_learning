@@ -1,7 +1,7 @@
 # Reglas Arquitectónicas — UTSAE
 
-**Última actualización:** 2026-02-12  
-**Aplica a:** `iot_machine_learning/` completo  
+**Última actualización:** 2026-03-17  
+**Aplica a:** `iot_machine_learning/` completo (IoT + Zenin poller)  
 **Enforced by:** Meta-tests en `test_pipeline_timer_and_guards.py`
 
 ---

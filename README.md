@@ -2,7 +2,7 @@
 
 Motor de Machine Learning cognitivo y agnóstico para el sistema IoT **Sandevistan**.
 
-**Tests:** 1096 passed, 6 skipped | **Arquitectura:** Hexagonal + UTSAE | **Identidad:** `series_id: str` (agnóstico)
+**Tests:** ~1207 passed, 35 skipped | **Arquitectura:** Hexagonal + UTSAE | **Identidad:** `series_id: str` (agnóstico)
 
 ---
 
@@ -120,8 +120,8 @@ iot_machine_learning/
 │       ├── null_audit_logger.py            # AuditPort no-op
 │       └── access_control.py              # RBAC (series_id + sensor_id dual)
 │
-├── ml_service/                          # Servicio HTTP + runners (orquestación IoT)
-│   ├── main.py                          # FastAPI app (puerto 8002)
+├── ml_service/                          # Servicio HTTP + runners + poller Zenin
+│   ├── main.py                          # FastAPI app (puerto 8002) + Zenin poller daemon
 │   ├── config/
 │   │   ├── ml_config.py                 # GlobalMLConfig, AnomalyConfig, EngineConfig
 │   │   └── feature_flags.py             # FeatureFlags (dual: series_id + sensor_id)
@@ -143,6 +143,8 @@ iot_machine_learning/
 │   │   └── ab_metrics.py                # ABTestResult, winner, improvement
 │   ├── broker/                          # ReadingBroker (in-memory pub/sub)
 │   ├── consumers/                       # StreamConsumer (suscriptor del broker)
+│   ├── workers/                         # Workers asíncronos
+│   │   └── zenin_queue_poller.py        # Daemon: lee ingestion_queue → DocumentAnalyzer → analysis_results
 │   ├── explain/                         # AI Explainer + TemplateExplanationGenerator
 │   │   ├── models/                      # ExplanationRequest, ExplanationResponse
 │   │   └── services/                    # AIExplainerClient, TemplateGenerator
@@ -170,7 +172,10 @@ iot_machine_learning/
 ├── ml_batch/                            # Facade batch (run_batch_cycle)
 ├── ml_stream/                           # Facade stream (start_consumer)
 │
-└── tests/                               # ~1203 tests
+├── infrastructure/persistence/sql/
+│   └── zenin_db_connection.py           # SQLAlchemy connection separada a zenin_db
+│
+└── tests/                               # ~1207 tests
     ├── unit/
     │   ├── domain/                      # Entidades, servicios, validadores
     │   ├── infrastructure/              # Motores, filtros, cognitivo, DI
@@ -418,6 +423,35 @@ MetaCognitiveOrchestrator
   → Explain   (ExplanationBuilder → domain Explanation)
 ```
 
+### Pipeline Zenin — Poller de ingesta de texto
+```
+zenin_queue_poller.py (daemon thread, arranca con ML Service)
+  → SELECT ingestion_queue WHERE Status='pending'
+  → UPDATE Status='processing' (optimistic lock)
+  → DocumentAnalyzer._analyze_text(content)
+  → UPDATE analysis_results SET Status='analyzed', MlResult, Conclusion, TextSummary
+  → HTTP POST Weaviate /v1/objects (clase MLExplanation, domainName=zenin_docs)
+  → UPDATE ingestion_queue SET Status='completed'
+```
+
+**Env vars para activar:**
+```bash
+ZENIN_QUEUE_POLLER_ENABLED=true
+ZENIN_DB_HOST=localhost
+ZENIN_DB_PORT=1434
+ZENIN_DB_NAME=zenin_db
+ZENIN_DB_USER=sa
+ZENIN_DB_PASSWORD=<password>
+ZENIN_QUEUE_POLL_INTERVAL=5       # segundos entre polls
+ZENIN_QUEUE_BATCH_SIZE=10          # items por poll
+```
+
+**Principios clave:**
+- ML Service es el **único** escritor de resultados ML en `analysis_results`
+- .NET Backend **NO** llama HTTP al ML Service durante ingesta
+- Comunicación .NET ↔ ML es **exclusivamente vía BD** (queue + results)
+- El poller usa `ZeninDbConnection` (conexión separada a `zenin_db`)
+
 ---
 
 ## Comunicación con otros servicios
@@ -425,10 +459,12 @@ MetaCognitiveOrchestrator
 | Servicio | Dirección | Detalle |
 |---|---|---|
 | **SQL Server** (`iot_database`) | Lee/Escribe | `sensor_readings`, `predictions`, `ml_models`, `ml_events`, `alert_thresholds` |
+| **SQL Server** (`zenin_db`) | Lee/Escribe | `zenin_docs.ingestion_queue` (lee), `zenin_docs.analysis_results` (escribe) |
 | **Ingesta** (`iot_ingest_services`) | Lee | `ReadingBroker` (in-memory), conexión BD compartida |
 | **AI Explainer** (`ai-explainer`) | HTTP | `/explain/anomaly` — fallback a templates si no disponible |
-| **Weaviate** | HTTP | Memoria cognitiva: `recall_similar_explanations`, `recall_similar_anomalies` |
-| **Backend** (`iot_monitor_backend`) | Indirecto | Consume `predictions`, `ml_events` vía BD |
+| **Weaviate** | HTTP | Memoria cognitiva + indexación de documentos Zenin (`MLExplanation` class) |
+| **Backend IoT** (`iot_monitor_backend`) | Indirecto | Consume `predictions`, `ml_events` vía BD |
+| **Backend Zenin** (`ZENIN/backend`) | Solo vía BD | Lee `ingestion_queue`, escribe `analysis_results` |
 
 ---
 
@@ -460,9 +496,9 @@ python -m pytest tests/integration/ -v
 | Domain (entidades, servicios, validadores) | ~200 |
 | Infrastructure (motores, filtros, cognitivo, anomalía) | ~450 |
 | Application (use cases, renderer) | ~80 |
-| ML Service (runners, metrics, narrator) | ~100 |
+| ML Service (runners, metrics, narrator, poller) | ~100 |
 | Integration (A/B, enterprise, cognitivo) | ~370 |
-| **Total** | **~1203** |
+| **Total** | **~1207** |
 
 ---
 
@@ -481,6 +517,7 @@ python -m pytest tests/integration/ -v
 ## Qué NO hace este módulo
 
 - No captura lecturas desde hardware (eso es `iot_ingest_services`).
-- No gestiona usuarios/auth (eso es `iot_monitor_backend`).
-- No define esquemas SQL ni ejecuta migraciones (eso es `iot_database`).
+- No gestiona usuarios/auth (eso es `iot_monitor_backend` / `ZENIN/backend`).
+- No define esquemas SQL ni ejecuta migraciones (eso es `iot_database` / `database/migrations`).
 - No garantiza tiempo real end-to-end (broker in-memory, no distribuido).
+- No parsea archivos subidos (eso lo hace .NET `IngestFileCommandHandler`). ML solo analiza el texto extraído.
