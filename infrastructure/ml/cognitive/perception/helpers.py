@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from ..analysis.types import EnginePerception, PipelineTimer
 from ..explanation.explanation_builder import ExplanationBuilder
-from ..interfaces import PredictionResult
+from ...interfaces import PredictionResult
 from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 
 logger = logging.getLogger(__name__)

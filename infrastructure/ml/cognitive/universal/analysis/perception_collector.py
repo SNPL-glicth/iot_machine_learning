@@ -75,6 +75,9 @@ class UniversalPerceptionCollector:
         scores: Dict[str, Any],
     ) -> List[EnginePerception]:
         """Delegate to text perception logic (from text/perception_collector.py)."""
+        print(f"[DEBUG] _collect_text received scores: {list(scores.keys())}")
+        print(f"[DEBUG] urgency_score: {scores.get('urgency_score', 'N/A')}, urgency_severity: {scores.get('urgency_severity', 'N/A')}")
+        
         perceptions: List[EnginePerception] = []
         
         sentiment_score = scores.get("sentiment_score", 0.0)
@@ -159,7 +162,7 @@ class UniversalPerceptionCollector:
                 stability=round(structural.stability, 4),
                 local_fit_error=round(structural.noise_ratio, 4),
                 metadata={
-                    "regime": structural.regime.value,
+                    "regime": structural.regime.value if hasattr(structural.regime, 'value') else str(structural.regime),
                     "slope": structural.slope,
                     "curvature": structural.curvature,
                 },

@@ -49,6 +49,10 @@ def parse_queue_row(row) -> QueueItem:
         except (json.JSONDecodeError, TypeError):
             metadata = {}
 
+    # DEBUG: Log content extraction
+    content = row[7] or ""
+    logger.info(f"[STAGE-1] queue item received, id={row[0]}, content_length={len(content)}")
+
     return QueueItem(
         queue_id=row[0],
         tenant_id=row[1],
@@ -57,7 +61,7 @@ def parse_queue_row(row) -> QueueItem:
         source_type=row[4],
         filename=row[5] or "unknown",
         file_extension=row[6] or "",
-        content=row[7] or "",
+        content=content,
         metadata=metadata,
         created_at=row[9],
     )
@@ -89,7 +93,11 @@ def _build_text_payload(content: str) -> Dict[str, Any]:
     """Build payload for text content."""
     words = content.split() if content else []
     paragraphs = content.split("\n\n") if content else []
-    return {
+    
+    # DEBUG: Log payload building
+    logger.info(f"[STAGE-2] payload built, keys={['data']}")
+    
+    payload = {
         "data": {
             "full_text": content,
             "word_count": len(words),
@@ -97,6 +105,11 @@ def _build_text_payload(content: str) -> Dict[str, Any]:
             "paragraph_count": len(paragraphs),
         }
     }
+    
+    # DEBUG: Log full text
+    logger.info(f"[STAGE-3] full_text length={len(content)}")
+    
+    return payload
 
 
 def _build_tabular_payload(

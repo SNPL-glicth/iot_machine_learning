@@ -123,6 +123,19 @@ class ZeninQueuePoller:
 
         # 2. Build payload + analyze
         normalized_payload = build_payload(item)
+        
+        # DEBUG: Log payload before analysis
+        logger.info(f"[ZENIN_POLLER] Built payload for {item.queue_id}: payload_keys={list(normalized_payload.keys())}")
+        if "data" in normalized_payload:
+            data = normalized_payload["data"]
+            logger.info(f"[ZENIN_POLLER] Payload data keys: {list(data.keys())}")
+            if "full_text" in data:
+                full_text = data["full_text"]
+                logger.info(f"[ZENIN_POLLER] Full text length: {len(full_text)}, preview: {full_text[:100]!r}")
+            else:
+                logger.warning(f"[ZENIN_POLLER] No full_text in payload data! Available keys: {list(data.keys())}")
+        else:
+            logger.warning(f"[ZENIN_POLLER] No 'data' key in payload! Available keys: {list(normalized_payload.keys())}")
 
         # Inject semantic context for text analysis enrichment
         normalized_payload["_weaviate_url"] = self._weaviate_url

@@ -139,7 +139,7 @@ def execute_pipeline(
     # Phase: PERCEIVE
     timer.start()
     profile = orchestrator._analyzer.analyze(values, timestamps)
-    regime_str = profile.regime.value
+    regime_str = profile.regime.value if hasattr(profile.regime, 'value') else str(profile.regime)
     builder = ExplanationBuilder(series_id)
     builder.set_signal(profile)
     

@@ -298,12 +298,19 @@ def _extract_key_topics(
     """Extract key topics: urgency keywords + numeric values mentioned."""
     topics: List[str] = []
 
-    # Top urgency keywords (sorted by count)
-    sorted_hits = sorted(
-        urgency_hits, key=lambda h: h.get("count", 0), reverse=True
+    # Extract identifiers (NODE-xxx, SERVER-xxx, etc.) - PRIORITY
+    identifiers = re.findall(
+        r'\b([A-Z]{2,}[-_]\d{2,})\b', text,
     )
-    for h in sorted_hits[:5]:
-        topics.append(h["keyword"])
+    # Deduplicate identifiers while preserving order
+    seen = set()
+    unique_identifiers = []
+    for ident in identifiers:
+        if ident not in seen:
+            seen.add(ident)
+            unique_identifiers.append(ident)
+    for ident in unique_identifiers[:3]:
+        topics.append(ident)
 
     # Extract notable numeric values with context
     # Pattern: number followed/preceded by a unit or identifier
@@ -314,12 +321,17 @@ def _extract_key_topics(
     for nc in numeric_contexts[:3]:
         topics.append(nc.strip())
 
-    # Extract identifiers (NODE-xxx, SERVER-xxx, etc.)
-    identifiers = re.findall(
-        r'\b([A-Z]{2,}[-_]\d{2,})\b', text,
+    # Top urgency keywords (sorted by count) - LOWER PRIORITY
+    sorted_hits = sorted(
+        urgency_hits, key=lambda h: h.get("count", 0), reverse=True
     )
-    for ident in identifiers[:3]:
-        topics.append(ident)
+    for h in sorted_hits[:3]:  # Reduced to make room for entities
+        topics.append(h["keyword"])
+
+    # DEBUG: Log what we found
+    print(f"[DEBUG] Entity extraction: urgency_hits={len(urgency_hits)}, numeric_contexts={len(numeric_contexts)}, identifiers={len(identifiers)}")
+    print(f"[DEBUG] Extracted identifiers: {identifiers}")
+    print(f"[DEBUG] Final topics (prioritized): {topics}")
 
     return topics
 

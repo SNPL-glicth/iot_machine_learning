@@ -37,7 +37,7 @@ def set_signal(
     profile: StructuralAnalysis,
 ) -> ExplanationBuilder:
     """Registra la fase PERCEIVE."""
-    regime_str = profile.regime.value
+    regime_str = profile.regime.value if hasattr(profile.regime, 'value') else str(profile.regime)
     builder._signal = SignalSnapshot(
         n_points=profile.n_points,
         mean=profile.mean,

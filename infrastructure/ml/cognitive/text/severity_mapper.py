@@ -29,7 +29,7 @@ _W_SENTIMENT = 0.20
 _W_IMPACT = 0.50
 
 # Severity thresholds on composite score [0, 1]
-_THRESHOLD_CRITICAL = 0.55
+_THRESHOLD_CRITICAL = 0.45  # Lowered from 0.55 to handle urgency 1.00 + negative sentiment
 _THRESHOLD_WARNING = 0.30
 
 
@@ -88,6 +88,9 @@ def classify_text_severity(
     if impact_result is not None and impact_result.n_categories_hit >= 3:
         composite = max(composite, _THRESHOLD_CRITICAL)
     if has_critical_keywords and sentiment_label == "negative":
+        composite = max(composite, _THRESHOLD_CRITICAL)
+    # Override: high urgency + negative sentiment = Critical
+    if urgency_score >= 0.6 and sentiment_label == "negative":
         composite = max(composite, _THRESHOLD_CRITICAL)
 
     # ── Map to severity ──

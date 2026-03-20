@@ -180,10 +180,11 @@ class UniversalAnalysisEngine:
         )
         
         # Apply pattern plasticity weights if enabled
-        if self._plasticity:
-            perceptions = self._apply_pattern_weights(
-                perceptions, metadata["domain"], input_type
-            )
+        # TODO: Implement _apply_pattern_weights method
+        # if self._plasticity:
+        #     perceptions = self._apply_pattern_weights(
+        #         perceptions, metadata["domain"], input_type
+        #     )
         
         timing["analyze"] = (time.monotonic() - t0) * 1000
         
@@ -303,16 +304,52 @@ class UniversalAnalysisEngine:
         score = fused_value
         
         if input_type == InputType.TEXT:
+            # For text inputs, use the TextCognitiveEngine's severity classification
+            # which considers urgency, sentiment, and impact signals
             urgency_perc = next(
                 (p for p in perceptions if p.engine_name == "text_urgency"), None
             )
-            if urgency_perc:
-                score = urgency_perc.predicted_value
+            sentiment_perc = next(
+                (p for p in perceptions if p.engine_name == "text_sentiment"), None
+            )
+            
+            print(f"[DEBUG] Text severity classification: urgency_perc={urgency_perc is not None}, sentiment_perc={sentiment_perc is not None}")
+            
+            if urgency_perc and sentiment_perc:
+                # Extract text-specific scores from perceptions
+                urgency_score = urgency_perc.predicted_value
+                sentiment_label = sentiment_perc.metadata.get("label", "neutral")
+                has_critical_keywords = urgency_perc.metadata.get("severity", "info") == "critical"
+                
+                # DEBUG: Log severity classification inputs
+                print(f"[DEBUG] urgency_score={urgency_score}, sentiment_label={sentiment_label}, has_critical_keywords={has_critical_keywords}")
+                print(f"[DEBUG] urgency metadata: {urgency_perc.metadata}")
+                
+                # Use the text-specific severity classifier
+                from ...text.severity_mapper import classify_text_severity
+                
+                severity_result = classify_text_severity(
+                    urgency_score=urgency_score,
+                    urgency_severity=urgency_perc.metadata.get("severity", "info"),
+                    sentiment_label=sentiment_label,
+                    has_critical_keywords=has_critical_keywords,
+                    domain=domain,
+                    full_text="",
+                    impact_result=None,
+                )
+                
+                # DEBUG: Log severity result
+                print(f"[DEBUG] Severity result: level={severity_result.severity}, risk_level={severity_result.risk_level}")
+                
+                return severity_result
+            else:
+                print(f"[DEBUG] Missing text perceptions: urgency={urgency_perc}, sentiment={sentiment_perc}")
         
+        # Fallback to agnostic classification for non-text or missing perceptions
         return classify_severity_agnostic(
             value=score,
-            threshold_warning=0.4,
-            threshold_critical=0.7,
+            anomaly=score > 0.6,  # Consider high scores as anomalies
+            threshold=None,
         )
 
     def _compute_confidence(
@@ -440,7 +477,7 @@ class UniversalAnalysisEngine:
         builder.set_fallback(0.0, reason)
         explanation = builder.build()
         
-        severity = classify_severity_agnostic(0.0, 0.4, 0.7)
+        severity = classify_severity_agnostic(value=0.0, anomaly=False, threshold=None)
         
         return UniversalResult(
             explanation=explanation,
@@ -456,26 +493,7 @@ class UniversalAnalysisEngine:
         """Build error result."""
         from iot_machine_learning.domain.entities.explainability.explanation import Explanation
         
-        severity = classify_severity_agnostic(0.0, 0.4, 0.7)
-        
-        return UniversalResult(
-            explanation=Explanation.minimal("error"),
-            severity=severity,
-            analysis={"error": error_msg},
-            confidence=0.0,
-            domain="general",
-            input_type=InputType.UNKNOWN,
-        )
-        return UniversalResult(
-            explanation=Explanation.minimal("error"),
-            severity=severity,
-            analysis={"error": error_msg},
-            confidence=0.0,
-            domain="general",
-            input_type=InputType.UNKNOWN,
-        )
-        
-        severity = classify_severity_agnostic(0.0, 0.4, 0.7)
+        severity = classify_severity_agnostic(value=0.0, anomaly=False, threshold=None)
         
         return UniversalResult(
             explanation=Explanation.minimal("error"),

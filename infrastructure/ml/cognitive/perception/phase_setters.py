@@ -7,13 +7,13 @@ Implementation split into two focused modules:
 This module re-exports all functions so existing callers are unaffected.
 """
 
-from .perception_phases import (
+from .phases import (
     set_adaptation,
     set_filter,
     set_perceptions,
     set_signal,
 )
-from .fusion_phases import (
+from ..fusion.fusion_phases import (
     set_audit_trace_id,
     set_fallback,
     set_fusion,

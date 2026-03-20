@@ -59,10 +59,38 @@ def analyze_text_document(
         Result dict with ``analysis``, ``adaptive_thresholds``,
         ``conclusion``, ``confidence``.
     """
+    # DEBUG: Log payload structure
+    logger.info(f"[TEXT_ANALYZER] analyze_text_document: document_id={document_id}, payload_keys={list(payload.keys())}")
+    
     data = payload.get("data", {})
+    logger.info(f"[TEXT_ANALYZER] Payload data keys: {list(data.keys())}")
+    
     word_count = data.get("word_count", 0)
     paragraph_count = data.get("paragraph_count", 0)
     full_text = data.get("full_text", "")
+    
+    logger.info(f"[TEXT_ANALYZER] Extracted: word_count={word_count}, paragraph_count={paragraph_count}, full_text_length={len(full_text)}")
+    logger.info(f"[TEXT_ANALYZER] Full text preview: {full_text[:100]!r}")
+    
+    if len(full_text.strip()) == 0:
+        logger.warning(f"[TEXT_ANALYZER] Full text is empty or whitespace only!")
+        # Return minimal result for empty text
+        return {
+            "analysis": {
+                "sentiment": {"score": 0.0, "label": "neutral"},
+                "urgency": {"score": 0.0, "level": "low"},
+                "readability": {"score": 0.0, "level": "unknown"},
+                "structural": {"complexity": "unknown"},
+                "patterns": [],
+                "data_points": 0,
+                "domain": "general",
+                "severity": "info",
+                "confidence": 0.0,
+            },
+            "adaptive_thresholds": {},
+            "conclusion": "No text content to analyze.",
+            "confidence": 0.0,
+        }
 
     # Semantic context (optional — passed by zenin_queue_poller)
     weaviate_url: Optional[str] = payload.get("_weaviate_url")

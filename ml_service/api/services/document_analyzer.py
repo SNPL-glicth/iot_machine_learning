@@ -30,8 +30,12 @@ try:
     )
     _UNIVERSAL_AVAILABLE = True
     logger.info("universal_engines_available")
+except ImportError as e:
+    logger.error(f"UNIVERSAL_ANALYSIS_UNAVAILABLE: Missing dependencies. Install with: pip install numpy scipy scikit-learn")
+    _UNIVERSAL_AVAILABLE = False
 except Exception as e:
     logger.warning(f"universal_engines_unavailable_using_legacy_fallback: {e}")
+    _UNIVERSAL_AVAILABLE = False
 
 # Graceful import - neural engine optional
 _NEURAL_AVAILABLE = False
@@ -64,6 +68,8 @@ class DocumentAnalyzer:
         self._cognitive_memory = cognitive_memory
         self._analysis_engine = UniversalAnalysisEngine() if _UNIVERSAL_AVAILABLE else None
         self._comparative_engine = UniversalComparativeEngine() if _UNIVERSAL_AVAILABLE else None
+        self._neural_engine = HybridNeuralEngine() if _NEURAL_AVAILABLE else None
+        self._neural_arbiter = NeuralArbiter() if _NEURAL_AVAILABLE else None
 
     def analyze(
         self,
@@ -84,11 +90,20 @@ class DocumentAnalyzer:
             Dict with analysis, conclusion, confidence, comparative context
         """
         start = time.time()
-
+        
+        # DEBUG: Log input parameters
+        logger.info(f"[STAGE-4] analyze called, content_type={content_type}")
+        print(f"[DEBUG] _UNIVERSAL_AVAILABLE={_UNIVERSAL_AVAILABLE}, _NEURAL_AVAILABLE={_NEURAL_AVAILABLE}")
+        
         try:
             if _UNIVERSAL_AVAILABLE and self._analysis_engine:
+                print(f"[DEBUG] Using universal analysis path")
+                # Extract raw data for logging
+                raw_data = extract_raw_data(normalized_payload, content_type)
+                logger.info(f"[STAGE-5] raw_data type={type(raw_data)}, length={len(str(raw_data))}")
+                
                 # Step 1: Run universal analysis
-                universal_result, comparison_result = analyze_with_universal(
+                universal_result, comparison_result, semantic_conclusion = analyze_with_universal(
                     document_id=document_id,
                     content_type=content_type,
                     payload=normalized_payload,
@@ -112,22 +127,23 @@ class DocumentAnalyzer:
                         neural_engine=self._neural_engine,
                     )
                 
-                # Step 3: Arbitrate between neural and universal
+                # Step 3: Force universal analysis (disable neural arbitration for testing)
                 winner_result = universal_result
                 winner_engine = "universal"
-                arbiter_reason = "neural_unavailable"
+                arbiter_reason = "forcing_universal_for_testing"
                 
-                if neural_result is not None and self._neural_arbiter:
-                    winner_result, winner_engine, arbiter_reason = arbitrate_results(
-                        neural_result=neural_result,
-                        universal_result=universal_result,
-                        domain=getattr(universal_result, 'domain', 'unknown'),
-                        arbiter=self._neural_arbiter,
-                    )
+                # TODO: Re-enable neural arbitration once universal analysis is stable
+                # if neural_result is not None and self._neural_arbiter:
+                #     winner_result, winner_engine, arbiter_reason = arbitrate_results(
+                #         neural_result=neural_result,
+                #         universal_result=universal_result,
+                #         domain=getattr(universal_result, 'domain', 'unknown'),
+                #         arbiter=self._neural_arbiter,
+                #     )
                 
                 # Step 4: Build output from winner
                 raw_data = extract_raw_data(normalized_payload, content_type)
-                result = build_output_dict(winner_result, comparison_result, raw_data)
+                result = build_output_dict(winner_result, comparison_result, raw_data, semantic_conclusion)
                 
                 # Add arbitration metadata
                 result["engine_used"] = winner_engine
@@ -142,6 +158,7 @@ class DocumentAnalyzer:
                         "energy_efficiency": neural_result.energy_efficiency,
                     }
             else:
+                print(f"[DEBUG] Using legacy analysis path")
                 # Delegate to legacy pipeline
                 result = analyze_with_legacy(
                     document_id, content_type, normalized_payload

@@ -16,6 +16,15 @@ from . import queue_repository as repo
 
 logger = logging.getLogger(__name__)
 
+# Graceful import - semantic namer optional
+_SEMANTIC_NAMER_AVAILABLE = False
+try:
+    from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.semantic_namer import generate_semantic_name
+    _SEMANTIC_NAMER_AVAILABLE = True
+    logger.info("semantic_namer_available")
+except Exception as e:
+    logger.warning(f"semantic_namer_unavailable: {e}")
+
 
 def build_ml_result_json(
     analysis: Dict[str, Any],
@@ -101,7 +110,6 @@ def write_result(
             classification=content_type,
             ml_result_json=ml_result_json,
             conclusion=conclusion,
-            semantic_name=semantic_name,
             ml_doc_id=ml_doc_id,
         )
     else:

@@ -89,7 +89,7 @@ class StructuralAnalysis:
             "stability": round(self.stability, 6),
             "accel_variance": round(self.accel_variance, 8),
             "noise_ratio": round(self.noise_ratio, 6),
-            "regime": self.regime.value,
+            "regime": self.regime.value if hasattr(self.regime, 'value') else str(self.regime),
             "mean": round(self.mean, 8),
             "std": round(self.std, 8),
             "trend_strength": round(self.trend_strength, 6),

@@ -37,6 +37,6 @@ def handle_fallback(
         fallback_reason=reason,
     )
     explanation = builder.build()
-    regime_str = profile.regime.value
+    regime_str = profile.regime.value if hasattr(profile.regime, 'value') else str(profile.regime)
     
     return result, diagnostic, explanation, regime_str, []
