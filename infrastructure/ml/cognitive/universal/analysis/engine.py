@@ -19,6 +19,7 @@ from .input_detector import detect_input_type
 from .domain_classifier import classify_domain
 from .signal_profiler import UniversalSignalProfiler
 from .perception_collector import UniversalPerceptionCollector
+from .monte_carlo import MonteCarloSimulator
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class UniversalAnalysisEngine:
         self._collector = UniversalPerceptionCollector()
         self._inhibition = InhibitionGate(InhibitionConfig())
         self._fusion = WeightedFusion()
+        self._monte_carlo_simulator = MonteCarloSimulator(n_simulations=1000)
         
         self._plasticity = None
         if enable_plasticity and _PLASTICITY_AVAILABLE:
@@ -176,6 +178,12 @@ class UniversalAnalysisEngine:
         perceptions = self._collector.collect(
             raw_data, input_type, metadata, pre_computed_scores
         )
+        
+        # Apply pattern plasticity weights if enabled
+        if self._plasticity:
+            perceptions = self._apply_pattern_weights(
+                perceptions, metadata["domain"], input_type
+            )
         
         timing["analyze"] = (time.monotonic() - t0) * 1000
         
@@ -334,6 +342,67 @@ class UniversalAnalysisEngine:
             confidence = min(0.95, confidence + 0.05)
         
         return confidence
+    
+    def _run_monte_carlo(
+        self,
+        perceptions: List,
+        input_type: InputType,
+        domain: str,
+        metadata: Dict[str, Any],
+        timing: Dict[str, float],
+    ) -> Optional[object]:
+        """Run Monte Carlo simulation for uncertainty quantification.
+        
+        Args:
+            perceptions: List of EnginePerception objects
+            input_type: Detected input type
+            domain: Classified domain
+            metadata: Input metadata
+            timing: Pipeline timing dict
+            
+        Returns:
+            MonteCarloResult or None if simulation fails
+        """
+        t0 = time.monotonic()
+        
+        try:
+            # Extract scores from perceptions
+            analysis_scores = {}
+            
+            for perception in perceptions:
+                if hasattr(perception, 'predicted_value'):
+                    analysis_scores[perception.engine_name] = perception.predicted_value
+                elif hasattr(perception, 'score'):
+                    analysis_scores[perception.engine_name] = perception.score
+            
+            # Add metadata scores
+            if input_type == InputType.TEXT:
+                # Use urgency as primary score for text
+                urgency_perc = next(
+                    (p for p in perceptions if p.engine_name == "text_urgency"), None
+                )
+                if urgency_perc and hasattr(urgency_perc, 'predicted_value'):
+                    analysis_scores["urgency"] = urgency_perc.predicted_value
+            
+            if not analysis_scores:
+                logger.warning("no_scores_for_monte_carlo")
+                return None
+            
+            # Run simulation
+            result = self._monte_carlo_simulator.simulate(
+                analysis_scores=analysis_scores,
+                input_type=input_type,
+                domain=domain,
+            )
+            
+            elapsed = (time.monotonic() - t0) * 1000
+            timing["monte_carlo"] = elapsed
+            
+            return result
+        
+        except Exception as e:
+            logger.warning(f"monte_carlo_failed: {e}", exc_info=True)
+            return None
 
     def _build_analysis_dict(
         self,
@@ -386,6 +455,25 @@ class UniversalAnalysisEngine:
     def _build_error_result(self, error_msg: str) -> UniversalResult:
         """Build error result."""
         from iot_machine_learning.domain.entities.explainability.explanation import Explanation
+        
+        severity = classify_severity_agnostic(0.0, 0.4, 0.7)
+        
+        return UniversalResult(
+            explanation=Explanation.minimal("error"),
+            severity=severity,
+            analysis={"error": error_msg},
+            confidence=0.0,
+            domain="general",
+            input_type=InputType.UNKNOWN,
+        )
+        return UniversalResult(
+            explanation=Explanation.minimal("error"),
+            severity=severity,
+            analysis={"error": error_msg},
+            confidence=0.0,
+            domain="general",
+            input_type=InputType.UNKNOWN,
+        )
         
         severity = classify_severity_agnostic(0.0, 0.4, 0.7)
         

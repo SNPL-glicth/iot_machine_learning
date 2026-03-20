@@ -28,8 +28,7 @@ from iot_machine_learning.domain.entities.series.structural_analysis import (
     StructuralAnalysis,
 )
 
-from .analysis.types import EnginePerception, InhibitionState
-from . import phase_setters
+from ..analysis.types import EnginePerception, InhibitionState
 
 
 class ExplanationBuilder:
@@ -69,7 +68,9 @@ class ExplanationBuilder:
 
     def set_signal(self, profile: StructuralAnalysis) -> ExplanationBuilder:
         """Registra la fase PERCEIVE."""
-        return phase_setters.set_signal(self, profile)
+        from . import phase_setters
+        self._signal = phase_setters.signal_from_structural(profile)
+        return self
 
     def set_filter(
         self,
@@ -77,6 +78,7 @@ class ExplanationBuilder:
         diagnostic: Optional[dict] = None,
     ) -> ExplanationBuilder:
         """Registra la fase FILTER (solo si se aplicó filtrado)."""
+        from . import phase_setters
         return phase_setters.set_filter(self, filter_name, diagnostic)
 
     def set_perceptions(
@@ -85,6 +87,7 @@ class ExplanationBuilder:
         n_engines_total: int = 0,
     ) -> ExplanationBuilder:
         """Registra la fase PREDICT (solo si hubo engines que respondieron)."""
+        from . import phase_setters
         return phase_setters.set_perceptions(self, perceptions, n_engines_total)
 
     def set_adaptation(
@@ -94,6 +97,7 @@ class ExplanationBuilder:
         weights_source: str = "plasticity",
     ) -> ExplanationBuilder:
         """Registra la fase ADAPT (solo si la plasticidad participó)."""
+        from . import phase_setters
         return phase_setters.set_adaptation(self, adapted, regime, weights_source)
 
     def set_inhibition(
@@ -102,6 +106,7 @@ class ExplanationBuilder:
         base_weights: Dict[str, float],
     ) -> ExplanationBuilder:
         """Registra la fase INHIBIT (solo si algún engine fue suprimido)."""
+        from . import phase_setters
         return phase_setters.set_inhibition(self, inh_states, base_weights)
 
     def set_fusion(

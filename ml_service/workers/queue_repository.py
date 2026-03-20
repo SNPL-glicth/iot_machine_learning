@@ -169,19 +169,24 @@ def insert_analysis_result(
     classification: str,
     ml_result_json: str,
     conclusion: str,
+    semantic_name: str,
     ml_doc_id: Optional[str],
 ) -> Optional[str]:
     """Insert new analysis_results row. Returns the new Id."""
-    result = conn.execute(INSERT_ANALYSIS_RESULT, {
-        "tenant_id": tenant_id,
-        "user_id": user_id,
-        "filename": filename,
-        "extension": extension,
-        "file_size": file_size,
-        "classification": classification,
-        "ml_result": ml_result_json,
-        "conclusion": conclusion,
-        "ml_doc_id": ml_doc_id,
-    })
+    result = conn.execute(
+        INSERT_ANALYSIS_RESULT,
+        {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "filename": filename,
+            "extension": extension,
+            "file_size": file_size,
+            "classification": classification,
+            "ml_result": ml_result_json,
+            "conclusion": conclusion,
+            "semantic_name": semantic_name,
+            "ml_doc_id": ml_doc_id,
+        },
+    )
     row = result.fetchone()
     return row[0] if row else None

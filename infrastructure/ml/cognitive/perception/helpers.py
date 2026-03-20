@@ -11,7 +11,7 @@ from typing import List, Optional
 from ..analysis.types import EnginePerception, PipelineTimer
 from ..explanation.explanation_builder import ExplanationBuilder
 from ..interfaces import PredictionResult
-from ....domain.entities.series.structural_analysis import StructuralAnalysis
+from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def create_fallback_result(
     Returns:
         PredictionResult with fallback prediction
     """
-    from .analysis.types import MetaDiagnostic
+    from ..analysis.types import MetaDiagnostic
     
     tail = values[-min(3, len(values)):] if values else [0.0]
     predicted = sum(tail) / len(tail)

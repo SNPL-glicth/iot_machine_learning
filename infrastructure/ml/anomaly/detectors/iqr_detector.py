@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from ..detector_protocol import SubDetector
-from ..scoring_functions import compute_iqr_vote
-from ..training_stats import TrainingStats, compute_training_stats
+from ..core.protocol import SubDetector
+from ..scoring.functions import compute_iqr_vote
+from ..scoring.training import TrainingStats, compute_training_stats
 
 
 class IQRDetector(SubDetector):

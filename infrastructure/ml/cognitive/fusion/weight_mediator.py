@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from .analysis.types import InhibitionState
+from ..analysis.types import InhibitionState
 
 
 class ForceBalanceService:

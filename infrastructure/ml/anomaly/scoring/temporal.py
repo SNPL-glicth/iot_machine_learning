@@ -62,7 +62,7 @@ def compute_temporal_training_stats(
     Returns:
         ``TemporalTrainingStats`` con distribuciones de velocidad y aceleración.
     """
-    from ....domain.validators.temporal_features import compute_temporal_features
+    from iot_machine_learning.domain.validators.temporal_features import compute_temporal_features
 
     if len(values) < 3 or len(timestamps) < 3:
         return TemporalTrainingStats.empty()

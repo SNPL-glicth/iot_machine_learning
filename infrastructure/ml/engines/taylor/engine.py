@@ -23,13 +23,11 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionResult,
 )
 
-from . import (
-    DerivativeMethod,
-    compute_diagnostic,
-    compute_dt,
-    estimate_derivatives,
-    project,
-)
+from .types import DerivativeMethod
+from .diagnostics import compute_diagnostic
+from .time_step import compute_dt
+from .derivatives import estimate_derivatives
+from .polynomial import project
 
 logger = logging.getLogger(__name__)
 

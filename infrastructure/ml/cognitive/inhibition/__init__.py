@@ -3,14 +3,13 @@
 Components:
     - InhibitionGate: Engine weight suppression logic
     - InhibitionConfig: Configuration dataclass
-    - InhibitionRules: Rule-based inhibition logic
+    - InhibitionState: Inhibition state tracking
 """
 
-from .gate import InhibitionGate, InhibitionConfig
-from .rules import apply_inhibition_rules
+from .gate import InhibitionGate, InhibitionConfig, InhibitionState
 
 __all__ = [
     "InhibitionGate",
+    "InhibitionState",
     "InhibitionConfig",
-    "apply_inhibition_rules",
 ]

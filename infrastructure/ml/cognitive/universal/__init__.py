@@ -20,6 +20,7 @@ from .analysis import (
     UniversalAnalysisEngine,
     UniversalInput,
     UniversalResult,
+    UniversalContext,
     InputType,
 )
 from .comparative import (
@@ -32,6 +33,7 @@ __all__ = [
     "UniversalAnalysisEngine",
     "UniversalInput",
     "UniversalResult",
+    "UniversalContext",
     "InputType",
     "UniversalComparativeEngine",
     "ComparisonContext",

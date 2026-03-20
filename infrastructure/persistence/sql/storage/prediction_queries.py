@@ -9,8 +9,8 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from .....domain.entities.prediction import Prediction
-from .....domain.validators.input_guard import safe_series_id_to_int
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.validators.input_guard import safe_series_id_to_int
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ..analysis.types import UniversalResult
 
@@ -63,4 +63,32 @@ class ComparisonResult:
                 else None
             ),
             "estimated_resolution_time": self.estimated_resolution_time,
+        }
+
+
+@dataclass(frozen=True)
+class ColdStartResult:
+    """Returned when insufficient historical data for comparison.
+    
+    Indicates that comparative analysis cannot be performed yet because
+    minimum number of similar documents has not been reached.
+    
+    Attributes:
+        reason: Why comparative analysis unavailable ("insufficient_history")
+        docs_found: Number of similar documents found
+        docs_needed: Minimum number required for comparison
+        message: Human-readable explanation
+    """
+    reason: str
+    docs_found: int
+    docs_needed: int
+    message: str
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize for API responses."""
+        return {
+            "reason": self.reason,
+            "docs_found": self.docs_found,
+            "docs_needed": self.docs_needed,
+            "message": self.message,
         }

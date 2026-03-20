@@ -21,8 +21,8 @@ try:
     from ....patterns.regime_detector import RegimeDetector
     from ....anomaly.core.detector import VotingAnomalyDetector
     from ....anomaly.core.config import AnomalyDetectorConfig
-    from .....domain.validators.structural_analysis import compute_structural_analysis
-    from .....domain.entities.iot.sensor_reading import SensorReading, SensorWindow
+    from iot_machine_learning.domain.validators.structural_analysis import compute_structural_analysis
+    from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading, SensorWindow
 except Exception:
     _ML_COMPONENTS_AVAILABLE = False
 

@@ -70,15 +70,66 @@ def write_result(
         )
 
     if analysis_result_id:
+        # Generate semantic name if available
+        semantic_name = None
+        if _SEMANTIC_NAMER_AVAILABLE:
+            try:
+                domain = analysis.get("domain", "general")
+                analyzed_at = datetime.now(timezone.utc)
+                
+                # Extract Monte Carlo confidence if available
+                monte_carlo_conf = None
+                monte_carlo = analysis.get("monte_carlo")
+                if monte_carlo and isinstance(monte_carlo, dict):
+                    monte_carlo_conf = monte_carlo.get("confidence_score")
+                
+                semantic_name = generate_semantic_name(
+                    conclusion, domain, analyzed_at, monte_carlo_conf
+                )
+                logger.info(
+                    f"[RESULT_WRITER] Generated semantic_name: {semantic_name}",
+                    extra={"queue_id": queue_id},
+                )
+            except Exception as e:
+                logger.warning(
+                    f"semantic_name_generation_failed: {e}",
+                    extra={"queue_id": queue_id},
+                )
         repo.update_analysis_result(
             conn,
             analysis_id=analysis_result_id,
             classification=content_type,
             ml_result_json=ml_result_json,
             conclusion=conclusion,
+            semantic_name=semantic_name,
             ml_doc_id=ml_doc_id,
         )
     else:
+        # Generate semantic name if available
+        semantic_name = None
+        if _SEMANTIC_NAMER_AVAILABLE:
+            try:
+                domain = analysis.get("domain", "general")
+                analyzed_at = datetime.now(timezone.utc)
+                
+                # Extract Monte Carlo confidence if available
+                monte_carlo_conf = None
+                monte_carlo = analysis.get("monte_carlo")
+                if monte_carlo and isinstance(monte_carlo, dict):
+                    monte_carlo_conf = monte_carlo.get("confidence_score")
+                
+                semantic_name = generate_semantic_name(
+                    conclusion, domain, analyzed_at, monte_carlo_conf
+                )
+                logger.info(
+                    f"[RESULT_WRITER] Generated semantic_name: {semantic_name}",
+                    extra={"queue_id": queue_id},
+                )
+            except Exception as e:
+                logger.warning(
+                    f"semantic_name_generation_failed: {e}",
+                    extra={"queue_id": queue_id},
+                )
         analysis_result_id = repo.insert_analysis_result(
             conn,
             tenant_id=tenant_id,
@@ -89,6 +140,7 @@ def write_result(
             classification=content_type,
             ml_result_json=ml_result_json,
             conclusion=conclusion,
+            semantic_name=semantic_name,
             ml_doc_id=ml_doc_id,
         )
 

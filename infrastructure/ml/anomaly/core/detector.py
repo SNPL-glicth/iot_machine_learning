@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional
 
-from ....domain.entities.anomaly import AnomalyResult, AnomalySeverity
-from ....domain.entities.sensor_reading import SensorWindow
-from ....domain.ports.anomaly_detection_port import AnomalyDetectionPort
+from iot_machine_learning.domain.entities.anomaly import AnomalyResult, AnomalySeverity
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.ports.anomaly_detection_port import AnomalyDetectionPort
 
 from .config import AnomalyDetectorConfig
 from .protocol import SubDetector

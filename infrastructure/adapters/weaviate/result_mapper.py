@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from ....domain.entities.memory_search_result import MemorySearchResult
+from iot_machine_learning.domain.entities.memory_search_result import MemorySearchResult
 
 
 def to_memory_result(

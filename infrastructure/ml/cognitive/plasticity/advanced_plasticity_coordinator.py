@@ -117,7 +117,7 @@ class AdvancedPlasticityCoordinator:
         Returns:
             PlasticityContext with regime, volatility, noise, time
         """
-        from ....domain.entities.plasticity.plasticity_context import (
+        from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
             PlasticityContext,
             RegimeType,
         )

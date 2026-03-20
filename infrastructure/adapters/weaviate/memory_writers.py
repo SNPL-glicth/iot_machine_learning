@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from ....domain.entities.anomaly import AnomalyResult
-from ....domain.entities.pattern import PatternResult
-from ....domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.pattern import PatternResult
+from iot_machine_learning.domain.entities.prediction import Prediction
 from .filter_builders import now_iso, safe_json
 from .object_operations import create_object
 

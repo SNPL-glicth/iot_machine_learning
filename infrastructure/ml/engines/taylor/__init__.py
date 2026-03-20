@@ -2,7 +2,6 @@
 
 Package structure:
     engine.py       — TaylorPredictionEngine orchestrator
-    adapter.py      — DEPRECATED TaylorPredictionAdapter + KalmanFilterAdapter
     math.py         — Backward-compat facade re-exporting all math functions
     types.py        — TaylorCoefficients, TaylorDiagnostic, DerivativeMethod
     derivatives.py  — backward, central, least-squares derivative estimators
@@ -10,10 +9,14 @@ Package structure:
     diagnostics.py  — stability analysis, acceleration variance
     time_step.py    — robust Δt estimation from timestamps
     least_squares.py — Least-squares derivative estimation
+
+Note: TaylorPredictionAdapter was deprecated and removed.
+Use TaylorPredictionEngine(...).as_port() instead.
+
+Note: KalmanFilterAdapter moved to infrastructure.ml.filters package.
 """
 
 from .engine import TaylorPredictionEngine
-from .adapter import TaylorPredictionAdapter, KalmanFilterAdapter
 from .derivatives import estimate_derivatives
 from .diagnostics import compute_diagnostic
 from .polynomial import compute_local_fit_error, project
@@ -22,8 +25,6 @@ from .types import DerivativeMethod, TaylorCoefficients, TaylorDiagnostic
 
 __all__ = [
     "TaylorPredictionEngine",
-    "TaylorPredictionAdapter",
-    "KalmanFilterAdapter",
     "DerivativeMethod",
     "TaylorCoefficients",
     "TaylorDiagnostic",

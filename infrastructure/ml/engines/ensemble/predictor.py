@@ -28,9 +28,9 @@ import math
 from collections import deque
 from typing import Deque, Dict, List, Optional
 
-from ....domain.entities.prediction import Prediction
-from ....domain.entities.sensor_reading import SensorWindow
-from ....domain.ports.prediction_port import PredictionPort
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.ports.prediction_port import PredictionPort
 
 logger = logging.getLogger(__name__)
 

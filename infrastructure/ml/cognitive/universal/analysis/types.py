@@ -57,6 +57,7 @@ class UniversalResult:
         input_type: Detected InputType
         pipeline_timing: Per-phase timing (perceive, analyze, remember, reason, explain)
         recall_context: Memory enrichment if cognitive_memory was provided
+        monte_carlo: Optional Monte Carlo uncertainty quantification result
     """
     explanation: Explanation
     severity: SeverityResult
@@ -66,10 +67,11 @@ class UniversalResult:
     input_type: InputType
     pipeline_timing: Dict[str, float] = field(default_factory=dict)
     recall_context: Optional[Dict[str, Any]] = None
+    monte_carlo: Optional[object] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for API responses."""
-        return {
+        result = {
             "explanation": self.explanation.to_dict(),
             "severity": {
                 "risk_level": self.severity.risk_level,
@@ -84,6 +86,12 @@ class UniversalResult:
             "pipeline_timing": {k: round(v, 3) for k, v in self.pipeline_timing.items()},
             "recall_context": self.recall_context,
         }
+        
+        # Include Monte Carlo result if available
+        if self.monte_carlo is not None:
+            result["monte_carlo"] = self.monte_carlo.to_dict()
+        
+        return result
 
 
 @dataclass(frozen=True)

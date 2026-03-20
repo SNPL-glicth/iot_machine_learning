@@ -36,7 +36,9 @@ class UniversalComparativeEngine:
             ctx: ComparisonContext with current result + cognitive memory
 
         Returns:
-            ComparisonResult or None if insufficient data
+            - ComparisonResult if ≥ min_similar_docs found
+            - ColdStartResult if < min_similar_docs found
+            - None if memory unavailable
         """
         if not ctx.cognitive_memory:
             logger.debug("No cognitive_memory provided, skipping comparison")
@@ -45,9 +47,24 @@ class UniversalComparativeEngine:
         try:
             historical = self._fetch_historical(ctx)
             
-            if not historical:
+            # Check minimum threshold
+            docs_found = len(historical)
+            
+            if docs_found == 0:
                 logger.debug("No similar historical incidents found")
                 return None
+            
+            if docs_found < self._min_similar_docs:
+                logger.info(
+                    f"insufficient_history_for_comparison: {docs_found}/{self._min_similar_docs}",
+                    extra={"domain": ctx.domain, "series_id": ctx.series_id},
+                )
+                return ColdStartResult(
+                    reason="insufficient_history",
+                    docs_found=docs_found,
+                    docs_needed=self._min_similar_docs,
+                    message=f"Comparative analysis available after {self._min_similar_docs} similar documents",
+                )
             
             deltas = self._compute_deltas(
                 ctx.current_result.analysis, historical
@@ -118,6 +135,21 @@ class UniversalComparativeEngine:
     ) -> tuple:
         """Estimate resolution probability and time."""
         return estimate_resolution(historical)
+
+    def _build_query_from_result(self, result) -> str:
+        """Extract query string from UniversalResult."""
+        analysis = result.analysis
+        
+        if "full_text" in analysis:
+            return str(analysis["full_text"])[:500]
+        
+        if "conclusion" in analysis:
+            return str(analysis["conclusion"])[:500]
+        
+        explanation_dict = result.explanation.to_dict()
+        signal = explanation_dict.get("signal", {})
+        
+        return f"domain:{result.domain} regime:{signal.get('regime', 'unknown')}"
 
     def _build_query_from_result(self, result) -> str:
         """Extract query string from UniversalResult."""

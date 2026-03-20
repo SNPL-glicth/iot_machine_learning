@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from ....domain.entities.memory_search_result import MemorySearchResult
+from iot_machine_learning.domain.entities.memory_search_result import MemorySearchResult
 from .filter_builders import build_where_filter, where_eq_int, where_eq_text
 from .query_operations import graphql_near_text
 from .result_mapper import to_memory_result

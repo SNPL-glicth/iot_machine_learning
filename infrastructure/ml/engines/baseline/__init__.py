@@ -3,7 +3,9 @@
 Components:
     - predict_moving_average: Pure function for moving average prediction
     - BaselineConfig: Configuration dataclass
-    - BaselinePredictionAdapter: DEPRECATED - Adapter wrapping as PredictionPort
+
+Note: BaselinePredictionAdapter was deprecated and removed.
+Use EngineFactory.create("baseline_moving_average").as_port() instead.
 """
 
 from .engine import (
@@ -12,12 +14,10 @@ from .engine import (
     BaselineMetadata,
     predict_moving_average,
 )
-from .adapter import BaselinePredictionAdapter
 
 __all__ = [
     "predict_moving_average",
     "BaselineConfig",
     "BaselineMetadata",
     "BASELINE_MOVING_AVERAGE",
-    "BaselinePredictionAdapter",
 ]

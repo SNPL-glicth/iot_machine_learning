@@ -98,11 +98,12 @@ class BatchEnterpriseContainer:
             audit = self.get_audit()
 
             # Build engine list: baseline as fallback
-            from iot_machine_learning.infrastructure.ml.engines.baseline import (
-                BaselinePredictionAdapter,
+            from iot_machine_learning.infrastructure.ml.engines.core import (
+                EngineFactory,
             )
 
-            engines = [BaselinePredictionAdapter(window=60)]
+            baseline_engine = EngineFactory.create("baseline_moving_average")
+            engines = [baseline_engine.as_port()]
 
             # Add Taylor if enabled
             if self._flags.ML_USE_TAYLOR_PREDICTOR:

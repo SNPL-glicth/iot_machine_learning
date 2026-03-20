@@ -24,7 +24,7 @@ def build_advanced_plasticity(
     from .adaptive_learning_rate import AdaptiveLearningRate
     from .contextual_plasticity_tracker import ContextualPlasticityTracker
     from ..monitoring.engine_health_monitor import EngineHealthMonitor
-    from ....domain.services.asymmetric_penalty_service import AsymmetricPenaltyService
+    from iot_machine_learning.domain.services.asymmetric_penalty_service import AsymmetricPenaltyService
     from .advanced_plasticity_coordinator import AdvancedPlasticityCoordinator
 
     adaptive_lr = AdaptiveLearningRate()

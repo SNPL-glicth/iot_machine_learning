@@ -19,8 +19,8 @@ import logging
 import math
 from typing import List, Optional
 
-from ....domain.entities.pattern import DeltaSpikeResult, SpikeClassification
-from ....domain.ports.pattern_detection_port import DeltaSpikeClassificationPort
+from iot_machine_learning.domain.entities.pattern import DeltaSpikeResult, SpikeClassification
+from iot_machine_learning.domain.ports.pattern_detection_port import DeltaSpikeClassificationPort
 
 logger = logging.getLogger(__name__)
 

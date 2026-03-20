@@ -6,10 +6,10 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.engine import Connection
 
-from .....domain.entities.anomaly import AnomalyResult
-from .....domain.entities.prediction import Prediction
-from .....domain.entities.sensor_reading import SensorWindow
-from .....domain.ports.storage_port import StoragePort
+from iot_machine_learning.domain.entities.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.ports.storage_port import StoragePort
 
 from .base_queries import BaseQueries
 from .prediction_queries import PredictionQueries

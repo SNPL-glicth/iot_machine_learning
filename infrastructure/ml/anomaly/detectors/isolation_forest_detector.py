@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from ..detector_protocol import SubDetector
+from ..core.protocol import SubDetector
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ class IsolationForestNDDetector(SubDetector):
     ) -> object:
         try:
             import numpy as np
-            from .....domain.validators.temporal_features import (
+            from iot_machine_learning.domain.validators.temporal_features import (
                 compute_temporal_features,
             )
 

@@ -14,7 +14,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from ....domain.entities.plasticity.plasticity_context import PlasticityContext, RegimeType
+from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext, RegimeType
 
 logger = logging.getLogger(__name__)
 

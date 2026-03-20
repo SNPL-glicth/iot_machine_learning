@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ....domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 from ..scoring import compute_z_score, TemporalTrainingStats
 
 

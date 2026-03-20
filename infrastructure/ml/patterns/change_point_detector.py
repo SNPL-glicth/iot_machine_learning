@@ -20,8 +20,8 @@ import logging
 import math
 from typing import List, Optional
 
-from ....domain.entities.pattern import ChangePoint, ChangePointType
-from ....domain.ports.pattern_detection_port import ChangePointDetectionPort
+from iot_machine_learning.domain.entities.pattern import ChangePoint, ChangePointType
+from iot_machine_learning.domain.ports.pattern_detection_port import ChangePointDetectionPort
 
 logger = logging.getLogger(__name__)
 

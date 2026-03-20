@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from ..detector_protocol import SubDetector
-from ..scoring_functions import compute_z_score, compute_z_vote
-from ..temporal_stats import TemporalTrainingStats, compute_temporal_training_stats
+from ..core.protocol import SubDetector
+from ..scoring.functions import compute_z_score, compute_z_vote
+from ..scoring.temporal import TemporalTrainingStats, compute_temporal_training_stats
 
 
 class VelocityZDetector(SubDetector):

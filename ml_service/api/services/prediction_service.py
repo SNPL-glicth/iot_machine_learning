@@ -53,9 +53,6 @@ from iot_machine_learning.domain.services.threshold_evaluator import (
 from iot_machine_learning.infrastructure.persistence.sql.storage import (
     SqlServerStorageAdapter,
 )
-from iot_machine_learning.infrastructure.ml.engines.baseline import (
-    BaselinePredictionAdapter,
-)
 from iot_machine_learning.infrastructure.repositories.threshold_repository import (
     ThresholdRepository,
 )
@@ -78,9 +75,9 @@ class PredictionService:
         self._threshold_repo = ThresholdRepository(conn)
         self._renderer = ExplanationRenderer()
 
-        baseline_engine = BaselinePredictionAdapter(window=60)
+        baseline_engine = EngineFactory.create("baseline_moving_average")
         prediction_domain_service = PredictionDomainService(
-            engines=[baseline_engine],
+            engines=[baseline_engine.as_port()],
         )
 
         self._use_case = PredictSensorValueUseCase(

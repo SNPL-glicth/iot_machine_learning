@@ -135,17 +135,19 @@ discovered = discover_engines("my_package.engines")
 
 ## Deprecated Adapters
 
-**baseline/adapter.py** — `BaselinePredictionAdapter`
-- **Status:** Maintained for backward compatibility
-- **Migration:** Use `BaselineMovingAverageEngine(...).as_port()` instead
-- **Used by:** `ml_service/runners/wiring/container.py`, `ml_service/api/services/prediction_service.py`
+**Deprecated adapters removed (2026-03-20):**
 
-**taylor/adapter.py** — `TaylorPredictionAdapter` + `KalmanFilterAdapter`
-- **Status:** Deprecated with `DeprecationWarning`
-- **Migration:** Use `TaylorPredictionEngine(...).as_port()` instead
-- **Used by:** Test files only
+**baseline/adapter.py** — `BaselinePredictionAdapter` ❌ DELETED
+- **Migrated to:** `EngineFactory.create("baseline_moving_average").as_port()`
+- **Files updated:** `ml_service/runners/wiring/container.py`, `ml_service/api/services/prediction_service.py`
 
-Both adapters will be removed in a future version after migration is complete.
+**taylor/adapter.py** — `TaylorPredictionAdapter` ❌ DELETED
+- **Migrated to:** `TaylorPredictionEngine(...).as_port()`
+- **Files updated:** `tests/unit/infrastructure/test_taylor_adapter.py`
+
+**taylor/adapter.py** — `KalmanFilterAdapter` ✅ MOVED
+- **New location:** `infrastructure/ml/filters/kalman_adapter.py`
+- **Import:** `from infrastructure.ml.filters import KalmanFilterAdapter`
 
 ---
 

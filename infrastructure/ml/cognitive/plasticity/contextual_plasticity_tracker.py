@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from threading import RLock
 from typing import Dict, List, Optional
 
-from ....domain.entities.plasticity.plasticity_context import PlasticityContext
+from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext
 from ..fusion.contextual_weight_calculator import resolve_contextual_weights
 
 logger = logging.getLogger(__name__)

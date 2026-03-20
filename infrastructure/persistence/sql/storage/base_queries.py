@@ -9,7 +9,7 @@ from typing import Dict, List
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from .....domain.entities.sensor_reading import SensorReading, SensorWindow
+from iot_machine_learning.domain.entities.sensor_reading import SensorReading, SensorWindow
 
 logger = logging.getLogger(__name__)
 

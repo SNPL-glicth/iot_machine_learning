@@ -11,6 +11,7 @@ Módulos:
 
 from .kalman_filter import KalmanSignalFilter
 from .kalman_math import KalmanState, WarmupBuffer
+from .kalman_adapter import KalmanFilterAdapter
 from .ema_filter import EMASignalFilter, AdaptiveEMASignalFilter
 from .median_filter import MedianSignalFilter
 from .filter_chain import FilterChain
@@ -20,6 +21,7 @@ __all__ = [
     "KalmanSignalFilter",
     "KalmanState",
     "WarmupBuffer",
+    "KalmanFilterAdapter",
     "EMASignalFilter",
     "AdaptiveEMASignalFilter",
     "MedianSignalFilter",
