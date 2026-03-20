@@ -21,7 +21,7 @@ import random
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.engines.taylor_engine import TaylorPredictionEngine
+from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
 from iot_machine_learning.domain.validators.numeric import ValidationError
 
 

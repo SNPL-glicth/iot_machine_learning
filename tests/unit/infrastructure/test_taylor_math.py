@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.engines.taylor_math import (
+from iot_machine_learning.infrastructure.ml.engines.taylor.math import (
     compute_accel_variance,
     compute_dt,
     compute_finite_differences,

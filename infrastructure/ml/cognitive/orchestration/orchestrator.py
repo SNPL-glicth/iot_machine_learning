@@ -5,13 +5,11 @@ from collections import defaultdict, deque
 from typing import Deque, Dict, List, Optional
 
 from ...interfaces import PredictionEngine, PredictionResult
-from ..engine_selector import WeightedFusion
+from ..fusion import WeightedFusion, WeightMediator
 from ..inhibition import InhibitionConfig, InhibitionGate
-from ..plasticity import PlasticityTracker
+from ..plasticity import PlasticityTracker, build_advanced_plasticity, null_advanced_plasticity
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
-from ..plasticity_factory import build_advanced_plasticity, null_advanced_plasticity
-from ..record_actual_handler import record_actual_dispatch
-from ..weight_mediator import WeightMediator
+from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
 
 _MAX_ERROR_HISTORY: int = 50

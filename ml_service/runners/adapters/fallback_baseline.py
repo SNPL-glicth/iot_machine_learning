@@ -64,7 +64,7 @@ def fallback_to_baseline(
 
         values = window.values
 
-        from iot_machine_learning.infrastructure.ml.engines.baseline_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.baseline import (
             BaselineConfig,
             predict_moving_average,
         )

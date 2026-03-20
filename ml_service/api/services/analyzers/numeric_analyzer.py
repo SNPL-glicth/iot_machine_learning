@@ -24,8 +24,8 @@ try:
     from .....domain.validators.structural_analysis import compute_structural_analysis
     from .....domain.entities.structural_analysis import StructuralAnalysis
     from .....domain.entities.iot.sensor_reading import SensorReading, SensorWindow
-    from .....infrastructure.ml.anomaly.voting_anomaly_detector import VotingAnomalyDetector
-    from .....infrastructure.ml.anomaly.anomaly_config import AnomalyDetectorConfig
+    from .....infrastructure.ml.anomaly.core.detector import VotingAnomalyDetector
+    from .....infrastructure.ml.anomaly.core.config import AnomalyDetectorConfig
 except Exception as exc:
     _ml_engines_available = False
     logger.warning("[NUMERIC_ANALYZER] ML engines not available: %s", exc)

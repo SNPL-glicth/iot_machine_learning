@@ -180,7 +180,7 @@ class TestEngineDerivativeMethod:
     """Verify TaylorPredictionEngine accepts derivative_method."""
 
     def test_backward_default(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
         engine = TaylorPredictionEngine(order=2, horizon=1)
@@ -189,7 +189,7 @@ class TestEngineDerivativeMethod:
         assert result.metadata["diagnostic"]["method"] == "backward"
 
     def test_central_method(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
         engine = TaylorPredictionEngine(
@@ -201,7 +201,7 @@ class TestEngineDerivativeMethod:
         assert result.metadata["diagnostic"]["method"] == "central"
 
     def test_least_squares_method(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
         engine = TaylorPredictionEngine(
@@ -213,7 +213,7 @@ class TestEngineDerivativeMethod:
         assert result.metadata["diagnostic"]["method"] == "least_squares"
 
     def test_all_methods_produce_finite_prediction(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
         values = [20.0 + i * 0.5 for i in range(30)]

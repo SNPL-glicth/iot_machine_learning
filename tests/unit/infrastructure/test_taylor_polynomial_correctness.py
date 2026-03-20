@@ -365,7 +365,7 @@ class TestEngineEmitsDiagnostic:
     """Verify TaylorPredictionEngine includes diagnostic in metadata."""
 
     def test_diagnostic_present_in_metadata(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 
@@ -382,7 +382,7 @@ class TestEngineEmitsDiagnostic:
         assert "stability_indicator" in diag
 
     def test_fallback_has_null_diagnostic(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 
@@ -394,7 +394,7 @@ class TestEngineEmitsDiagnostic:
         assert result.metadata["fallback"] == "insufficient_data"
 
     def test_linear_signal_diagnostic_values(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 

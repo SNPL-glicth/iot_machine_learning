@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.cognitive.engine_selector import (
+from iot_machine_learning.infrastructure.ml.cognitive.fusion import (
     WeightedFusion,
 )
 from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (

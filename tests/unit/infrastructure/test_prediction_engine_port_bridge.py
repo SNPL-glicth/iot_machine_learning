@@ -185,13 +185,13 @@ class TestPredictSeries:
 class TestCreateAsPort:
     @pytest.fixture(autouse=True)
     def _clean_registry(self):
-        from iot_machine_learning.infrastructure.ml.engines.engine_factory import EngineFactory
+        from iot_machine_learning.infrastructure.ml.engines.core import EngineFactory
         original = dict(EngineFactory._registry)
         yield
         EngineFactory._registry = original
 
     def test_create_as_port_returns_bridge(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.engine_factory import EngineFactory
+        from iot_machine_learning.infrastructure.ml.engines.core import EngineFactory
         port = EngineFactory.create_as_port("baseline_moving_average")
         assert isinstance(port, PredictionEnginePortBridge)
         assert isinstance(port, PredictionPort)
@@ -203,7 +203,7 @@ class TestCreateAsPort:
 
 class TestAdapterDeprecation:
     def test_taylor_adapter_warns(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.taylor_adapter import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionAdapter,
         )
         with pytest.warns(DeprecationWarning, match="TaylorPredictionAdapter"):

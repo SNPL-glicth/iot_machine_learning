@@ -139,7 +139,7 @@ class TestTrainAllTimestamps:
 
     def test_train_all_with_voting_detector_temporal(self):
         """VotingAnomalyDetector recibe timestamps y activa temporal stats."""
-        from iot_machine_learning.infrastructure.ml.anomaly.voting_anomaly_detector import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
             VotingAnomalyDetector,
         )
 
@@ -164,7 +164,7 @@ class TestTaylorStructuralWiring:
     """Verifica que TaylorEngine incluye structural_analysis en metadata."""
 
     def test_taylor_metadata_has_structural_analysis(self):
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 
@@ -182,7 +182,7 @@ class TestTaylorStructuralWiring:
         assert sa["n_points"] == 20
 
     def test_taylor_structural_trending_regime(self):
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 
@@ -196,7 +196,7 @@ class TestTaylorStructuralWiring:
 
     def test_taylor_fallback_no_structural(self):
         """Fallback (insufficient data) should not have structural_analysis."""
-        from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.taylor import (
             TaylorPredictionEngine,
         )
 
@@ -293,7 +293,7 @@ class TestFullPipelineIntegration:
         voting_threshold must be aligned for the spike to be declared
         anomalous at the service level.
         """
-        from iot_machine_learning.infrastructure.ml.anomaly.voting_anomaly_detector import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
             VotingAnomalyDetector,
         )
         import math

@@ -24,14 +24,14 @@ from iot_machine_learning.domain.entities.sensor_reading import (
     SensorReading,
     SensorWindow,
 )
-from iot_machine_learning.infrastructure.ml.anomaly.statistical_methods import (
+from iot_machine_learning.infrastructure.ml.anomaly.scoring.temporal import (
     TemporalTrainingStats,
     compute_temporal_training_stats,
 )
-from iot_machine_learning.infrastructure.ml.anomaly.voting_anomaly_detector import (
+from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
     VotingAnomalyDetector,
 )
-from iot_machine_learning.infrastructure.ml.anomaly.anomaly_narrator import (
+from iot_machine_learning.infrastructure.ml.anomaly.narration.builder import (
     build_anomaly_explanation,
 )
 
@@ -299,7 +299,7 @@ class TestStatisticalMethodsTemporal:
     """Tests para funciones temporales en statistical_methods."""
 
     def test_distribution_stats_correctness(self):
-        from iot_machine_learning.infrastructure.ml.anomaly.statistical_methods import (
+        from iot_machine_learning.infrastructure.ml.anomaly.scoring.statistical_methods import (
             _compute_distribution_stats,
         )
         values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
@@ -310,7 +310,7 @@ class TestStatisticalMethodsTemporal:
         assert abs(iqr - (q3 - q1)) < 1e-9
 
     def test_distribution_stats_empty(self):
-        from iot_machine_learning.infrastructure.ml.anomaly.statistical_methods import (
+        from iot_machine_learning.infrastructure.ml.anomaly.scoring.statistical_methods import (
             _compute_distribution_stats,
         )
         mean, std, q1, q3, iqr = _compute_distribution_stats([])

@@ -14,7 +14,7 @@ import pytest
 from iot_machine_learning.application.use_cases.select_engine import (
     select_engine_for_sensor,
 )
-from iot_machine_learning.infrastructure.ml.engines.engine_factory import (
+from iot_machine_learning.infrastructure.ml.engines.core import (
     BaselineMovingAverageEngine,
     EngineFactory,
 )
@@ -23,7 +23,7 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEnginePortBridge,
     PredictionResult,
 )
-from iot_machine_learning.infrastructure.ml.engines.taylor_engine import TaylorPredictionEngine
+from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
 

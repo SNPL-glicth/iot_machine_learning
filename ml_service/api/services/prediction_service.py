@@ -53,7 +53,7 @@ from iot_machine_learning.domain.services.threshold_evaluator import (
 from iot_machine_learning.infrastructure.persistence.sql.storage import (
     SqlServerStorageAdapter,
 )
-from iot_machine_learning.infrastructure.ml.engines.baseline_adapter import (
+from iot_machine_learning.infrastructure.ml.engines.baseline import (
     BaselinePredictionAdapter,
 )
 from iot_machine_learning.infrastructure.repositories.threshold_repository import (

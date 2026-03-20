@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from ...interfaces import PredictionResult
     from ..types import PipelineTimer
 
-from ..explanation_builder import ExplanationBuilder
-from ..orchestrator_helpers import collect_perceptions
+from ..explanation import ExplanationBuilder
+from ..perception.helpers import collect_perceptions
 from ..analysis.types import MetaDiagnostic, PipelineTimer
 from .fallback_handler import handle_fallback
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.anomaly.statistical_methods import (
+from iot_machine_learning.infrastructure.ml.anomaly.scoring.statistical_methods import (
     TrainingStats,
     compute_consensus_confidence,
     compute_iqr_bounds,

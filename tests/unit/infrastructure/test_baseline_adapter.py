@@ -14,7 +14,7 @@ from iot_machine_learning.domain.entities.sensor_reading import (
     SensorWindow,
 )
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
-from iot_machine_learning.infrastructure.ml.engines.baseline_adapter import (
+from iot_machine_learning.infrastructure.ml.engines.baseline import (
     BaselinePredictionAdapter,
 )
 

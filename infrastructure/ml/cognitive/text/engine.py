@@ -28,7 +28,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from ..inhibition import InhibitionGate
-from ..engine_selector import WeightedFusion
+from ..fusion import WeightedFusion
 
 try:
     from ..plasticity import PlasticityTracker

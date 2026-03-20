@@ -19,7 +19,7 @@ from iot_machine_learning.domain.entities.sensor_reading import (
     SensorReading,
     SensorWindow,
 )
-from iot_machine_learning.infrastructure.ml.anomaly.voting_anomaly_detector import (
+from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
     VotingAnomalyDetector,
 )
 

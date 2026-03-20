@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.engines.statistical_engine import (
+from iot_machine_learning.infrastructure.ml.engines.statistical import (
     StatisticalPredictionEngine,
 )
 

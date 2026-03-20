@@ -22,8 +22,8 @@ Package structure:
 
 from __future__ import annotations
 
-from .engine_selector import WeightedFusion
-from .builder import ExplanationBuilder
+from .fusion import WeightedFusion
+from .explanation import ExplanationBuilder
 from .inhibition import InhibitionGate
 try:
     from .orchestration import MetaCognitiveOrchestrator

@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import List
     from ...interfaces import PredictionResult
-    from ..explanation_builder import ExplanationBuilder
+    from ..explanation import ExplanationBuilder
     from ..analysis.types import MetaDiagnostic, PipelineTimer
     from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 
-from ..orchestrator_helpers import create_fallback_result
+from ..perception.helpers import create_fallback_result
 from ..analysis.types import MetaDiagnostic
 
 

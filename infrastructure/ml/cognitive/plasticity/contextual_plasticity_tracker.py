@@ -12,7 +12,7 @@ from threading import RLock
 from typing import Dict, List, Optional
 
 from ....domain.entities.plasticity.plasticity_context import PlasticityContext
-from .contextual_weight_calculator import resolve_contextual_weights
+from ..fusion.contextual_weight_calculator import resolve_contextual_weights
 
 logger = logging.getLogger(__name__)
 

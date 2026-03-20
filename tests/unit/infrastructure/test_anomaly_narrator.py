@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.anomaly.anomaly_narrator import (
+from iot_machine_learning.infrastructure.ml.anomaly.narration.builder import (
     build_anomaly_explanation,
 )
 

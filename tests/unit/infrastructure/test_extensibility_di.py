@@ -40,7 +40,7 @@ class TestVotingAnomalyDetectorDI:
         from iot_machine_learning.infrastructure.ml.anomaly import (
             VotingAnomalyDetector,
         )
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             SubDetector,
         )
 
@@ -69,7 +69,7 @@ class TestVotingAnomalyDetectorDI:
         from iot_machine_learning.infrastructure.ml.anomaly import (
             VotingAnomalyDetector,
         )
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             SubDetector,
         )
 
@@ -122,7 +122,7 @@ class TestCreateDefaultDetectors:
             AnomalyDetectorConfig,
             create_default_detectors,
         )
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             SubDetector,
         )
 
@@ -260,7 +260,7 @@ class TestDiscoverEngines:
 class TestDetectorRegistry:
     @pytest.fixture(autouse=True)
     def _clean_registry(self):
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
         )
         original = dict(DetectorRegistry._registry)
@@ -268,7 +268,7 @@ class TestDetectorRegistry:
         DetectorRegistry._registry = original
 
     def test_register_and_list(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
         )
 
@@ -276,7 +276,7 @@ class TestDetectorRegistry:
         assert "test_det" in DetectorRegistry.list_detectors()
 
     def test_unregister(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
         )
 
@@ -285,7 +285,7 @@ class TestDetectorRegistry:
         assert "to_remove" not in DetectorRegistry.list_detectors()
 
     def test_create_all(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
             SubDetector,
         )
@@ -310,7 +310,7 @@ class TestDetectorRegistry:
         assert any(isinstance(d, _FakeDetector) for d in detectors)
 
     def test_create_all_skips_failing_factory(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
         )
 
@@ -326,7 +326,7 @@ class TestDetectorRegistry:
 class TestRegisterDetectorDecorator:
     @pytest.fixture(autouse=True)
     def _clean_registry(self):
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
         )
         original = dict(DetectorRegistry._registry)
@@ -334,7 +334,7 @@ class TestRegisterDetectorDecorator:
         DetectorRegistry._registry = original
 
     def test_decorator_registers_factory(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             DetectorRegistry,
             SubDetector,
             register_detector,
@@ -364,7 +364,7 @@ class TestRegisterDetectorDecorator:
         assert any(isinstance(d, _MyDet) for d in detectors)
 
     def test_decorator_returns_callable_unchanged(self) -> None:
-        from iot_machine_learning.infrastructure.ml.anomaly.detector_protocol import (
+        from iot_machine_learning.infrastructure.ml.anomaly.core.protocol import (
             register_detector,
         )
 
@@ -387,17 +387,17 @@ class TestStatisticalRegistered:
         yield
 
     def test_statistical_in_registry(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.engine_factory import (
+        from iot_machine_learning.infrastructure.ml.engines.core import (
             EngineFactory,
         )
 
         assert "statistical" in EngineFactory.list_engines()
 
     def test_create_statistical(self) -> None:
-        from iot_machine_learning.infrastructure.ml.engines.engine_factory import (
+        from iot_machine_learning.infrastructure.ml.engines.core import (
             EngineFactory,
         )
-        from iot_machine_learning.infrastructure.ml.engines.statistical_engine import (
+        from iot_machine_learning.infrastructure.ml.engines.statistical import (
             StatisticalPredictionEngine,
         )
 

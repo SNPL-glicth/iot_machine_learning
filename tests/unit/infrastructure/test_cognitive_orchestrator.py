@@ -23,10 +23,10 @@ from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
 from iot_machine_learning.infrastructure.ml.cognitive.inhibition import (
     InhibitionConfig,
 )
-from iot_machine_learning.infrastructure.ml.engines.taylor_engine import (
+from iot_machine_learning.infrastructure.ml.engines.taylor import (
     TaylorPredictionEngine,
 )
-from iot_machine_learning.infrastructure.ml.engines.statistical_engine import (
+from iot_machine_learning.infrastructure.ml.engines.statistical import (
     StatisticalPredictionEngine,
 )
 from iot_machine_learning.infrastructure.ml.interfaces import (

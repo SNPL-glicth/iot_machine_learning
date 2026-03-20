@@ -20,7 +20,7 @@ import pytest
 
 from iot_machine_learning.domain.entities.explainability.explanation import Explanation
 from iot_machine_learning.domain.entities.explainability.reasoning_trace import PhaseKind
-from iot_machine_learning.infrastructure.ml.cognitive.explanation_builder import (
+from iot_machine_learning.infrastructure.ml.cognitive.explanation import (
     ExplanationBuilder,
 )
 from iot_machine_learning.domain.entities.series.structural_analysis import (
