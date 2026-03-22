@@ -36,6 +36,11 @@ except (ImportError, ModuleNotFoundError):
     PlasticityTracker = None  # type: ignore[assignment,misc]
 
 try:
+    from .severity_classifier import SeverityClassifier
+except (ImportError, ModuleNotFoundError):
+    SeverityClassifier = None  # type: ignore[assignment,misc]
+
+try:
     from .analysis import SignalAnalyzer
 except (ImportError, ModuleNotFoundError):
     SignalAnalyzer = None  # type: ignore[assignment,misc]
@@ -56,6 +61,7 @@ __all__ = [
     "MetaDiagnostic",
     "PipelineTimer",
     "PlasticityTracker",
+    "SeverityClassifier",
     "SignalAnalyzer",
     "SignalProfile",
     "WeightedFusion",

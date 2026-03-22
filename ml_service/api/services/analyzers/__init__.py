@@ -23,7 +23,7 @@ Building blocks:
 """
 
 from .text_analyzer import analyze_text_document
-from .tabular_analyzer import analyze_tabular_document
+from iot_machine_learning.infrastructure.ml.analyzers.tabular_analyzer import analyze_tabular_document
 from .media_analyzer import analyze_image, analyze_audio, analyze_binary
 
 __all__ = [

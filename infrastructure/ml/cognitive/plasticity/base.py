@@ -1,15 +1,15 @@
-"""Regime-contextual weight learning (plasticity).
+"""Regime-contextual weight learning (plasticity) with Bayesian updates.
 
 Analogous to synaptic plasticity: if an engine consistently performs
 well in a specific regime, its weight *in that regime* increases.
 
 The tracker maintains a per-regime, per-engine accuracy history
 and computes adaptive weights that reflect historical performance
-within the current signal regime.
+within the current signal regime using Bayesian posterior updates.
 
 Design:
     - In-memory only (no persistence) — resets on restart.
-    - Exponential moving average of inverse error for smoothness.
+    - Bayesian posterior updates instead of simple EMA.
     - Falls back to uniform weights when no history exists.
 
 Pure logic — no I/O, no logging.
@@ -20,6 +20,9 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional
+
+from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
+from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
 
 
 # Exponential smoothing factor for accuracy updates
@@ -42,11 +45,13 @@ _MAX_REGIMES: int = 10
 
 
 class PlasticityTracker:
-    """Tracks per-regime, per-engine accuracy and computes adaptive weights.
+    """Tracks per-regime, per-engine accuracy and computes adaptive weights using Bayesian updates.
 
     Attributes:
         _accuracy: Dict[regime][engine_name] → smoothed inverse error.
-        _alpha: EMA smoothing factor.
+        _priors: Dict[regime][engine_name] → Bayesian priors for weight estimation.
+        _bayesian: BayesianUpdater instance for posterior computation.
+        _alpha: EMA smoothing factor (legacy, kept for compatibility).
         _min_weight: Minimum weight floor.
         _max_regimes: Maximum regimes before LRU eviction.
         _regime_last_access: Dict[regime] → monotonic timestamp for LRU.
@@ -60,6 +65,8 @@ class PlasticityTracker:
         regime_ttl_seconds: float = 86400.0,
     ) -> None:
         self._accuracy: Dict[str, Dict[str, float]] = defaultdict(dict)
+        self._priors: Dict[str, Dict[str, GaussianPrior]] = defaultdict(dict)
+        self._bayesian = BayesianUpdater()
         self._alpha = alpha
         self._min_weight = min_weight
         self._max_regimes = max(1, max_regimes)
@@ -117,15 +124,21 @@ class PlasticityTracker:
         else:
             effective_alpha = _REGIME_ALPHA.get(regime, self._alpha)
         
+        # Use Bayesian update instead of simple EMA
         inv_error = 1.0 / (abs(prediction_error) + 1e-9)
-        prev = self._accuracy[regime].get(engine_name)
-
-        if prev is None:
-            self._accuracy[regime][engine_name] = inv_error
-        else:
-            self._accuracy[regime][engine_name] = (
-                (1.0 - effective_alpha) * prev + effective_alpha * inv_error
-            )
+        
+        # Initialize prior if this is first observation
+        if engine_name not in self._priors[regime]:
+            self._priors[regime][engine_name] = GaussianPrior(mu_0=inv_error, sigma2_0=1.0)
+        
+        # Bayesian update with single observation
+        import numpy as np
+        observation = np.array([inv_error])
+        posterior = self._bayesian.update(self._priors[regime][engine_name], observation)
+        
+        # Store posterior as next prior and update accuracy
+        self._priors[regime][engine_name] = posterior.to_prior()
+        self._accuracy[regime][engine_name] = posterior.get_param("mu_0", inv_error)
 
     def get_weights(
         self,

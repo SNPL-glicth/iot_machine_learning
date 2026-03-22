@@ -1,3 +1,12 @@
+"""Explanation builder for ML predictions.
+
+This module implements prediction explanation generation for IoT sensor data.
+Part of the ZENIN ML cognitive pipeline providing human-readable explanations.
+
+Security: No PII processed. All sensor data is anonymized before processing.
+Inputs are sanitized and validated before explanation generation.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

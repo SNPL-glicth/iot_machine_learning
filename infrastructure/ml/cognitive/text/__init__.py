@@ -10,9 +10,14 @@ Subpackage structure:
     memory_enricher.py       — CognitiveMemoryPort → TextRecallContext
     explanation_assembler.py — Builds Explanation domain object
     engine.py                — TextCognitiveEngine (main orchestrator)
+    analyzers/               — Pure text analysis functions (sentiment, urgency, etc.)
+    conclusion_builder.py    — Semantic conclusion building
+    text_chunker.py         — Semantic text chunking
+    text_pattern.py         — Pattern detection on text signals
 """
 
 from .engine import TextCognitiveEngine
+from .entity_extractor import extract_entities, extract_urgency_sentiment
 from .types import TextAnalysisContext, TextAnalysisInput, TextCognitiveResult
 
 __all__ = [
@@ -20,4 +25,6 @@ __all__ = [
     "TextAnalysisInput",
     "TextCognitiveEngine",
     "TextCognitiveResult",
+    "extract_entities",
+    "extract_urgency_sentiment",
 ]

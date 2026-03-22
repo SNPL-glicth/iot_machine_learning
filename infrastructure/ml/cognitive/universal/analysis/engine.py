@@ -6,29 +6,27 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from ...inhibition import InhibitionGate, InhibitionConfig
-from ...fusion import WeightedFusion
-from ...explanation import ExplanationBuilder
 from iot_machine_learning.domain.services.severity_rules import (
     SeverityResult,
     classify_severity_agnostic,
 )
+from iot_machine_learning.domain.entities.explainability.explanation import Explanation
+from iot_machine_learning.infrastructure.ml.cognitive.explanation import ExplanationBuilder
+from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.interpreter import PatternInterpreter
 
-from .types import UniversalInput, UniversalResult, UniversalContext, InputType
-from .input_detector import detect_input_type
-from .domain_classifier import classify_domain
-from .signal_profiler import UniversalSignalProfiler
-from .perception_collector import UniversalPerceptionCollector
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.types import UniversalInput, UniversalResult, UniversalContext, InputType
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pipeline import (
+    PerceivePhase,
+    AnalyzePhase,
+    RememberPhase,
+    ReasonPhase,
+    ExplainPhase,
+)
 from .monte_carlo import MonteCarloSimulator
+from .pattern_plasticity import PatternPlasticityTracker
 
 
 logger = logging.getLogger(__name__)
-
-_PLASTICITY_AVAILABLE = True
-try:
-    from ...plasticity import PlasticityTracker
-except (ImportError, ModuleNotFoundError):
-    _PLASTICITY_AVAILABLE = False
 
 
 class UniversalAnalysisEngine:
@@ -56,16 +54,13 @@ class UniversalAnalysisEngine:
         budget_ms: float = 2000.0,
     ) -> None:
         """Initialize universal engine with cognitive components."""
-        self._profiler = UniversalSignalProfiler()
-        self._collector = UniversalPerceptionCollector()
-        self._inhibition = InhibitionGate(InhibitionConfig())
-        self._fusion = WeightedFusion()
+        self._perceive = PerceivePhase()
+        self._analyze = AnalyzePhase()
+        self._remember = RememberPhase()
+        self._reason = ReasonPhase(enable_plasticity=enable_plasticity)
+        self._explain = ExplainPhase()
         self._monte_carlo_simulator = MonteCarloSimulator(n_simulations=1000)
-        
-        self._plasticity = None
-        if enable_plasticity and _PLASTICITY_AVAILABLE:
-            self._plasticity = PlasticityTracker()
-        
+        self._pattern_plasticity = PatternPlasticityTracker()
         self._budget_ms = budget_ms
 
     def analyze(
@@ -87,11 +82,11 @@ class UniversalAnalysisEngine:
         timing: Dict[str, float] = {}
         
         try:
-            input_type, metadata, domain, signal, builder = self._perceive(
+            input_type, metadata, domain, signal, builder = self._perceive.execute(
                 raw_data, ctx, timing
             )
             
-            perceptions = self._analyze(
+            perceptions = self._analyze.execute(
                 raw_data, input_type, metadata, pre_computed_scores, timing
             )
             
@@ -100,13 +95,28 @@ class UniversalAnalysisEngine:
                     input_type, domain, signal, builder, timing, "no_perceptions"
                 )
             
-            recall_ctx = self._remember(raw_data, domain, ctx, timing)
+            # Pattern interpretation after perception collection
+            interpreted_patterns = []
+            try:
+                interpreter = PatternInterpreter()
+                interpreted_patterns = interpreter.interpret(
+                    raw_patterns=pre_computed_scores.get("patterns", {}),
+                    input_type=input_type.value,
+                    domain=domain,
+                    urgency_score=pre_computed_scores.get("urgency_score", 0.0),
+                    sentiment_label=pre_computed_scores.get("sentiment_label", ""),
+                )
+            except Exception as e:
+                logger.warning(f"pattern_interpretation_failed: {e}")
+                # Graceful-fail - continue without patterns
             
-            fused_val, fused_conf, fused_trend, final_weights, selected, reason, method = self._reason(
+            recall_ctx = self._remember.execute(raw_data, domain, ctx, timing)
+            
+            fused_val, fused_conf, fused_trend, final_weights, selected, reason, method = self._reason.execute(
                 perceptions, domain, ctx.series_id, timing
             )
             
-            explanation = self._explain(
+            explanation = self._explain.execute(
                 builder, fused_val, fused_conf, fused_trend,
                 final_weights, selected, reason, method, timing
             )
@@ -123,6 +133,15 @@ class UniversalAnalysisEngine:
                 input_type, metadata, perceptions, final_weights, signal
             )
             
+            # After analysis completes, update pattern plasticity
+            if self._pattern_plasticity and interpreted_patterns:
+                for pattern in interpreted_patterns:
+                    self._pattern_plasticity.record_pattern_outcome(
+                        domain=domain,
+                        pattern_name=pattern.pattern_type,
+                        was_predictive=severity.severity in ["warning", "critical"]
+                    )
+            
             return UniversalResult(
                 explanation=explanation,
                 severity=severity,
@@ -132,165 +151,12 @@ class UniversalAnalysisEngine:
                 input_type=input_type,
                 pipeline_timing=timing,
                 recall_context=recall_ctx,
+                patterns=interpreted_patterns,
             )
         
         except Exception as e:
             logger.error(f"universal_analysis_failed: {e}", exc_info=True)
             return self._build_error_result(str(e))
-
-    def _perceive(
-        self,
-        raw_data: Any,
-        ctx: UniversalContext,
-        timing: Dict[str, float],
-    ) -> tuple:
-        """Phase 1: Detect type, classify domain, build signal."""
-        t0 = time.monotonic()
-        
-        input_type, metadata = detect_input_type(raw_data)
-        
-        domain = classify_domain(
-            raw_data, input_type, metadata, ctx.domain_hint
-        )
-        
-        signal = self._profiler.profile(
-            raw_data, input_type, metadata, domain
-        )
-        
-        builder = ExplanationBuilder(ctx.series_id)
-        builder.set_signal(signal)
-        
-        timing["perceive"] = (time.monotonic() - t0) * 1000
-        
-        return input_type, metadata, domain, signal, builder
-
-    def _analyze(
-        self,
-        raw_data: Any,
-        input_type: InputType,
-        metadata: Dict[str, Any],
-        pre_computed_scores: Optional[Dict[str, Any]],
-        timing: Dict[str, float],
-    ) -> List:
-        """Phase 2: Collect perceptions from sub-analyzers."""
-        t0 = time.monotonic()
-        
-        perceptions = self._collector.collect(
-            raw_data, input_type, metadata, pre_computed_scores
-        )
-        
-        # Apply pattern plasticity weights if enabled
-        # TODO: Implement _apply_pattern_weights method
-        # if self._plasticity:
-        #     perceptions = self._apply_pattern_weights(
-        #         perceptions, metadata["domain"], input_type
-        #     )
-        
-        timing["analyze"] = (time.monotonic() - t0) * 1000
-        
-        return perceptions
-
-    def _remember(
-        self,
-        raw_data: Any,
-        domain: str,
-        ctx: UniversalContext,
-        timing: Dict[str, float],
-    ) -> Optional[Dict[str, Any]]:
-        """Phase 3: Recall similar past analyses."""
-        t0 = time.monotonic()
-        
-        recall_ctx = None
-        
-        if ctx.cognitive_memory:
-            try:
-                query = str(raw_data)[:500] if isinstance(raw_data, str) else ""
-                
-                if hasattr(ctx.cognitive_memory, 'recall_similar_explanations'):
-                    results = ctx.cognitive_memory.recall_similar_explanations(
-                        query=query,
-                        series_id=ctx.series_id if ctx.series_id != "unknown" else None,
-                        limit=3,
-                        min_certainty=0.7,
-                    )
-                    
-                    if results:
-                        recall_ctx = {
-                            "n_matches": len(results),
-                            "top_score": round(results[0].score, 3) if results else 0.0,
-                            "has_context": True,
-                        }
-            except Exception as e:
-                logger.debug(f"memory_recall_failed: {e}")
-        
-        timing["remember"] = (time.monotonic() - t0) * 1000
-        
-        return recall_ctx
-
-    def _reason(
-        self,
-        perceptions: List,
-        domain: str,
-        series_id: str,
-        timing: Dict[str, float],
-    ) -> tuple:
-        """Phase 4: Inhibit + Adapt + Fuse."""
-        t0 = time.monotonic()
-        
-        engine_names = [p.engine_name for p in perceptions]
-        
-        base_weights = {}
-        if self._plasticity and self._plasticity.has_history(domain):
-            base_weights = self._plasticity.get_weights(domain, engine_names)
-        else:
-            n = len(engine_names)
-            base_weights = {name: 1.0 / n for name in engine_names}
-        
-        timing["adapt"] = (time.monotonic() - t0) * 1000
-        
-        t0 = time.monotonic()
-        inh_states = self._inhibition.compute(
-            perceptions, base_weights, series_id=series_id
-        )
-        timing["inhibit"] = (time.monotonic() - t0) * 1000
-        
-        t0 = time.monotonic()
-        (fused_val, fused_conf, fused_trend,
-         final_weights, selected, reason) = self._fusion.fuse(
-            perceptions, inh_states
-        )
-        
-        method = "weighted_average" if len(perceptions) > 1 else "single_engine"
-        
-        timing["fuse"] = (time.monotonic() - t0) * 1000
-        
-        return fused_val, fused_conf, fused_trend, final_weights, selected, reason, method
-
-    def _explain(
-        self,
-        builder,
-        fused_value: float,
-        fused_confidence: float,
-        fused_trend: str,
-        final_weights: Dict[str, float],
-        selected: str,
-        reason: str,
-        method: str,
-        timing: Dict[str, float],
-    ):
-        """Phase 5: Assemble Explanation domain object."""
-        t0 = time.monotonic()
-        
-        builder.set_fusion(
-            fused_value, fused_confidence, fused_trend,
-            final_weights, selected, reason, method
-        )
-        
-        explanation = builder.build()
-        
-        timing["explain"] = (time.monotonic() - t0) * 1000
-        
-        return explanation
 
     def _classify_severity(
         self,
@@ -313,17 +179,11 @@ class UniversalAnalysisEngine:
                 (p for p in perceptions if p.engine_name == "text_sentiment"), None
             )
             
-            print(f"[DEBUG] Text severity classification: urgency_perc={urgency_perc is not None}, sentiment_perc={sentiment_perc is not None}")
-            
             if urgency_perc and sentiment_perc:
                 # Extract text-specific scores from perceptions
                 urgency_score = urgency_perc.predicted_value
                 sentiment_label = sentiment_perc.metadata.get("label", "neutral")
                 has_critical_keywords = urgency_perc.metadata.get("severity", "info") == "critical"
-                
-                # DEBUG: Log severity classification inputs
-                print(f"[DEBUG] urgency_score={urgency_score}, sentiment_label={sentiment_label}, has_critical_keywords={has_critical_keywords}")
-                print(f"[DEBUG] urgency metadata: {urgency_perc.metadata}")
                 
                 # Use the text-specific severity classifier
                 from ...text.severity_mapper import classify_text_severity
@@ -338,14 +198,11 @@ class UniversalAnalysisEngine:
                     impact_result=None,
                 )
                 
-                # DEBUG: Log severity result
-                print(f"[DEBUG] Severity result: level={severity_result.severity}, risk_level={severity_result.risk_level}")
-                
                 return severity_result
             else:
-                print(f"[DEBUG] Missing text perceptions: urgency={urgency_perc}, sentiment={sentiment_perc}")
+                # Fallback to agnostic classification for non-text or missing perceptions
+                pass
         
-        # Fallback to agnostic classification for non-text or missing perceptions
         return classify_severity_agnostic(
             value=score,
             anomaly=score > 0.6,  # Consider high scores as anomalies
@@ -491,8 +348,6 @@ class UniversalAnalysisEngine:
 
     def _build_error_result(self, error_msg: str) -> UniversalResult:
         """Build error result."""
-        from iot_machine_learning.domain.entities.explainability.explanation import Explanation
-        
         severity = classify_severity_agnostic(value=0.0, anomaly=False, threshold=None)
         
         return UniversalResult(

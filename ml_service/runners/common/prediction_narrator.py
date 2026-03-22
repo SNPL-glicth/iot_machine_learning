@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from iot_machine_learning.ml_service.explain.explanation_builder import PredictionExplanation
     from iot_machine_learning.ml_service.repository.sensor_repository import SensorMetadata
-    from iot_machine_learning.ml_service.runners.common.severity_classifier import (
+    from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import (
         SeverityClassifier,
         SeverityResult,
     )

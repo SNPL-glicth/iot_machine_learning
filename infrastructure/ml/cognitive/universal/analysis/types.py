@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from iot_machine_learning.domain.entities.explainability.explanation import Explanation
 from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.types import InterpretedPattern
 
 
 class InputType(Enum):
@@ -58,6 +59,7 @@ class UniversalResult:
         pipeline_timing: Per-phase timing (perceive, analyze, remember, reason, explain)
         recall_context: Memory enrichment if cognitive_memory was provided
         monte_carlo: Optional Monte Carlo uncertainty quantification result
+        patterns: List of interpreted patterns from PatternInterpreter
     """
     explanation: Explanation
     severity: SeverityResult
@@ -68,6 +70,7 @@ class UniversalResult:
     pipeline_timing: Dict[str, float] = field(default_factory=dict)
     recall_context: Optional[Dict[str, Any]] = None
     monte_carlo: Optional[object] = None
+    patterns: List[InterpretedPattern] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for API responses."""

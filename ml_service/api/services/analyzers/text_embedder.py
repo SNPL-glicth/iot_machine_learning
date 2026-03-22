@@ -20,7 +20,7 @@ import urllib.request
 import uuid as _uuid
 from typing import Any, Dict, List, Optional
 
-from .text_chunker import TextChunk
+from iot_machine_learning.infrastructure.ml.cognitive.text.text_chunker import TextChunk
 
 logger = logging.getLogger(__name__)
 

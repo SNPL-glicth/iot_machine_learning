@@ -10,19 +10,21 @@ import numpy as np
 from typing import Dict, Optional
 
 from .feedforward import FeedforwardLayer
+from iot_machine_learning.infrastructure.ml.optimization.gradient.adam import AdamOptimizer
 
 
 class OnlineLearner:
-    """Online weight updater with Hebbian-inspired learning.
+    """Online weight updater with Adam optimization.
     
     Updates weights per document based on:
     - Correctness: Strengthen connections that led to correct severity
     - Weakening: Weaken connections that led to wrong severity
     - Domain-specific: Separate weight matrices per domain
+    - Adam optimization: Adaptive learning rates with momentum
     
     Args:
         learning_rate: Base learning rate (default 0.01)
-        momentum: Momentum coefficient (default 0.9)
+        momentum: Legacy momentum coefficient (default 0.9) - kept for compatibility
     """
     
     def __init__(
@@ -33,10 +35,13 @@ class OnlineLearner:
         self.learning_rate = learning_rate
         self.momentum = momentum
         
+        # Adam optimizer for adaptive weight updates
+        self._optimizer = AdamOptimizer(lr=learning_rate)
+        
         # Per-domain weight history
         self.domain_weights: Dict[str, tuple] = {}
         
-        # Per-domain momentum buffers
+        # Per-domain momentum buffers (legacy)
         self.momentum_W: Dict[str, np.ndarray] = {}
         self.momentum_b: Dict[str, np.ndarray] = {}
     
@@ -81,31 +86,20 @@ class OnlineLearner:
         # Gradient for weights: outer product of input and error
         input_2d = layer.last_input.reshape(-1, 1)
         error_2d = error.reshape(1, -1)
-        delta_W = direction * self.learning_rate * np.dot(input_2d, error_2d)
+        gradients_W = direction * error_2d * input_2d.T  # Transpose for correct shape
         
         # Gradient for biases
-        delta_b = direction * self.learning_rate * error
+        gradients_b = direction * error
         
-        # Apply momentum
-        key = f"{domain}_{layer.n_input}_{layer.n_output}"
+        # Get current weights
+        current_W, current_b = layer.get_weights()
         
-        if key not in self.momentum_W:
-            self.momentum_W[key] = np.zeros_like(delta_W)
-            self.momentum_b[key] = np.zeros_like(delta_b)
+        # Use Adam optimizer for weight updates
+        updated_W = self._optimizer.step(current_W, gradients_W)
+        updated_b = self._optimizer.step(current_b, gradients_b)
         
-        # Update momentum buffers
-        self.momentum_W[key] = (
-            self.momentum * self.momentum_W[key] + delta_W
-        )
-        self.momentum_b[key] = (
-            self.momentum * self.momentum_b[key] + delta_b
-        )
-        
-        # Apply update
-        layer.update_weights(
-            self.momentum_W[key],
-            self.momentum_b[key],
-        )
+        # Apply updates
+        layer.set_weights(updated_W, updated_b)
         
         # Store weights for this domain
         self.domain_weights[domain] = layer.get_weights()

@@ -228,6 +228,6 @@ class EventWriter:
 
 # Import para type hints (al final para evitar circular imports)
 try:
-    from .severity_classifier import SeverityClassifier
+    from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
 except ImportError:
     from severity_classifier import SeverityClassifier

@@ -93,11 +93,10 @@ class DocumentAnalyzer:
         
         # DEBUG: Log input parameters
         logger.info(f"[STAGE-4] analyze called, content_type={content_type}")
-        print(f"[DEBUG] _UNIVERSAL_AVAILABLE={_UNIVERSAL_AVAILABLE}, _NEURAL_AVAILABLE={_NEURAL_AVAILABLE}")
         
         try:
             if _UNIVERSAL_AVAILABLE and self._analysis_engine:
-                print(f"[DEBUG] Using universal analysis path")
+                logger.info(f"[DEBUG] Using universal analysis path")
                 # Extract raw data for logging
                 raw_data = extract_raw_data(normalized_payload, content_type)
                 logger.info(f"[STAGE-5] raw_data type={type(raw_data)}, length={len(str(raw_data))}")
@@ -158,7 +157,6 @@ class DocumentAnalyzer:
                         "energy_efficiency": neural_result.energy_efficiency,
                     }
             else:
-                print(f"[DEBUG] Using legacy analysis path")
                 # Delegate to legacy pipeline
                 result = analyze_with_legacy(
                     document_id, content_type, normalized_payload

@@ -16,15 +16,17 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from .text_sentiment import compute_sentiment
-from .text_urgency import compute_urgency
-from .text_readability import compute_readability
-from .text_structural import compute_text_structure
-from .text_chunker import chunk_text
-from .text_embedder import store_chunks
-from .text_recall import recall_similar_documents, RecallResult
-from .text_pattern import detect_text_patterns
-from .conclusion_builder import (
+from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import (
+    compute_sentiment,
+    compute_urgency,
+    compute_readability,
+    compute_text_structure,
+)
+from iot_machine_learning.infrastructure.ml.cognitive.text.text_chunker import chunk_text
+from iot_machine_learning.ml_service.api.services.analyzers.text_embedder import store_chunks
+from iot_machine_learning.ml_service.api.services.analyzers.text_recall import recall_similar_documents, RecallResult
+from iot_machine_learning.infrastructure.ml.cognitive.text.text_pattern import detect_text_patterns
+from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_builder import (
     build_text_conclusion,
     build_text_explanation,
     build_semantic_conclusion,

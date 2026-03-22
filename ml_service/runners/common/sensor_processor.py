@@ -32,14 +32,14 @@ try:
     from .model_manager import ModelManager
     from .prediction_writer import PredictionWriter
     from .event_writer import EventWriter
-    from .severity_classifier import SeverityClassifier
+    from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
     from .regression_prediction_service import RegressionPredictionService
     from .prediction_narrator import PredictionNarrator
 except ImportError:
     from model_manager import ModelManager
     from prediction_writer import PredictionWriter
     from event_writer import EventWriter
-    from severity_classifier import SeverityClassifier
+    from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
     from regression_prediction_service import RegressionPredictionService
     from prediction_narrator import PredictionNarrator
 

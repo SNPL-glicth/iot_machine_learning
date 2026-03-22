@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Legacy fallback imports
 try:
     from ..analyzers.text_analyzer import analyze_text_document
-    from ..analyzers.tabular_analyzer import analyze_tabular_document
+    from iot_machine_learning.infrastructure.ml.analyzers.tabular_analyzer import analyze_tabular_document
     from ..analyzers.media_analyzer import analyze_image, analyze_audio, analyze_binary
     _LEGACY_AVAILABLE = True
 except Exception:
