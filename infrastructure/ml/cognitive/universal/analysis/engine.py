@@ -130,7 +130,7 @@ class UniversalAnalysisEngine:
             )
             
             analysis = self._build_analysis_dict(
-                input_type, metadata, perceptions, final_weights, signal
+                input_type, metadata, perceptions, final_weights, signal, pre_computed_scores
             )
             
             # After analysis completes, update pattern plasticity
@@ -305,9 +305,10 @@ class UniversalAnalysisEngine:
         perceptions: List,
         final_weights: Dict[str, float],
         signal,
+        pre_computed_scores: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Build backward-compatible analysis dict."""
-        return {
+        analysis = {
             "input_type": input_type.value,
             "metadata": metadata,
             "cognitive": {
@@ -320,6 +321,21 @@ class UniversalAnalysisEngine:
                 "signal_profile": signal.to_dict(),
             },
         }
+        
+        # Include pre_computed_scores for entity_extractor and conclusion_formatter
+        if pre_computed_scores:
+            analysis.update({
+                "word_count": pre_computed_scores.get("word_count", 0),
+                "urgency_score": pre_computed_scores.get("urgency_score", 0.0),
+                "urgency_severity": pre_computed_scores.get("urgency_severity", "info"),
+                "sentiment_score": pre_computed_scores.get("sentiment_score", 0.0),
+                "sentiment_label": pre_computed_scores.get("sentiment_label", "neutral"),
+                "paragraph_count": pre_computed_scores.get("paragraph_count", 0),
+                "entities": pre_computed_scores.get("entities", []),
+                "patterns": pre_computed_scores.get("patterns", {}),
+            })
+        
+        return analysis
 
     def _build_fallback_result(
         self,

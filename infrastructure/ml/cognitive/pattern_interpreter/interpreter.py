@@ -28,6 +28,10 @@ class PatternInterpreter:
         sentiment_label: str = "",
     ) -> List[InterpretedPattern]:
         """Interpret detected patterns into human-readable format."""
+        # Fix: Add None check before calling .get()
+        if raw_patterns is None:
+            return []
+        
         try:
             if input_type == "text":
                 return self._text_patterns(raw_patterns, domain, urgency_score, sentiment_label)

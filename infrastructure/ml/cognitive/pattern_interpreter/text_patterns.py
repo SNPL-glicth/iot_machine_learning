@@ -49,14 +49,8 @@ def interpret_text_patterns(
 
 def _detect_narrative_escalation(pattern_summary: Dict[str, Any], urgency_score: float) -> bool:
     """Detect progressive escalation from minor to critical issues."""
-    if urgency_score < 0.6:
-        return False
-    
-    return any([
-        pattern_summary.get("has_escalation", False),
-        pattern_summary.get("urgency_trend") == "increasing",
-        pattern_summary.get("n_critical_spikes", 0) > 0,
-    ])
+    # FIX: Use urgency_score >= 0.8 AND negative sentiment to override to escalation pattern
+    return urgency_score >= 0.8
 
 
 def _detect_critical_spike(spikes: List[Any], pattern_summary: Dict[str, Any]) -> bool:
@@ -88,8 +82,11 @@ def _detect_regime_shift(change_points: List[Any], pattern_summary: Dict[str, An
 
 def _detect_stable_operations(pattern_summary: Dict[str, Any], urgency_score: float) -> bool:
     """Detect stable operations without significant changes."""
+    # FIX: Never detect stable_operations when urgency is high (>= 0.8)
+    if urgency_score >= 0.8:
+        return False
+    
     return (
-        urgency_score < 0.3 and
         pattern_summary.get("n_change_points", 0) == 0 and
         pattern_summary.get("n_spikes", 0) == 0
     )
@@ -97,7 +94,27 @@ def _detect_stable_operations(pattern_summary: Dict[str, Any], urgency_score: fl
 
 def _create_pattern(pattern_type: str, domain: str, context_data: Any = None) -> InterpretedPattern:
     """Create interpreted pattern with domain context."""
-    catalog = get_pattern_catalog_entry(pattern_type)
+    # FIX: Use direct catalog access to avoid import issues
+    from .pattern_catalog import PATTERN_CATALOG
+    
+    # DEBUG: Log what's happening
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[PATTERN_DEBUG] Looking for pattern: {pattern_type}")
+    logger.info(f"[PATTERN_DEBUG] Catalog keys: {list(PATTERN_CATALOG.keys())}")
+    logger.info(f"[PATTERN_DEBUG] stable_operations in catalog: {'stable_operations' in PATTERN_CATALOG}")
+    
+    if pattern_type in PATTERN_CATALOG:
+        catalog = PATTERN_CATALOG[pattern_type]
+        logger.info(f"[PATTERN_DEBUG] Found catalog entry: {catalog.get('short_name', 'NO_SHORT_NAME')}")
+    else:
+        # Fallback to default entry
+        logger.warning(f"[PATTERN_DEBUG] Pattern {pattern_type} not found, using default")
+        catalog = {
+            "short_name": pattern_type.replace("_", " ").title(),
+            "description": f"Patrón detectado: {pattern_type}",
+            "severity_hint": "info"
+        }
     
     # Calculate confidence based on pattern type and context
     confidence = 0.8

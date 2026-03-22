@@ -31,11 +31,13 @@ logger = logging.getLogger(__name__)
 PATTERN_DELTA_SPIKES = "delta_spikes"
 PATTERN_CHANGE_POINTS = "change_points"
 PATTERN_REGIME_CHANGES = "regime_changes"
+PATTERN_STABLE_OPERATIONS = "stable_operations"
 
 ALL_PATTERNS = [
     PATTERN_DELTA_SPIKES,
     PATTERN_CHANGE_POINTS,
     PATTERN_REGIME_CHANGES,
+    PATTERN_STABLE_OPERATIONS,
 ]
 
 # EMA smoothing factor for pattern weight updates

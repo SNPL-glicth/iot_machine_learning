@@ -15,7 +15,7 @@ class ExplainPhase:
         self,
         builder: ExplanationBuilder,
         fused_value: float,
-        fused_confidence: float,
+        fused_conf: float,
         fused_trend: str,
         final_weights: Dict[str, float],
         selected: str,
@@ -28,13 +28,13 @@ class ExplainPhase:
         Args:
             builder: ExplanationBuilder instance
             fused_value: Fused prediction value
-            fused_confidence: Fused confidence
+            fused_conf: Fused confidence
             fused_trend: Fused trend
             final_weights: Final engine weights
             selected: Selected engine
             reason: Selection reason
             method: Fusion method
-            timing: Pipeline timing dict
+            timing: Timing dictionary to update
 
         Returns:
             Explanation domain object
@@ -42,7 +42,7 @@ class ExplainPhase:
         t0 = time.monotonic()
         
         builder.set_fusion(
-            fused_value, fused_confidence, fused_trend,
+            fused_value, fused_conf, fused_trend,
             final_weights, selected, reason, method
         )
         

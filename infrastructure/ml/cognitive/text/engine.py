@@ -137,7 +137,7 @@ class TextCognitiveEngine:
             selected_engine=selected,
             selection_reason=reason,
             fusion_method="weighted_average" if len(perceptions) > 1 else "single_engine",
-            fused_confidence=fused_confidence,
+            fused_confidence=fused_conf,
             domain=domain,
             severity=severity,
             pipeline_phases=phases,
