@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.interpreter import PatternInterpreter
+from .action_catalog import get_actions_for_domain
 
 
 def recommend_actions(analysis_result) -> List[str]:
@@ -20,26 +21,31 @@ def recommend_actions(analysis_result) -> List[str]:
     
     # Get severity level first
     severity_level = "info"
+    domain = "general"
     if hasattr(analysis_result, 'severity') and analysis_result.severity:
         if hasattr(analysis_result.severity, 'severity'):
             severity_level = analysis_result.severity.severity.lower()
+    
+    # Get domain from analysis result
+    if hasattr(analysis_result, 'domain') and analysis_result.domain:
+        domain = analysis_result.domain.lower()
     
     # Only get actions that match severity level
     if severity_level == "critical":
         # Only critical actions
         if hasattr(analysis_result, 'patterns') and analysis_result.patterns:
-            pattern_actions = _get_critical_pattern_actions(analysis_result.patterns, analysis_result.domain)
+            pattern_actions = _get_critical_pattern_actions(analysis_result.patterns, domain)
             actions.extend(pattern_actions)
-        actions.extend(_get_critical_actions())
+        actions.extend(_get_critical_actions(domain))
     elif severity_level == "warning":
         # Only warning actions
         if hasattr(analysis_result, 'patterns') and analysis_result.patterns:
-            pattern_actions = _get_warning_pattern_actions(analysis_result.patterns, analysis_result.domain)
+            pattern_actions = _get_warning_pattern_actions(analysis_result.patterns, domain)
             actions.extend(pattern_actions)
-        actions.extend(_get_warning_actions())
+        actions.extend(_get_warning_actions(domain))
     else:
         # Only info actions
-        actions.extend(_get_info_actions())
+        actions.extend(_get_info_actions(domain))
     
     # Remove duplicates while preserving order
     seen = set()
@@ -96,19 +102,19 @@ def _get_warning_pattern_actions(patterns: List, domain: str) -> List[str]:
     return actions
 
 
-def _get_critical_actions() -> List[str]:
-    """Get critical severity actions."""
-    return ["→ Immediate intervention required"]
+def _get_critical_actions(domain: str = "general") -> List[str]:
+    """Get critical severity actions for domain."""
+    return get_actions_for_domain(domain, "critical", max_actions=3)
 
 
-def _get_warning_actions() -> List[str]:
-    """Get warning severity actions."""
-    return ["→ Schedule review within 24 hours"]
+def _get_warning_actions(domain: str = "general") -> List[str]:
+    """Get warning severity actions for domain."""
+    return get_actions_for_domain(domain, "warning", max_actions=3)
 
 
-def _get_info_actions() -> List[str]:
-    """Get info severity actions."""
-    return ["→ Continue standard monitoring"]
+def _get_info_actions(domain: str = "general") -> List[str]:
+    """Get info severity actions for domain."""
+    return get_actions_for_domain(domain, "info", max_actions=2)
 
 
 def _get_pattern_actions(patterns: List, domain: str) -> List[str]:

@@ -35,7 +35,24 @@ class ZeninQueuePoller:
         self.batch_size = int(
             os.environ.get("ZENIN_QUEUE_BATCH_SIZE", "1")
         )
-        self.document_analyzer = DocumentAnalyzer()
+        
+        # Load feature flags explicitly for daemon thread context
+        feature_flags = None
+        try:
+            from ...ml_service.config.feature_flags import get_feature_flags
+            from ...ml_service.config.loader import reset_feature_flags
+            # Reset singleton to force reload from env vars in this thread
+            reset_feature_flags()
+            feature_flags = get_feature_flags()
+            logger.info(
+                "[ZENIN_POLLER] Feature flags loaded: decision_enabled=%s, strategy=%s",
+                feature_flags.ML_ENABLE_DECISION_ENGINE,
+                feature_flags.ML_DECISION_ENGINE_STRATEGY,
+            )
+        except Exception as e:
+            logger.warning(f"[ZENIN_POLLER] Could not load feature flags: {e}")
+        
+        self.document_analyzer = DocumentAnalyzer(feature_flags=feature_flags)
         self._weaviate_url = resolve_weaviate_url()
 
         # Stats

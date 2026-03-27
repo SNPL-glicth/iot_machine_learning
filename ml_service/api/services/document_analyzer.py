@@ -1,6 +1,7 @@
 """Document Analysis Service — Thin orchestrator.
 
 Delegates to modular analysis pipeline components.
+Includes optional Decision Engine for recommendations.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 import logging
 import time
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 from .analysis import (
     analyze_with_universal,
@@ -19,7 +22,23 @@ from .analysis import (
     extract_analysis_scores,
 )
 
-logger = logging.getLogger(__name__)
+# Graceful import - feature flags
+try:
+    from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
+    _FEATURE_FLAGS_AVAILABLE = True
+except Exception:
+    _FEATURE_FLAGS_AVAILABLE = False
+
+# Graceful import - decision engine optional
+_DECISION_AVAILABLE = False
+try:
+    from iot_machine_learning.infrastructure.ml.cognitive.decision import SimpleDecisionEngine
+    from iot_machine_learning.domain.entities.decision import DecisionContext
+    _DECISION_AVAILABLE = True
+    logger.info("decision_engine_available")
+except Exception as e:
+    logger.warning(f"decision_engine_unavailable: {e}")
+    _DECISION_AVAILABLE = False
 
 # Graceful import - fall back to legacy analyzers if universal engines unavailable
 _UNIVERSAL_AVAILABLE = False
@@ -59,17 +78,35 @@ class DocumentAnalyzer:
     Produces Explanation domain objects with comparative context.
     """
 
-    def __init__(self, cognitive_memory: Optional[object] = None):
-        """Initialize with optional cognitive memory for comparative analysis.
+    def __init__(
+        self,
+        cognitive_memory: Optional[object] = None,
+        decision_engine: Optional[object] = None,
+        feature_flags: Optional[object] = None,
+    ):
+        """Initialize with optional cognitive memory and decision engine.
         
         Args:
             cognitive_memory: Optional CognitiveMemoryPort for semantic recall
+            decision_engine: Optional DecisionEnginePort (auto-created if None and enabled)
+            feature_flags: Optional FeatureFlags for decision engine enablement
         """
         self._cognitive_memory = cognitive_memory
         self._analysis_engine = UniversalAnalysisEngine() if _UNIVERSAL_AVAILABLE else None
         self._comparative_engine = UniversalComparativeEngine() if _UNIVERSAL_AVAILABLE else None
         self._neural_engine = HybridNeuralEngine() if _NEURAL_AVAILABLE else None
         self._neural_arbiter = NeuralArbiter() if _NEURAL_AVAILABLE else None
+        
+        # Auto-load feature flags if not provided
+        if feature_flags is None and _FEATURE_FLAGS_AVAILABLE:
+            try:
+                feature_flags = get_feature_flags()
+            except Exception:
+                feature_flags = None
+        
+        # Decision Engine (lazy init based on feature flags)
+        self._decision_engine = decision_engine
+        self._feature_flags = feature_flags
 
     def analyze(
         self,
@@ -156,6 +193,13 @@ class DocumentAnalyzer:
                         "silent_neurons": neural_result.silent_neurons,
                         "energy_efficiency": neural_result.energy_efficiency,
                     }
+                
+                # Step 5: Decision Engine (optional, feature-flagged)
+                decision_recommendation = self._run_decision_engine(
+                    universal_result, document_id
+                )
+                if decision_recommendation is not None:
+                    result["decision_recommendation"] = decision_recommendation
             else:
                 # Delegate to legacy pipeline
                 result = analyze_with_legacy(
@@ -174,3 +218,145 @@ class DocumentAnalyzer:
                 extra={"document_id": document_id, "error": str(exc)},
             )
             raise
+
+    def _run_decision_engine(
+        self,
+        universal_result: object,
+        document_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Run Decision Engine if enabled and available.
+        
+        Args:
+            universal_result: UniversalResult from ML pipeline
+            document_id: Document identifier
+            
+        Returns:
+            Decision dict or None if disabled/unavailable
+        """
+        # Check feature flag (default: disabled)
+        if self._feature_flags is None:
+            return None
+        if not getattr(self._feature_flags, "ML_ENABLE_DECISION_ENGINE", False):
+            return None
+        
+        # Lazy init decision engine if not provided
+        if self._decision_engine is None and _DECISION_AVAILABLE:
+            strategy_name = getattr(self._feature_flags, "ML_DECISION_ENGINE_STRATEGY", "simple")
+            
+            # Import all strategies
+            from iot_machine_learning.infrastructure.ml.cognitive.decision import (
+                SimpleDecisionEngine,
+                ConservativeStrategy,
+                AggressiveStrategy,
+                CostOptimizedStrategy,
+            )
+            
+            # Create engine based on strategy
+            strategy_map = {
+                "simple": SimpleDecisionEngine,
+                "conservative": ConservativeStrategy,
+                "aggressive": AggressiveStrategy,
+                "cost_optimized": CostOptimizedStrategy,
+            }
+            
+            engine_class = strategy_map.get(strategy_name, SimpleDecisionEngine)
+            self._decision_engine = engine_class()
+            logger.info(f"decision_engine_lazy_initialized: strategy={strategy_name}")
+        
+        if self._decision_engine is None:
+            return None
+        
+        try:
+            # Build DecisionContext from UniversalResult
+            context = self._build_decision_context(universal_result, document_id)
+            
+            # Get decision (fail-safe via decide_safe)
+            decision = self._decision_engine.decide_safe(
+                context,
+                fallback_reason="Decision engine processing failed",
+            )
+            
+            # Log decision outcome
+            logger.info(
+                "decision_engine_completed",
+                extra={
+                    "document_id": document_id,
+                    "action": decision.action,
+                    "priority": decision.priority,
+                    "strategy": decision.strategy_used,
+                },
+            )
+            
+            return decision.to_dict()
+            
+        except Exception as exc:
+            # Graceful fail: log but don't break pipeline
+            logger.warning(
+                "decision_engine_failed_gracefully",
+                extra={"document_id": document_id, "error": str(exc)},
+            )
+            return None
+    
+    def _build_decision_context(
+        self,
+        universal_result: object,
+        document_id: str,
+    ) -> "DecisionContext":
+        """Build DecisionContext from UniversalResult.
+        
+        Args:
+            universal_result: UniversalResult from ML pipeline
+            document_id: Document identifier
+            
+        Returns:
+            DecisionContext for decision engine
+        """
+        # Extract fields safely with defaults
+        severity = getattr(universal_result, "severity", None)
+        confidence = getattr(universal_result, "confidence", 0.0)
+        domain = getattr(universal_result, "domain", "")
+        patterns = getattr(universal_result, "patterns", [])
+        
+        # Convert patterns to dict format
+        pattern_dicts = []
+        for p in patterns:
+            if hasattr(p, "to_dict"):
+                pattern_dicts.append(p.to_dict())
+            elif isinstance(p, dict):
+                pattern_dicts.append(p)
+            else:
+                pattern_dicts.append({
+                    "pattern_type": getattr(p, "pattern_type", "unknown"),
+                    "severity_hint": getattr(p, "severity_hint", "info"),
+                    "confidence": getattr(p, "confidence", 0.0),
+                })
+        
+        # Extract outcome from explanation if available
+        explanation = getattr(universal_result, "explanation", None)
+        is_anomaly = False
+        anomaly_score = 0.0
+        predicted_value = None
+        trend = "stable"
+        audit_trace_id = None
+        
+        if explanation is not None:
+            outcome = getattr(explanation, "outcome", None)
+            if outcome is not None:
+                is_anomaly = getattr(outcome, "is_anomaly", False)
+                anomaly_score = getattr(outcome, "anomaly_score", 0.0)
+                predicted_value = getattr(outcome, "predicted_value", None)
+                trend = getattr(outcome, "trend", "stable")
+            audit_trace_id = getattr(explanation, "audit_trace_id", None)
+        
+        return DecisionContext(
+            series_id=document_id,
+            severity=severity,
+            confidence=confidence,
+            is_anomaly=is_anomaly,
+            anomaly_score=anomaly_score or 0.0,
+            patterns=pattern_dicts,
+            predicted_value=predicted_value,
+            trend=trend,
+            domain=domain,
+            audit_trace_id=audit_trace_id,
+        )

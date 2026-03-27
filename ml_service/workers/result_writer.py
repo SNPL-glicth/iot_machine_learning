@@ -38,6 +38,7 @@ def build_ml_result_json(
         "processing_time_ms": analysis.get("processing_time_ms", 0),
         "weaviate_doc_id": ml_doc_id,
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        "decision_recommendation": analysis.get("decision_recommendation"),
     })
 
 

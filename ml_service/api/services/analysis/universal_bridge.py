@@ -130,6 +130,14 @@ def analyze_with_universal(
                 node_matches = re.findall(r'\b(NODE|TMP|SERVER|ROUTER|SWITCH)-\w+\b', full_text)
                 entities.extend(node_matches)
                 
+                # COMPONENT patterns — CRITICAL FIX: Add maintenance component IDs with dash and numbers
+                component_matches = re.findall(r'\b(COMP|VLV|MOT|PUMP|CMP|BLR|GEN|TX|HV)[-]?[A-Z0-9]+\b', full_text, re.IGNORECASE)
+                entities.extend(component_matches)
+                
+                # Cost/Dollar patterns — CRITICAL FIX: Add monetary values
+                cost_matches = re.findall(r'\$[\d,]+(?:\.\d{2})?|\b\d{1,3}(?:,\d{3})+\s*(?:USD|EUR|USD\$|\$)\b', full_text)
+                entities.extend(cost_matches)
+                
                 # Percentage patterns
                 pct_matches = re.findall(r'\b\d+%\b', full_text)
                 entities.extend(pct_matches)

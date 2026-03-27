@@ -26,6 +26,15 @@ try:
 except Exception:
     _ML_COMPONENTS_AVAILABLE = False
 
+# --- Attention Integration (optional) ---
+_ATTENTION_AVAILABLE = False
+try:
+    from ...neural.attention import AttentionContextCollector
+    from ....text.analyzers.keyword_config import ATTENTION_CONFIG
+    _ATTENTION_AVAILABLE = True
+except Exception:
+    pass
+
 
 class UniversalPerceptionCollector:
     """Maps any input type to List[EnginePerception].
@@ -121,6 +130,40 @@ class UniversalPerceptionCollector:
             local_fit_error=round(deviation * 0.5, 4),
             metadata={"avg_sentence_length": readability_avg},
         ))
+        
+        # --- Attention Context Enhancement (optional) ---
+        if _ATTENTION_AVAILABLE and scores.get("enable_attention", False):
+            try:
+                raw_text = scores.get("raw_text", "")
+                if raw_text and len(raw_text) > 50:
+                    vocab = {kw: i for i, kw in enumerate(
+                        [w for kws in ATTENTION_CONFIG.get("TEMPORAL_KEYWORDS", [])][:ATTENTION_CONFIG.get("D_MODEL", 64)]
+                    )}
+                    if vocab:
+                        collector = AttentionContextCollector(
+                            vocab=vocab,
+                            n_heads=ATTENTION_CONFIG.get("N_HEADS", 4),
+                            d_model=ATTENTION_CONFIG.get("D_MODEL", 64),
+                        )
+                        ctx = collector.collect_context(raw_text, budget_ms=ATTENTION_CONFIG.get("BUDGET_MS", 100.0))
+                        if ctx and ctx.confidence >= ATTENTION_CONFIG.get("CONFIDENCE_THRESHOLD", 0.5):
+                            # Add attention perception with context
+                            perceptions.append(EnginePerception(
+                                engine_name="text_attention",
+                                predicted_value=round(ctx.confidence, 4),
+                                confidence=round(ctx.confidence, 4),
+                                trend="stable",
+                                stability=0.5,
+                                local_fit_error=0.2,
+                                metadata={
+                                    "attended_sentences": ctx.attended_sentences[:3],
+                                    "temporal_markers": ctx.temporal_markers,
+                                    "negation_context": ctx.negation_context,
+                                    "multi_domain_scores": ctx.multi_domain_scores,
+                                },
+                            ))
+            except Exception as e:
+                logger.debug(f"attention_context_failed: {e}")
         
         return perceptions
 

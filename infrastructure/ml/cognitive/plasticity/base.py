@@ -8,21 +8,28 @@ and computes adaptive weights that reflect historical performance
 within the current signal regime using Bayesian posterior updates.
 
 Design:
-    - In-memory only (no persistence) — resets on restart.
+    - In-memory with optional persistence (saves every N updates).
     - Bayesian posterior updates instead of simple EMA.
     - Falls back to uniform weights when no history exists.
 
-Pure logic — no I/O, no logging.
+Pure logic — no I/O, no logging (repository handles persistence).
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional
 
 from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
 from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
+from iot_machine_learning.domain.ports.plasticity_repository_port import (
+    PlasticityRepositoryPort,
+    RegimeWeightState,
+)
+
+logger = logging.getLogger(__name__)
 
 
 # Exponential smoothing factor for accuracy updates
@@ -43,6 +50,9 @@ _MIN_WEIGHT: float = 0.05
 # Maximum regimes to track before LRU eviction
 _MAX_REGIMES: int = 10
 
+# Persist state every N updates (batching for performance)
+_PERSIST_EVERY_N_UPDATES: int = 10
+
 
 class PlasticityTracker:
     """Tracks per-regime, per-engine accuracy and computes adaptive weights using Bayesian updates.
@@ -55,6 +65,8 @@ class PlasticityTracker:
         _min_weight: Minimum weight floor.
         _max_regimes: Maximum regimes before LRU eviction.
         _regime_last_access: Dict[regime] → monotonic timestamp for LRU.
+        _repository: Optional repository for persistence.
+        _update_counter: Counter for batching persistence.
     """
 
     def __init__(
@@ -63,6 +75,7 @@ class PlasticityTracker:
         min_weight: float = _MIN_WEIGHT,
         max_regimes: int = _MAX_REGIMES,
         regime_ttl_seconds: float = 86400.0,
+        repository: Optional[PlasticityRepositoryPort] = None,
     ) -> None:
         self._accuracy: Dict[str, Dict[str, float]] = defaultdict(dict)
         self._priors: Dict[str, Dict[str, GaussianPrior]] = defaultdict(dict)
@@ -73,6 +86,12 @@ class PlasticityTracker:
         self._regime_ttl_seconds = regime_ttl_seconds
         self._regime_last_access: Dict[str, float] = {}
         self._regime_last_update: Dict[str, float] = {}
+        self._repository = repository
+        self._update_counter = 0
+        
+        # Load state from repository if available
+        if self._repository is not None:
+            self._load_all_regimes()
 
     def update(
         self,
@@ -139,6 +158,14 @@ class PlasticityTracker:
         # Store posterior as next prior and update accuracy
         self._priors[regime][engine_name] = posterior.to_prior()
         self._accuracy[regime][engine_name] = posterior.get_param("mu_0", inv_error)
+        
+        # Increment update counter and persist if needed
+        self._update_counter += 1
+        if (
+            self._repository is not None
+            and self._update_counter % _PERSIST_EVERY_N_UPDATES == 0
+        ):
+            self._persist_regime_state(regime)
 
     def get_weights(
         self,
@@ -197,6 +224,81 @@ class PlasticityTracker:
     def has_history(self, regime: str) -> bool:
         """True if any accuracy data exists for this regime."""
         return bool(self._accuracy.get(regime))
+
+    def _load_all_regimes(self) -> None:
+        """Load all regime states from repository on initialization.
+        
+        Private method called by __init__ when repository is provided.
+        Fail-safe: logs warnings but doesn't raise on errors.
+        """
+        if self._repository is None:
+            return
+            
+        try:
+            regimes = self._repository.list_stored_regimes()
+            for regime in regimes:
+                # Get all engines for this regime
+                states = self._repository.load_regime_state(regime, [])
+                for key, state in states.items():
+                    self._accuracy[state.regime][state.engine_name] = state.accuracy
+                    self._priors[state.regime][state.engine_name] = GaussianPrior(
+                        mu_0=state.prior_mu,
+                        sigma2_0=state.prior_sigma2,
+                    )
+                    self._regime_last_access[state.regime] = state.last_access_time
+                    self._regime_last_update[state.regime] = state.last_update_time
+                    
+            logger.debug(
+                "plasticity_state_loaded",
+                extra={"regimes_loaded": len(regimes), "total_engines": len(states)},
+            )
+        except Exception as e:
+            logger.warning(
+                "plasticity_load_all_failed",
+                extra={"error": str(e)},
+            )
+            # Fail-safe: continue with empty state
+
+    def _persist_regime_state(self, regime: str) -> None:
+        """Persist current state for a regime to repository.
+        
+        Private method called periodically during updates.
+        Fail-safe: logs warnings but doesn't raise on errors.
+        """
+        if self._repository is None:
+            return
+            
+        if regime not in self._accuracy:
+            return
+            
+        try:
+            now = time.time()
+            states = []
+            for engine_name, accuracy in self._accuracy[regime].items():
+                prior = self._priors[regime].get(engine_name)
+                if prior is None:
+                    continue
+                    
+                state = RegimeWeightState(
+                    regime=regime,
+                    engine_name=engine_name,
+                    accuracy=accuracy,
+                    prior_mu=getattr(prior, 'mu_0', accuracy),
+                    prior_sigma2=getattr(prior, 'sigma2_0', 1.0),
+                    last_access_time=self._regime_last_access.get(regime, now),
+                    last_update_time=self._regime_last_update.get(regime, now),
+                )
+                states.append(state)
+            
+            if states:
+                self._repository.save_regime_state(states)
+                
+        except Exception as e:
+            logger.warning(
+                "plasticity_persist_failed",
+                extra={"regime": regime, "error": str(e)},
+            )
+            # Fail-safe: continue without persistence
 
     def reset(self, regime: Optional[str] = None) -> None:
         """Clear accumulated accuracy data.

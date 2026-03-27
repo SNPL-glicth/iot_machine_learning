@@ -144,3 +144,22 @@ ACTION_TEMPLATES: Dict[str, Dict[str, str]] = {
         "info": "Informational document. No action required.",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Attention mechanism configuration
+# ---------------------------------------------------------------------------
+
+ATTENTION_CONFIG: Dict[str, object] = {
+    "N_HEADS": 4,
+    "D_MODEL": 64,
+    "MAX_SEQ_LEN": 100,
+    "ENABLE_ATTENTION": False,  # Master feature flag (default: disabled)
+    "CONFIDENCE_THRESHOLD": 0.5,  # Fallback threshold
+    "BUDGET_MS": 100.0,  # Time budget per document
+    "TEMPORAL_KEYWORDS": [
+        "expires", "expira", "vence", "hours", "horas", "minutes", "minutos",
+        "days", "días", "immediately", "inmediatamente", "soon", "pronto",
+        "urgent", "urgente", "asap", "critical", "crítico",
+    ],
+    "NEGATION_WORDS": ["not", "no", "sin", "never", "nunca", "without", "except"],
+}

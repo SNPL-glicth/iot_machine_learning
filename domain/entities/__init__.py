@@ -5,6 +5,7 @@ Organización por subcarpetas:
 - ``patterns/`` — Resultados de detección de patrones (PatternResult, ChangePoint, DeltaSpikeResult, OperationalRegime)
 - ``results/``  — Resultados de inferencia (AnomalyResult, Prediction, MemorySearchResult)
 - ``iot/``      — Entidades IoT legacy (SensorReading, SensorWindow, sensor_ranges)
+- ``decision/`` — Decision engine entities (Decision, DecisionContext, SimulatedOutcome)
 
 Todos los imports legacy siguen funcionando gracias a facades de re-export
 en los archivos raíz (e.g. ``from .anomaly import ...``).
@@ -28,6 +29,9 @@ from .patterns.operational_regime import OperationalRegime
 from .series.temporal_features import TemporalFeatures
 from .series.structural_analysis import StructuralAnalysis, RegimeType
 
+# --- Decision (decision engine) ---
+from .decision import Decision, DecisionContext, SimulatedOutcome
+
 __all__ = [
     # IoT
     "SensorReading",
@@ -50,4 +54,8 @@ __all__ = [
     "TemporalFeatures",
     "StructuralAnalysis",
     "RegimeType",
+    # Decision
+    "Decision",
+    "DecisionContext",
+    "SimulatedOutcome",
 ]

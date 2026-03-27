@@ -58,6 +58,16 @@ DOMAIN_KEYWORDS: Dict[str, List[str]] = {
         "incident", "outage", "downtime", "maintenance",
         "escalation", "sla", "recovery", "alert", "ticket",
         "oncall", "runbook", "postmortem", "deploy",
+        # Maintenance and repair keywords
+        "preventive", "corrective", "repair", "service",
+        "work order", "inspection", "overhaul", "replacement",
+        "component", "compressor", "valve", "motor", "pump",
+        "bearing", "seal", "filter", "lubrication",
+        # Spanish keywords
+        "mantenimiento", "preventivo", "correctivo", "reparación",
+        "servicio", "inspección", "sobrecarga", "reemplazo",
+        "componente", "compresor", "válvula", "motor", "bomba",
+        "rodamiento", "sellado", "filtro", "lubricación",
     ],
     "business": [
         "revenue", "cost", "budget", "forecast", "margin",
@@ -181,3 +191,50 @@ def _classify_tabular_domain(data: dict, metadata: Dict[str, Any]) -> str:
         return "general"
     
     return max(scores, key=scores.get)  # type: ignore[arg-type]
+
+
+# --- Attention-based enhancement (optional) ---
+_ATTENTION_AVAILABLE = False
+try:
+    from ...neural.attention import AttentionContextCollector
+    from ....text.analyzers.keyword_config import ATTENTION_CONFIG
+    _ATTENTION_AVAILABLE = True
+except Exception:
+    pass
+
+def _extract_attention_features(
+    text: str, 
+    attention_context: Optional[object] = None,
+) -> Dict[str, float]:
+    """Extract attention-based features for domain classification."""
+    features: Dict[str, float] = {}
+    
+    if attention_context is None and _ATTENTION_AVAILABLE:
+        try:
+            vocab = {kw: i for i, kw in enumerate(
+                [w for kws in DOMAIN_KEYWORDS.values() for w in kws][:ATTENTION_CONFIG["D_MODEL"]]
+            )}
+            collector = AttentionContextCollector(
+                vocab=vocab, n_heads=ATTENTION_CONFIG["N_HEADS"], d_model=ATTENTION_CONFIG["D_MODEL"],
+            )
+            attention_context = collector.collect_context(text, budget_ms=50.0)
+        except Exception:
+            pass
+    
+    if attention_context:
+        domain_scores = attention_context.multi_domain_scores
+        if domain_scores:
+            total = sum(domain_scores.values())
+            if total > 0:
+                probs = {k: v/total for k, v in domain_scores.items()}
+                entropy = -sum(p * __import__('math').log(p) for p in probs.values() if p > 0)
+                features["attention_domain_entropy"] = entropy
+                features["attention_domain_confidence"] = 1.0 - entropy / 1.5
+                
+        temporal = attention_context.temporal_markers
+        if temporal:
+            features["attention_temporal_score"] = max(temporal.values())
+            
+        features["attention_confidence"] = attention_context.confidence
+    
+    return features

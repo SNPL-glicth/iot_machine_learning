@@ -120,6 +120,11 @@ class FeatureFlags(BaseModel):
     ML_COGNITIVE_MEMORY_URL: str = ""
     ML_ENABLE_MEMORY_RECALL: bool = False
 
+    # --- Multi-Head Attention (Document Context) ---
+    ML_ENABLE_ATTENTION: bool = False  # Master switch (default: disabled)
+    ML_ATTENTION_CONFIDENCE_THRESHOLD: float = 0.5  # Fallback threshold
+    ML_ATTENTION_BUDGET_MS: float = 100.0  # Time budget per document
+
     @field_validator("ML_TAYLOR_ORDER")
     @classmethod
     def _clamp_taylor_order(cls, v: int) -> int:
@@ -197,6 +202,19 @@ class FeatureFlags(BaseModel):
             return "taylor"
 
         return self.ML_DEFAULT_ENGINE
+
+    # --- Decision Engine (NEW) ---
+    ML_ENABLE_DECISION_ENGINE: bool = False  # Default: disabled (safe)
+    ML_DECISION_ENGINE_STRATEGY: str = "simple"  # simple | conservative | aggressive | cost_optimized
+
+    @field_validator("ML_DECISION_ENGINE_STRATEGY")
+    @classmethod
+    def _validate_strategy(cls, v: str) -> str:
+        """Valida que la estrategia sea conocida."""
+        allowed = {"simple", "conservative", "aggressive", "cost_optimized"}
+        if v not in allowed:
+            return "simple"  # Fallback seguro
+        return v
 
     def get_active_engine_name(self, sensor_id: int) -> str:
         """Legacy: determina motor por sensor_id numérico."""
