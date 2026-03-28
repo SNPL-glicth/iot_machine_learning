@@ -23,6 +23,25 @@ from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.input_d
 logger = logging.getLogger(__name__)
 
 
+def _extract_entities_regex(text: str) -> list:
+    """Fallback regex entity extraction."""
+    import re
+    result = []
+    # Temperature patterns
+    result.extend(re.findall(r'\b\d+\s*°[CF]\b', text))
+    # Node/Device patterns  
+    result.extend(re.findall(r'\b(NODE|TMP|SERVER|ROUTER|SWITCH)-\w+\b', text))
+    # COMPONENT patterns
+    result.extend(re.findall(r'\b(COMP|VLV|MOT|PUMP|CMP|BLR|GEN|TX|HV)[-]?[A-Z0-9]+\b', text, re.IGNORECASE))
+    # Cost patterns
+    result.extend(re.findall(r'\$[\d,]+(?:\.\d{2})?|\b\d{1,3}(?:,\d{3})+\s*(?:USD|EUR|USD\$|\$)\b', text))
+    # Percentage patterns
+    result.extend(re.findall(r'\b\d+%\b', text))
+    # SLA patterns
+    result.extend(re.findall(r'\bSLA\s+\d+\.?\d*%?\b', text))
+    return result
+
+
 def extract_raw_data(payload: Dict[str, Any], content_type: str) -> Any:
     """Extract raw data from normalized payload.
     
@@ -116,38 +135,26 @@ def analyze_with_universal(
             structural = compute_text_structure(readability.sentences if readability else [])
             patterns = detect_text_patterns(readability.sentences if readability else [])
             
-            # Extract entities
+            # Extract entities using hybrid embeddings (NEW) or regex fallback
             try:
-                import re
-                # Extract common patterns: TMP-XXX, NODE-XXX, temperatures, percentages
-                entities = []
+                from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
+                from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import HybridEntityDetector
                 
-                # Temperature patterns
-                temp_matches = re.findall(r'\b\d+\s*°[CF]\b', full_text)
-                entities.extend(temp_matches)
-                
-                # Node/Device patterns
-                node_matches = re.findall(r'\b(NODE|TMP|SERVER|ROUTER|SWITCH)-\w+\b', full_text)
-                entities.extend(node_matches)
-                
-                # COMPONENT patterns — CRITICAL FIX: Add maintenance component IDs with dash and numbers
-                component_matches = re.findall(r'\b(COMP|VLV|MOT|PUMP|CMP|BLR|GEN|TX|HV)[-]?[A-Z0-9]+\b', full_text, re.IGNORECASE)
-                entities.extend(component_matches)
-                
-                # Cost/Dollar patterns — CRITICAL FIX: Add monetary values
-                cost_matches = re.findall(r'\$[\d,]+(?:\.\d{2})?|\b\d{1,3}(?:,\d{3})+\s*(?:USD|EUR|USD\$|\$)\b', full_text)
-                entities.extend(cost_matches)
-                
-                # Percentage patterns
-                pct_matches = re.findall(r'\b\d+%\b', full_text)
-                entities.extend(pct_matches)
-                
-                # SLA patterns
-                sla_matches = re.findall(r'\bSLA\s+\d+\.?\d*%?\b', full_text)
-                entities.extend(sla_matches)
-                
-            except Exception:
-                entities = []
+                flags = FeatureFlags()
+                if getattr(flags, 'ML_ENABLE_HYBRID_EMBEDDINGS', False):
+                    detector = HybridEntityDetector(
+                        domain_hint=payload.get("domain", "general"),
+                        magnitude_threshold=getattr(flags, 'ML_HYBRID_ENTITY_THRESHOLD', 0.3),
+                    )
+                    entity_result = detector.extract_entities(full_text)
+                    entities = entity_result.to_list()
+                    logger.info(f"[UNIVERSAL_BRIDGE] Hybrid embeddings extracted {len(entities)} entities")
+                else:
+                    entities = _extract_entities_regex(full_text)
+                    logger.info(f"[UNIVERSAL_BRIDGE] Regex fallback extracted {len(entities)} entities")
+            except Exception as e:
+                logger.debug(f"hybrid_embedding_failed: {e}, falling back to regex")
+                entities = _extract_entities_regex(full_text)
             
             # Build pre_computed_scores directly
             pre_computed_scores = {
@@ -171,7 +178,7 @@ def analyze_with_universal(
             }
             
             logger.info(f"[UNIVERSAL_BRIDGE] Direct scores built: urgency={pre_computed_scores['urgency_score']:.2f}, sentiment={pre_computed_scores['sentiment_label']}")
-            
+        
         except Exception as e:
             logger.warning(f"[UNIVERSAL_BRIDGE] Failed to build direct scores: {e}")
             import traceback

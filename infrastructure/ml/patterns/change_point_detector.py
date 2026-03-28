@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from iot_machine_learning.domain.entities.pattern import ChangePoint, ChangePointType
 from iot_machine_learning.domain.ports.pattern_detection_port import ChangePointDetectionPort
+
+if TYPE_CHECKING:
+    from ..anomaly.core.config import AnomalyDetectorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +46,42 @@ class CUSUMDetector(ChangePointDetectionPort):
 
     def __init__(
         self,
-        threshold: float = 5.0,
-        drift: float = 0.5,
+        threshold: Optional[float] = None,
+        drift: Optional[float] = None,
+        config: Optional[AnomalyDetectorConfig] = None,
     ) -> None:
-        if threshold <= 0:
-            raise ValueError(f"threshold debe ser > 0, recibido {threshold}")
-        if drift < 0:
-            raise ValueError(f"drift debe ser >= 0, recibido {drift}")
+        """Initialize CUSUM detector.
+        
+        Args:
+            threshold: Deprecated. Use config.cusum_threshold instead.
+            drift: Deprecated. Use config.cusum_drift instead.
+            config: Configuration object with cusum_threshold and cusum_drift.
+                   Takes precedence over individual parameters.
+        
+        Backward compatibility: If config is None and threshold/drift are None,
+        uses default values (5.0, 0.5).
+        """
+        # Use config if provided, otherwise fall back to individual params or defaults
+        effective_threshold = threshold
+        effective_drift = drift
+        
+        if config is not None:
+            effective_threshold = config.cusum_threshold
+            effective_drift = config.cusum_drift
+        
+        # Apply defaults if still None
+        if effective_threshold is None:
+            effective_threshold = 5.0
+        if effective_drift is None:
+            effective_drift = 0.5
+        
+        if effective_threshold <= 0:
+            raise ValueError(f"threshold debe ser > 0, recibido {effective_threshold}")
+        if effective_drift < 0:
+            raise ValueError(f"drift debe ser >= 0, recibido {effective_drift}")
 
-        self._threshold = threshold
-        self._drift = drift
+        self._threshold = effective_threshold
+        self._drift = effective_drift
 
         # Estado online
         self._cumsum_pos: float = 0.0

@@ -204,7 +204,12 @@ def execute_pipeline(
 
     plasticity_weights = _weight_cache.get(series_id, regime_str)
     if plasticity_weights is None:
-        plasticity_weights = orchestrator._weight_service.resolve_weights(regime_str, engine_names, series_id)
+        # Phase 3: Use WeightResolutionService (consolidated weight logic)
+        plasticity_weights = orchestrator._weight_resolver.resolve(
+            regime=regime_str,
+            engine_names=engine_names,
+            series_id=series_id,
+        )
         _weight_cache.set(series_id, regime_str, plasticity_weights)
 
     adapted = (orchestrator._plasticity is not None and orchestrator._plasticity.has_history(regime_str))

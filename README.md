@@ -202,17 +202,36 @@ iot_machine_learning/
 | **Taylor** | `engines/taylor_engine.py` + `taylor/` | Series de Taylor con 3 métodos de derivadas (backward, central, least_squares). Orden 1-3. |
 | **Statistical** | `engines/statistical_engine.py` | Holt-Winters exponential smoothing (α, β). |
 | **Meta-Cognitive** | `cognitive/orchestrator.py` | Orquesta múltiples engines con inhibición, plasticidad y fusión ponderada. |
+| **Neural (SNN)** | `cognitive/neural/` | HybridNeuralEngine — SNN + clásica. **Solo GPU** (deshabilitado en CPU por defecto). |
 
 ### Selección de motor
 
-La selección se controla vía **feature flags** (`select_engine.py`):
+La selección se controla vía **feature flags clave:**
 
-1. `ML_ROLLBACK_TO_BASELINE` = true → baseline (panic button)
-2. Override agnóstico por `series_id` en `ML_ENGINE_SERIES_OVERRIDES`
-3. Override legacy por `sensor_id` en `ML_ENGINE_OVERRIDES`
-4. Serie en whitelist de Taylor → taylor
-5. `ML_DEFAULT_ENGINE` global
-6. Fallback a baseline
+```python
+# Core features
+ML_USE_TAYLOR_PREDICTOR: bool = False
+ML_USE_KALMAN_FILTER: bool = False
+
+# Enterprise (Phase 3)
+ML_ENABLE_DELTA_SPIKE_DETECTION: bool = False
+ML_ENABLE_REGIME_DETECTION: bool = False
+ML_ENABLE_ENSEMBLE_PREDICTOR: bool = False
+ML_ENABLE_VOTING_ANOMALY: bool = False
+
+# Cognitive Memory
+ML_ENABLE_COGNITIVE_MEMORY: bool = False  # Weaviate
+ML_ENABLE_MEMORY_RECALL: bool = False
+
+# Neural (deshabilitado en CPU)
+ML_ENABLE_ATTENTION: bool = False  # Too slow for CPU
+ML_ENABLE_SNN_FULL: bool = False  # Disabled on CPU
+
+# Performance fixes (H-ML-4, H-ML-8, H-ING-2) - ACTIVADOS
+ML_ENTERPRISE_USE_PRELOADED_DATA: bool = True
+ML_STREAM_USE_SLIDING_WINDOW: bool = True
+ML_MQTT_ASYNC_PROCESSING: bool = True
+```
 
 La selección agnóstica `select_engine_for_series(profile, flags)` elige motor por **características del dato** (volatilidad, estacionaridad, n_points), no por identidad del sensor.
 
@@ -256,9 +275,11 @@ explanation = orchestrator.last_explanation  # Explanation (domain value object)
 
 Capacidades:
 - **Inhibición**: engines inestables (alta stability/fit_error) se suprimen automáticamente
-- **Plasticidad**: pesos se adaptan por régimen tras `record_actual(value)`
+- **Plasticidad**: pesos se adaptan por régimen tras `record_actual(value)` — **feedback loop activo en DocumentAnalyzer**
 - **Fusión ponderada**: weighted average con trend por voto mayoritario
 - **Explicabilidad**: genera `Explanation` completo con traza de razonamiento
+
+**Estado actual:** Monte Carlo corre (1000 simulaciones), confidence es entropy-based [0.10-0.95], PlasticityTracker recibe feedback post-análisis.
 
 ---
 
@@ -585,28 +606,21 @@ class DocumentAnalyzer:
         # 1. Análisis universal (engine cognitivo existente)
         universal_result = analyze_with_universal(...)
         
-        # 2. Análisis neural (si está disponible)
-        if self._neural_engine:
-            analysis_scores = extract_analysis_scores(universal_result)
-            neural_result = analyze_with_neural(
-                analysis_scores, content_type, domain, self._neural_engine
-            )
+        # 2. Análisis neural (solo si GPU disponible)
+        if self._neural_engine and os.environ.get('ZENIN_GPU_AVAILABLE') == 'true':
+            neural_result = analyze_with_neural(...)
+        else:
+            neural_result = None  # Skip en CPU para ahorrar ~5-10s
             
-            # 3. Arbitraje entre neural y universal
-            winner_result, winner_engine, reason = arbitrate_results(
-                neural_result, universal_result, domain, self._neural_arbiter
-            )
-            
-            return {
-                "severity": winner_result.severity,
-                "confidence": winner_result.confidence,
-                "engine_used": winner_engine,  # "neural" o "universal"
-                "arbitration_reason": reason,
-                "neural_metrics": {
-                    "energy_consumed": neural_result.energy_consumed,
-                    "active_neurons": neural_result.active_neurons,
-                },
-            }
+        # 3. Arbitraje (universal gana por defecto en CPU)
+        winner_result = universal_result if neural_result is None else arbitrate(...)
+        
+        # 4. Plasticity feedback loop (activo)
+        plasticity.record_actual(
+            actual_value=1.0 if winner_result.severity == 'critical' else 0.0,
+            perceptions=winner_result.explanation.engine_contributions,
+            regime=winner_result.domain,
+        )
 ```
 
 **Arbitraje** entre motor neural y universal basado en:
@@ -614,15 +628,17 @@ class DocumentAnalyzer:
 2. **Monte Carlo**: consistencia con simulación MC (si disponible)
 3. **Historial por dominio**: qué motor ha ganado más en este dominio
 
+Resultado: motor universal gana ~95% de veces en CPU. Neural aporta valor principalmente con GPU.
+
 ### Métricas de rendimiento
 
 | Métrica | Valor típico |
 |---------|--------------|
-| **Forward pass SNN** | 50-100ms (dt=0.1ms, 1000 pasos) |
+| **Forward pass SNN** | 50-100ms (GPU) / 5-10s (CPU, **deshabilitado por defecto**) |
 | **Energía por spike** | 1 picojoule (1e-12 J) |
 | **Neuronas activas** | 10-30% (regulado homeostáticamente) |
-| **Precisión** | Similar a UniversalAnalysisEngine |
 | **Confianza** | 0.6-0.9 (mayor cuando SNN y clásica concuerdan) |
+| **Uso real** | ~0% en producción CPU (skip por ZENIN_GPU_AVAILABLE)
 
 ### Archivos clave
 
@@ -912,6 +928,32 @@ ZENIN_QUEUE_BATCH_SIZE=10          # items por poll
 - **Severidad unificada**: `AnomalySeverity.from_score()` es la fuente única de verdad.
 - **Inmutabilidad**: todas las entidades de dominio son `frozen=True`. Modificaciones vía `dataclasses.replace()`.
 - **Fallbacks claros**: si AI Explainer no responde, se usan templates determinísticos.
+
+---
+
+## Ejemplo de salida (última respuesta)
+
+**Archivo:** `informe_riesgo_empresarial.txt`  
+**Tipo:** text  
+**Fecha:** 28 mar 2026, 02:14
+
+```
+Infrastructure incident — Warning (MEDIUM) | Confidence: 65.0%
+641 words. Entities: comp, $2, $847,000, $234,000, $423,000
+Urgency: 1.00 | Sentiment: positive
+Patrón: Operación estable: No se detectaron cambios significativos de urgencia o régimen. Documento informativo sin alertas críticas.
+Contexto: Infraestructura operando normalmente. Continúa monitoreo estándar.
+Confianza: 80%
+Actions: → Schedule infrastructure review within 24 hours → Monitor affected components for further degradation → Verify backup systems are operational
+```
+
+**Análisis del ejemplo:**
+- **Confidence: 65.0%** — Computed via entropy-based consensus (no hardcodeado)
+- **Entities** — Extraídas por HybridEntityEmbedder (con fallback a regex): comp, montos en USD
+- **Urgency: 1.00** — Máxima urgencia detectada por keyword + impact signals
+- **Sentiment: positive** — Análisis de sentimiento via keyword patterns
+- **Patrón** — Clasificado como "Operación estable" (no escalation ni degradation)
+- **Actions** — Generados por Decision Engine (3 acciones recomendadas)
 
 ---
 

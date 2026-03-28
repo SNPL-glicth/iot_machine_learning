@@ -120,10 +120,30 @@ class FeatureFlags(BaseModel):
     ML_COGNITIVE_MEMORY_URL: str = ""
     ML_ENABLE_MEMORY_RECALL: bool = False
 
-    # --- Multi-Head Attention (Document Context) ---
-    ML_ENABLE_ATTENTION: bool = False  # Master switch (default: disabled)
+    # --- Pipeline Performance ---
+    ML_PIPELINE_BUDGET_MS: float = 25000.0  # 25 second max (leaves 5s buffer for frontend)
+    ML_ENABLE_PHASE_TIMING: bool = True    # --- Feature Priority by Speed (CPU optimization) ---
+    # FAST — keep enabled (< 2s each)
+    ML_ENABLE_DECISION_ENGINE: bool = True
+    ML_ENABLE_MONTE_CARLO: bool = True
+    
+    # MEDIUM — keep enabled with timeout (2-5s each)
+    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # max 3s timeout
+    ML_HYBRID_TIMEOUT_SECONDS: float = 3.0
+    
+    # SLOW — disable until GPU available (> 5s each)
+    ML_ENABLE_ATTENTION: bool = False  # too slow for CPU
+    ML_ATTENTION_TIMEOUT_SECONDS: float = 3.0
+    ML_ENABLE_SNN_FULL: bool = False  # disabled on CPU
     ML_ATTENTION_CONFIDENCE_THRESHOLD: float = 0.5  # Fallback threshold
     ML_ATTENTION_BUDGET_MS: float = 100.0  # Time budget per document
+
+    # --- Hybrid Embeddings (Text Entity Extraction) ---
+    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # Master switch (default: enabled)
+    ML_HYBRID_EMBEDDING_DIMENSION: int = 128  # Output dimension for hybrid vectors
+    ML_HYBRID_ENTROPY_THRESHOLD: float = 0.5  # Shannon entropy threshold for token filtering
+    ML_HYBRID_PHRASE_MIN_PERSISTENCE: int = 2  # Minimum occurrences before phrase retained
+    ML_HYBRID_ENTITY_THRESHOLD: float = 0.3  # Vector magnitude threshold for entity detection
 
     @field_validator("ML_TAYLOR_ORDER")
     @classmethod
@@ -204,7 +224,7 @@ class FeatureFlags(BaseModel):
         return self.ML_DEFAULT_ENGINE
 
     # --- Decision Engine (NEW) ---
-    ML_ENABLE_DECISION_ENGINE: bool = False  # Default: disabled (safe)
+    ML_ENABLE_DECISION_ENGINE: bool = True  # Default: enabled
     ML_DECISION_ENGINE_STRATEGY: str = "simple"  # simple | conservative | aggressive | cost_optimized
 
     @field_validator("ML_DECISION_ENGINE_STRATEGY")

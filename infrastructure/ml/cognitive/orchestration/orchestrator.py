@@ -5,18 +5,24 @@ from collections import defaultdict, deque
 from typing import Deque, Dict, List, Optional
 
 from ...interfaces import PredictionEngine, PredictionResult
-from ..fusion import WeightedFusion, WeightMediator
+from ..fusion import WeightedFusion
 from ..inhibition import InhibitionConfig, InhibitionGate
 from ..plasticity import PlasticityTracker, build_advanced_plasticity, null_advanced_plasticity
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
 from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
+from .weight_resolution_service import WeightResolutionService
 
 _MAX_ERROR_HISTORY: int = 50
 
 
 class MetaCognitiveOrchestrator(PredictionEngine):
     """Orchestrates multiple engines with cognitive reasoning.
+
+    Simplified Phase 3 design:
+    - Weight resolution consolidated into WeightResolutionService
+    - Reduced from 15+ dependencies to core pipeline components
+    - Clear separation: orchestration vs weight resolution vs plasticity
 
     Implements PredictionEngine — drop-in replacement for any single engine.
     """
@@ -34,16 +40,15 @@ class MetaCognitiveOrchestrator(PredictionEngine):
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
+        
+        # Core components
         self._engines = engines
         self._analyzer = SignalAnalyzer()
         self._inhibition = InhibitionGate(inhibition_config)
         self._fusion = WeightedFusion()
-        self._plasticity = PlasticityTracker() if enable_plasticity else None
-        if initial_weights:
-            self._base_weights = dict(initial_weights)
-        else:
-            n = len(engines)
-            self._base_weights = {e.name: 1.0 / n for e in engines}
+        self._budget_ms = budget_ms
+        
+        # State tracking
         self._recent_errors: Dict[str, Deque[float]] = defaultdict(
             lambda: deque(maxlen=_MAX_ERROR_HISTORY)
         )
@@ -51,23 +56,13 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._last_explanation = None
         self._last_regime: Optional[str] = None
         self._last_perceptions: List[EnginePerception] = []
-        self._budget_ms = budget_ms
-        self._storage = storage_adapter
-        self._correlation_port = correlation_port
-        self._adaptive_epsilon = 0.01
         self._last_timer: Optional[PipelineTimer] = None
         
-        from ..weight_adjustment_service import WeightAdjustmentService
-        self._weight_service = WeightAdjustmentService(
-            base_weights=self._base_weights,
-            storage_adapter=storage_adapter,
-            plasticity_tracker=self._plasticity,
-            epsilon=self._adaptive_epsilon,
-        )
-        
-        self._weight_mediator = WeightMediator()
-        
+        # Plasticity (learning)
+        self._plasticity = PlasticityTracker() if enable_plasticity else None
         self._enable_advanced_plasticity = enable_advanced_plasticity
+        
+        # Build advanced plasticity components
         if enable_advanced_plasticity:
             (
                 self._plasticity_coordinator,
@@ -86,6 +81,21 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             ) = null_advanced_plasticity()
         
         self._last_plasticity_context = None
+        
+        # Weight resolution (consolidated service)
+        base_weights = initial_weights or {
+            e.name: 1.0 / len(engines) for e in engines
+        }
+        self._weight_resolver = WeightResolutionService(
+            base_weights=base_weights,
+            plasticity_tracker=self._plasticity,
+            storage_adapter=storage_adapter,
+            epsilon=0.01,
+        )
+        
+        # Storage and correlation (external ports)
+        self._storage = storage_adapter
+        self._correlation_port = correlation_port
 
     @property
     def name(self) -> str:
@@ -138,3 +148,36 @@ class MetaCognitiveOrchestrator(PredictionEngine):
     @property
     def last_pipeline_timing(self) -> Optional[PipelineTimer]:
         return self._last_timer
+
+    # ------------------------------------------------------------------
+    # Backward compatibility properties (Phase 3 refactor)
+    # ------------------------------------------------------------------
+    
+    @property
+    def _weight_service(self):
+        """Backward compatibility: returns WeightResolutionService as weight service.
+        
+        Phase 3 refactor: WeightAdjustmentService and WeightMediator consolidated
+        into WeightResolutionService. This property maintains compatibility with
+        code referencing orchestrator._weight_service.
+        """
+        return self._weight_resolver
+    
+    @property
+    def _weight_mediator(self):
+        """Backward compatibility: returns simple pass-through mediator.
+        
+        Phase 3 refactor: Weight mediation logic moved into WeightResolutionService.
+        This property returns a lightweight mediator that delegates to the resolver.
+        """
+        if not hasattr(self, '_ _compat_mediator'):
+            from ..fusion import WeightMediator
+            self._compat_mediator = WeightMediator()
+        return self._compat_mediator
+    
+    @property
+    def _base_weights(self) -> Dict[str, float]:
+        """Backward compatibility: returns base weights from resolver."""
+        if hasattr(self, '_weight_resolver'):
+            return self._weight_resolver._base_weights
+        return {}

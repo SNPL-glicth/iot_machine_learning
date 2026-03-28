@@ -22,6 +22,9 @@ from .analysis import (
     extract_analysis_scores,
 )
 
+# Import domain classifier for online learning
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.domain_classifier import fit_online
+
 # Graceful import - feature flags
 try:
     from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
@@ -149,33 +152,39 @@ class DocumentAnalyzer:
                     cognitive_memory=self._cognitive_memory,
                 )
                 
-                # Step 2: Run neural analysis (if available)
+                # Step 2: Run neural analysis (if GPU available)
                 neural_result = None
                 if _NEURAL_AVAILABLE and self._neural_engine:
-                    # Extract scores from universal result
-                    analysis_scores = extract_analysis_scores(universal_result)
-                    domain = getattr(universal_result, 'domain', 'unknown')
-                    
-                    neural_result = analyze_with_neural(
-                        analysis_scores=analysis_scores,
-                        input_type=content_type,
-                        domain=domain,
-                        neural_engine=self._neural_engine,
+                    # Only run neural on GPU - too slow on CPU
+                    import os
+                    has_gpu = os.environ.get('ZENIN_GPU_AVAILABLE', 'false').lower() == 'true'
+                    if has_gpu:
+                        # Extract scores from universal result
+                        analysis_scores = extract_analysis_scores(universal_result)
+                        domain = getattr(universal_result, 'domain', 'unknown')
+                        
+                        neural_result = analyze_with_neural(
+                            analysis_scores=analysis_scores,
+                            input_type=content_type,
+                            domain=domain,
+                            neural_engine=self._neural_engine,
+                        )
+                    else:
+                        logger.info("neural_skipped_no_gpu: CPU-only mode, using universal engine")
+                
+                # Step 3: Neural arbitration (if both results available)
+                if neural_result is not None and self._neural_arbiter:
+                    winner_result, winner_engine, arbiter_reason = arbitrate_results(
+                        neural_result=neural_result,
+                        universal_result=universal_result,
+                        domain=getattr(universal_result, 'domain', 'unknown'),
+                        arbiter=self._neural_arbiter,
                     )
-                
-                # Step 3: Force universal analysis (disable neural arbitration for testing)
-                winner_result = universal_result
-                winner_engine = "universal"
-                arbiter_reason = "forcing_universal_for_testing"
-                
-                # TODO: Re-enable neural arbitration once universal analysis is stable
-                # if neural_result is not None and self._neural_arbiter:
-                #     winner_result, winner_engine, arbiter_reason = arbitrate_results(
-                #         neural_result=neural_result,
-                #         universal_result=universal_result,
-                #         domain=getattr(universal_result, 'domain', 'unknown'),
-                #         arbiter=self._neural_arbiter,
-                #     )
+                else:
+                    # Neural not available, use universal
+                    winner_result = universal_result
+                    winner_engine = "universal"
+                    arbiter_reason = "neural_unavailable_or_disabled"
                 
                 # Step 4: Build output from winner
                 raw_data = extract_raw_data(normalized_payload, content_type)
@@ -200,6 +209,29 @@ class DocumentAnalyzer:
                 )
                 if decision_recommendation is not None:
                     result["decision_recommendation"] = decision_recommendation
+                
+                # Step 5.5: Plasticity feedback loop - record actual outcome for learning
+                try:
+                    from iot_machine_learning.infrastructure.ml.cognitive.plasticity.base import PlasticityTracker
+                    plasticity = PlasticityTracker()
+                    plasticity.record_actual(
+                        actual_value=1.0 if getattr(winner_result, 'severity', None) and getattr(winner_result.severity, 'severity', None) == 'critical' else 0.0,
+                        perceptions=getattr(winner_result, 'explanation', None).engine_contributions if hasattr(getattr(winner_result, 'explanation', None), 'engine_contributions') else [],
+                        regime=getattr(winner_result, 'domain', 'general'),
+                    )
+                    logger.debug(f"plasticity_feedback_recorded: {document_id}")
+                except Exception as e:
+                    logger.warning(f"plasticity_feedback_failed: {e}")
+                
+                # Step 6: Online learning - update NaiveBayes with confirmed domain
+                try:
+                    fit_online(
+                        pre_computed_scores=pre_computed_scores if 'pre_computed_scores' in dir() else {},
+                        label=winner_result.domain if hasattr(winner_result, 'domain') else 'general',
+                    )
+                except Exception:
+                    # Graceful fail - online learning errors shouldn't break pipeline
+                    pass
             else:
                 # Delegate to legacy pipeline
                 result = analyze_with_legacy(

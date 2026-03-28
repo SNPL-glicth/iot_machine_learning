@@ -48,9 +48,20 @@ def interpret_text_patterns(
 
 
 def _detect_narrative_escalation(pattern_summary: Dict[str, Any], urgency_score: float) -> bool:
-    """Detect progressive escalation from minor to critical issues."""
-    # FIX: Use urgency_score >= 0.8 AND negative sentiment to override to escalation pattern
-    return urgency_score >= 0.8
+    """Detect progressive escalation from minor to critical issues.
+    
+    Requires BOTH:
+    1. High urgency (>= 0.8)
+    2. Actual escalation indicator in pattern_summary (has_escalation=True)
+    
+    This prevents always returning "Escalada narrativa" for all critical documents.
+    """
+    has_high_urgency = urgency_score >= 0.8
+    has_escalation_indicator = pattern_summary.get("has_escalation", False)
+    has_multiple_spikes = pattern_summary.get("n_spikes", 0) > 1
+    
+    # Require high urgency PLUS escalation evidence
+    return has_high_urgency and (has_escalation_indicator or has_multiple_spikes)
 
 
 def _detect_critical_spike(spikes: List[Any], pattern_summary: Dict[str, Any]) -> bool:

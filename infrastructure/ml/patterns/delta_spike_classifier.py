@@ -17,10 +17,13 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from iot_machine_learning.domain.entities.pattern import DeltaSpikeResult, SpikeClassification
 from iot_machine_learning.domain.ports.pattern_detection_port import DeltaSpikeClassificationPort
+
+if TYPE_CHECKING:
+    from ..anomaly.core.config import AnomalyDetectorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +39,63 @@ class DeltaSpikeClassifier(DeltaSpikeClassificationPort):
 
     def __init__(
         self,
-        magnitude_threshold_sigma: float = 2.0,
-        persistence_window: int = 5,
-        min_history: int = 20,
+        magnitude_threshold_sigma: Optional[float] = None,
+        persistence_window: Optional[int] = None,
+        min_history: Optional[int] = None,
+        config: Optional[AnomalyDetectorConfig] = None,
     ) -> None:
-        if magnitude_threshold_sigma <= 0:
+        """Initialize DeltaSpikeClassifier.
+        
+        Args:
+            magnitude_threshold_sigma: Deprecated. Use config.delta_magnitude_sigma.
+            persistence_window: Deprecated. Use config.delta_persistence_window.
+            min_history: Deprecated. Use config.delta_min_history.
+            config: Configuration object with delta spike parameters.
+                   Takes precedence over individual parameters.
+        
+        Backward compatibility: If config is None, uses individual params
+        or defaults (2.0, 5, 20).
+        """
+        # Use config if provided, otherwise fall back to individual params
+        effective_mag = magnitude_threshold_sigma
+        effective_window = persistence_window
+        effective_history = min_history
+        persistence_threshold = 0.6
+        trend_threshold = 0.8
+        
+        if config is not None:
+            effective_mag = config.delta_magnitude_sigma
+            effective_window = config.delta_persistence_window
+            effective_history = config.delta_min_history
+            persistence_threshold = config.delta_persistence_score_threshold
+            trend_threshold = config.delta_trend_alignment_threshold
+        
+        # Apply defaults if still None
+        if effective_mag is None:
+            effective_mag = 2.0
+        if effective_window is None:
+            effective_window = 5
+        if effective_history is None:
+            effective_history = 20
+        
+        if effective_mag <= 0:
             raise ValueError(
-                f"magnitude_threshold_sigma debe ser > 0, recibido {magnitude_threshold_sigma}"
+                f"magnitude_threshold_sigma debe ser > 0, recibido {effective_mag}"
             )
-        if persistence_window < 2:
+        if effective_window < 2:
             raise ValueError(
-                f"persistence_window debe ser >= 2, recibido {persistence_window}"
+                f"persistence_window debe ser >= 2, recibido {effective_window}"
             )
-        if min_history < 5:
+        if effective_history < 5:
             raise ValueError(
-                f"min_history debe ser >= 5, recibido {min_history}"
+                f"min_history debe ser >= 5, recibido {effective_history}"
             )
 
-        self._magnitude_threshold_sigma = magnitude_threshold_sigma
-        self._persistence_window = persistence_window
-        self._min_history = min_history
+        self._magnitude_threshold_sigma = effective_mag
+        self._persistence_window = effective_window
+        self._min_history = effective_history
+        self._persistence_threshold = persistence_threshold
+        self._trend_threshold = trend_threshold
 
     def classify(
         self,
@@ -112,7 +152,7 @@ class DeltaSpikeClassifier(DeltaSpikeClassificationPort):
         is_significant = z_score > self._magnitude_threshold_sigma
 
         is_delta = is_significant and (
-            persistence_score > 0.6 or trend_alignment > 0.8
+            persistence_score > self._persistence_threshold or trend_alignment > self._trend_threshold
         )
 
         if is_delta:

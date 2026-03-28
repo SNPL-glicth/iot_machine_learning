@@ -44,6 +44,7 @@ class UniversalAnalysisEngine:
 
     Args:
         enable_plasticity: Enable regime-contextual weight learning
+        enable_monte_carlo: Enable Monte Carlo uncertainty simulation
         budget_ms: Pipeline time budget in milliseconds
     """
 
@@ -51,6 +52,7 @@ class UniversalAnalysisEngine:
         self,
         *,
         enable_plasticity: bool = True,
+        enable_monte_carlo: bool = True,
         budget_ms: float = 2000.0,
     ) -> None:
         """Initialize universal engine with cognitive components."""
@@ -61,6 +63,7 @@ class UniversalAnalysisEngine:
         self._explain = ExplainPhase()
         self._monte_carlo_simulator = MonteCarloSimulator(n_simulations=1000)
         self._pattern_plasticity = PatternPlasticityTracker()
+        self._enable_monte_carlo = enable_monte_carlo
         self._budget_ms = budget_ms
 
     def analyze(
@@ -121,16 +124,23 @@ class UniversalAnalysisEngine:
                 final_weights, selected, reason, method, timing
             )
             
+            # Run Monte Carlo simulation for uncertainty quantification
+            monte_carlo_result = None
+            if self._enable_monte_carlo:
+                monte_carlo_result = self._run_monte_carlo(
+                    perceptions, input_type, domain, metadata, timing
+                )
+            
             severity = self._classify_severity(
                 input_type, domain, perceptions, metadata, fused_val
             )
             
             confidence = self._compute_confidence(
-                input_type, metadata, recall_ctx is not None
+                input_type, metadata, recall_ctx is not None, perceptions, final_weights
             )
             
             analysis = self._build_analysis_dict(
-                input_type, metadata, perceptions, final_weights, signal, pre_computed_scores
+                input_type, metadata, perceptions, final_weights, signal, pre_computed_scores, monte_carlo_result
             )
             
             # After analysis completes, update pattern plasticity
@@ -152,6 +162,7 @@ class UniversalAnalysisEngine:
                 pipeline_timing=timing,
                 recall_context=recall_ctx,
                 patterns=interpreted_patterns,
+                monte_carlo=monte_carlo_result,
             )
         
         except Exception as e:
@@ -214,28 +225,92 @@ class UniversalAnalysisEngine:
         input_type: InputType,
         metadata: Dict[str, Any],
         has_recall: bool,
+        perceptions: List,
+        final_weights: Dict[str, float],
     ) -> float:
-        """Compute overall confidence score."""
-        confidence = 0.75
+        """Compute overall confidence score based on engine agreement (entropy).
         
+        Real uncertainty quantification using normalized entropy of perception weights.
+        Higher disagreement between engines → lower confidence.
+        
+        Args:
+            input_type: Type of input data
+            metadata: Input metadata (word_count, n_points, etc.)
+            has_recall: Whether cognitive memory recall was successful
+            perceptions: List of EnginePerception objects
+            final_weights: Final fused weights dict {engine_name: weight}
+            
+        Returns:
+            Confidence score [0.0, 1.0] based on engine consensus
+        """
+        import math
+        
+        # Base confidence from data quality (minimal, not dominant)
+        base_confidence = 0.50
+        
+        # Data quality bonus (small contribution, max +0.15)
         if input_type == InputType.TEXT:
             word_count = metadata.get("word_count", 0)
-            if word_count > 100:
-                confidence = 0.80
             if word_count > 500:
-                confidence = 0.85
-        
-        if input_type == InputType.NUMERIC:
+                base_confidence += 0.15
+            elif word_count > 100:
+                base_confidence += 0.10
+            elif word_count > 20:
+                base_confidence += 0.05
+        elif input_type == InputType.NUMERIC:
             n_points = metadata.get("n_points", 0)
-            if n_points >= 20:
-                confidence = 0.85
+            if n_points >= 50:
+                base_confidence += 0.15
+            elif n_points >= 20:
+                base_confidence += 0.10
             elif n_points >= 10:
-                confidence = 0.80
+                base_confidence += 0.05
         
+        # PRIMARY: Entropy-based uncertainty from engine disagreement
+        if not perceptions or len(perceptions) < 2:
+            # Single engine or no perceptions = uncertain
+            consensus_factor = 0.5
+        else:
+            # Normalize weights to probabilities
+            total_weight = sum(final_weights.values())
+            if total_weight < 1e-12:
+                consensus_factor = 0.5
+            else:
+                probs = [w / total_weight for w in final_weights.values()]
+                
+                # Compute normalized entropy: H / H_max
+                # H = -Σ p_i * log(p_i)
+                # H_max = log(n_engines)
+                n = len(probs)
+                entropy = 0.0
+                for p in probs:
+                    if p > 1e-12:
+                        entropy -= p * math.log(p)
+                
+                h_max = math.log(n) if n > 1 else 1.0
+                normalized_entropy = entropy / h_max if h_max > 0 else 0.0
+                
+                # Consensus factor = 1 - normalized_entropy
+                # High entropy (disagreement) → low confidence
+                # Low entropy (consensus) → high confidence
+                consensus_factor = 1.0 - normalized_entropy
+        
+        # Inhibition penalty: if engines were suppressed, we're less confident
+        n_inhibited = sum(1 for p in perceptions if getattr(p, 'inhibited', False))
+        inhibition_ratio = n_inhibited / len(perceptions) if perceptions else 0.0
+        inhibition_penalty = inhibition_ratio * 0.15  # Max -0.15 for all inhibited
+        
+        # Combine: base + consensus bonus - inhibition penalty
+        # Consensus contributes up to +0.40 (strong consensus)
+        # Range: [0.30, 0.95]
+        confidence = base_confidence + (consensus_factor * 0.40) - inhibition_penalty
+        
+        # Recall bonus (small)
         if has_recall:
-            confidence = min(0.95, confidence + 0.05)
+            confidence += 0.05
         
-        return confidence
+        # Clamp to valid range
+        return max(0.10, min(0.95, confidence))
     
     def _run_monte_carlo(
         self,
@@ -306,6 +381,7 @@ class UniversalAnalysisEngine:
         final_weights: Dict[str, float],
         signal,
         pre_computed_scores: Optional[Dict[str, Any]] = None,
+        monte_carlo_result: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Build backward-compatible analysis dict."""
         analysis = {
@@ -321,6 +397,10 @@ class UniversalAnalysisEngine:
                 "signal_profile": signal.to_dict(),
             },
         }
+        
+        # Include Monte Carlo result if available
+        if monte_carlo_result and hasattr(monte_carlo_result, 'to_dict'):
+            analysis["monte_carlo"] = monte_carlo_result.to_dict()
         
         # Include pre_computed_scores for entity_extractor and conclusion_formatter
         if pre_computed_scores:

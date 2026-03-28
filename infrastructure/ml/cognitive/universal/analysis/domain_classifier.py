@@ -193,6 +193,47 @@ def _classify_tabular_domain(data: dict, metadata: Dict[str, Any]) -> str:
     return max(scores, key=scores.get)  # type: ignore[arg-type]
 
 
+def fit_online(
+    pre_computed_scores: Dict[str, Any],
+    label: str,
+) -> None:
+    """Update NaiveBayes classifier with confirmed domain label.
+    
+    Args:
+        pre_computed_scores: Pre-computed analysis scores with features
+        label: Confirmed domain label
+    """
+    try:
+        # Extract features from pre_computed_scores
+        features = {}
+        
+        # Add text features if available
+        if "word_count" in pre_computed_scores:
+            features["word_count"] = float(pre_computed_scores["word_count"])
+        if "urgency_score" in pre_computed_scores:
+            features["urgency_score"] = float(pre_computed_scores["urgency_score"])
+        if "sentiment_score" in pre_computed_scores:
+            features["sentiment_score"] = float(pre_computed_scores["sentiment_score"])
+        
+        # Add entity-based features
+        entities = pre_computed_scores.get("entities", [])
+        if entities:
+            features["entity_count"] = float(len(entities))
+            # Check for temperature patterns
+            temp_entities = [e for e in entities if "°" in str(e) or "C" in str(e) or "F" in str(e)]
+            features["has_temperature"] = 1.0 if temp_entities else 0.0
+            # Check for device patterns
+            device_entities = [e for e in entities if any(x in str(e).upper() for x in ["NODE", "TMP", "SERVER", "ROUTER"])]
+            features["has_device"] = 1.0 if device_entities else 0.0
+        
+        # Only update if we have meaningful features
+        if features and label in _classifier.classes:
+            _classifier.fit_online(features, label)
+    except Exception:
+        # Graceful fail - don't break pipeline for online learning errors
+        pass
+
+
 # --- Attention-based enhancement (optional) ---
 _ATTENTION_AVAILABLE = False
 try:
