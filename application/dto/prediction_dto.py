@@ -62,6 +62,59 @@ class PredictionDTO:
             result["memory_context"] = self.memory_context
         return result
 
+    def to_decision_output(
+        self,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> "DecisionOutput":
+        """Convert to clear DecisionOutput.
+
+        Args:
+            metadata: Optional full metadata dict from pipeline containing
+                boundary_check, action_guard, unified_narrative, etc.
+                If None, constructs DecisionOutput from this DTO's fields only.
+
+        Returns:
+            DecisionOutput with 6 mandatory fields.
+        """
+        from .decision_output import DecisionOutput
+
+        if metadata is not None:
+            # Use factory method to extract from metadata
+            return DecisionOutput.from_metadata(
+                metadata=metadata,
+                series_id=self.series_id,
+                predicted_value=self.predicted_value,
+                default_confidence=self.confidence_score,
+            )
+
+        # Fallback: construct from DTO fields directly
+        # Determine decision based on confidence level
+        decision: Literal["normal", "anomaly", "out_of_domain", "degraded"] = "normal"
+        if self.confidence_level in ("low", "very_low"):
+            decision = "degraded"
+
+        # Determine severity from confidence level
+        severity: Literal["critical", "warning", "info", "unknown"] = "info"
+        if self.confidence_level == "critical":
+            severity = "critical"
+        elif self.confidence_level == "warning":
+            severity = "warning"
+        elif self.confidence_level in ("unknown", "none"):
+            severity = "unknown"
+
+        # Build verdict
+        verdict = self.explanation_text or f"predicted {self.predicted_value:.2f} for {self.series_id}"
+
+        return DecisionOutput(
+            decision=decision,
+            confidence=self.confidence_score,
+            verdict=verdict,
+            severity=severity,
+            action_required=False,
+            action=None,
+            metadata={},
+        )
+
 
 @dataclass(frozen=True)
 class AnomalyDTO:

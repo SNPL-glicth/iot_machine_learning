@@ -152,3 +152,19 @@ class TextCognitiveResult:
             "conclusion": self.conclusion,
             "confidence": round(self.confidence, 3),
         }
+
+    def to_decision_output(self) -> "TextDecisionOutput":
+        """Convert to clear TextDecisionOutput.
+
+        Returns:
+            TextDecisionOutput with 5 mandatory fields.
+        """
+        from iot_machine_learning.application.dto.text_decision_output import (
+            TextDecisionOutput,
+        )
+
+        # Use factory method to convert from this result
+        return TextDecisionOutput.from_text_result(
+            result_dict=self.to_dict(),
+            default_confidence=self.confidence,
+        )

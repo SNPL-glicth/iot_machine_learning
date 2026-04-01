@@ -9,6 +9,7 @@ within the current signal regime using Bayesian posterior updates.
 
 Design:
     - In-memory with optional persistence (saves every N updates).
+    - Redis-backed shared plasticity for multi-worker consistency.
     - Bayesian posterior updates instead of simple EMA.
     - Falls back to uniform weights when no history exists.
 
@@ -20,7 +21,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
 from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
@@ -53,6 +54,9 @@ _MAX_REGIMES: int = 10
 # Persist state every N updates (batching for performance)
 _PERSIST_EVERY_N_UPDATES: int = 10
 
+# Redis cache TTL for weights (seconds)
+_REDIS_CACHE_TTL_SECONDS: float = 60.0
+
 
 class PlasticityTracker:
     """Tracks per-regime, per-engine accuracy and computes adaptive weights using Bayesian updates.
@@ -76,6 +80,8 @@ class PlasticityTracker:
         max_regimes: int = _MAX_REGIMES,
         regime_ttl_seconds: float = 86400.0,
         repository: Optional[PlasticityRepositoryPort] = None,
+        redis_client: Optional[Any] = None,
+        use_redis: bool = False,
     ) -> None:
         self._accuracy: Dict[str, Dict[str, float]] = defaultdict(dict)
         self._priors: Dict[str, Dict[str, GaussianPrior]] = defaultdict(dict)
@@ -88,6 +94,11 @@ class PlasticityTracker:
         self._regime_last_update: Dict[str, float] = {}
         self._repository = repository
         self._update_counter = 0
+        
+        # Redis-backed shared plasticity
+        self._redis = redis_client
+        self._use_redis = use_redis and redis_client is not None
+        self._local_cache: Dict[str, tuple[Dict[str, float], float]] = {}  # (weights, timestamp)
         
         # Load state from repository if available
         if self._repository is not None:
@@ -166,6 +177,10 @@ class PlasticityTracker:
             and self._update_counter % _PERSIST_EVERY_N_UPDATES == 0
         ):
             self._persist_regime_state(regime)
+        
+        # Also update Redis if enabled (for real-time sharing across workers)
+        if self._use_redis and self._redis is not None:
+            self._update_redis(regime, engine_name, self._accuracy[regime][engine_name])
 
     def get_weights(
         self,
@@ -185,7 +200,14 @@ class PlasticityTracker:
         n = len(engine_names)
         if n == 0:
             return {}
-
+        
+        # Try Redis first for shared weights (deterministic across workers)
+        if self._use_redis and self._redis is not None:
+            redis_weights = self._get_weights_from_redis(regime, engine_names)
+            if redis_weights:
+                return redis_weights
+        
+        # Fallback to local accuracy data
         regime_data = self._accuracy.get(regime, {})
         if not regime_data:
             uniform = 1.0 / n
@@ -220,6 +242,64 @@ class PlasticityTracker:
             return {name: uniform for name in engine_names}
 
         return {name: w / total for name, w in raw.items()}
+    
+    def _get_weights_from_redis(
+        self,
+        regime: str,
+        engine_names: List[str],
+    ) -> Optional[Dict[str, float]]:
+        """Fetch weights from Redis with local caching.
+        
+        Returns None if Redis unavailable or no data.
+        """
+        cache_key = f"plasticity:{regime}"
+        now = time.monotonic()
+        
+        # Check local cache first
+        if cache_key in self._local_cache:
+            weights, timestamp = self._local_cache[cache_key]
+            if now - timestamp < _REDIS_CACHE_TTL_SECONDS:
+                return weights
+        
+        try:
+            # Fetch from Redis
+            redis_weights = self._redis.hgetall(cache_key)
+            if not redis_weights:
+                return None
+            
+            # Parse and filter to requested engines
+            weights = {}
+            for name in engine_names:
+                if name in redis_weights:
+                    weights[name] = float(redis_weights[name])
+                else:
+                    weights[name] = self._min_weight
+            
+            # Normalize
+            total = sum(weights.values())
+            if total < 1e-12:
+                return None
+            
+            normalized = {name: w / total for name, w in weights.items()}
+            
+            # Cache locally
+            self._local_cache[cache_key] = (normalized, now)
+            
+            return normalized
+            
+        except Exception as e:
+            logger.debug(f"redis_weights_fetch_failed: {e}")
+            return None
+
+    def _update_redis(self, regime: str, engine_name: str, accuracy: float) -> None:
+        """Update single engine weight in Redis (fail-safe)."""
+        try:
+            cache_key = f"plasticity:{regime}"
+            self._redis.hset(cache_key, engine_name, str(accuracy))
+            # Invalidate local cache to force refresh on next read
+            self._local_cache.pop(cache_key, None)
+        except Exception as e:
+            logger.debug(f"redis_update_failed: {e}")
 
     def has_history(self, regime: str) -> bool:
         """True if any accuracy data exists for this regime."""

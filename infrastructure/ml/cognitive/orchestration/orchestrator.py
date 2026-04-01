@@ -9,9 +9,11 @@ from ..fusion import WeightedFusion
 from ..inhibition import InhibitionConfig, InhibitionGate
 from ..plasticity import PlasticityTracker, build_advanced_plasticity, null_advanced_plasticity
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
+from ..analysis.signal_analyzer import SignalAnalyzer
 from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
 from .weight_resolution_service import WeightResolutionService
+from .iterative_controller import CognitiveLoopController, IterationConfig
 
 _MAX_ERROR_HISTORY: int = 50
 
@@ -23,6 +25,8 @@ class MetaCognitiveOrchestrator(PredictionEngine):
     - Weight resolution consolidated into WeightResolutionService
     - Reduced from 15+ dependencies to core pipeline components
     - Clear separation: orchestration vs weight resolution vs plasticity
+    
+    Phase 2: Added optional iterative cognitive loop for confidence-based refinement.
 
     Implements PredictionEngine — drop-in replacement for any single engine.
     """
@@ -37,6 +41,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         storage_adapter=None,
         enable_advanced_plasticity: bool = False,
         correlation_port=None,
+        enable_iterative: bool = False,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -96,6 +101,20 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         # Storage and correlation (external ports)
         self._storage = storage_adapter
         self._correlation_port = correlation_port
+        
+        # Iterative cognitive loop (Phase 2)
+        self._enable_iterative = enable_iterative
+        if enable_iterative:
+            self._loop_controller = CognitiveLoopController(
+                pipeline_fn=execute_pipeline,
+                config=IterationConfig(
+                    max_iterations=3,
+                    confidence_threshold=0.85,
+                    time_budget_ms=5000.0,
+                ),
+            )
+        else:
+            self._loop_controller = None
 
     @property
     def name(self) -> str:
@@ -109,8 +128,25 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
         series_id: str = "unknown",
+        flags_snapshot=None,
     ) -> PredictionResult:
-        return execute_pipeline(self, values, timestamps, series_id)
+        # Capture flags once at pipeline start for consistency
+        if flags_snapshot is None:
+            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
+            flags_snapshot = get_feature_flags()
+        
+        # Use iterative cognitive loop if enabled
+        if self._enable_iterative and self._loop_controller is not None:
+            return self._loop_controller.execute(
+                orchestrator=self,
+                values=values,
+                timestamps=timestamps,
+                series_id=series_id,
+                flags_snapshot=flags_snapshot,
+            )
+        
+        # Standard single-pass pipeline (backward compatible)
+        return execute_pipeline(self, values, timestamps, series_id, flags_snapshot=flags_snapshot)
 
     def record_actual(
         self,

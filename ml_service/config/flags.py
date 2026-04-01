@@ -223,6 +223,24 @@ class FeatureFlags(BaseModel):
 
         return self.ML_DEFAULT_ENGINE
 
+    # --- Domain Boundary Check (EJE 4 fix) ---
+    ML_DOMAIN_BOUNDARY_ENABLED: bool = False  # Default: disabled for backward compat
+
+    # --- Signal Coherence Check (EJE 2 fix) ---
+    ML_COHERENCE_CHECK_ENABLED: bool = False  # Default: disabled for backward compat
+
+    # --- Decision Arbiter (EJE 1 fix) ---
+    ML_DECISION_ARBITER_ENABLED: bool = False  # Default: disabled for backward compat
+
+    # --- Confidence Calibration (EJE 6 fix) ---
+    ML_CONFIDENCE_CALIBRATION_ENABLED: bool = False  # Default: disabled for backward compat
+
+    # --- Action Guard (EJE 5 fix) ---
+    ML_ACTION_GUARD_ENABLED: bool = False  # Default: disabled for backward compat
+
+    # --- Narrative Unification (EJE 7 fix) ---
+    ML_NARRATIVE_UNIFICATION_ENABLED: bool = False  # Default: disabled for backward compat
+
     # --- Decision Engine (NEW) ---
     ML_ENABLE_DECISION_ENGINE: bool = True  # Default: enabled
     ML_DECISION_ENGINE_STRATEGY: str = "simple"  # simple | conservative | aggressive | cost_optimized

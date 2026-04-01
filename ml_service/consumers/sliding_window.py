@@ -11,7 +11,7 @@ import threading
 import time
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ class SlidingWindowStore:
         ttl_seconds: float = _DEFAULT_TTL_SECONDS,
         enable_proactive_cleanup: bool = _DEFAULT_CLEANUP_ENABLED,
         max_total_entries: int = 50000,
+        flush_callback: Optional[Callable[[int, List[Reading]], None]] = None,
     ) -> None:
         self._max_size = max_size
         self._max_sensors = max(1, max_sensors)
@@ -64,6 +65,9 @@ class SlidingWindowStore:
         self._evictions_global: int = 0
         self._stop_event = threading.Event()
         self._cleanup_thread: Optional[threading.Thread] = None
+        
+        # Flush callback: invoked before eviction to persist data
+        self._flush_callback = flush_callback
         
         if enable_proactive_cleanup and ttl_seconds > 0:
             self._cleanup_thread = threading.Thread(
@@ -142,9 +146,22 @@ class SlidingWindowStore:
     # ------------------------------------------------------------------
 
     def _evict_lru_if_full(self) -> None:
-        """Pop oldest entry when at capacity (caller holds lock)."""
+        """Pop oldest entry when at capacity (caller holds lock).
+        
+        Flushes data to callback before eviction if configured.
+        """
         while len(self._entries) >= self._max_sensors:
-            evicted_id, _ = self._entries.popitem(last=False)
+            evicted_id, entry = self._entries.popitem(last=False)
+            
+            # Flush before eviction to prevent data loss
+            if self._flush_callback is not None:
+                try:
+                    readings = list(entry.window)
+                    if readings:
+                        self._flush_callback(evicted_id, readings)
+                except Exception as e:
+                    logger.warning(f"flush_failed sensor_id={evicted_id}: {e}")
+            
             self._evictions_lru += 1
             logger.debug("lru_evict sensor_id=%d", evicted_id)
 
@@ -153,20 +170,47 @@ class SlidingWindowStore:
         return sum(len(entry.window) for entry in self._entries.values())
     
     def _evict_global_if_needed(self) -> None:
-        """Evict LRU sensor when global entry limit exceeded (caller holds lock)."""
+        """Evict LRU sensor when global entry limit exceeded (caller holds lock).
+        
+        Flushes data to callback before eviction if configured.
+        """
         while self._get_total_entries() > self._max_total_entries and self._entries:
-            evicted_id, _ = self._entries.popitem(last=False)
+            evicted_id, entry = self._entries.popitem(last=False)
+            
+            # Flush before eviction to prevent data loss
+            if self._flush_callback is not None:
+                try:
+                    readings = list(entry.window)
+                    if readings:
+                        self._flush_callback(evicted_id, readings)
+                except Exception as e:
+                    logger.warning(f"flush_failed sensor_id={evicted_id}: {e}")
+            
             self._evictions_global += 1
             logger.debug("global_evict sensor_id=%d", evicted_id)
     
     def _cleanup_expired(self, now: float) -> None:
-        """Remove entries idle longer than TTL (caller holds lock)."""
+        """Remove entries idle longer than TTL (caller holds lock).
+        
+        Flushes data to callback before eviction if configured.
+        """
         cutoff = now - self._ttl
         expired = [
             sid for sid, e in self._entries.items()
             if e.last_accessed < cutoff
         ]
         for sid in expired:
+            entry = self._entries[sid]
+            
+            # Flush before eviction to prevent data loss
+            if self._flush_callback is not None:
+                try:
+                    readings = list(entry.window)
+                    if readings:
+                        self._flush_callback(sid, readings)
+                except Exception as e:
+                    logger.warning(f"flush_failed sensor_id={sid}: {e}")
+            
             del self._entries[sid]
             self._evictions_ttl += 1
             logger.debug("ttl_evict sensor_id=%d", sid)

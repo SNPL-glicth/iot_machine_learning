@@ -16,6 +16,34 @@ from ..explanation import ExplanationBuilder
 from ..perception.helpers import collect_perceptions
 from ..analysis.types import MetaDiagnostic, PipelineTimer
 from .fallback_handler import handle_fallback
+from .....domain.services.signal_coherence_checker import (
+    SignalCoherenceChecker,
+    CoherenceResult,
+)
+from .....domain.services.engine_decision_arbiter import (
+    EngineDecisionArbiter,
+    EngineDecision,
+)
+from .....domain.services.confidence_calibrator import (
+    ConfidenceCalibrator,
+    CalibratedConfidence,
+)
+from .....domain.services.action_guard import (
+    ActionGuard,
+    GuardedAction,
+)
+from .....domain.services.domain_boundary_checker import (
+    DomainBoundaryChecker,
+)
+from .....domain.entities.results.boundary_result import (
+    BoundaryResult,
+)
+from .....domain.entities.results.unified_narrative import (
+    UnifiedNarrative,
+)
+from .....domain.services.narrative_unifier import (
+    NarrativeUnifier,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +150,7 @@ def execute_pipeline(
     values: List[float],
     timestamps: Optional[List[float]],
     series_id: str,
+    flags_snapshot: Optional[Any] = None,
 ) -> PredictionResult:
     """Execute full cognitive pipeline.
     
@@ -130,11 +159,59 @@ def execute_pipeline(
         values: Time series values
         timestamps: Optional timestamps
         series_id: Series identifier
+        flags_snapshot: Optional pre-captured feature flags snapshot.
+            If None, flags are captured at pipeline start (consistent throughout).
     
     Returns:
         PredictionResult with cognitive metadata
     """
+    # Capture flags once at pipeline start for consistency
+    if flags_snapshot is None:
+        from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
+        flags = get_feature_flags()
+    else:
+        flags = flags_snapshot
+    
     timer = PipelineTimer(budget_ms=orchestrator._budget_ms)
+
+    # Phase: DOMAIN BOUNDARY CHECK (EJE 4 fix — only if enabled, first phase)
+    boundary_result: Optional[BoundaryResult] = None
+    try:
+        if flags.ML_DOMAIN_BOUNDARY_ENABLED:
+            checker = DomainBoundaryChecker()
+            # Get noise ratio from profile if available (placeholder for now)
+            noise_ratio = 0.0
+            boundary_result = checker.check(
+                values=values,
+                timestamps=timestamps,
+                noise_ratio=noise_ratio,
+            )
+            
+            if not boundary_result.within_domain:
+                logger.warning("domain_boundary_violation", extra={
+                    "series_id": series_id,
+                    "rejection_reason": boundary_result.rejection_reason,
+                    "n_points": len(values),
+                })
+                # Return immediate out-of-domain result
+                from ...interfaces import PredictionResult
+                return PredictionResult(
+                    predicted_value=None,
+                    confidence=0.0,
+                    trend="unknown",
+                    metadata={
+                        "is_out_of_domain": True,
+                        "rejection_reason": boundary_result.rejection_reason,
+                        "boundary_check": {
+                            "within_domain": False,
+                            "rejection_reason": boundary_result.rejection_reason,
+                            "data_quality_score": 0.0,
+                            "warnings": [],
+                        },
+                    },
+                )
+    except Exception as e:
+        logger.debug(f"domain_boundary_check_skipped: {e}")
 
     # Phase: PERCEIVE
     timer.start()
@@ -266,6 +343,105 @@ def execute_pipeline(
     )
     timer.stop("fuse")
 
+    # Phase: DECISION ARBITER (EJE 1 fix — only if enabled)
+    engine_decision: Optional[EngineDecision] = None
+    try:
+        if flags.ML_DECISION_ARBITER_ENABLED:
+            # Determine engines from each layer
+            flag_engine = flags.get_active_engine_for_series(series_id) if hasattr(flags, 'get_active_engine_for_series') else "unknown"
+            profile_engine = selected  # From fusion/WeightedFusion
+            fusion_engine = selected   # From fusion
+            
+            arbiter = EngineDecisionArbiter()
+            engine_decision = arbiter.arbitrate(
+                flag_engine=flag_engine,
+                profile_engine=profile_engine,
+                fusion_engine=fusion_engine,
+                series_id=series_id,
+                rollback_to_baseline=flags.ML_ROLLBACK_TO_BASELINE,
+                series_overrides=getattr(flags, 'ML_ENGINE_SERIES_OVERRIDES', {}),
+            )
+            logger.info("engine_decision_arbitrated", extra={
+                "series_id": series_id,
+                "chosen_engine": engine_decision.chosen_engine,
+                "authority": engine_decision.authority,
+                "reason": engine_decision.reason,
+                "overrides": engine_decision.overrides,
+            })
+    except Exception as e:
+        logger.debug(f"engine_decision_arbiter_skipped: {e}")
+
+    # Phase: COHERENCE CHECK (EJE 2 fix — only if enabled)
+    coherence_result: Optional[CoherenceResult] = None
+    try:
+        if flags.ML_COHERENCE_CHECK_ENABLED:
+            # Note: In real implementation, anomaly_result would come from
+            # anomaly detection service. Here we use placeholder for structure.
+            checker = SignalCoherenceChecker()
+            # Use profile values as proxy for historical range
+            historical = values if len(values) > 0 else None
+            # Placeholder: assume no anomaly for now (anomaly integration separate)
+            is_anomaly = False
+            anomaly_score = 0.0
+            coherence_result = checker.check(
+                predicted_value=fused_val,
+                predicted_confidence=fused_conf,
+                is_anomaly=is_anomaly,
+                anomaly_score=anomaly_score,
+                historical_values=historical,
+            )
+            if not coherence_result.is_coherent:
+                fused_conf = coherence_result.resolved_confidence
+                logger.warning("coherence_conflict_detected", extra={
+                    "conflict_type": coherence_result.conflict_type,
+                    "resolved_confidence": round(fused_conf, 4),
+                    "reason": coherence_result.resolution_reason,
+                })
+    except Exception as e:
+        logger.debug(f"coherence_check_skipped: {e}")
+
+    # Phase: CONFIDENCE CALIBRATION (EJE 6 fix — only if enabled)
+    calibrated_confidence: Optional[CalibratedConfidence] = None
+    try:
+        if flags.ML_CONFIDENCE_CALIBRATION_ENABLED:
+            calibrator = ConfidenceCalibrator()
+            
+            # Compute engine disagreement from perceptions
+            engine_disagreement = calibrator.compute_engine_disagreement(perceptions)
+            
+            # Determine if only baseline is active
+            only_baseline = len(perceptions) == 1 and perceptions[0].engine_name == "baseline"
+            all_inhibited = all(s.inhibited_weight < 0.05 for s in inh_states) if inh_states else False
+            
+            # Get noise ratio from profile if available
+            noise_ratio = getattr(profile, 'noise_ratio', 0.0)
+            
+            # Check coherence conflict from EJE 2
+            coherence_conflict = coherence_result is not None and not coherence_result.is_coherent
+            
+            calibrated_confidence = calibrator.calibrate(
+                raw_confidence=fused_conf,
+                n_points=len(values),
+                noise_ratio=noise_ratio,
+                engine_disagreement=engine_disagreement,
+                only_baseline_active=only_baseline,
+                coherence_conflict=coherence_conflict,
+                all_engines_inhibited=all_inhibited,
+            )
+            
+            # Replace fused_conf with calibrated
+            fused_conf = calibrated_confidence.calibrated
+            
+            logger.info("confidence_calibrated", extra={
+                "series_id": series_id,
+                "raw": round(calibrated_confidence.raw, 4),
+                "calibrated": round(calibrated_confidence.calibrated, 4),
+                "penalty": round(calibrated_confidence.penalty_applied, 4),
+                "n_reasons": len(calibrated_confidence.reasons),
+            })
+    except Exception as e:
+        logger.debug(f"confidence_calibration_skipped: {e}")
+
     # Phase: EXPLAIN
     timer.start()
     diag = MetaDiagnostic(
@@ -290,12 +466,152 @@ def execute_pipeline(
     if timer.is_over_budget:
         logger.warning("pipeline_over_budget", extra=timer.to_dict())
 
+    # Phase: ACTION GUARD (EJE 5 fix — only if enabled, last phase)
+    guarded_action: Optional[GuardedAction] = None
+    try:
+        if flags.ML_ACTION_GUARD_ENABLED:
+            # Determine series state (placeholder: use "UNKNOWN" if not available)
+            series_state = getattr(profile, 'series_state', 'UNKNOWN')
+            
+            # Extract action info from explanation if available
+            action_required = False
+            recommended_action = None
+            severity = "NORMAL"
+            
+            if orchestrator._last_explanation:
+                # Try to extract severity and action from explanation
+                outcome = getattr(orchestrator._last_explanation, 'outcome', None)
+                if outcome:
+                    severity = getattr(outcome, 'severity', 'NORMAL')
+                    action_required = getattr(outcome, 'action_required', False)
+                    recommended_action = getattr(outcome, 'recommended_action', None)
+            
+            guard = ActionGuard()
+            guarded_action = guard.guard(
+                action_required=action_required,
+                recommended_action=recommended_action,
+                severity=severity,
+                series_state=series_state,
+            )
+            
+            if not guarded_action.action_allowed:
+                logger.warning("action_suppressed", extra={
+                    "series_id": series_id,
+                    "series_state": series_state,
+                    "original_action": recommended_action,
+                    "reason": guarded_action.suppressed_reason,
+                })
+    except Exception as e:
+        logger.debug(f"action_guard_skipped: {e}")
+
     metadata = {
         "cognitive_diagnostic": diag.to_dict(),
         "explanation": orchestrator._last_explanation.to_dict(),
         "pipeline_timing": timer.to_dict(),
     }
     
+    # Add boundary check result if available (with warnings)
+    if boundary_result is not None and boundary_result.within_domain:
+        metadata["boundary_check"] = {
+            "within_domain": True,
+            "data_quality_score": boundary_result.data_quality_score,
+            "warnings": boundary_result.warnings,
+        }
+    
+    # Add coherence check result if available
+    if coherence_result is not None:
+        metadata["coherence_check"] = {
+            "is_coherent": coherence_result.is_coherent,
+            "conflict_type": coherence_result.conflict_type,
+            "resolved_confidence": coherence_result.resolved_confidence,
+            "resolution_reason": coherence_result.resolution_reason,
+        }
+    
+    # Add engine decision if available
+    if engine_decision is not None:
+        metadata["engine_decision"] = {
+            "chosen_engine": engine_decision.chosen_engine,
+            "authority": engine_decision.authority,
+            "reason": engine_decision.reason,
+            "overrides": engine_decision.overrides,
+        }
+    
+    # Add confidence calibration report if available
+    if calibrated_confidence is not None:
+        metadata["calibration_report"] = {
+            "raw": calibrated_confidence.raw,
+            "calibrated": calibrated_confidence.calibrated,
+            "penalty_applied": calibrated_confidence.penalty_applied,
+            "reasons": calibrated_confidence.reasons,
+        }
+    
+    # Add action guard result if available
+    if guarded_action is not None:
+        metadata["action_guard"] = {
+            "action_allowed": guarded_action.action_allowed,
+            "original_action": guarded_action.original_action,
+            "final_action": guarded_action.final_action,
+            "suppressed_reason": guarded_action.suppressed_reason,
+            "series_state": guarded_action.series_state,
+        }
+    
+    # Phase: NARRATIVE UNIFICATION (EJE 7 fix — only if enabled, absolute last phase)
+    unified_narrative: Optional[UnifiedNarrative] = None
+    try:
+        if flags.ML_NARRATIVE_UNIFICATION_ENABLED:
+            unifier = NarrativeUnifier()
+            
+            # Build narrative sources from available data
+            prediction_explanation = None
+            anomaly_narrative = None
+            text_narrative = None
+            
+            # Extract from explanation builder result
+            if orchestrator._last_explanation:
+                outcome = getattr(orchestrator._last_explanation, 'outcome', None)
+                if outcome:
+                    prediction_explanation = {
+                        "verdict": getattr(outcome, 'description', None),
+                        "severity": getattr(outcome, 'severity', 'UNKNOWN'),
+                        "confidence": fused_conf,
+                    }
+            
+            # Anomaly narrative placeholder (would come from anomaly detection)
+            # For now, use coherence result as proxy if conflict detected
+            if coherence_result and not coherence_result.is_coherent:
+                anomaly_narrative = {
+                    "verdict": f"coherence_conflict:{coherence_result.conflict_type}",
+                    "severity": "WARNING",
+                    "confidence": coherence_result.resolved_confidence,
+                }
+            
+            unified_narrative = unifier.unify(
+                prediction_explanation=prediction_explanation,
+                anomaly_narrative=anomaly_narrative,
+                text_narrative=text_narrative,
+            )
+            
+            # Log if contradictions detected
+            if unified_narrative.contradictions:
+                logger.warning("narrative_contradictions_detected", extra={
+                    "series_id": series_id,
+                    "contradictions": unified_narrative.contradictions,
+                    "unified_severity": unified_narrative.severity,
+                })
+    except Exception as e:
+        logger.debug(f"narrative_unification_skipped: {e}")
+
+    # Add unified narrative to metadata if available
+    if unified_narrative is not None:
+        metadata["unified_narrative"] = {
+            "primary_verdict": unified_narrative.primary_verdict,
+            "severity": unified_narrative.severity,
+            "confidence": unified_narrative.confidence,
+            "contradictions": unified_narrative.contradictions,
+            "sources_used": unified_narrative.sources_used,
+            "suppressed": unified_narrative.suppressed,
+        }
+
     if orchestrator._storage and series_id != "unknown":
         ci = orchestrator._storage.compute_confidence_interval(
             series_id, selected, fused_val
