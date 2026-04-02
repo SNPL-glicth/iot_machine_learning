@@ -19,6 +19,7 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEnginePortBridge,
     PredictionResult,
 )
+from iot_machine_learning.infrastructure.ml.engines.seasonal.engine import SeasonalPredictorEngine
 
 logger = logging.getLogger(__name__)
 
@@ -207,5 +208,6 @@ def discover_engines(package_path: str) -> List[str]:
     return sorted(after - before)
 
 
-# --- Auto-registro del baseline al importar ---
+# --- Auto-registro de engines al importar ---
 EngineFactory.register("baseline_moving_average", BaselineMovingAverageEngine)
+EngineFactory.register("seasonal_fft", SeasonalPredictorEngine)

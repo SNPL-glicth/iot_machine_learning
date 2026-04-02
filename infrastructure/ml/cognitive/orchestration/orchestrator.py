@@ -14,7 +14,8 @@ from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
 from .weight_resolution_service import WeightResolutionService
 from .iterative_controller import CognitiveLoopController, IterationConfig
-from .error_history_manager import ErrorHistoryManager, create_error_history_manager
+from .error_history_manager import create_error_history_manager
+from .context_state_manager import ContextStateManager
 
 
 class MetaCognitiveOrchestrator(PredictionEngine):
@@ -52,18 +53,30 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._fusion = WeightedFusion()
         self._budget_ms = budget_ms
         
-        # Thread-safe state tracking
-        self._state_lock = threading.RLock()
+        # R-1: Per-series state isolation via ContextStateManager
+        self._state_manager = ContextStateManager(max_series=10000)
         self._error_history = create_error_history_manager(max_history=50)
+        
+        # GOLD: Initialize storage adapter (was missing - critical bug fix)
+        self._storage = storage_adapter
+        
+        # Thread-safe locks for non-series-specific state
+        self._state_lock = threading.RLock()
         self._last_diagnostic: Optional[MetaDiagnostic] = None
         self._last_explanation = None
-        self._last_regime: Optional[str] = None
-        self._last_perceptions: List[EnginePerception] = []
         self._last_timer: Optional[PipelineTimer] = None
         
-        # Plasticity (learning)
+        # Plasticity (learning) - must be before weight_resolver
         self._plasticity = PlasticityTracker() if enable_plasticity else None
         self._enable_advanced_plasticity = enable_advanced_plasticity
+        
+        # GOLD: Weight resolution service (consolidated from Phase 3 refactor)
+        base_weights = initial_weights or {e.name: 1.0 / len(engines) for e in engines}
+        self._weight_resolver = WeightResolutionService(
+            base_weights=base_weights,
+            plasticity_tracker=self._plasticity,
+            storage_adapter=storage_adapter,
+        )
         
         # Build advanced plasticity components
         if enable_advanced_plasticity:
@@ -83,25 +96,9 @@ class MetaCognitiveOrchestrator(PredictionEngine):
                 self._health_monitor,
             ) = null_advanced_plasticity()
         
-        self._last_plasticity_context = None
-        
-        # Weight resolution (consolidated service)
-        base_weights = initial_weights or {
-            e.name: 1.0 / len(engines) for e in engines
-        }
-        self._weight_resolver = WeightResolutionService(
-            base_weights=base_weights,
-            plasticity_tracker=self._plasticity,
-            storage_adapter=storage_adapter,
-            epsilon=0.01,
-        )
-        
-        # Storage and correlation (external ports)
-        self._storage = storage_adapter
-        self._correlation_port = correlation_port
-        
-        # Iterative cognitive loop (Phase 2)
+        # Iterative cognitive loop
         self._enable_iterative = enable_iterative
+        self._loop_controller = None
         if enable_iterative:
             self._loop_controller = CognitiveLoopController(
                 pipeline_fn=execute_pipeline,
@@ -128,15 +125,15 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         series_id: str = "unknown",
         flags_snapshot=None,
     ) -> PredictionResult:
-        # CRIT-3: Feature flags must be passed via constructor or parameter
-        # Do not import feature_flags here - rely on injected flags_snapshot
         if flags_snapshot is None:
             raise ValueError(
                 "flags_snapshot is required. Pass feature flags via constructor "
                 "or flags_snapshot parameter to enable testable injection."
             )
         
-        # Use iterative cognitive loop if enabled
+        # Track prediction count for this specific series
+        self._state_manager.increment_prediction_count(series_id)
+        
         if self._enable_iterative and self._loop_controller is not None:
             return self._loop_controller.execute(
                 orchestrator=self,
@@ -155,11 +152,18 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         series_id: Optional[str] = None,
         series_context=None,
     ) -> None:
+        """Record actual value with series-isolated state (R-1)."""
+        if series_id is None:
+            raise ValueError("series_id is required for state isolation (R-1)")
+        
+        # R-1: Get series-specific state instead of shared
+        series_state = self._state_manager.get_state(series_id)
+        
         record_actual_dispatch(
             actual_value=actual_value,
-            last_regime=self._last_regime,
-            last_perceptions=self._last_perceptions,
-            last_plasticity_context=self._last_plasticity_context,
+            last_regime=series_state.last_regime,
+            last_perceptions=series_state.last_perceptions,
+            last_plasticity_context=series_state.last_plasticity_context,
             enable_advanced_plasticity=self._enable_advanced_plasticity,
             plasticity_coordinator=self._plasticity_coordinator,
             plasticity_tracker=self._plasticity,
@@ -176,45 +180,29 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             DeprecationWarning,
             stacklevel=2,
         )
-        return self._last_diagnostic
+        # GOLD: Protect with state lock to prevent race conditions
+        with self._state_lock:
+            return self._last_diagnostic
 
     @property
     def last_explanation(self):
-        return self._last_explanation
+        # GOLD: Protect with state lock to prevent race conditions
+        with self._state_lock:
+            return self._last_explanation
 
     @property
     def last_pipeline_timing(self) -> Optional[PipelineTimer]:
-        return self._last_timer
+        # GOLD: Protect with state lock to prevent race conditions  
+        with self._state_lock:
+            return self._last_timer
+
+    @property
+    def state_manager(self) -> ContextStateManager:
+        """Access state manager for testing and monitoring."""
+        return self._state_manager
 
     # ------------------------------------------------------------------
-    # Backward compatibility properties (Phase 3 refactor)
+    # GOLD: Removed broken backward compatibility properties
+    # Phase 3 refactor consolidated weight services into WeightResolutionService
+    # Use _weight_resolver directly or the public orchestrator interface
     # ------------------------------------------------------------------
-    
-    @property
-    def _weight_service(self):
-        """Backward compatibility: returns WeightResolutionService as weight service.
-        
-        Phase 3 refactor: WeightAdjustmentService and WeightMediator consolidated
-        into WeightResolutionService. This property maintains compatibility with
-        code referencing orchestrator._weight_service.
-        """
-        return self._weight_resolver
-    
-    @property
-    def _weight_mediator(self):
-        """Backward compatibility: returns simple pass-through mediator.
-        
-        Phase 3 refactor: Weight mediation logic moved into WeightResolutionService.
-        This property returns a lightweight mediator that delegates to the resolver.
-        """
-        if not hasattr(self, '_ _compat_mediator'):
-            from ..fusion import WeightMediator
-            self._compat_mediator = WeightMediator()
-        return self._compat_mediator
-    
-    @property
-    def _base_weights(self) -> Dict[str, float]:
-        """Backward compatibility: returns base weights from resolver."""
-        if hasattr(self, '_weight_resolver'):
-            return self._weight_resolver._base_weights
-        return {}

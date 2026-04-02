@@ -11,73 +11,110 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 
-@dataclass(frozen=True)
-class SensorReading:
-    """Lectura individual de un sensor IoT.
-
+@dataclass(frozen=True, slots=True)
+class Reading:
+    """UTSAE Canonical Reading type - unified sensor reading with series_id.
+    
+    Phase 6: Replaces SensorReading with series_id (str) as universal key.
+    Eliminates sensor_id: int vs series_id: str duality.
+    
     Attributes:
-        sensor_id: Identificador único del sensor.
-        value: Valor numérico de la lectura.
-        timestamp: Timestamp Unix (segundos desde epoch).
-        sensor_type: Tipo de sensor (``"temperature"``, ``"humidity"``, etc.).
-        device_id: ID del dispositivo al que pertenece el sensor.
+        series_id: Universal series identifier (string).
+        value: Numeric reading value.
+        timestamp: Unix timestamp.
+        sensor_type: Type classification.
+        device_id: Optional device reference.
     """
-
-    sensor_id: int
+    
+    series_id: str
     value: float
     timestamp: float
     sensor_type: str = ""
     device_id: Optional[int] = None
-
+    
     def __post_init__(self) -> None:
         if not math.isfinite(self.value):
-            raise ValueError(
-                f"SensorReading.value debe ser finito, recibido {self.value}"
-            )
+            raise ValueError(f"Reading.value must be finite, got {self.value}")
         if not math.isfinite(self.timestamp):
-            raise ValueError(
-                f"SensorReading.timestamp debe ser finito, recibido {self.timestamp}"
-            )
-
+            raise ValueError(f"Reading.timestamp must be finite, got {self.timestamp}")
+    
     @property
     def is_valid(self) -> bool:
-        """``True`` si el valor es finito y el timestamp es positivo."""
         return math.isfinite(self.value) and self.timestamp > 0
+    
+    # GOLD: @deprecated - Use series_id instead
+    # Backward compatibility alias only - will be removed in v0.3.0
+    @property
+    def sensor_id(self) -> int:
+        """@deprecated Use series_id (str) instead. Maintained for backward compatibility only."""
+        try:
+            return int(self.series_id)
+        except ValueError:
+            return 0
 
 
-@dataclass(frozen=True)
-class SensorWindow:
-    """Ventana temporal de lecturas de un sensor.
+@dataclass(frozen=True, slots=True)
+class SensorReading(Reading):
+    """@deprecated Legacy alias for Reading. Use Reading directly."""
+    pass
 
-    Contiene N lecturas ordenadas cronológicamente (más antiguo primero).
-    Provee acceso conveniente a valores y timestamps como listas.
 
+@dataclass(frozen=True, slots=True)
+class TimeSeriesWindow:
+    """UTSAE Canonical window - unified temporal window with series_id.
+    
+    Phase 6: Replaces SensorWindow with series_id (str) as universal key.
+    
     Attributes:
-        sensor_id: ID del sensor.
-        readings: Lecturas ordenadas cronológicamente.
-        sensor_type: Tipo de sensor.
-        device_id: ID del dispositivo.
+        series_id: Universal series identifier (string).
+        readings: Ordered chronologically.
+        sensor_type: Type classification.
+        device_id: Optional device reference.
     """
-
-    sensor_id: int
-    readings: List[SensorReading] = field(default_factory=list)
+    
+    series_id: str
+    readings: List[Reading] = field(default_factory=list)
     sensor_type: str = ""
     device_id: Optional[int] = None
-
+    
     @property
     def values(self) -> List[float]:
-        """Lista de valores numéricos."""
         return [r.value for r in self.readings]
-
+    
     @property
     def timestamps(self) -> List[float]:
-        """Lista de timestamps Unix."""
         return [r.timestamp for r in self.readings]
-
+    
     @property
     def size(self) -> int:
-        """Número de lecturas en la ventana."""
         return len(self.readings)
+    
+    @property
+    def is_empty(self) -> bool:
+        return len(self.readings) == 0
+    
+    @property
+    def last_value(self) -> Optional[float]:
+        return self.readings[-1].value if self.readings else None
+    
+    @property
+    def last_timestamp(self) -> Optional[float]:
+        return self.readings[-1].timestamp if self.readings else None
+    
+    # GOLD: @deprecated - Use series_id instead
+    @property
+    def sensor_id(self) -> int:
+        """@deprecated Use series_id (str) instead. Maintained for backward compatibility only."""
+        try:
+            return int(self.series_id)
+        except ValueError:
+            return 0
+
+
+@dataclass(frozen=True, slots=True)
+class SensorWindow(TimeSeriesWindow):
+    """@deprecated Legacy alias for TimeSeriesWindow. Use TimeSeriesWindow directly."""
+    pass
 
     @property
     def is_empty(self) -> bool:

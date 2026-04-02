@@ -1,12 +1,15 @@
-"""Assembly Phase — MED-1 Refactoring.
+"""Assembly Phase — GOLD version 0.2.1.
 
 Constructs final PredictionResult from accumulated context.
+GOLD: Added cognitive_trace combining drift, shadow, and circuit breaker status.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict
+import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from . import PipelineContext
@@ -14,6 +17,33 @@ if TYPE_CHECKING:
 from ....interfaces import PredictionResult
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class CognitiveTrace:
+    """GOLD: Unified cognitive trace combining all phase metadata.
+    
+    Attributes:
+        drift_score: Concept drift detection score (0 = no drift, >2 = drift)
+        shadow_performance: Shadow engine evaluation results if enabled
+        circuit_breaker_status: "closed", "open", or "half_open"
+        amnesic_mode: True if running in RAM-only mode (persistence failed)
+        assembly_timestamp: Unix timestamp of assembly
+    """
+    drift_score: float = 0.0
+    shadow_performance: Optional[Dict[str, Any]] = None
+    circuit_breaker_status: str = "closed"
+    amnesic_mode: bool = False
+    assembly_timestamp: float = 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "drift_score": self.drift_score,
+            "shadow_performance": self.shadow_performance,
+            "circuit_breaker_status": self.circuit_breaker_status,
+            "amnesic_mode": self.amnesic_mode,
+            "assembly_timestamp": self.assembly_timestamp,
+        }
 
 
 class AssemblyPhase:
@@ -47,11 +77,12 @@ class AssemblyPhase:
         )
     
     def _build_metadata(self, ctx: PipelineContext) -> Dict[str, Any]:
-        """Build comprehensive metadata dict."""
+        """Build comprehensive metadata dict with GOLD cognitive trace."""
         metadata: Dict[str, Any] = {
             "cognitive_diagnostic": ctx.diagnostic.to_dict() if ctx.diagnostic else None,
             "explanation": ctx.explanation.to_dict() if ctx.explanation else None,
             "pipeline_timing": ctx.timer.to_dict() if ctx.timer else None,
+            "cognitive_trace": self._build_cognitive_trace(ctx),
         }
         
         # Add boundary check if available
@@ -111,3 +142,52 @@ class AssemblyPhase:
             }
         
         return metadata
+    
+    def _build_cognitive_trace(self, ctx: PipelineContext) -> Dict[str, Any]:
+        """GOLD: Build unified cognitive trace from all phase outputs."""
+        trace = CognitiveTrace(assembly_timestamp=time.time())
+        
+        # Extract drift information
+        if hasattr(ctx, 'drift_response') and ctx.drift_response:
+            trace = CognitiveTrace(
+                drift_score=ctx.drift_response.get('drift_score', 0.0),
+                amnesic_mode=ctx.drift_response.get('amnesic_mode', False),
+                assembly_timestamp=trace.assembly_timestamp,
+            )
+        
+        # Extract shadow performance
+        if hasattr(ctx, 'experimental_metadata') and ctx.experimental_metadata:
+            shadow = ctx.experimental_metadata.get('shadow')
+            if shadow and isinstance(shadow, dict):
+                trace = CognitiveTrace(
+                    drift_score=trace.drift_score,
+                    shadow_performance={
+                        "engines_tested": shadow.get('engines_tested', 0),
+                        "results": shadow.get('results', []),
+                        "sampled": shadow.get('sampled', True),
+                    },
+                    circuit_breaker_status=trace.circuit_breaker_status,
+                    amnesic_mode=trace.amnesic_mode,
+                    assembly_timestamp=trace.assembly_timestamp,
+                )
+        
+        # Extract circuit breaker status from persistence adapter
+        if hasattr(ctx, 'persistence_adapter') and ctx.persistence_adapter:
+            adapter = ctx.persistence_adapter
+            if hasattr(adapter, '_circuit'):
+                circuit = adapter._circuit
+                if circuit.is_open:
+                    status = "open"
+                elif circuit.failures > 0:
+                    status = "half_open"
+                else:
+                    status = "closed"
+                trace = CognitiveTrace(
+                    drift_score=trace.drift_score,
+                    shadow_performance=trace.shadow_performance,
+                    circuit_breaker_status=status,
+                    amnesic_mode=trace.amnesic_mode or circuit.is_open,
+                    assembly_timestamp=trace.assembly_timestamp,
+                )
+        
+        return trace.to_dict()

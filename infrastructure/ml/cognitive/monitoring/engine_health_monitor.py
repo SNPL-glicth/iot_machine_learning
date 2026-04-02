@@ -12,7 +12,7 @@ from threading import RLock
 from typing import Dict, List, Optional, Tuple
 
 from iot_machine_learning.domain.entities.plasticity.engine_plasticity_state import EnginePlasticityState
-from .inhibition_rules import evaluate_inhibition, build_health_summary
+from iot_machine_learning.infrastructure.ml.cognitive.inhibition.smart_rules import evaluate_inhibition, build_health_summary
 
 logger = logging.getLogger(__name__)
 

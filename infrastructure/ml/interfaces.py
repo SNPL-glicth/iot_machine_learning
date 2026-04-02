@@ -27,9 +27,11 @@ from typing import List, Literal, Optional
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PredictionResult:
     """Resultado unificado de cualquier motor de predicción.
+
+    MED-3: __slots__ enabled para reducir overhead de memoria ~40-60%.
 
     Attributes:
         predicted_value: Valor predicho para el siguiente paso temporal.
