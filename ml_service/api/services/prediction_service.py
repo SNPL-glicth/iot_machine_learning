@@ -50,12 +50,9 @@ from iot_machine_learning.domain.services.threshold_evaluator import (
     is_threshold_violated,
     is_within_warning_range,
 )
-from iot_machine_learning.infrastructure.persistence.sql.storage import (
-    SqlServerStorageAdapter,
-)
-from iot_machine_learning.infrastructure.repositories.threshold_repository import (
-    ThresholdRepository,
-)
+from iot_machine_learning.domain.ports.storage_port import StoragePort
+from iot_machine_learning.domain.ports.audit_port import AuditPort
+from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +64,33 @@ class PredictionService:
     Mantiene la misma API pública para compatibilidad con routes.py.
     """
 
-    def __init__(self, conn: Connection):
+    def __init__(
+        self,
+        conn: Connection,
+        storage: Optional[StoragePort] = None,
+        threshold_repo: Optional["ThresholdRepositoryPort"] = None,
+    ):
         self._conn = conn
 
-        # --- Wiring enterprise ---
-        self._storage = SqlServerStorageAdapter(conn)
-        self._threshold_repo = ThresholdRepository(conn)
+        # --- Wiring enterprise with dependency injection ---
+        # If storage is not provided, create default (backward compatibility)
+        if storage is None:
+            from iot_machine_learning.infrastructure.persistence.sql.storage import (
+                SqlServerStorageAdapter,
+            )
+            self._storage: StoragePort = SqlServerStorageAdapter(conn)
+        else:
+            self._storage = storage
+
+        # If threshold_repo is not provided, create default (backward compatibility)
+        if threshold_repo is None:
+            from iot_machine_learning.infrastructure.repositories.threshold_repository import (
+                ThresholdRepository,
+            )
+            self._threshold_repo = ThresholdRepository(conn)
+        else:
+            self._threshold_repo = threshold_repo
+
         self._renderer = ExplanationRenderer()
 
         baseline_engine = EngineFactory.create("baseline_moving_average")

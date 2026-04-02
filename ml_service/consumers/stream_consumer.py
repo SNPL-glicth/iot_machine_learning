@@ -3,19 +3,22 @@
 Features:
 - Backpressure control: rejects messages when overloaded
 - Priority-based acceptance (critical always accepted)
+- At-least-once semantics: ACK after successful prediction
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import sys
 import threading
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
 
 from .sliding_window import Reading, SlidingWindowStore
 from ..metrics.performance_metrics import MetricsCollector
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +99,11 @@ class BackpressureController:
 
 
 class ReadingsStreamConsumer:
-    """Consumes readings:raw Redis Stream and triggers ML predictions."""
+    """Consumes readings:raw Redis Stream and triggers ML predictions.
+    
+    Implements at-least-once semantics by ACKing messages only after
+    successful prediction processing.
+    """
 
     def __init__(
         self,
@@ -105,6 +112,8 @@ class ReadingsStreamConsumer:
         max_window: int = DEFAULT_MAX_WINDOW,
         consumer_name: Optional[str] = None,
         max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
+        engine_factory: Optional[Callable[[], "PredictionAdapter"]] = None,
+        db_engine: Optional["Engine"] = None,
     ):
         self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self._min_window = min_window
@@ -112,6 +121,8 @@ class ReadingsStreamConsumer:
         self._store = SlidingWindowStore(max_size=max_window)
         self._use_case = None
         self._running = False
+        self._engine_factory = engine_factory
+        self._db_engine = db_engine
         
         # Backpressure controller
         self._backpressure = BackpressureController(max_in_flight=max_in_flight)
@@ -120,10 +131,16 @@ class ReadingsStreamConsumer:
         if self._use_case is not None:
             return
         try:
-            from iot_ingest_services.common.db import get_engine
             from ..config.feature_flags import get_feature_flags
             from ..runners.wiring.container import BatchEnterpriseContainer
-            container = BatchEnterpriseContainer(engine=get_engine(), flags=get_feature_flags())
+            
+            # Use injected engine or create default
+            engine = self._db_engine
+            if engine is None:
+                from iot_machine_learning.infrastructure.persistence.sql import get_engine
+                engine = get_engine()
+            
+            container = BatchEnterpriseContainer(engine=engine, flags=get_feature_flags())
             container.get_prediction_adapter()
             self._use_case = container
             logger.info("[STREAM_CONSUMER] Use case initialized")
@@ -175,31 +192,45 @@ class ReadingsStreamConsumer:
             return
 
         _t0 = time.monotonic()
-        triggered_sensors = set()
+        pending_acks: List[Tuple[str, int]] = []  # [(msg_id, sensor_id), ...]
         n_msgs = 0
 
         for _stream, entries in messages:
             for msg_id, fields in entries:
                 reading = self._parse_reading(fields)
                 if reading is None:
+                    # ACK invalid messages immediately
                     self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
                     continue
 
                 window_size = self._store.append(reading)
-                self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
                 n_msgs += 1
 
                 if window_size >= self._min_window:
-                    triggered_sensors.add(reading.sensor_id)
+                    pending_acks.append((msg_id, reading.sensor_id))
+                else:
+                    # ACK messages that don't trigger prediction yet
+                    self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
 
-        for sensor_id in triggered_sensors:
-            self._predict(sensor_id)
+        # Process predictions and ACK only after successful completion
+        for msg_id, sensor_id in pending_acks:
+            try:
+                self._predict(sensor_id)
+                # ACK after successful prediction (at-least-once semantics)
+                self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
+            except Exception as e:
+                logger.error(
+                    "[STREAM_CONSUMER] Prediction failed for sensor=%d: %s. "
+                    "Message will be reprocessed (no ACK).",
+                    sensor_id, e
+                )
+                # Do not ACK - message will be redelivered
 
         batch_ms = (time.monotonic() - _t0) * 1000
         MetricsCollector.get_instance().record_reading_processed(batch_ms)
         logger.debug(
             "stream_batch ms=%.1f msgs=%d triggered=%d",
-            batch_ms, n_msgs, len(triggered_sensors),
+            batch_ms, n_msgs, len(pending_acks),
         )
 
     def _parse_reading(self, fields: dict) -> Optional[Reading]:

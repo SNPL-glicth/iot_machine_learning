@@ -15,9 +15,16 @@ from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MAX_SENSORS: int = 1000
-_DEFAULT_TTL_SECONDS: float = 3600.0
-_DEFAULT_CLEANUP_ENABLED: bool = True
+
+@dataclass(frozen=True)
+class SlidingWindowConfig:
+    """Configuration for SlidingWindowStore.
+    
+    Immutable configuration to avoid shared mutable state.
+    """
+    max_sensors: int = 1000
+    ttl_seconds: float = 3600.0
+    cleanup_enabled: bool = True
 
 
 @dataclass
@@ -48,9 +55,9 @@ class SlidingWindowStore:
     def __init__(
         self,
         max_size: int = 20,
-        max_sensors: int = _DEFAULT_MAX_SENSORS,
-        ttl_seconds: float = _DEFAULT_TTL_SECONDS,
-        enable_proactive_cleanup: bool = _DEFAULT_CLEANUP_ENABLED,
+        max_sensors: int = 1000,
+        ttl_seconds: float = 3600.0,
+        enable_proactive_cleanup: bool = True,
         max_total_entries: int = 50000,
         flush_callback: Optional[Callable[[int, List[Reading]], None]] = None,
     ) -> None:

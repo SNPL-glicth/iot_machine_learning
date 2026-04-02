@@ -164,7 +164,7 @@ class AdvancedPlasticityCoordinator:
         series_id: str,
         series_context=None,
         plasticity_tracker=None,
-        recent_errors=None,
+        error_history=None,
     ) -> None:
         """Record actual value with advanced plasticity system.
         
@@ -186,7 +186,7 @@ class AdvancedPlasticityCoordinator:
             series_id: Series identifier
             series_context: Optional SeriesContext for asymmetric penalty
             plasticity_tracker: Optional legacy PlasticityTracker
-            recent_errors: Optional dict of recent errors
+            error_history: Optional ErrorHistoryManager (CRIT-1 fix)
         """
         if not series_id or not plasticity_context:
             return
@@ -222,8 +222,9 @@ class AdvancedPlasticityCoordinator:
                 )
             
             # 4. Update legacy plasticity with adaptive lr
-            if recent_errors is not None:
-                recent_errors[p.engine_name].append(error)
+            # CRIT-1: Use ErrorHistoryManager with series_id namespace
+            if error_history is not None:
+                error_history.record_error(series_id, p.engine_name, error)
             
             if plasticity_tracker is not None:
                 plasticity_tracker.update(regime, p.engine_name, error, alpha=learning_rate)

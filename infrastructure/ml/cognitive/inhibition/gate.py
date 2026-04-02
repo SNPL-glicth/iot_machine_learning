@@ -38,6 +38,8 @@ class InhibitionConfig:
         min_weight: Floor — never suppress below this.
         max_suppression: Maximum suppression factor (0.95 = reduce to 5%).
         suppression_smoothing: EMA alpha for smoothing suppression (0.3 = moderate smoothing).
+        anomaly_z_score_threshold: Z-score above which signal is considered anomalous (CRIT-2).
+        anomaly_override_enabled: If True, ignore error-based inhibition when signal is anomalous.
     """
 
     stability_threshold: float = 0.6
@@ -46,6 +48,8 @@ class InhibitionConfig:
     min_weight: float = 0.02
     max_suppression: float = 0.95
     suppression_smoothing: float = 0.3
+    anomaly_z_score_threshold: float = 3.0  # CRIT-2: 3-sigma rule
+    anomaly_override_enabled: bool = True   # CRIT-2: Enable by default
 
 
 class InhibitionGate:
@@ -67,13 +71,16 @@ class InhibitionGate:
         base_weights: Dict[str, float],
         recent_errors: Optional[Dict[str, List[float]]] = None,
         series_id: Optional[str] = None,
+        signal_z_score: float = 0.0,
     ) -> List[InhibitionState]:
         """Apply inhibition rules to each engine's weight.
 
         Args:
             perceptions: Each engine's perception from current step.
             base_weights: Pre-inhibition weights per engine name.
-            recent_errors: Optional history of |prediction - actual|.
+            recent_errors: Optional history of |prediction - actual| per engine.
+            series_id: Series identifier for logging (CRIT-1).
+            signal_z_score: Z-score of current signal (CRIT-2: anomaly override).
 
         Returns:
             List of InhibitionState, one per perception.
@@ -82,6 +89,19 @@ class InhibitionGate:
         states: List[InhibitionState] = []
         now = time.monotonic()
         sid = series_id if series_id else "_default"
+        
+        # CRIT-2: Check if signal is anomalous (anomaly override)
+        is_anomalous_signal = abs(signal_z_score) > self._cfg.anomaly_z_score_threshold
+        if is_anomalous_signal and self._cfg.anomaly_override_enabled:
+            logger.info(
+                "inhibition_anomaly_override_active",
+                extra={
+                    "series_id": sid,
+                    "signal_z_score": round(signal_z_score, 3),
+                    "threshold": self._cfg.anomaly_z_score_threshold,
+                    "reason": "high_prediction_error_expected_during_anomaly",
+                },
+            )
 
         for p in perceptions:
             bw = base_weights.get(p.engine_name, 0.0)
@@ -110,9 +130,9 @@ class InhibitionGate:
                     instant_suppression = s
                     reason = f"fit_error={p.local_fit_error:.3f}"
 
-            # Rule 3: recent prediction errors
+            # Rule 3: recent prediction errors (CRIT-2: skip if anomalous signal)
             eng_errors = errors.get(p.engine_name, [])
-            if eng_errors:
+            if eng_errors and not (is_anomalous_signal and self._cfg.anomaly_override_enabled):
                 mean_err = sum(eng_errors) / len(eng_errors)
                 if mean_err > self._cfg.recent_error_threshold:
                     s = min(
@@ -123,6 +143,17 @@ class InhibitionGate:
                     if s > instant_suppression:
                         instant_suppression = s
                         reason = f"recent_error={mean_err:.3f}"
+            elif is_anomalous_signal and self._cfg.anomaly_override_enabled and eng_errors:
+                # CRIT-2: Log that we're ignoring errors due to anomaly override
+                logger.debug(
+                    "inhibition_error_override_applied",
+                    extra={
+                        "series_id": sid,
+                        "engine_name": p.engine_name,
+                        "mean_error": round(sum(eng_errors) / len(eng_errors), 3),
+                        "signal_z_score": round(signal_z_score, 3),
+                    },
+                )
 
             # Apply exponential decay to previous suppression
             key = (sid, p.engine_name)

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from dataclasses import dataclass
 
 import pytest
 
@@ -34,6 +35,25 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionResult,
 )
 from typing import List, Optional
+
+
+# -- Simple feature flags stub for testing (CRIT-3) ------------------------
+
+@dataclass
+class FeatureFlagsStub:
+    """Minimal feature flags for testing."""
+    ML_DOMAIN_BOUNDARY_ENABLED: bool = False
+    ML_DECISION_ARBITER_ENABLED: bool = False
+    ML_COHERENCE_CHECK_ENABLED: bool = False
+    ML_CONFIDENCE_CALIBRATION_ENABLED: bool = False
+    ML_ACTION_GUARD_ENABLED: bool = False
+    ML_NARRATIVE_UNIFICATION_ENABLED: bool = False
+    ML_ROLLBACK_TO_BASELINE: bool = False
+
+
+def create_test_flags():
+    """Factory for test flags."""
+    return FeatureFlagsStub()
 
 
 # -- Stub engine for controlled testing ------------------------------------
@@ -87,14 +107,14 @@ class TestSingleEngine:
     def test_single_engine_passthrough(self) -> None:
         eng = StubEngine("stub_a", value=42.0, confidence=0.9)
         orch = MetaCognitiveOrchestrator([eng], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert result.predicted_value == pytest.approx(42.0)
         assert result.confidence == pytest.approx(0.9)
 
     def test_diagnostic_present(self) -> None:
         eng = StubEngine("stub_a", value=42.0)
         orch = MetaCognitiveOrchestrator([eng], enable_plasticity=False)
-        orch.predict([1.0, 2.0, 3.0])
+        orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             diag = orch.last_diagnostic
@@ -109,7 +129,7 @@ class TestMultiEngineFusion:
         a = StubEngine("a", value=10.0, confidence=0.8)
         b = StubEngine("b", value=20.0, confidence=0.6)
         orch = MetaCognitiveOrchestrator([a, b], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert result.predicted_value == pytest.approx(15.0)
         assert result.confidence == pytest.approx(0.7)
 
@@ -121,7 +141,7 @@ class TestMultiEngineFusion:
             initial_weights={"a": 0.75, "b": 0.25},
             enable_plasticity=False,
         )
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert result.predicted_value == pytest.approx(12.5)
 
     def test_trend_majority_vote(self) -> None:
@@ -130,7 +150,7 @@ class TestMultiEngineFusion:
         c = StubEngine("c", value=15.0, trend="down")
         orch = MetaCognitiveOrchestrator(
             [a, b, c], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert result.trend == "up"
 
 
@@ -141,7 +161,7 @@ class TestInhibitionIntegration:
         unstable = StubEngine("unstable", value=100.0, stability=0.95)
         orch = MetaCognitiveOrchestrator(
             [stable, unstable], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         # Fused value should be closer to stable engine
         assert result.predicted_value < 60.0
 
@@ -158,7 +178,7 @@ class TestInhibitionIntegration:
         bad = StubEngine("bad", value=100.0, fit_error=50.0)
         orch = MetaCognitiveOrchestrator(
             [good, bad], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert result.predicted_value < 60.0
 
 
@@ -168,14 +188,15 @@ class TestPlasticityIntegration:
         a = StubEngine("a", value=10.0)
         b = StubEngine("b", value=20.0)
         orch = MetaCognitiveOrchestrator([a, b], enable_plasticity=True)
+        flags = create_test_flags()
 
         # Run several cycles where actual is always close to "a"
         for _ in range(20):
-            orch.predict([1.0, 2.0, 3.0])
+            orch.predict([1.0, 2.0, 3.0], flags_snapshot=flags)
             orch.record_actual(10.5)  # close to engine "a"
 
         # After learning, "a" should have higher weight
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=flags)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             diag = orch.last_diagnostic
@@ -190,7 +211,7 @@ class TestFallback:
         b = StubEngine("b", value=20.0, should_fail=True)
         orch = MetaCognitiveOrchestrator(
             [a, b], enable_plasticity=False)
-        result = orch.predict([5.0, 6.0, 7.0])
+        result = orch.predict([5.0, 6.0, 7.0], flags_snapshot=create_test_flags())
         # Fallback: mean of last 3
         assert result.predicted_value == pytest.approx(6.0)
         assert result.confidence == pytest.approx(0.2)
@@ -205,7 +226,7 @@ class TestFallback:
         b = StubEngine("b", value=20.0, min_points=1)
         orch = MetaCognitiveOrchestrator(
             [a, b], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         # Only "b" runs
         assert result.predicted_value == pytest.approx(20.0)
 
@@ -216,7 +237,7 @@ class TestMetaDiagnosticCompleteness:
         a = StubEngine("a", value=10.0)
         b = StubEngine("b", value=20.0)
         orch = MetaCognitiveOrchestrator([a, b], enable_plasticity=False)
-        orch.predict([1.0, 2.0, 3.0, 4.0, 5.0])
+        orch.predict([1.0, 2.0, 3.0, 4.0, 5.0], flags_snapshot=create_test_flags())
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             diag = orch.last_diagnostic
@@ -234,7 +255,7 @@ class TestMetaDiagnosticCompleteness:
     def test_metadata_in_prediction_result(self) -> None:
         a = StubEngine("a", value=10.0)
         orch = MetaCognitiveOrchestrator([a], enable_plasticity=False)
-        result = orch.predict([1.0, 2.0, 3.0])
+        result = orch.predict([1.0, 2.0, 3.0], flags_snapshot=create_test_flags())
         assert "cognitive_diagnostic" in result.metadata
 
 
@@ -247,7 +268,7 @@ class TestRealEngineIntegration:
             [taylor, stat], enable_plasticity=False)
 
         values = [float(i) for i in range(20)]
-        result = orch.predict(values)
+        result = orch.predict(values, flags_snapshot=create_test_flags())
 
         assert math.isfinite(result.predicted_value)
         assert 0.0 <= result.confidence <= 1.0
@@ -269,7 +290,7 @@ class TestRealEngineIntegration:
             [taylor, stat], enable_plasticity=False)
 
         values = [20.0 + random.gauss(0, 5.0) for _ in range(30)]
-        result = orch.predict(values)
+        result = orch.predict(values, flags_snapshot=create_test_flags())
         assert math.isfinite(result.predicted_value)
 
 

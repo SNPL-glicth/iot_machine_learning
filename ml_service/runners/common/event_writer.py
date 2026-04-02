@@ -50,10 +50,10 @@ class EventWriter:
             return can_generate
         except Exception as e:
             logger.warning(
-                "[EVENT_WRITER] sensor_id=%s state check error=%s, allowing events",
+                "[EVENT_WRITER] sensor_id=%s state check error=%s, blocking events (fail-close)",
                 sensor_id, str(e)
             )
-            return True
+            return False
 
     def has_recent_delta_spike(
         self,

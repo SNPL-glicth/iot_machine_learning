@@ -35,6 +35,7 @@ _TREND_THRESHOLD: float = 0.01
 _MIN_CONFIDENCE: float = 0.3
 _MAX_CONFIDENCE: float = 0.95
 _CLAMP_MARGIN_PCT: float = 0.3
+_VARIANCE_EPSILON: float = 1e-9  # CRIT-4: Variance threshold for order=0
 
 
 class TaylorPredictionEngine(PredictionEngine):
@@ -89,7 +90,22 @@ class TaylorPredictionEngine(PredictionEngine):
         if not self.can_handle(n):
             return self._fallback(values)
 
-        coeffs = estimate_derivatives(values, dt, self._order, self._method)
+        # CRIT-4: Check variance to prevent overfitting to noise
+        variance = self._compute_variance(values)
+        effective_order = self._order
+        if variance < _VARIANCE_EPSILON:
+            # Signal is essentially constant, force order=0
+            effective_order = 0
+            logger.debug(
+                "taylor_order_reduced_to_zero",
+                extra={
+                    "variance": variance,
+                    "threshold": _VARIANCE_EPSILON,
+                    "reason": "near_constant_signal",
+                },
+            )
+
+        coeffs = estimate_derivatives(values, dt, effective_order, self._method)
         if coeffs.estimated_order == 0:
             return self._fallback(values)
 
@@ -117,6 +133,8 @@ class TaylorPredictionEngine(PredictionEngine):
             "clamped": clamped,
             "diagnostic": diag.to_dict(),
             "structural_analysis": structural.to_dict(),
+            "variance_check": variance,  # CRIT-4: Include for debugging
+            "variance_threshold": _VARIANCE_EPSILON,
         }
         logger.debug(
             "taylor_prediction",
@@ -125,6 +143,7 @@ class TaylorPredictionEngine(PredictionEngine):
                 "method": coeffs.method, "predicted": predicted,
                 "clamped": clamped, "confidence": confidence,
                 "stability": diag.stability_indicator,
+                "variance": variance,
             },
         )
         return PredictionResult(
@@ -148,6 +167,21 @@ class TaylorPredictionEngine(PredictionEngine):
         instability = min(stability, 0.7)
         c = max(self._min_confidence, 1.0 - instability)
         return min(c, self._max_confidence)
+
+    def _compute_variance(self, values: List[float]) -> float:
+        """Compute population variance of values (CRIT-4).
+        
+        Args:
+            values: Time series values
+        
+        Returns:
+            Population variance, or 0.0 if insufficient data
+        """
+        if len(values) < 2:
+            return 0.0
+        mean = sum(values) / len(values)
+        variance = sum((x - mean) ** 2 for x in values) / len(values)
+        return variance
 
     def _fallback(self, values: List[float]) -> PredictionResult:
         tail = values[-min(3, len(values)):]

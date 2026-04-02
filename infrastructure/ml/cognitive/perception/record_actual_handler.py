@@ -21,7 +21,7 @@ def record_actual_legacy(
     actual_value: float,
     perceptions: List,
     regime: str,
-    recent_errors: Dict,
+    error_history,
     plasticity_tracker,
     storage,
     series_id: Optional[str],
@@ -32,14 +32,16 @@ def record_actual_legacy(
         actual_value: True observed value.
         perceptions: List of EnginePerception from last predict().
         regime: Signal regime string from last predict().
-        recent_errors: Mutable dict of deques (engine_name → errors).
+        error_history: ErrorHistoryManager instance (CRIT-1 fix: series-scoped).
         plasticity_tracker: Optional PlasticityTracker instance.
         storage: Optional storage adapter for recording errors.
         series_id: Optional series identifier for storage.
     """
     for p in perceptions:
         error = abs(p.predicted_value - actual_value)
-        recent_errors[p.engine_name].append(error)
+        # CRIT-1: Record error with series_id namespace isolation
+        if error_history is not None and series_id is not None:
+            error_history.record_error(series_id, p.engine_name, error)
 
         if plasticity_tracker is not None:
             plasticity_tracker.update(regime, p.engine_name, error)
@@ -61,7 +63,7 @@ def record_actual_dispatch(
     enable_advanced_plasticity: bool,
     plasticity_coordinator,
     plasticity_tracker,
-    recent_errors: Dict,
+    error_history,
     storage,
     series_id: Optional[str],
     series_context,
@@ -79,7 +81,7 @@ def record_actual_dispatch(
         enable_advanced_plasticity: Whether advanced plasticity is active.
         plasticity_coordinator: AdvancedPlasticityCoordinator or None.
         plasticity_tracker: PlasticityTracker or None.
-        recent_errors: Mutable dict of deques.
+        error_history: ErrorHistoryManager instance (CRIT-1 fix).
         storage: Optional storage adapter.
         series_id: Optional series identifier.
         series_context: Optional SeriesContext for asymmetric penalty.
@@ -100,14 +102,14 @@ def record_actual_dispatch(
             series_id=series_id,
             series_context=series_context,
             plasticity_tracker=plasticity_tracker,
-            recent_errors=recent_errors,
+            error_history=error_history,
         )
     else:
         record_actual_legacy(
             actual_value=actual_value,
             perceptions=last_perceptions,
             regime=last_regime,
-            recent_errors=recent_errors,
+            error_history=error_history,
             plasticity_tracker=plasticity_tracker,
             storage=storage,
             series_id=series_id,

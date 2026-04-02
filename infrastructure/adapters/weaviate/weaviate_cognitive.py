@@ -8,6 +8,7 @@ Fail-safe behaviour:
     - Every public method catches all exceptions, logs them, and returns
       the safe default (``None`` for writes, ``[]`` for reads).
     - The ML pipeline is NEVER interrupted by a Weaviate failure.
+    - Circuit breaker protection prevents cascading failures.
 
 Feature-flag aware:
     - ``ML_ENABLE_COGNITIVE_MEMORY``: master switch.
@@ -24,6 +25,7 @@ from ....domain.entities.memory_search_result import MemorySearchResult
 from ....domain.entities.pattern import PatternResult
 from ....domain.entities.prediction import Prediction
 from ....domain.ports.cognitive_memory_port import CognitiveMemoryPort
+from ....infrastructure.resilience.circuit_breaker import get_circuit_breaker
 from .memory_readers import (
     recall_similar_anomalies,
     recall_similar_decisions,
@@ -64,6 +66,13 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         self._timeout = timeout
         self._objects_url = f"{self._base_url}/v1/objects"
         self._graphql_url = f"{self._base_url}/v1/graphql"
+        
+        # Circuit breaker for Weaviate calls
+        self._circuit_breaker = get_circuit_breaker(
+            name="weaviate_cognitive",
+            failure_threshold=3,
+            recovery_timeout=60.0,
+        )
 
     def remember_explanation(
         self,
@@ -73,16 +82,21 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         explanation_text: str = "",
         domain_name: str = "iot",
     ) -> Optional[str]:
-        return remember_explanation(
-            self._objects_url,
-            prediction,
-            source_record_id,
-            explanation_text=explanation_text,
-            domain_name=domain_name,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                remember_explanation,
+                self._objects_url,
+                prediction,
+                source_record_id,
+                explanation_text=explanation_text,
+                domain_name=domain_name,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] remember_explanation blocked: %s", e)
+            return None
 
     def remember_anomaly(
         self,
@@ -94,18 +108,23 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         operational_context: str = "",
         domain_name: str = "iot",
     ) -> Optional[str]:
-        return remember_anomaly(
-            self._objects_url,
-            anomaly,
-            source_record_id,
-            event_code=event_code,
-            behavior_pattern=behavior_pattern,
-            operational_context=operational_context,
-            domain_name=domain_name,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                remember_anomaly,
+                self._objects_url,
+                anomaly,
+                source_record_id,
+                event_code=event_code,
+                behavior_pattern=behavior_pattern,
+                operational_context=operational_context,
+                domain_name=domain_name,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] remember_anomaly blocked: %s", e)
+            return None
 
     def remember_pattern(
         self,
@@ -114,15 +133,20 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         source_record_id: Optional[int] = None,
         domain_name: str = "iot",
     ) -> Optional[str]:
-        return remember_pattern(
-            self._objects_url,
-            pattern,
-            source_record_id=source_record_id,
-            domain_name=domain_name,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                remember_pattern,
+                self._objects_url,
+                pattern,
+                source_record_id=source_record_id,
+                domain_name=domain_name,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] remember_pattern blocked: %s", e)
+            return None
 
     def remember_decision(
         self,
@@ -131,15 +155,20 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         *,
         domain_name: str = "iot",
     ) -> Optional[str]:
-        return remember_decision(
-            self._objects_url,
-            decision_data,
-            source_record_id,
-            domain_name=domain_name,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                remember_decision,
+                self._objects_url,
+                decision_data,
+                source_record_id,
+                domain_name=domain_name,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] remember_decision blocked: %s", e)
+            return None
 
     def recall_similar_explanations(
         self,
@@ -150,17 +179,22 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         limit: int = 5,
         min_certainty: float = 0.7,
     ) -> List[MemorySearchResult]:
-        return recall_similar_explanations(
-            self._graphql_url,
-            query,
-            series_id=series_id,
-            engine_name=engine_name,
-            limit=limit,
-            min_certainty=min_certainty,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                recall_similar_explanations,
+                self._graphql_url,
+                query,
+                series_id=series_id,
+                engine_name=engine_name,
+                limit=limit,
+                min_certainty=min_certainty,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] recall_similar_explanations blocked: %s", e)
+            return []
 
     def recall_similar_anomalies(
         self,
@@ -172,18 +206,23 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         limit: int = 5,
         min_certainty: float = 0.7,
     ) -> List[MemorySearchResult]:
-        return recall_similar_anomalies(
-            self._graphql_url,
-            query,
-            series_id=series_id,
-            severity=severity,
-            event_code=event_code,
-            limit=limit,
-            min_certainty=min_certainty,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                recall_similar_anomalies,
+                self._graphql_url,
+                query,
+                series_id=series_id,
+                severity=severity,
+                event_code=event_code,
+                limit=limit,
+                min_certainty=min_certainty,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] recall_similar_anomalies blocked: %s", e)
+            return []
 
     def recall_similar_patterns(
         self,
@@ -194,17 +233,22 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         limit: int = 5,
         min_certainty: float = 0.7,
     ) -> List[MemorySearchResult]:
-        return recall_similar_patterns(
-            self._graphql_url,
-            query,
-            series_id=series_id,
-            pattern_type=pattern_type,
-            limit=limit,
-            min_certainty=min_certainty,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                recall_similar_patterns,
+                self._graphql_url,
+                query,
+                series_id=series_id,
+                pattern_type=pattern_type,
+                limit=limit,
+                min_certainty=min_certainty,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] recall_similar_patterns blocked: %s", e)
+            return []
 
     def recall_similar_decisions(
         self,
@@ -215,14 +259,19 @@ class WeaviateCognitiveAdapter(CognitiveMemoryPort):
         limit: int = 5,
         min_certainty: float = 0.7,
     ) -> List[MemorySearchResult]:
-        return recall_similar_decisions(
-            self._graphql_url,
-            query,
-            device_id=device_id,
-            severity=severity,
-            limit=limit,
-            min_certainty=min_certainty,
-            enabled=self._enabled,
-            dry_run=self._dry_run,
-            timeout=self._timeout,
-        )
+        try:
+            return self._circuit_breaker.call(
+                recall_similar_decisions,
+                self._graphql_url,
+                query,
+                device_id=device_id,
+                severity=severity,
+                limit=limit,
+                min_certainty=min_certainty,
+                enabled=self._enabled,
+                dry_run=self._dry_run,
+                timeout=self._timeout,
+            )
+        except Exception as e:
+            logger.warning("[WEAVIATE_CB] recall_similar_decisions blocked: %s", e)
+            return []

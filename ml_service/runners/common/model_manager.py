@@ -6,6 +6,9 @@ Responsabilidad única: Crear y obtener IDs de modelos ML en BD.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
+from typing import Optional
+
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
@@ -17,12 +20,27 @@ class ModelManager:
     
     Responsabilidades:
     - Obtener o crear modelo para un sensor
-    - Gestionar versiones de modelos
+    - Gestionar versiones de modelos (dinámico o configurado)
     """
     
     DEFAULT_MODEL_NAME = "sklearn_regression_iforest"
     DEFAULT_MODEL_TYPE = "sklearn"
-    DEFAULT_VERSION = "1.0.0"
+    
+    def __init__(self, version: Optional[str] = None):
+        """Initialize ModelManager with optional version.
+        
+        Args:
+            version: Optional version string. If not provided, uses
+                    auto-generated version based on timestamp.
+        """
+        self._version = version
+    
+    def _get_version(self) -> str:
+        """Get version string - either configured or auto-generated."""
+        if self._version is not None:
+            return self._version
+        # Auto-generate version based on current timestamp
+        return datetime.now(timezone.utc).strftime("%Y.%m.%d.%H%M%S")
     
     def get_or_create_model_id(self, conn: Connection, sensor_id: int) -> int:
         """Obtiene o crea el ID del modelo para un sensor.
@@ -67,7 +85,7 @@ class ModelManager:
                 "sensor_id": sensor_id,
                 "model_name": self.DEFAULT_MODEL_NAME,
                 "model_type": self.DEFAULT_MODEL_TYPE,
-                "version": self.DEFAULT_VERSION,
+                "version": self._get_version(),
             },
         ).fetchone()
 

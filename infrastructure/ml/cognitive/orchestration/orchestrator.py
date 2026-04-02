@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import threading
 import warnings
-from collections import defaultdict, deque
-from typing import Deque, Dict, List, Optional
+from typing import List, Optional
 
 from ...interfaces import PredictionEngine, PredictionResult
 from ..fusion import WeightedFusion
@@ -14,8 +14,7 @@ from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
 from .weight_resolution_service import WeightResolutionService
 from .iterative_controller import CognitiveLoopController, IterationConfig
-
-_MAX_ERROR_HISTORY: int = 50
+from .error_history_manager import ErrorHistoryManager, create_error_history_manager
 
 
 class MetaCognitiveOrchestrator(PredictionEngine):
@@ -53,10 +52,9 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._fusion = WeightedFusion()
         self._budget_ms = budget_ms
         
-        # State tracking
-        self._recent_errors: Dict[str, Deque[float]] = defaultdict(
-            lambda: deque(maxlen=_MAX_ERROR_HISTORY)
-        )
+        # Thread-safe state tracking
+        self._state_lock = threading.RLock()
+        self._error_history = create_error_history_manager(max_history=50)
         self._last_diagnostic: Optional[MetaDiagnostic] = None
         self._last_explanation = None
         self._last_regime: Optional[str] = None
@@ -130,10 +128,13 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         series_id: str = "unknown",
         flags_snapshot=None,
     ) -> PredictionResult:
-        # Capture flags once at pipeline start for consistency
+        # CRIT-3: Feature flags must be passed via constructor or parameter
+        # Do not import feature_flags here - rely on injected flags_snapshot
         if flags_snapshot is None:
-            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
-            flags_snapshot = get_feature_flags()
+            raise ValueError(
+                "flags_snapshot is required. Pass feature flags via constructor "
+                "or flags_snapshot parameter to enable testable injection."
+            )
         
         # Use iterative cognitive loop if enabled
         if self._enable_iterative and self._loop_controller is not None:
@@ -162,7 +163,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             enable_advanced_plasticity=self._enable_advanced_plasticity,
             plasticity_coordinator=self._plasticity_coordinator,
             plasticity_tracker=self._plasticity,
-            recent_errors=self._recent_errors,
+            error_history=self._error_history,
             storage=self._storage,
             series_id=series_id,
             series_context=series_context,
