@@ -4,7 +4,7 @@ Single responsibility: transform a raw DB row into a typed ``QueueItem``,
 build the normalized payload, and dispatch to ``DocumentAnalyzer``.
 """
 
-from __future__ import annotations
+from iot_machine_learning.ml_service.workers.queue_repository import find_analysis_result
 
 import json
 import logging

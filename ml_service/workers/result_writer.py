@@ -12,7 +12,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from . import queue_repository as repo
+from iot_machine_learning.ml_service.workers import queue_repository as repo
 
 logger = logging.getLogger(__name__)
 

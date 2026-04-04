@@ -56,6 +56,7 @@ UPDATE_ANALYSIS_RESULT = text("""
         MlResult        = :ml_result,
         Conclusion      = :conclusion,
         WeaviateDocId   = :ml_doc_id,
+        SemanticName    = :semantic_name,
         Status          = 'analyzed',
         AnalyzedAt      = GETUTCDATE()
     WHERE Id = :analysis_id
@@ -147,6 +148,7 @@ def update_analysis_result(
     ml_result_json: str,
     conclusion: str,
     ml_doc_id: Optional[str],
+    semantic_name: Optional[str] = None,
 ) -> None:
     """Update existing analysis_results row."""
     conn.execute(UPDATE_ANALYSIS_RESULT, {
@@ -154,6 +156,7 @@ def update_analysis_result(
         "ml_result": ml_result_json,
         "conclusion": conclusion,
         "ml_doc_id": ml_doc_id,
+        "semantic_name": semantic_name,
         "analysis_id": analysis_id,
     })
 

@@ -15,12 +15,12 @@ import os
 import time
 from typing import Any, Dict
 
-from ...infrastructure.persistence.sql.zenin_db_connection import ZeninDbConnection
-from ..api.services.document_analyzer import DocumentAnalyzer
+from iot_machine_learning.infrastructure.persistence.sql.zenin_db_connection import ZeninDbConnection
+from iot_machine_learning.ml_service.api.services.document_analyzer import DocumentAnalyzer
 
-from . import queue_repository as repo
-from .job_processor import parse_queue_row, build_payload
-from .result_writer import save_to_weaviate, write_result, resolve_weaviate_url
+from iot_machine_learning.ml_service.workers import queue_repository as repo
+from iot_machine_learning.ml_service.workers.job_processor import parse_queue_row, build_payload
+from iot_machine_learning.ml_service.workers.result_writer import save_to_weaviate, write_result, resolve_weaviate_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,8 @@ class ZeninQueuePoller:
         # Load feature flags explicitly for daemon thread context
         feature_flags = None
         try:
-            from ...ml_service.config.feature_flags import get_feature_flags
-            from ...ml_service.config.loader import reset_feature_flags
+            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
+            from iot_machine_learning.ml_service.config.loader import reset_feature_flags
             # Reset singleton to force reload from env vars in this thread
             reset_feature_flags()
             feature_flags = get_feature_flags()

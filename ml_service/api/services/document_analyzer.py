@@ -98,7 +98,11 @@ class DocumentAnalyzer:
         self._analysis_engine = UniversalAnalysisEngine() if _UNIVERSAL_AVAILABLE else None
         self._comparative_engine = UniversalComparativeEngine() if _UNIVERSAL_AVAILABLE else None
         self._neural_engine = HybridNeuralEngine() if _NEURAL_AVAILABLE else None
-        self._neural_arbiter = NeuralArbiter() if _NEURAL_AVAILABLE else None
+        self._neural_arbiter = None  # Default seguro
+        try:
+            self._neural_arbiter = NeuralArbiter() if _NEURAL_AVAILABLE else None
+        except Exception:
+            pass  # Graceful fallback si NeuralArbiter falla al inicializar
         
         # Auto-load feature flags if not provided
         if feature_flags is None and _FEATURE_FLAGS_AVAILABLE:
@@ -173,7 +177,7 @@ class DocumentAnalyzer:
                         logger.info("neural_skipped_no_gpu: CPU-only mode, using universal engine")
                 
                 # Step 3: Neural arbitration (if both results available)
-                if neural_result is not None and self._neural_arbiter:
+                if neural_result is not None and getattr(self, '_neural_arbiter', None):
                     winner_result, winner_engine, arbiter_reason = arbitrate_results(
                         neural_result=neural_result,
                         universal_result=universal_result,
