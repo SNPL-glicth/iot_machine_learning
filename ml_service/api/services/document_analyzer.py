@@ -6,11 +6,49 @@ Includes optional Decision Engine for recommendations.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache: hash(content) + content_type -> result
+# Max 100 entries to prevent memory leak
+_analysis_cache: Dict[str, Dict[str, Any]] = {}
+_MAX_CACHE_ENTRIES = 100
+
+
+def _compute_content_hash(content: str) -> str:
+    """Compute MD5 hash of content for cache key."""
+    return hashlib.md5(content.encode('utf-8')).hexdigest()[:16]
+
+
+def _get_cache_key(content_hash: str, content_type: str) -> str:
+    """Build cache key from content hash and type."""
+    return f"{content_hash}:{content_type}"
+
+
+def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
+    """Get cached result if exists."""
+    return _analysis_cache.get(cache_key)
+
+
+def _set_cached_result(cache_key: str, result: Dict[str, Any]) -> None:
+    """Store result in cache with LRU eviction."""
+    global _analysis_cache
+    
+    # Evict oldest if at capacity (simple LRU: clear half if full)
+    if len(_analysis_cache) >= _MAX_CACHE_ENTRIES:
+        # Remove oldest 50% of entries
+        keys_to_remove = list(_analysis_cache.keys())[:_MAX_CACHE_ENTRIES // 2]
+        for key in keys_to_remove:
+            del _analysis_cache[key]
+        logger.info(f"analysis_cache_evicted: removed {len(keys_to_remove)} entries")
+    
+    _analysis_cache[cache_key] = result
+    logger.debug(f"analysis_cache_stored: key={cache_key[:20]}...", extra={"cache_size": len(_analysis_cache)})
+
 
 from .analysis import (
     analyze_with_universal,
@@ -124,6 +162,9 @@ class DocumentAnalyzer:
     ) -> Dict[str, Any]:
         """Analyze document and return structured result.
         
+        Uses content-based caching to ensure deterministic results for
+        identical document content.
+        
         Args:
             document_id: Unique identifier for tracking
             content_type: Hint for content type (text, tabular, mixed, etc.)
@@ -134,6 +175,25 @@ class DocumentAnalyzer:
             Dict with analysis, conclusion, confidence, comparative context
         """
         start = time.time()
+        
+        # Extract raw data for cache key
+        raw_data = extract_raw_data(normalized_payload, content_type)
+        content_str = str(raw_data) if not isinstance(raw_data, str) else raw_data
+        content_hash = _compute_content_hash(content_str)
+        cache_key = _get_cache_key(content_hash, content_type)
+        
+        # Check cache first
+        cached = _get_cached_result(cache_key)
+        if cached is not None:
+            logger.info(f"analysis_cache_hit: document_id={document_id}, key={cache_key[:20]}...")
+            # Return cached result with updated document_id and processing time
+            result = cached.copy()
+            result["document_id"] = document_id
+            result["processing_time_ms"] = round((time.time() - start) * 1000, 2)
+            result["cached"] = True
+            return result
+        
+        logger.info(f"analysis_cache_miss: document_id={document_id}, key={cache_key[:20]}...")
         
         # DEBUG: Log input parameters
         logger.info(f"[STAGE-4] analyze called, content_type={content_type}")
@@ -242,12 +302,16 @@ class DocumentAnalyzer:
                     document_id, content_type, normalized_payload
                 )
 
-            return {
+            # Store in cache before returning
+            result_to_cache = {
                 "document_id": document_id,
                 "content_type": content_type,
                 **result,
                 "processing_time_ms": round((time.time() - start) * 1000, 2),
             }
+            _set_cached_result(cache_key, result_to_cache)
+            
+            return result_to_cache
         except Exception as exc:
             logger.exception(
                 "document_analysis_failed",

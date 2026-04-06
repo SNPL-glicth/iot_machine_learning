@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -60,6 +61,18 @@ class PredictionQueries:
             _risk_level = "NONE"
         _explanation = str(meta.get("explanation", "")) or None
         _horizon_minutes = prediction.horizon_steps * horizon_minutes_per_step
+        
+        # Serializar metadata completa como JSON para traza cognitiva
+        _metadata_json = json.dumps(meta, default=str) if meta else None
+        
+        # Extraer regime del diagnóstico cognitivo si existe
+        _regime = "unknown"
+        if meta.get("regime"):
+            _regime = str(meta.get("regime"))
+        elif meta.get("signal_profile", {}).get("regime"):
+            _regime = str(meta.get("signal_profile", {}).get("regime"))
+        elif meta.get("cognitive_diagnostic", {}).get("signal_profile", {}).get("regime"):
+            _regime = str(meta.get("cognitive_diagnostic", {}).get("signal_profile", {}).get("regime"))
 
         row = self._conn.execute(
             text(
@@ -72,7 +85,8 @@ class PredictionQueries:
                   engine_name, trend,
                   is_anomaly, anomaly_score,
                   risk_level, severity,
-                  explanation, status
+                  explanation, status,
+                  metadata
                 )
                 OUTPUT INSERTED.id
                 VALUES (
@@ -83,7 +97,8 @@ class PredictionQueries:
                   :engine_name, :trend,
                   :is_anomaly, :anomaly_score,
                   :risk_level, :severity,
-                  :explanation, 'active'
+                  :explanation, 'active',
+                  :metadata
                 )
                 """
             ),
@@ -103,6 +118,7 @@ class PredictionQueries:
                 "risk_level": _risk_level,
                 "severity": _severity,
                 "explanation": _explanation,
+                "metadata": _metadata_json,
             },
         ).fetchone()
 
@@ -119,6 +135,8 @@ class PredictionQueries:
                 "engine": prediction.engine_name,
                 "trend": prediction.trend,
                 "confidence": prediction.confidence_score,
+                "regime": _regime,
+                "metadata_size": len(_metadata_json) if _metadata_json else 0,
             },
         )
 

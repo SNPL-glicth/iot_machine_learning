@@ -24,13 +24,13 @@ from iot_machine_learning.domain.services.severity_rules import SeverityResult
 from .impact_detector import ImpactSignalResult, detect_impact_signals
 
 # Axis weights for the composite severity score
-_W_URGENCY = 0.30
+_W_URGENCY = 0.45      # Aumentado de 0.30 para dar más peso a la urgencia
 _W_SENTIMENT = 0.20
-_W_IMPACT = 0.50
+_W_IMPACT = 0.35       # Reducido de 0.50 para balancear con urgencia
 
 # Severity thresholds on composite score [0, 1]
-_THRESHOLD_CRITICAL = 0.45  # Lowered from 0.55 to handle urgency 1.00 + negative sentiment
-_THRESHOLD_WARNING = 0.30
+_THRESHOLD_CRITICAL = 0.65   # Aumentado de 0.45 para evitar todo-crítico
+_THRESHOLD_WARNING = 0.40    # Aumentado de 0.30 para balancear
 
 
 def classify_text_severity(
@@ -91,6 +91,9 @@ def classify_text_severity(
         composite = max(composite, _THRESHOLD_CRITICAL)
     # Override: high urgency + negative sentiment = Critical
     if urgency_score >= 0.6 and sentiment_label == "negative":
+        composite = max(composite, _THRESHOLD_CRITICAL)
+    # Override específico: urgency máxima + sentimiento negativo sin impact = Critical
+    if urgency_score >= 0.95 and sentiment_label == "negative" and (impact_result is None or impact_result.score < 0.1):
         composite = max(composite, _THRESHOLD_CRITICAL)
 
     # ── Map to severity ──
