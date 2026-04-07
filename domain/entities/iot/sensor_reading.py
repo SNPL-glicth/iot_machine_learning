@@ -1,10 +1,18 @@
 """Value Objects para lecturas de sensores.
 
-Inmutables, sin lógica de infraestructura.  Representan el dato crudo
-que entra al sistema y la ventana temporal sobre la que operan los motores.
+DEPRECADO: Este módulo será eliminado en la migración completa a Zenin.
+Usar: domain.entities.series + infrastructure.adapters.iot
 """
 
 from __future__ import annotations
+
+import warnings
+warnings.warn(
+    "domain.entities.iot está deprecado. "
+    "Usar domain.entities.series + infrastructure.adapters.iot",
+    DeprecationWarning,
+    stacklevel=1,
+)
 
 import math
 from dataclasses import dataclass, field

@@ -32,6 +32,9 @@ from .series.structural_analysis import StructuralAnalysis, RegimeType
 # --- Decision (decision engine) ---
 from .decision import Decision, DecisionContext, SimulatedOutcome
 
+# --- Severity ---
+from .severity import SeverityResult
+
 __all__ = [
     # IoT
     "SensorReading",
@@ -58,4 +61,6 @@ __all__ = [
     "Decision",
     "DecisionContext",
     "SimulatedOutcome",
+    # Severity
+    "SeverityResult",
 ]

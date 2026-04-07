@@ -460,3 +460,16 @@ class DocumentAnalyzer:
             domain=domain,
             audit_trace_id=audit_trace_id,
         )
+
+
+# ─── DEPRECADO ────────────────────────────────────────────────────────────────
+# Este archivo está en proceso de refactoring.
+# Usar: application.analyze_document.AnalyzeDocumentUseCase
+# Fecha estimada de eliminación: Semana 2 del refactor
+# ──────────────────────────────────────────────────────────────────────────────
+import warnings
+warnings.warn(
+    "DocumentAnalyzer está deprecado. Usa AnalyzeDocumentUseCase.",
+    DeprecationWarning,
+    stacklevel=2,
+)

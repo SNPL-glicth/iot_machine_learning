@@ -13,24 +13,11 @@ No contiene I/O (no lee BD, no persiste).
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from ..entities.sensor_ranges import get_default_range
 from ..entities.series_context import Threshold
-
-
-@dataclass(frozen=True)
-class SeverityResult:
-    """Resultado de clasificación de severidad.
-
-    Value object puro — sin lógica de negocio.
-    """
-
-    risk_level: str
-    severity: str
-    action_required: bool
-    recommended_action: str
+from ..entities.severity import SeverityResult
 
 
 def compute_risk_level(

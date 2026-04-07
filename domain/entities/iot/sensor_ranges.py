@@ -1,16 +1,18 @@
 """Rangos operativos por tipo de sensor — LEGACY IoT.
 
-.. deprecated::
-    Usar ``SeriesContext.threshold`` (``series_context.py``) para rangos
-    agnósticos al dominio.  Este módulo se mantiene solo por backward
-    compatibility con ``ml_service/`` y ``severity_classifier.py``.
-
-Responsabilidad ÚNICA: definir rangos físicos recomendados por tipo de sensor IoT.
+DEPRECADO: Este módulo será eliminado en la migración completa a Zenin.
+Usar: domain.entities.series + infrastructure.adapters.iot
 """
 
 from __future__ import annotations
 
 import warnings
+warnings.warn(
+    "domain.entities.iot está deprecado. "
+    "Usar domain.entities.series + infrastructure.adapters.iot",
+    DeprecationWarning,
+    stacklevel=1,
+)
 from typing import Dict, Optional, Tuple
 
 # Rangos operativos recomendados por tipo de sensor.

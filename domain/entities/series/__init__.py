@@ -15,6 +15,9 @@ from .series_profile import (
 )
 from .series_context import SeriesContext, Threshold
 
+# Import from parent canonical_series.py file (Zenin canonical types)
+from ..canonical_series import DataPoint, TimeWindow
+
 __all__ = [
     "TimeSeries",
     "TimePoint",
@@ -27,4 +30,6 @@ __all__ = [
     "compute_profile",
     "SeriesContext",
     "Threshold",
+    "DataPoint",
+    "TimeWindow",
 ]
