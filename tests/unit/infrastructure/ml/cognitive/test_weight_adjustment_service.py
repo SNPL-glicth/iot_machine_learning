@@ -6,7 +6,7 @@ Covers adaptive weight calculation, fallback strategies, and edge cases.
 import pytest
 from unittest.mock import Mock
 
-from iot_machine_learning.infrastructure.ml.cognitive.weight_adjustment_service import WeightAdjustmentService
+from iot_machine_learning.infrastructure.ml.cognitive.fusion.weight_adjustment_service import WeightAdjustmentService
 
 
 class TestWeightAdjustmentServiceInitialization:

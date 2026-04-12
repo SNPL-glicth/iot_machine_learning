@@ -285,3 +285,175 @@ def remember_decision(
             extra={"error": str(exc), "source_record_id": source_record_id},
         )
         return None
+
+
+# ============================================================================
+# BATCH OPERATIONS
+# ============================================================================
+
+
+def build_explanation_properties(
+    prediction: Prediction,
+    source_record_id: int,
+    *,
+    explanation_text: str = "",
+    domain_name: str = "iot",
+) -> Dict[str, Any]:
+    """Build properties dict for MLExplanation without sending.
+    
+    Used for batch operations to prepare multiple objects before sending.
+    
+    Args:
+        prediction: Prediction entity
+        source_record_id: Database record ID
+        explanation_text: Override explanation text
+        domain_name: Domain context
+        
+    Returns:
+        Properties dict ready for batch insert
+    """
+    text = explanation_text or str(prediction.metadata.get("explanation", ""))
+    return {
+        "seriesId": prediction.series_id,
+        "domainName": domain_name,
+        "engineName": prediction.engine_name,
+        "explanationText": text,
+        "trend": prediction.trend,
+        "confidenceScore": prediction.confidence_score,
+        "confidenceLevel": prediction.confidence_level.value,
+        "predictedValue": prediction.predicted_value,
+        "horizonSteps": prediction.horizon_steps,
+        "featureContributions": safe_json(prediction.feature_contributions),
+        "sourceRecordId": source_record_id,
+        "auditTraceId": prediction.audit_trace_id or "",
+        "createdAt": now_iso(),
+        "metadata": safe_json(prediction.metadata),
+    }
+
+
+def build_anomaly_properties(
+    anomaly: AnomalyResult,
+    source_record_id: int,
+    *,
+    event_code: str = "ANOMALY_DETECTED",
+    behavior_pattern: str = "",
+    operational_context: str = "",
+    domain_name: str = "iot",
+) -> Dict[str, Any]:
+    """Build properties dict for MLAnomaly without sending.
+    
+    Used for batch operations.
+    
+    Args:
+        anomaly: AnomalyResult entity
+        source_record_id: Database record ID
+        event_code: Event classification
+        behavior_pattern: Behavioral pattern description
+        operational_context: Operational context
+        domain_name: Domain context
+        
+    Returns:
+        Properties dict ready for batch insert
+    """
+    return {
+        "seriesId": anomaly.series_id,
+        "domainName": domain_name,
+        "eventCode": event_code,
+        "severity": anomaly.severity.value,
+        "anomalyScore": anomaly.anomaly_score,
+        "anomalyConfidence": anomaly.anomaly_confidence,
+        "detectionMethods": safe_json(anomaly.detection_methods),
+        "methodVotes": safe_json(anomaly.method_votes),
+        "behaviorPattern": behavior_pattern,
+        "operationalContext": operational_context,
+        "sourceRecordId": source_record_id,
+        "auditTraceId": anomaly.audit_trace_id or "",
+        "createdAt": now_iso(),
+        "metadata": safe_json(anomaly.metadata),
+    }
+
+
+def build_pattern_properties(
+    pattern: PatternResult,
+    *,
+    source_record_id: Optional[int] = None,
+    domain_name: str = "iot",
+) -> Dict[str, Any]:
+    """Build properties dict for MLPattern without sending.
+    
+    Used for batch operations.
+    
+    Args:
+        pattern: PatternResult entity
+        source_record_id: Optional database record ID
+        domain_name: Domain context
+        
+    Returns:
+        Properties dict ready for batch insert
+    """
+    return {
+        "seriesId": pattern.series_id,
+        "domainName": domain_name,
+        "patternType": pattern.pattern_type.value,
+        "patternSignature": pattern.pattern_signature,
+        "confidenceScore": pattern.confidence_score,
+        "occurrenceCount": pattern.occurrence_count,
+        "firstSeenAt": pattern.first_seen_at.isoformat() if pattern.first_seen_at else "",
+        "lastSeenAt": pattern.last_seen_at.isoformat() if pattern.last_seen_at else "",
+        "isRecurring": pattern.is_recurring,
+        "recurrenceInterval": pattern.recurrence_interval or 0.0,
+        "affectedSeriesIds": pattern.affected_series_ids,
+        "contextualFeatures": safe_json(pattern.contextual_features),
+        "sourceRecordId": source_record_id or 0,
+        "auditTraceId": pattern.audit_trace_id or "",
+        "createdAt": now_iso(),
+        "metadata": safe_json(pattern.metadata),
+    }
+
+
+def build_decision_properties(
+    decision_data: Dict[str, object],
+    source_record_id: int,
+    *,
+    domain_name: str = "iot",
+) -> Dict[str, Any]:
+    """Build properties dict for DecisionReasoning without sending.
+    
+    Used for batch operations.
+    
+    Args:
+        decision_data: Decision data dict
+        source_record_id: Database record ID
+        domain_name: Domain context
+        
+    Returns:
+        Properties dict ready for batch insert
+    """
+    affected = decision_data.get("affected_series_ids", [])
+    if not isinstance(affected, list):
+        affected = [str(affected)]
+    else:
+        affected = [str(s) for s in affected]
+    
+    return {
+        "deviceId": int(decision_data.get("device_id", 0)),
+        "domainName": domain_name,
+        "patternSignature": str(decision_data.get("pattern_signature", "")),
+        "decisionType": str(decision_data.get("decision_type", "")),
+        "priority": str(decision_data.get("priority", "medium")),
+        "severity": str(decision_data.get("severity", "info")),
+        "titleText": str(decision_data.get("title", "")),
+        "summaryText": str(decision_data.get("summary", "")),
+        "explanationText": str(decision_data.get("explanation", "")),
+        "recommendedActions": safe_json(decision_data.get("recommended_actions", [])),
+        "affectedSeriesIds": affected,
+        "eventCount": int(decision_data.get("event_count", 0)),
+        "confidenceScore": float(decision_data.get("confidence_score", 0.0)),
+        "isRecurring": bool(decision_data.get("is_recurring", False)),
+        "historicalResolutionRate": float(decision_data.get("historical_resolution_rate", 0.0)),
+        "reasonTrace": safe_json(decision_data.get("reason_trace", {})),
+        "sourceRecordId": source_record_id,
+        "auditTraceId": str(decision_data.get("audit_trace_id", "")),
+        "createdAt": now_iso(),
+        "metadata": safe_json(decision_data.get("metadata", {})),
+    }

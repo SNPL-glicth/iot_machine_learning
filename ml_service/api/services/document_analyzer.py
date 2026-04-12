@@ -81,6 +81,14 @@ except Exception as e:
     logger.warning(f"decision_engine_unavailable: {e}")
     _DECISION_AVAILABLE = False
 
+# Graceful import - anomaly tracker optional
+_ANOMALY_TRACKER_AVAILABLE = False
+try:
+    from iot_machine_learning.domain.ports import NullAnomalyTracker
+    _ANOMALY_TRACKER_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"anomaly_tracker_import_failed: {e}")
+
 # Graceful import - fall back to legacy analyzers if universal engines unavailable
 _UNIVERSAL_AVAILABLE = False
 try:
@@ -111,6 +119,29 @@ try:
 except Exception as e:
     logger.warning(f"neural_engine_unavailable: {e}")
 
+# Import plasticity components for proper feedback loop
+_PLASTICITY_AVAILABLE = False
+try:
+    from iot_machine_learning.infrastructure.ml.cognitive.perception.record_actual_handler import (
+        record_actual_dispatch,
+    )
+    from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
+        EnginePerception,
+    )
+    from iot_machine_learning.infrastructure.ml.cognitive.plasticity.base import (
+        PlasticityTracker,
+    )
+    from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import (
+        PlasticityContext,
+    )
+    from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
+        RegimeType,
+    )
+    _PLASTICITY_AVAILABLE = True
+    logger.info("plasticity_components_available")
+except Exception as e:
+    logger.warning(f"plasticity_components_unavailable: {e}")
+
 
 class DocumentAnalyzer:
     """Universal document analyzer backed by real ML engines.
@@ -124,6 +155,7 @@ class DocumentAnalyzer:
         cognitive_memory: Optional[object] = None,
         decision_engine: Optional[object] = None,
         feature_flags: Optional[object] = None,
+        anomaly_tracker: Optional[object] = None,
     ):
         """Initialize with optional cognitive memory and decision engine.
         
@@ -131,6 +163,7 @@ class DocumentAnalyzer:
             cognitive_memory: Optional CognitiveMemoryPort for semantic recall
             decision_engine: Optional DecisionEnginePort (auto-created if None and enabled)
             feature_flags: Optional FeatureFlags for decision engine enablement
+            anomaly_tracker: Optional RecentAnomalyTrackerPort for contextual decisions
         """
         self._cognitive_memory = cognitive_memory
         self._analysis_engine = UniversalAnalysisEngine() if _UNIVERSAL_AVAILABLE else None
@@ -152,6 +185,9 @@ class DocumentAnalyzer:
         # Decision Engine (lazy init based on feature flags)
         self._decision_engine = decision_engine
         self._feature_flags = feature_flags
+        
+        # Anomaly tracker for contextual decisions (uses Null if None)
+        self._anomaly_tracker = anomaly_tracker
 
     def analyze(
         self,
@@ -275,17 +311,79 @@ class DocumentAnalyzer:
                     result["decision_recommendation"] = decision_recommendation
                 
                 # Step 5.5: Plasticity feedback loop - record actual outcome for learning
-                try:
-                    from iot_machine_learning.infrastructure.ml.cognitive.plasticity.base import PlasticityTracker
-                    plasticity = PlasticityTracker()
-                    plasticity.record_actual(
-                        actual_value=1.0 if getattr(winner_result, 'severity', None) and getattr(winner_result.severity, 'severity', None) == 'critical' else 0.0,
-                        perceptions=getattr(winner_result, 'explanation', None).engine_contributions if hasattr(getattr(winner_result, 'explanation', None), 'engine_contributions') else [],
-                        regime=getattr(winner_result, 'domain', 'general'),
-                    )
-                    logger.debug(f"plasticity_feedback_recorded: {document_id}")
-                except Exception as e:
-                    logger.warning(f"plasticity_feedback_failed: {e}")
+                if _PLASTICITY_AVAILABLE:
+                    try:
+                        # Build EnginePerception objects from analysis results
+                        perceptions = _build_analysis_perceptions(
+                            winner_result=winner_result,
+                            universal_result=universal_result,
+                        )
+                        
+                        # Determine regime from domain and structural analysis
+                        regime = _determine_regime_for_analysis(winner_result, universal_result)
+                        
+                        # Create plasticity context
+                        plasticity_context = _build_plasticity_context(
+                            winner_result=winner_result,
+                            regime=regime,
+                        )
+                        
+                        # Initialize plasticity tracker with persistence
+                        plasticity_tracker = PlasticityTracker()
+                        
+                        # Build error history manager (series-scoped for isolation)
+                        from iot_machine_learning.infrastructure.ml.cognitive.monitoring.error_history import (
+                            create_error_history_manager,
+                        )
+                        error_history = create_error_history_manager(max_history=50)
+                        
+                        # Record actual outcome using proper dispatch
+                        # Actual value: 1.0 for critical severity (feedback signal)
+                        actual_value = 1.0 if (
+                            getattr(winner_result, 'severity', None) and 
+                            getattr(winner_result.severity, 'severity', None) == 'critical'
+                        ) else 0.0
+                        
+                        record_actual_dispatch(
+                            actual_value=actual_value,
+                            last_regime=regime,
+                            last_perceptions=perceptions,
+                            last_plasticity_context=plasticity_context,
+                            enable_advanced_plasticity=False,  # Use legacy path for text analysis
+                            plasticity_coordinator=None,
+                            plasticity_tracker=plasticity_tracker,
+                            error_history=error_history,
+                            storage=None,  # No storage adapter in this context
+                            series_id=document_id,
+                            series_context=None,
+                        )
+                        
+                        logger.info(
+                            "plasticity_feedback_recorded",
+                            extra={
+                                "document_id": document_id,
+                                "regime": regime,
+                                "n_perceptions": len(perceptions),
+                                "actual_value": actual_value,
+                            }
+                        )
+                    except AttributeError as e:
+                        logger.error(
+                            "plasticity_interface_mismatch",
+                            extra={
+                                "document_id": document_id,
+                                "error": str(e),
+                                "expected_method": "record_actual_dispatch",
+                                "fix_required": "Ensure all plasticity components are properly imported",
+                            }
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "plasticity_feedback_failed",
+                            extra={"document_id": document_id, "error": str(e)}
+                        )
+                else:
+                    logger.debug(f"plasticity_unavailable_skip_feedback: {document_id}")
                 
                 # Step 6: Online learning - update NaiveBayes with confirmed domain
                 try:
@@ -404,6 +502,9 @@ class DocumentAnalyzer:
     ) -> "DecisionContext":
         """Build DecisionContext from UniversalResult.
         
+        Enriched with contextual data from RecentAnomalyTracker and
+        SignalProfile for contextual decision scoring.
+        
         Args:
             universal_result: UniversalResult from ML pipeline
             document_id: Document identifier
@@ -439,6 +540,10 @@ class DocumentAnalyzer:
         trend = "stable"
         audit_trace_id = None
         
+        # Contextual enrichment fields (Paso 4)
+        current_regime = "STABLE"
+        drift_score = 0.0
+        
         if explanation is not None:
             outcome = getattr(explanation, "outcome", None)
             if outcome is not None:
@@ -447,6 +552,38 @@ class DocumentAnalyzer:
                 predicted_value = getattr(outcome, "predicted_value", None)
                 trend = getattr(outcome, "trend", "stable")
             audit_trace_id = getattr(explanation, "audit_trace_id", None)
+            
+            # Extract SignalProfile data for contextual enrichment
+            signal_profile = getattr(explanation, "signal", None)
+            if signal_profile is not None:
+                # Get regime from signal profile (could be enum or string)
+                regime_attr = getattr(signal_profile, "regime", None)
+                if regime_attr is not None:
+                    current_regime = getattr(regime_attr, "value", str(regime_attr))
+                # Get drift score if available
+                drift_score = getattr(signal_profile, "drift_score", 0.0)
+        
+        # Get anomaly tracker (use Null if not configured)
+        tracker = self._anomaly_tracker
+        if tracker is None and _ANOMALY_TRACKER_AVAILABLE:
+            tracker = NullAnomalyTracker()
+        
+        # Query anomaly statistics from tracker
+        recent_anomaly_count = 0
+        consecutive_anomalies = 0
+        recent_anomaly_rate = 0.0
+        
+        if tracker is not None:
+            recent_anomaly_count = tracker.get_count_last_n_minutes(document_id, 120)
+            consecutive_anomalies = tracker.get_consecutive_count(document_id)
+            recent_anomaly_rate = tracker.get_anomaly_rate(document_id, 120)
+        
+        # Record anomaly or normal to tracker (after building context, before decision)
+        if tracker is not None:
+            if is_anomaly:
+                tracker.record_anomaly(document_id, anomaly_score, regime=current_regime)
+            else:
+                tracker.record_normal(document_id)
         
         return DecisionContext(
             series_id=document_id,
@@ -459,7 +596,201 @@ class DocumentAnalyzer:
             trend=trend,
             domain=domain,
             audit_trace_id=audit_trace_id,
+            # Contextual enrichment (Paso 4)
+            recent_anomaly_count=recent_anomaly_count,
+            recent_anomaly_rate=recent_anomaly_rate,
+            consecutive_anomalies=consecutive_anomalies,
+            current_regime=current_regime,
+            drift_score=drift_score,
         )
+    
+    def _build_analysis_perceptions(
+        self,
+        winner_result: object,
+        universal_result: object,
+    ) -> list:
+        """Build EnginePerception objects from text analysis results.
+        
+        Args:
+            winner_result: The winning analysis result
+            universal_result: Universal analysis result with all sub-analyses
+            
+        Returns:
+            List of EnginePerception objects for plasticity tracking
+        """
+        perceptions = []
+        
+        if not _PLASTICITY_AVAILABLE:
+            return perceptions
+        
+        # Extract scores from universal_result or winner_result
+        analysis = getattr(universal_result, 'analysis', {}) or {}
+        
+        # Urgency perception
+        urgency_score = analysis.get('urgency', {}).get('score', 0.0)
+        urgency_severity = analysis.get('urgency', {}).get('severity', 'info')
+        if urgency_score > 0:
+            perceptions.append(
+                EnginePerception(
+                    engine_name="text_urgency",
+                    predicted_value=urgency_score,
+                    confidence=0.7,  # Urgency has moderate confidence
+                    trend="stable",
+                    metadata={
+                        "severity": urgency_severity,
+                        "type": "urgency",
+                    }
+                )
+            )
+        
+        # Sentiment perception
+        sentiment_score = analysis.get('sentiment', {}).get('score', 0.0)
+        sentiment_label = analysis.get('sentiment', {}).get('label', 'neutral')
+        if sentiment_score != 0.0:
+            perceptions.append(
+                EnginePerception(
+                    engine_name="text_sentiment",
+                    predicted_value=abs(sentiment_score),  # Use absolute for severity correlation
+                    confidence=0.6,
+                    trend="stable",
+                    metadata={
+                        "label": sentiment_label,
+                        "type": "sentiment",
+                    }
+                )
+            )
+        
+        # Pattern perception (if available)
+        patterns = analysis.get('patterns', [])
+        if patterns:
+            pattern_confidence = 0.5
+            if isinstance(patterns, list) and len(patterns) > 0:
+                pattern_confidence = min(0.9, 0.5 + (len(patterns) * 0.1))
+            perceptions.append(
+                EnginePerception(
+                    engine_name="text_pattern",
+                    predicted_value=1.0 if patterns else 0.0,
+                    confidence=pattern_confidence,
+                    trend="stable",
+                    metadata={
+                        "n_patterns": len(patterns) if isinstance(patterns, list) else 0,
+                        "type": "pattern",
+                    }
+                )
+            )
+        
+        # Domain/context perception
+        domain = getattr(universal_result, 'domain', 'general')
+        perceptions.append(
+            EnginePerception(
+                engine_name="text_domain",
+                predicted_value=0.5,  # Neutral baseline
+                confidence=0.5,
+                trend="stable",
+                metadata={
+                    "domain": domain,
+                    "type": "context",
+                }
+            )
+        )
+        
+        logger.debug(
+            "analysis_perceptions_built",
+            extra={
+                "n_perceptions": len(perceptions),
+                "engines": [p.engine_name for p in perceptions],
+            }
+        )
+        
+        return perceptions
+    
+    def _determine_regime_for_analysis(
+        self,
+        winner_result: object,
+        universal_result: object,
+    ) -> str:
+        """Determine regime from analysis results.
+        
+        Args:
+            winner_result: The winning analysis result
+            universal_result: Universal analysis result
+            
+        Returns:
+            Regime string for plasticity tracking
+        """
+        # Default to domain-based regime
+        domain = getattr(universal_result, 'domain', 'general')
+        
+        # Map domain to regime
+        domain_regime_map = {
+            'infrastructure': 'STABLE',
+            'security': 'VOLATILE',
+            'operations': 'TRENDING',
+            'business': 'STABLE',
+            'general': 'STABLE',
+        }
+        
+        regime = domain_regime_map.get(domain, 'STABLE')
+        
+        # Override based on structural analysis if available
+        structural = getattr(universal_result, 'structural', None)
+        if structural and hasattr(structural, 'regime'):
+            structural_regime = structural.regime
+            if structural_regime:
+                regime = structural_regime.upper()
+        
+        return regime
+    
+    def _build_plasticity_context(
+        self,
+        winner_result: object,
+        regime: str,
+    ) -> Optional[object]:
+        """Build PlasticityContext for advanced plasticity tracking.
+        
+        Args:
+            winner_result: The winning analysis result
+            regime: Detected regime string
+            
+        Returns:
+            PlasticityContext object or None if unavailable
+        """
+        if not _PLASTICITY_AVAILABLE:
+            return None
+        
+        try:
+            # Map regime string to RegimeType enum
+            regime_map = {
+                'STABLE': RegimeType.STABLE,
+                'TRENDING': RegimeType.TRENDING,
+                'VOLATILE': RegimeType.VOLATILE,
+                'NOISY': RegimeType.NOISY,
+            }
+            regime_type = regime_map.get(regime, RegimeType.STABLE)
+            
+            # Extract volatility from analysis if available
+            volatility = 0.5  # Default medium volatility
+            structural = getattr(winner_result, 'structural', None)
+            if structural and hasattr(structural, 'volatility'):
+                volatility = structural.volatility
+            
+            # Build context
+            from datetime import datetime
+            context = PlasticityContext(
+                regime=regime_type,
+                noise_ratio=0.3,  # Default for text analysis
+                volatility=volatility,
+                time_of_day=datetime.now().hour,
+                consecutive_failures=0,
+                error_magnitude=0.0,
+                is_critical_zone=False,
+                timestamp=datetime.now(),
+            )
+            
+            return context
+        except Exception as e:
+            logger.warning(f"plasticity_context_build_failed: {e}")
+            return None
 
 
 # ─── DEPRECADO ────────────────────────────────────────────────────────────────

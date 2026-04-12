@@ -4,6 +4,8 @@ Features:
 - Backpressure control: rejects messages when overloaded
 - Priority-based acceptance (critical always accepted)
 - At-least-once semantics: ACK after successful prediction
+
+MIGRATED 2026-04-09: Now uses RedisConnectionManager for centralized connection.
 """
 
 from __future__ import annotations
@@ -14,6 +16,9 @@ import threading
 import time
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
 
+from iot_machine_learning.infrastructure.persistence.redis import (
+    RedisConnectionManager,
+)
 from .sliding_window import Reading, SlidingWindowStore
 from ..metrics.performance_metrics import MetricsCollector
 
@@ -107,7 +112,7 @@ class ReadingsStreamConsumer:
 
     def __init__(
         self,
-        redis_url: Optional[str] = None,
+        redis_url: Optional[str] = None,  # DEPRECATED: Now uses RedisConnectionManager
         min_window: int = DEFAULT_MIN_WINDOW,
         max_window: int = DEFAULT_MAX_WINDOW,
         consumer_name: Optional[str] = None,
@@ -115,7 +120,7 @@ class ReadingsStreamConsumer:
         engine_factory: Optional[Callable[[], "PredictionAdapter"]] = None,
         db_engine: Optional["Engine"] = None,
     ):
-        self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        # DEPRECATED: redis_url parameter kept for compatibility, ignored
         self._min_window = min_window
         self._consumer_name = consumer_name or f"ml_stream_{os.getpid()}"
         self._store = SlidingWindowStore(max_size=max_window)
@@ -148,17 +153,16 @@ class ReadingsStreamConsumer:
             logger.error("[STREAM_CONSUMER] Use case init failed: %s", e)
 
     def _connect_redis(self):
-        import redis
-        self._redis = redis.Redis.from_url(
-            self._redis_url, decode_responses=False, socket_timeout=5.0,
-        )
+        """Connect via centralized RedisConnectionManager."""
+        # Use centralized connection manager
+        self._redis = RedisConnectionManager.get_sync_client()
         self._redis.ping()
         try:
             self._redis.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="0", mkstream=True)
         except Exception as e:
             if "BUSYGROUP" not in str(e):
                 raise
-        logger.info("[STREAM_CONSUMER] Connected, group=%s", CONSUMER_GROUP)
+        logger.info("[STREAM_CONSUMER] Connected via RedisConnectionManager, group=%s", CONSUMER_GROUP)
 
     def start(self) -> None:
         self._connect_redis()

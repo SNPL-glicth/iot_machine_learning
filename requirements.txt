@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════
+# ZENIN ML — Dependencias de producción
+# Generado: 2026-04-07 | Python >=3.10
+# ═══════════════════════════════════════════
+
+# --- Core API ---
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.32.0,<1.0.0
+pydantic>=2.10.0,<3.0.0
+
+# --- Base de datos ---
+pyodbc>=5.2.0,<6.0.0          # SQL Server (zenin_db)
+sqlalchemy>=2.0.0,<3.0.0
+
+# --- Cache y mensajería ---
+redis>=5.0.0,<6.0.0           # Cache (usado en stream_consumer)
+paho-mqtt>=2.0.0,<3.0.0       # MQTT client
+
+# --- ML / análisis ---
+numpy>=1.24.0,<3.0.0
+scipy>=1.11.0,<2.0.0
+scikit-learn>=1.3.0,<2.0.0    # IsolationForest, LinearRegression
+
+# --- Utilidades ---
+python-dotenv>=1.0.0,<2.0.0
+pyyaml>=6.0,<7.0
+
+# --- Experiment Tracking ---
+mlflow>=2.10.0,<3.0.0           # Experiment tracking (EXP-1)
+
+# --- Futuro (descomentar cuando sea necesario) ---
+# weaviate-client>=4.0.0,<5.0.0  # Memoria semántica (T10)
+# pika>=1.3.0,<2.0.0             # RabbitMQ (T11)

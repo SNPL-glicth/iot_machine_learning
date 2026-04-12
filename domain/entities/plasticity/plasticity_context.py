@@ -8,18 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
-
-class RegimeType(str, Enum):
-    """Signal regime types for contextual learning."""
-    
-    STABLE = "stable"
-    TRENDING = "trending"
-    VOLATILE = "volatile"
-    NOISY = "noisy"
-    UNKNOWN = "unknown"
+from iot_machine_learning.domain.entities.series.structural_analysis import RegimeType
 
 
 @dataclass(frozen=True)
@@ -80,38 +71,38 @@ class PlasticityContext:
     @property
     def context_key(self) -> str:
         """Generate context key for performance tracking.
-        
+
         Format: "{regime}|{time_block}|{volatility_binary}"
-        
+
         Time blocks (6-hour windows):
         - 0-5: "0" (night)
         - 6-11: "1" (morning)
         - 12-17: "2" (afternoon)
         - 18-23: "3" (evening)
-        
+
         Volatility binary:
         - 0.0-0.6: "stable"
         - >0.6: "volatile"
-        
+
         This reduces context space from 288 (4×24×3) to 32 (4×4×2).
-        
+
         Returns:
             Context key string for grouping similar contexts
-        
+
         Examples:
             >>> ctx = PlasticityContext(regime=RegimeType.STABLE, noise_ratio=0.1,
             ...                         volatility=0.2, time_of_day=14,
             ...                         consecutive_failures=0, error_magnitude=1.0,
             ...                         is_critical_zone=False)
             >>> ctx.context_key
-            'stable|2|stable'
+            'STABLE|2|stable'
         """
         # Group hours into 6-hour blocks
         time_block = self.time_of_day // 6
-        
+
         # Binary volatility classification
         vol_binary = "volatile" if self.volatility > 0.6 else "stable"
-        
+
         return f"{self.regime.value}|{time_block}|{vol_binary}"
     
     @classmethod
@@ -138,7 +129,7 @@ class PlasticityContext:
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation
         """
@@ -152,3 +143,11 @@ class PlasticityContext:
             "is_critical_zone": self.is_critical_zone,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
+
+    def get_regime_lower(self) -> str:
+        """Get regime value in lowercase for backward compatibility.
+
+        Returns:
+            Lowercase regime string (stable, trending, volatile, noisy, etc.)
+        """
+        return self.regime.value_lower

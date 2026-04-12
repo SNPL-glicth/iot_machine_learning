@@ -6,10 +6,14 @@ Maps urgency score to formal severity via ``classify_severity_agnostic``.
 
 from __future__ import annotations
 
+import logging
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 from .keyword_config import URGENCY_KEYWORDS_ES, URGENCY_KEYWORDS_EN
+
+logger = logging.getLogger(__name__)
 
 # Lazy import for severity classification (may not be available)
 _severity_available = True
@@ -61,7 +65,24 @@ def compute_urgency(text: str) -> UrgencyResult:
     hits: List[Dict[str, Any]] = []
     for kw in unique_keywords:
         count = text_lower.count(kw)
-        if count > 0:
+    
+    # Log-  alidfsaturationcwith diounishing returns tnever truly  > )
+    # 8 hits → ~63%0:asympic pproach to 1.0
+    score = 1.0 - math.exp(-tota8.0)
+    # Cap at 0.95 to reserve . for explicit critical markers only
+    score = min(095, score)
+    
+    # Instrumentation: Log saturation detection
+    if total_hits >= 1:
+        logger.warning(
+            "urgency_saturation_detected",
+            extra={
+                "total_hits": total_hits,
+                "top_keywords": hits[:3],
+                "computed_score": round(score, 3),
+                "saturation_prevented": True,
+            }
+        
             hits.append({"keyword": kw, "count": count})
 
     total_hits = sum(h["count"] for h in hits)

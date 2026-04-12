@@ -29,30 +29,23 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.engine import Connection
 
-from iot_machine_learning.application.explainability.explanation_renderer import (
-    ExplanationRenderer,
-)
 from iot_machine_learning.application.use_cases.predict_sensor_value import (
     PredictSensorValueUseCase,
 )
-from iot_machine_learning.domain.entities.explainability.explanation import (
-    Explanation,
-    Outcome,
+from iot_machine_learning.application.use_cases.evaluate_thresholds import (
+    EvaluateThresholdsUseCase,
 )
-from iot_machine_learning.domain.entities.explainability.signal_snapshot import (
-    SignalSnapshot,
+from iot_machine_learning.application.use_cases.enrich_prediction import (
+    EnrichPredictionUseCase,
 )
 from iot_machine_learning.domain.services.prediction_domain_service import (
     PredictionDomainService,
 )
-from iot_machine_learning.domain.services.threshold_evaluator import (
-    build_violation,
-    is_threshold_violated,
-    is_within_warning_range,
-)
 from iot_machine_learning.domain.ports.storage_port import StoragePort
-from iot_machine_learning.domain.ports.audit_port import AuditPort
 from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
+from iot_machine_learning.infrastructure.repositories.prediction_repository import (
+    PredictionRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,17 +84,23 @@ class PredictionService:
         else:
             self._threshold_repo = threshold_repo
 
-        self._renderer = ExplanationRenderer()
-
+        # Initialize use cases
         baseline_engine = EngineFactory.create("baseline_moving_average")
         prediction_domain_service = PredictionDomainService(
             engines=[baseline_engine.as_port()],
         )
 
-        self._use_case = PredictSensorValueUseCase(
+        self._predict_use_case = PredictSensorValueUseCase(
             prediction_service=prediction_domain_service,
             storage=self._storage,
         )
+        self._evaluate_thresholds_use_case = EvaluateThresholdsUseCase(
+            threshold_repo=self._threshold_repo,
+        )
+        self._enrich_prediction_use_case = EnrichPredictionUseCase(
+            storage=self._storage,
+        )
+        self._prediction_repo = PredictionRepository(conn)
 
     def predict(
         self,
@@ -128,7 +127,7 @@ class PredictionService:
         t_start = time.monotonic()
 
         # 1. Delegar predicción al use case enterprise
-        dto = self._use_case.execute(sensor_id=sensor_id, window_size=window)
+        dto = self._predict_use_case.execute(sensor_id=sensor_id, window_size=window)
 
         # 2. El use case ya persistió la predicción vía StoragePort.
         #    Obtener IDs para compatibilidad con respuesta legacy.
@@ -143,10 +142,10 @@ class PredictionService:
         prediction_id = 0  # fallback
         if latest and abs(latest.predicted_value - dto.predicted_value) < 1e-9:
             # Buscar ID real de la predicción recién insertada
-            prediction_id = self._get_latest_prediction_id(sensor_id)
+            prediction_id = self._prediction_repo.get_latest_prediction_id(sensor_id)
 
-        # 3. Evaluar thresholds (reglas de dominio + repository)
-        self._eval_thresholds(
+        # 3. Evaluar thresholds (delegado a use case)
+        self._evaluate_thresholds_use_case.execute(
             sensor_id=sensor_id,
             device_id=device_id,
             prediction_id=prediction_id,
@@ -154,8 +153,8 @@ class PredictionService:
             dedupe_minutes=dedupe_minutes,
         )
 
-        # 4. Enriquecimiento cognitivo (fail-safe)
-        enrichment = self._compute_enrichment(
+        # 4. Enriquecimiento cognitivo (delegado a use case)
+        enrichment = self._enrich_prediction_use_case.execute(
             sensor_id=sensor_id,
             window_size=window,
             dto=dto,
@@ -198,139 +197,3 @@ class PredictionService:
             "processing_time_ms": elapsed_ms,
         }
 
-    def _eval_thresholds(
-        self,
-        *,
-        sensor_id: int,
-        device_id: int,
-        prediction_id: int,
-        predicted_value: float,
-        dedupe_minutes: int,
-    ) -> None:
-        """Evalúa thresholds delegando a domain rules + repository."""
-        # 1. Verificar rango WARNING (domain rule + repo I/O)
-        warning_min, warning_max = self._threshold_repo.load_warning_range(sensor_id)
-        if is_within_warning_range(predicted_value, warning_min, warning_max):
-            return
-
-        # 2. Cargar threshold activo (repo I/O)
-        threshold = self._threshold_repo.load_active_threshold(sensor_id)
-        if threshold is None:
-            return
-
-        # 3. Evaluar violación (domain rule pura)
-        if not is_threshold_violated(predicted_value, threshold):
-            return
-
-        # 4. Deduplicar (repo I/O)
-        if self._threshold_repo.has_recent_event(
-            sensor_id, "PRED_THRESHOLD_BREACH", dedupe_minutes
-        ):
-            return
-
-        # 5. Construir violación (domain rule pura)
-        violation = build_violation(predicted_value, threshold)
-
-        # 6. Persistir evento (repo I/O)
-        self._threshold_repo.insert_threshold_event(
-            sensor_id=sensor_id,
-            device_id=device_id,
-            prediction_id=prediction_id,
-            violation=violation,
-        )
-
-    def _compute_enrichment(
-        self,
-        *,
-        sensor_id: int,
-        window_size: int,
-        dto: "PredictionDTO",
-    ) -> Dict[str, Any]:
-        """Computa structural analysis + metacognitive classification.
-
-        Fail-safe: si algo falla, retorna dict vacío sin romper el flujo.
-        No modifica domain ni engines — solo lee datos ya computados.
-        """
-        try:
-            # Cargar ventana para structural analysis
-            sensor_window = self._storage.load_sensor_window(
-                sensor_id=sensor_id,
-                limit=window_size,
-            )
-            if sensor_window.is_empty:
-                return {}
-
-            # Compute structural analysis (domain pure function)
-            sa = sensor_window.structural_analysis
-            structural_dict = {
-                "regime": sa.regime.value,
-                "slope": round(sa.slope, 6),
-                "curvature": round(sa.curvature, 6),
-                "noise_ratio": round(sa.noise_ratio, 6),
-                "stability": round(sa.stability, 6),
-                "trend_strength": round(sa.trend_strength, 6),
-                "mean": round(sa.mean, 6),
-                "std": round(sa.std, 6),
-                "n_points": sa.n_points,
-            }
-
-            # Build minimal Explanation for metacognitive classification
-            signal = SignalSnapshot(
-                n_points=sa.n_points,
-                mean=sa.mean,
-                std=sa.std,
-                noise_ratio=sa.noise_ratio,
-                slope=sa.slope,
-                curvature=sa.curvature,
-                regime=sa.regime.value,
-                dt=sa.dt if hasattr(sa, "dt") else 1.0,
-            )
-            outcome = Outcome(
-                kind="prediction",
-                predicted_value=dto.predicted_value,
-                confidence=dto.confidence_score,
-                trend=dto.trend,
-            )
-            explanation = Explanation(
-                series_id=dto.series_id,
-                signal=signal,
-                outcome=outcome,
-                audit_trace_id=dto.audit_trace_id,
-            )
-
-            # Render metacognitive classifications
-            rendered = self._renderer.render_structured_json(explanation)
-            metacognitive = rendered.get("metacognitive", {})
-
-            return {
-                "structural_analysis": structural_dict,
-                "metacognitive": metacognitive,
-            }
-
-        except Exception as exc:
-            logger.warning(
-                "enrichment_failed",
-                extra={
-                    "sensor_id": sensor_id,
-                    "error": str(exc),
-                },
-            )
-            return {}
-
-    def _get_latest_prediction_id(self, sensor_id: int) -> int:
-        """Obtiene el ID de la última predicción insertada."""
-        from sqlalchemy import text
-
-        row = self._conn.execute(
-            text(
-                """
-                SELECT TOP 1 id
-                FROM dbo.predictions
-                WHERE sensor_id = :sensor_id
-                ORDER BY predicted_at DESC
-                """
-            ),
-            {"sensor_id": sensor_id},
-        ).fetchone()
-
-        return int(row[0]) if row else 0

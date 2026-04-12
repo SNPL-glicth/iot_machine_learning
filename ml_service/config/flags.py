@@ -243,8 +243,84 @@ class FeatureFlags(BaseModel):
 
     # --- Decision Engine (NEW) ---
     ML_ENABLE_DECISION_ENGINE: bool = True  # Default: enabled
-    ML_DECISION_ENGINE_STRATEGY: str = "simple"  # simple | conservative | aggressive | cost_optimized
+    ML_DECISION_ENGINE: str = "simple"  # simple | contextual | conservative | aggressive | cost_optimized
+    ML_DECISION_ENGINE_STRATEGY: str = "simple"  # Deprecated: use ML_DECISION_ENGINE
 
+    # --- Plasticity tuning (ISO 27001 A.12.1.2: configurable without redeploy) ---
+    ML_PLASTICITY_ALPHA: float = 0.15
+    ML_PLASTICITY_MIN_WEIGHT: float = 0.05
+    ML_PLASTICITY_MAX_REGIMES: int = 10
+    ML_PLASTICITY_REGIME_TTL_SECONDS: float = 86400.0
+    ML_PLASTICITY_NOISE_THRESHOLD: float = 0.3
+    ML_PLASTICITY_PERSIST_EVERY_N: int = 10
+    ML_PLASTICITY_IMMEDIATE_PERSIST_THRESHOLD: float = 0.15
+    ML_PLASTICITY_REDIS_CACHE_TTL_SECONDS: float = 60.0
+
+    # JSON strings for dicts — ejemplo: '{"STABLE": 0.10, "TRENDING": 0.20}'
+    ML_PLASTICITY_REGIME_ALPHAS: str = '{"STABLE":0.10,"TRENDING":0.20,"VOLATILE":0.25,"NOISY":0.08,"TRANSITIONAL":0.18}'
+    ML_PLASTICITY_LR_FACTORS: str = '{"STABLE":1.0,"TRENDING":1.2,"VOLATILE":1.5,"NOISY":0.8,"UNKNOWN":1.0,"TRANSITIONAL":1.1}'
+
+    # --- Decision engine tuning (OCP: configurable thresholds) ---
+    ML_DECISION_CONSERVATIVE_THRESHOLD: float = 0.8
+    ML_DECISION_CONSERVATIVE_SAFETY_MARGIN: float = 1.2
+    ML_DECISION_CONFIDENCE_FLOOR: float = 0.6
+    ML_DECISION_CONFIDENCE_CEILING: float = 0.95
+    ML_DECISION_ESCALATION_THRESHOLD: int = 5
+    ML_DECISION_ATT_STABLE_DRIFT_THRESHOLD: float = 0.10
+    ML_DECISION_CONFIDENCE_REDUCTION_SPARSE: float = 0.9
+
+    # JSON for base_scores and amplifier thresholds
+    ML_DECISION_BASE_SCORES: str = '{"critical":0.90,"high":0.70,"medium":0.45,"low":0.25,"info":0.05,"warning":0.45}'
+    ML_DECISION_AMP_THRESHOLDS: str = '{"count_high":5,"count_medium":3,"ratio_high":0.60,"ratio_low":0.30,"drift_high":0.70,"drift_low":0.40}'
+
+    # --- Anomaly tracking (Redis/memory) ---
+    ML_ANOMALY_TTL_SECONDS: float = 7200.0
+    ML_ANOMALY_MAX_ENTRIES_PER_SERIES: int = 500
+    ML_ANOMALY_KEY_TTL_SECONDS: int = 3600
+    ML_ANOMALY_TRACKER_BACKEND: str = "memory"  # memory | redis
+
+    # --- Contextual Decision Engine Config (Paso 7) ---
+    ML_DECISION_AMP_CONSECUTIVE_5: float = 1.35
+    ML_DECISION_AMP_CONSECUTIVE_3: float = 1.20
+    ML_DECISION_AMP_RATE_HIGH: float = 1.20
+    ML_DECISION_AMP_RATE_MED: float = 1.10
+    ML_DECISION_AMP_VOLATILE: float = 1.15
+    ML_DECISION_AMP_NOISY: float = 1.10
+    ML_DECISION_AMP_DRIFT_HIGH: float = 1.20
+    ML_DECISION_AMP_DRIFT_MED: float = 1.10
+    ML_DECISION_ATT_STABLE: float = 0.85
+    ML_DECISION_ATT_LOW_CRITICALITY: float = 0.80
+    ML_DECISION_ATT_NO_CONTEXT: float = 0.90
+    ML_DECISION_SUPPRESSION_WINDOW_MINUTES: float = 5.0
+    
+    # --- Contextual Decision Thresholds (mapeo score → acción) ---
+    ML_DECISION_THRESHOLD_ESCALATE: float = 0.85
+    ML_DECISION_THRESHOLD_INVESTIGATE: float = 0.65
+    ML_DECISION_THRESHOLD_MONITOR: float = 0.40
+
+    # --- Experiment Tracking (EXP-1 / MLflow) ---
+    MLFLOW_ENABLED: bool = False  # Master switch for MLflow tracking
+    MLFLOW_TRACKING_URI: str = "http://localhost:5000"
+    MLFLOW_EXPERIMENT_NAME: str = "zenin-cognitive-pipeline"
+
+    # --- Probabilistic Confidence Calibration (CAL-1) ---
+    ML_PROBABILISTIC_CALIBRATION_ENABLED: bool = False  # Master switch
+    ML_CALIBRATION_MIN_SAMPLES_PLATT: int = 50
+    ML_CALIBRATION_MIN_SAMPLES_ISOTONIC: int = 200
+    ML_CALIBRATION_WINDOW_SIZE_PLATT: int = 500
+    ML_CALIBRATION_WINDOW_SIZE_ISOTONIC: int = 1000
+    ML_CALIBRATION_SPARSE_UPDATE_THRESHOLD: int = 100  # Updates cada N predicciones en alto volumen
+    ML_CALIBRATION_LOG_ECE_EVERY_N: int = 100  # Log ECE a MLflow cada N predicciones
+
+    @field_validator("ML_DECISION_ENGINE")
+    @classmethod
+    def _validate_decision_engine(cls, v: str) -> str:
+        """Valida que el motor de decisión sea conocido."""
+        allowed = {"simple", "contextual", "conservative", "aggressive", "cost_optimized"}
+        if v not in allowed:
+            return "simple"  # Fallback seguro
+        return v
+    
     @field_validator("ML_DECISION_ENGINE_STRATEGY")
     @classmethod
     def _validate_strategy(cls, v: str) -> str:
@@ -253,6 +329,13 @@ class FeatureFlags(BaseModel):
         if v not in allowed:
             return "simple"  # Fallback seguro
         return v
+    
+    def get_decision_engine(self) -> str:
+        """Retorna el motor de decisión activo.
+        
+        ML_DECISION_ENGINE tiene prioridad sobre ML_DECISION_ENGINE_STRATEGY.
+        """
+        return self.ML_DECISION_ENGINE or self.ML_DECISION_ENGINE_STRATEGY or "simple"
 
     def get_active_engine_name(self, sensor_id: int) -> str:
         """Legacy: determina motor por sensor_id numérico."""

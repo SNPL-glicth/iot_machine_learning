@@ -21,12 +21,22 @@ from typing import Dict, List, Optional
 
 
 class RegimeType(Enum):
-    """Régimen dinámico de la serie."""
+    """Régimen dinámico de la serie.
 
-    STABLE = "stable"
-    TRENDING = "trending"
-    VOLATILE = "volatile"
-    NOISY = "noisy"
+    Valores en uppercase para compatibilidad con plasticity y configuración.
+    """
+
+    STABLE = "STABLE"
+    TRENDING = "TRENDING"
+    VOLATILE = "VOLATILE"
+    NOISY = "NOISY"
+    TRANSITIONAL = "TRANSITIONAL"
+    UNKNOWN = "UNKNOWN"
+
+    @property
+    def value_lower(self) -> str:
+        """Valor en lowercase para compatibilidad legacy."""
+        return self.value.lower()
 
 
 @dataclass(frozen=True)

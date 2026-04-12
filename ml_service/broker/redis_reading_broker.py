@@ -2,19 +2,29 @@
 
 Integrates Redis Streams with the ML service's ReadingBroker interface.
 This replaces InMemoryReadingBroker for production use.
+
+FIX 2026-04-09:
+- Uses dedicated stream connection pool (blocking operations)
+- Circuit breaker for graceful degradation
+- Local queue fallback on Redis failure
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import threading
+from collections import deque
 from typing import Callable, Optional
 
 import redis
 from redis import Redis
 
+from iot_machine_learning.infrastructure.persistence.redis import (
+    RedisConnectionManager,
+    get_redis_circuit_breaker,
+    CircuitOpenError,
+)
 from ..reading_broker import Reading, ReadingBroker
 
 logger = logging.getLogger(__name__)
@@ -43,18 +53,17 @@ class RedisReadingBroker(ReadingBroker):
     
     def __init__(
         self,
-        redis_url: Optional[str] = None,
+        redis_url: Optional[str] = None,  # DEPRECATED: kept for compatibility, ignored
         consumer_name: Optional[str] = None,
         max_stream_len: int = 10000,
     ) -> None:
         """Initialize Redis broker.
         
         Args:
-            redis_url: Redis connection URL. Default: REDIS_URL env var or localhost
+            redis_url: DEPRECATED - Now uses RedisConnectionManager. Kept for compatibility.
             consumer_name: Unique consumer name. Default: hostname + pid
             max_stream_len: Max messages in stream (MAXLEN ~)
         """
-        self._redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self._consumer_name = consumer_name or f"ml_{os.getpid()}"
         self._max_stream_len = max_stream_len
         
@@ -66,30 +75,47 @@ class RedisReadingBroker(ReadingBroker):
         # Connection state
         self._connected = False
         self._last_error: Optional[str] = None
+        
+        # Circuit breaker for resilience
+        self._circuit_breaker = get_redis_circuit_breaker("redis_broker")
+        
+        # Local fallback queue (when circuit open)
+        self._local_queue: deque[Reading] = deque(maxlen=10000)
     
     def _connect(self) -> bool:
-        """Establish Redis connection."""
+        """Establish Redis connection via dedicated stream pool."""
         if self._redis is not None and self._connected:
             return True
         
-        try:
-            self._redis = Redis.from_url(
-                self._redis_url,
-                decode_responses=False,
-                socket_timeout=5.0,
-                socket_connect_timeout=5.0,
-                retry_on_timeout=True,
-            )
-            # Test connection
+        def _do_connect():
+            # Use dedicated stream pool for blocking operations
+            self._redis = RedisConnectionManager.get_stream_client()
             self._redis.ping()
-            self._connected = True
-            self._last_error = None
-            logger.info(
-                "[REDIS_BROKER] Connected to Redis: url=%s consumer=%s",
-                self._redis_url.split("@")[-1],  # Hide password
-                self._consumer_name,
-            )
             return True
+        
+        def _fallback():
+            # Circuit open or connection failed - operate in degraded mode
+            logger.warning(
+                "[REDIS_BROKER] Operating in degraded mode (no Redis). "
+                "Readings queued locally."
+            )
+            return False
+        
+        try:
+            connected = self._circuit_breaker.call(_do_connect, _fallback)
+            self._connected = connected
+            
+            if connected:
+                self._last_error = None
+                logger.info(
+                    "[REDIS_BROKER] Connected via stream pool consumer=%s",
+                    self._consumer_name,
+                )
+                # Flush any queued readings
+                self._flush_local_queue()
+            
+            return connected
+            
         except Exception as e:
             self._connected = False
             self._last_error = str(e)
@@ -121,43 +147,78 @@ class RedisReadingBroker(ReadingBroker):
             else:
                 raise
     
+    def _flush_local_queue(self) -> None:
+        """Flush locally queued readings to Redis when connection restored."""
+        while self._local_queue and self._connected:
+            try:
+                reading = self._local_queue.popleft()
+                self._publish_to_redis(reading)
+            except Exception as e:
+                logger.error("[REDIS_BROKER] Failed to flush queued reading: %s", e)
+                break
+    
+    def _publish_to_redis(self, reading: Reading) -> Optional[str]:
+        """Internal: publish reading to Redis stream."""
+        data = {
+            "sensor_id": str(reading.sensor_id),
+            "sensor_type": reading.sensor_type,
+            "value": str(reading.value),
+            "timestamp": str(reading.timestamp),
+        }
+        
+        return self._redis.xadd(
+            self.STREAM_READINGS,
+            data,
+            maxlen=self._max_stream_len,
+            approximate=True,
+        )
+    
     def publish(self, reading: Reading) -> None:
-        """Publish a reading to Redis Stream.
+        """Publish a reading to Redis Stream with circuit breaker protection.
         
         Uses XADD with MAXLEN ~ for bounded stream.
+        Falls back to local queue if Redis unavailable.
         """
         if not self._connect():
+            # Degraded mode: queue locally
+            self._local_queue.append(reading)
             logger.warning(
-                "[REDIS_BROKER] Cannot publish, not connected. Dropping reading sensor_id=%s",
-                reading.sensor_id,
+                "[REDIS_BROKER] Redis unavailable. Queued reading locally. "
+                "Queue size: %d",
+                len(self._local_queue),
             )
             return
         
+        def _do_publish():
+            return self._publish_to_redis(reading)
+        
+        def _fallback():
+            # Circuit open - queue locally
+            self._local_queue.append(reading)
+            logger.warning(
+                "[REDIS_BROKER] Circuit open. Queued reading locally. "
+                "Queue size: %d",
+                len(self._local_queue),
+            )
+            return None
+        
         try:
-            data = {
-                "sensor_id": str(reading.sensor_id),
-                "sensor_type": reading.sensor_type,
-                "value": str(reading.value),
-                "timestamp": str(reading.timestamp),
-            }
+            msg_id = self._circuit_breaker.call(_do_publish, _fallback)
             
-            msg_id = self._redis.xadd(
-                self.STREAM_READINGS,
-                data,
-                maxlen=self._max_stream_len,
-                approximate=True,
-            )
+            if msg_id:
+                logger.debug(
+                    "[REDIS_BROKER] Published: msg_id=%s sensor_id=%s value=%.4f",
+                    msg_id,
+                    reading.sensor_id,
+                    reading.value,
+                )
             
-            logger.debug(
-                "[REDIS_BROKER] Published: msg_id=%s sensor_id=%s value=%.4f",
-                msg_id,
-                reading.sensor_id,
-                reading.value,
-            )
         except Exception as e:
             self._connected = False
+            # Queue locally as last resort
+            self._local_queue.append(reading)
             logger.error(
-                "[REDIS_BROKER] Publish failed: sensor_id=%s error=%s",
+                "[REDIS_BROKER] Publish failed (queued locally): sensor_id=%s error=%s",
                 reading.sensor_id,
                 str(e),
             )
@@ -309,6 +370,7 @@ class RedisReadingBroker(ReadingBroker):
     
     def health_check(self) -> dict:
         """Return health status."""
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         return {
             "connected": self._connected,
             "consumer_running": self._running and (
@@ -317,9 +379,13 @@ class RedisReadingBroker(ReadingBroker):
             ),
             "handlers_count": len(self._handlers),
             "last_error": self._last_error,
-            "redis_url": self._redis_url.split("@")[-1],  # Hide password
+            "redis_url": redis_url.split("@")[-1],  # Hide password
             "consumer_name": self._consumer_name,
             "stream_readings": self.STREAM_READINGS,
             "stream_events": self.STREAM_ML_EVENTS,
             "consumer_group": self.CONSUMER_GROUP,
+            "connection_source": "RedisConnectionManager (stream pool)",
+            "circuit_breaker": self._circuit_breaker.get_metrics(),
+            "local_queue_size": len(self._local_queue),
+            "degraded_mode": not self._connected and len(self._local_queue) > 0,
         }

@@ -24,9 +24,9 @@ from iot_machine_learning.domain.services.severity_rules import SeverityResult
 from .impact_detector import ImpactSignalResult, detect_impact_signals
 
 # Axis weights for the composite severity score
-_W_URGENCY = 0.45      # Aumentado de 0.30 para dar más peso a la urgencia
+_W_URGENCY = 0.30      # Balanced weight to prevent urgency dominance
 _W_SENTIMENT = 0.20
-_W_IMPACT = 0.35       # Reducido de 0.50 para balancear con urgencia
+_W_IMPACT = 0.50       # Restore impact primacy for hard signals (SLA, metrics)
 
 # Severity thresholds on composite score [0, 1]
 _THRESHOLD_CRITICAL = 0.65   # Aumentado de 0.45 para evitar todo-crítico
@@ -84,17 +84,21 @@ def classify_text_severity(
         + _W_IMPACT * impact_score
     )
 
-    # ── Hard overrides (any single axis can force critical) ──
+    # ── Hard overrides (conservative - only truly severe conditions) ──
+    # Impact override: 3+ hard signal categories (SLA breach + extreme metrics + cascade)
     if impact_result is not None and impact_result.n_categories_hit >= 3:
         composite = max(composite, _THRESHOLD_CRITICAL)
-    if has_critical_keywords and sentiment_label == "negative":
+    
+    # Critical keywords override: ONLY if critical keywords + negative + medium+ impact
+    if has_critical_keywords and sentiment_label == "negative" and impact_score >= 0.3:
         composite = max(composite, _THRESHOLD_CRITICAL)
-    # Override: high urgency + negative sentiment = Critical
-    if urgency_score >= 0.6 and sentiment_label == "negative":
+    
+    # Urgency override: ONLY extreme urgency (0.9+) + negative + some impact evidence
+    if urgency_score >= 0.9 and sentiment_label == "negative" and impact_score >= 0.2:
         composite = max(composite, _THRESHOLD_CRITICAL)
-    # Override específico: urgency máxima + sentimiento negativo sin impact = Critical
-    if urgency_score >= 0.95 and sentiment_label == "negative" and (impact_result is None or impact_result.score < 0.1):
-        composite = max(composite, _THRESHOLD_CRITICAL)
+    
+    # Removed: urgency >= 0.6 + negative (too permissive)
+    # Removed: urgency >= 0.95 + negative + no impact (no hard evidence)
 
     # ── Map to severity ──
     severity, risk_level = _score_to_severity(composite)

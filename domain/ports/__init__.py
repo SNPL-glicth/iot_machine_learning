@@ -13,6 +13,17 @@ from .audit_port import AuditPort
 from .cognitive_memory_port import CognitiveMemoryPort
 from .sliding_window_port import ISlidingWindowStore, WindowConfig
 from .plasticity_port import PlasticityPort
+from .experiment_tracker_port import ExperimentTrackerPort, NullExperimentTracker
+from .confidence_calibrator_port import (
+    CalibrationStats,
+    CalibratedScore,
+    ConfidenceCalibratorPort,
+    NullCalibrator,
+)
+from .recent_anomaly_tracker_port import (
+    RecentAnomalyTrackerPort,
+    NullAnomalyTracker,
+)
 
 __all__ = [
     "PredictionPort",
@@ -24,4 +35,12 @@ __all__ = [
     "ISlidingWindowStore",
     "WindowConfig",
     "PlasticityPort",
+    "ExperimentTrackerPort",
+    "NullExperimentTracker",
+    "ConfidenceCalibratorPort",
+    "CalibrationStats",
+    "CalibratedScore",
+    "NullCalibrator",
+    "RecentAnomalyTrackerPort",
+    "NullAnomalyTracker",
 ]

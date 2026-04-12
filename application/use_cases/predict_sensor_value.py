@@ -13,6 +13,10 @@ from typing import Optional
 from ...domain.entities.sensor_reading import SensorWindow
 from ...domain.ports.audit_port import AuditPort
 from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
+from ...domain.ports.experiment_tracker_port import (
+    ExperimentTrackerPort,
+    NullExperimentTracker,
+)
 from ...domain.ports.storage_port import StoragePort
 from ...domain.services.memory_recall_enricher import (
     MemoryRecallContext,
@@ -36,12 +40,15 @@ class PredictSensorValueUseCase:
         window_size: int = 500,
         cognitive: Optional[CognitiveMemoryPort] = None,
         flags: Optional[FeatureFlags] = None,
+        experiment_tracker: Optional[ExperimentTrackerPort] = None,
     ) -> None:
         self._prediction_service = prediction_service
         self._storage = storage
         self._audit = audit
         self._window_size = window_size
         self._flags = flags
+        self._experiment_tracker = experiment_tracker or NullExperimentTracker()
+        self._prediction_count = 0
 
         self._recall_enricher: Optional[MemoryRecallEnricher] = None
         if cognitive is not None:
@@ -86,6 +93,9 @@ class PredictSensorValueUseCase:
 
         elapsed_ms = (time.monotonic() - t_start) * 1000.0
         dto = self._build_dto(prediction, memory_context)
+
+        # 4. MLflow tracking (fail-safe)
+        self._track_prediction(sensor_id, dto, window.size, elapsed_ms)
 
         logger.info(
             "use_case_predict_complete",
@@ -173,3 +183,42 @@ class PredictSensorValueUseCase:
         if self._flags is None:
             return False
         return self._flags.ML_ENABLE_MEMORY_RECALL
+
+    def _track_prediction(
+        self,
+        sensor_id: int,
+        dto: PredictionDTO,
+        window_size: int,
+        elapsed_ms: float,
+    ) -> None:
+        """Track prediction metrics to MLflow (fail-safe)."""
+        try:
+            self._prediction_count += 1
+
+            # Log metrics
+            metrics = {
+                "confidence_score": dto.confidence_score,
+                "elapsed_ms": elapsed_ms,
+            }
+            if dto.confidence_interval:
+                lower, upper = dto.confidence_interval
+                metrics["confidence_interval_width"] = upper - lower
+
+            self._experiment_tracker.log_metrics(metrics, step=self._prediction_count)
+
+            # Log params
+            self._experiment_tracker.log_params({
+                "engine_name": dto.engine_name,
+                "series_id": dto.series_id,
+                "window_size": window_size,
+            })
+
+            # Log tags
+            self._experiment_tracker.set_tags({
+                "pipeline_version": "0.2.1-GOLD",
+                "sensor_id": str(sensor_id),
+            })
+
+        except Exception as exc:
+            # Fail-safe: never break pipeline for tracking errors
+            logger.debug("prediction_tracking_failed", extra={"error": str(exc)})
