@@ -1,342 +1,50 @@
 """Feature flags model for UTSAE control.
 
+Refactored: Composed from sub-configs per domain (Paso 5).
 Todos los flags tienen valores por defecto SEGUROS (desactivados).
+
+Usage:
+    flags = FeatureFlags()
+    # Access via composed configs:
+    flags.ML_TAYLOR_ORDER  # from TaylorConfig
+    flags.ML_BATCH_MAX_WORKERS  # from BatchConfig
 """
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from .taylor_config import TaylorConfig
+from .batch_config import BatchConfig
+from .cognitive_config import CognitiveConfig
+from .decision_config import DecisionConfig
+from .security_config import SecurityConfig
 
-from pydantic import BaseModel, field_validator
 
-from .parsers import parse_int_set
-
-
-class FeatureFlags(BaseModel):
-    """Feature flags para control de features UTSAE.
-
-    Todos los valores por defecto son SEGUROS: el sistema se comporta
-    exactamente como antes de UTSAE si no se configura nada.
-
-    Attributes:
-        ML_ROLLBACK_TO_BASELINE: Panic button.  Si ``True``, TODO usa
-            baseline sin importar otros flags.
-        ML_USE_TAYLOR_PREDICTOR: Activa el motor Taylor.
-        ML_USE_KALMAN_FILTER: Activa el filtro Kalman pre-predicción.
-        ML_TAYLOR_ORDER: Orden de Taylor (1–3).
-        ML_TAYLOR_HORIZON: Pasos adelante a predecir.
-        ML_KALMAN_Q: Varianza del proceso para Kalman.
-        ML_KALMAN_WARMUP_SIZE: Lecturas de warmup para Kalman.
-        ML_ENABLE_AB_TESTING: Activa comparación A/B baseline vs Taylor.
-        ML_TAYLOR_SENSOR_WHITELIST: CSV de sensor_ids para Taylor.
-            Si vacío/None, Taylor aplica a todos (si está activado).
-        ML_DEFAULT_ENGINE: Motor por defecto.
-        ML_ENGINE_OVERRIDES: Overrides por sensor_id.
+class FeatureFlags(TaylorConfig, BatchConfig, CognitiveConfig, DecisionConfig, SecurityConfig):
+    """Composed feature flags from all sub-configs.
+    
+    Uses multiple inheritance to combine all configuration domains:
+    - TaylorConfig: Taylor/Kalman predictors, engine selection
+    - BatchConfig: Batch runners, streaming, ingest circuit breakers
+    - CognitiveConfig: Weaviate memory, neural, embeddings
+    - DecisionConfig: Decision engine, Bayesian weight tracking
+    - SecurityConfig: Auth, CORS, enterprise features
+    
+    All fields maintain backward compatibility with original flags.py.
     """
+    pass  # All fields inherited from parent configs
 
-    # --- PANIC BUTTON ---
-    ML_ROLLBACK_TO_BASELINE: bool = False
 
-    # --- Core Features ---
-    ML_USE_TAYLOR_PREDICTOR: bool = False
-    ML_USE_KALMAN_FILTER: bool = False
+# Backward compatibility: keep old get_feature_flags if it existed
+try:
+    from .feature_flags import get_feature_flags as _legacy_get_flags
+except ImportError:
+    _legacy_get_flags = None
 
-    # --- Taylor Config ---
-    ML_TAYLOR_ORDER: int = 2
-    ML_TAYLOR_HORIZON: int = 1
 
-    # --- Kalman Config ---
-    ML_KALMAN_Q: float = 1e-5
-    ML_KALMAN_WARMUP_SIZE: int = 10
-
-    # --- A/B Testing ---
-    ML_ENABLE_AB_TESTING: bool = False
-
-    # --- Sensor Whitelist ---
-    ML_TAYLOR_SENSOR_WHITELIST: Optional[str] = None
-
-    # --- Default Engine ---
-    ML_DEFAULT_ENGINE: str = "baseline_moving_average"
-
-    # --- Per-series Overrides (agnóstico) ---
-    ML_ENGINE_SERIES_OVERRIDES: Dict[str, str] = {}
-
-    # --- Per-sensor Overrides (legacy IoT) ---
-    ML_ENGINE_OVERRIDES: Dict[int, str] = {}
-
-    # --- Enterprise Features (Fase 3) ---
-    ML_ENABLE_DELTA_SPIKE_DETECTION: bool = False
-    ML_ENABLE_REGIME_DETECTION: bool = False
-    ML_ENABLE_ENSEMBLE_PREDICTOR: bool = False
-    ML_ENABLE_AUDIT_LOGGING: bool = False
-    ML_ENABLE_PREDICTION_CACHE: bool = False
-    ML_ENABLE_VOTING_ANOMALY: bool = False
-    ML_ENABLE_CHANGE_POINT_DETECTION: bool = False
-    ML_ENABLE_EXPLAINABILITY: bool = False
-
-    # --- Cache Config ---
-    ML_CACHE_TTL_SECONDS: int = 60
-    ML_CACHE_MAX_ENTRIES: int = 1000
-
-    # --- Batch Config ---
-    ML_BATCH_MAX_WORKERS: int = 4
-    ML_BATCH_CIRCUIT_BREAKER_THRESHOLD: int = 10
-
-    # --- Anomaly Config ---
-    ML_ANOMALY_VOTING_THRESHOLD: float = 0.5
-    ML_ANOMALY_CONTAMINATION: float = 0.1
-
-    # --- Batch Runner Enterprise Bridge ---
-    ML_BATCH_USE_ENTERPRISE: bool = False
-    ML_BATCH_ENTERPRISE_SENSORS: Optional[str] = None
-    ML_BATCH_BASELINE_ONLY_SENSORS: Optional[str] = None
-
-    # --- Performance Fixes (H-ML-4, H-ML-8, H-ING-2) ---
-    ML_ENTERPRISE_USE_PRELOADED_DATA: bool = True
-    ML_STREAM_USE_SLIDING_WINDOW: bool = True
-    ML_MQTT_ASYNC_PROCESSING: bool = True
-    ML_MQTT_QUEUE_SIZE: int = 1000
-    ML_MQTT_NUM_WORKERS: int = 4
-
-    # --- Batch Parallelism (E-4 / RC-2 fix) ---
-    ML_BATCH_PARALLEL_WORKERS: int = 1  # 1 = sequential (backward compat)
-
-    # --- Stream Prediction Dedup (E-2 / RC-1 fix) ---
-    ML_STREAM_PREDICTIONS_ENABLED: bool = False  # Default: batch only
-
-    # --- Sliding Window Eviction (E-1 / RC-3 fix) ---
-    ML_SLIDING_WINDOW_MAX_SENSORS: int = 1000
-    ML_SLIDING_WINDOW_TTL_SECONDS: int = 3600
-
-    # --- Ingest Circuit Breaker (E-3 / RC-4 fix) ---
-    ML_INGEST_CIRCUIT_BREAKER_ENABLED: bool = True
-    ML_INGEST_CB_FAILURE_THRESHOLD: int = 5
-    ML_INGEST_CB_TIMEOUT_SECONDS: int = 30
-
-    # --- Cognitive Memory (Weaviate) ---
-    ML_ENABLE_COGNITIVE_MEMORY: bool = False
-    ML_COGNITIVE_MEMORY_DRY_RUN: bool = True
-    ML_COGNITIVE_MEMORY_ASYNC: bool = True
-    ML_COGNITIVE_MEMORY_URL: str = ""
-    ML_ENABLE_MEMORY_RECALL: bool = False
-
-    # --- Pipeline Performance ---
-    ML_PIPELINE_BUDGET_MS: float = 25000.0  # 25 second max (leaves 5s buffer for frontend)
-    ML_ENABLE_PHASE_TIMING: bool = True    # --- Feature Priority by Speed (CPU optimization) ---
-    # FAST — keep enabled (< 2s each)
-    ML_ENABLE_DECISION_ENGINE: bool = True
-    ML_ENABLE_MONTE_CARLO: bool = True
+def get_feature_flags() -> FeatureFlags:
+    """Factory function for FeatureFlags.
     
-    # MEDIUM — keep enabled with timeout (2-5s each)
-    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # max 3s timeout
-    ML_HYBRID_TIMEOUT_SECONDS: float = 3.0
-    
-    # SLOW — disable until GPU available (> 5s each)
-    ML_ENABLE_ATTENTION: bool = False  # too slow for CPU
-    ML_ATTENTION_TIMEOUT_SECONDS: float = 3.0
-    ML_ENABLE_SNN_FULL: bool = False  # disabled on CPU
-    ML_ATTENTION_CONFIDENCE_THRESHOLD: float = 0.5  # Fallback threshold
-    ML_ATTENTION_BUDGET_MS: float = 100.0  # Time budget per document
-
-    # --- Hybrid Embeddings (Text Entity Extraction) ---
-    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # Master switch (default: enabled)
-    ML_HYBRID_EMBEDDING_DIMENSION: int = 128  # Output dimension for hybrid vectors
-    ML_HYBRID_ENTROPY_THRESHOLD: float = 0.5  # Shannon entropy threshold for token filtering
-    ML_HYBRID_PHRASE_MIN_PERSISTENCE: int = 2  # Minimum occurrences before phrase retained
-    ML_HYBRID_ENTITY_THRESHOLD: float = 0.3  # Vector magnitude threshold for entity detection
-
-    @field_validator("ML_TAYLOR_ORDER")
-    @classmethod
-    def _clamp_taylor_order(cls, v: int) -> int:
-        """Clampea orden de Taylor a [1, 3]."""
-        return max(1, min(v, 3))
-
-    @field_validator("ML_TAYLOR_HORIZON")
-    @classmethod
-    def _validate_horizon(cls, v: int) -> int:
-        """Horizon debe ser >= 1."""
-        return max(1, v)
-
-    @field_validator("ML_KALMAN_WARMUP_SIZE")
-    @classmethod
-    def _validate_warmup(cls, v: int) -> int:
-        """Warmup debe ser >= 2."""
-        return max(2, v)
-
-    def is_series_in_whitelist(self, series_id: str) -> bool:
-        """Verifica si una serie está en la whitelist de Taylor.
-
-        Si la whitelist está vacía o es ``None``, TODAS las series
-        están permitidas (whitelist abierta).
-
-        Args:
-            series_id: Identificador de la serie.
-
-        Returns:
-            ``True`` si la serie puede usar Taylor.
-        """
-        if not self.ML_TAYLOR_SENSOR_WHITELIST:
-            return True
-
-        allowed = parse_int_set(self.ML_TAYLOR_SENSOR_WHITELIST)
-        from iot_machine_learning.domain.validators.input_guard import safe_series_id_to_int
-        sid = safe_series_id_to_int(series_id, fallback=-1)
-        if sid == -1:
-            return False
-        return sid in allowed
-
-    def is_sensor_in_whitelist(self, sensor_id: int) -> bool:
-        """Legacy: verifica si un sensor está en la whitelist."""
-        return self.is_series_in_whitelist(str(sensor_id))
-
-    def get_active_engine_for_series(self, series_id: str) -> str:
-        """Determina qué motor debe usar una serie (agnóstico).
-
-        Prioridad:
-        1. Panic button → baseline
-        2. Override por series_id (agnóstico)
-        3. Override por sensor_id (legacy, si series_id es numérico)
-        4. Taylor (si activo y serie en whitelist)
-        5. Default global
-
-        Args:
-            series_id: Identificador de la serie.
-
-        Returns:
-            Nombre del motor a usar.
-        """
-        if self.ML_ROLLBACK_TO_BASELINE:
-            return "baseline_moving_average"
-
-        # Agnostic overrides first
-        if series_id in self.ML_ENGINE_SERIES_OVERRIDES:
-            return self.ML_ENGINE_SERIES_OVERRIDES[series_id]
-
-        # Legacy int overrides
-        from iot_machine_learning.domain.validators.input_guard import safe_series_id_to_int
-        sid = safe_series_id_to_int(series_id, fallback=-1)
-        if sid != -1 and sid in self.ML_ENGINE_OVERRIDES:
-            return self.ML_ENGINE_OVERRIDES[sid]
-
-        if self.ML_USE_TAYLOR_PREDICTOR and self.is_series_in_whitelist(series_id):
-            return "taylor"
-
-        return self.ML_DEFAULT_ENGINE
-
-    # --- Domain Boundary Check (EJE 4 fix) ---
-    ML_DOMAIN_BOUNDARY_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Signal Coherence Check (EJE 2 fix) ---
-    ML_COHERENCE_CHECK_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Decision Arbiter (EJE 1 fix) ---
-    ML_DECISION_ARBITER_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Confidence Calibration (EJE 6 fix) ---
-    ML_CONFIDENCE_CALIBRATION_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Action Guard (EJE 5 fix) ---
-    ML_ACTION_GUARD_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Narrative Unification (EJE 7 fix) ---
-    ML_NARRATIVE_UNIFICATION_ENABLED: bool = False  # Default: disabled for backward compat
-
-    # --- Decision Engine (NEW) ---
-    ML_ENABLE_DECISION_ENGINE: bool = True  # Default: enabled
-    ML_DECISION_ENGINE: str = "simple"  # simple | contextual | conservative | aggressive | cost_optimized
-    ML_DECISION_ENGINE_STRATEGY: str = "simple"  # Deprecated: use ML_DECISION_ENGINE
-
-    # --- Plasticity tuning (ISO 27001 A.12.1.2: configurable without redeploy) ---
-    ML_PLASTICITY_ALPHA: float = 0.15
-    ML_PLASTICITY_MIN_WEIGHT: float = 0.05
-    ML_PLASTICITY_MAX_REGIMES: int = 10
-    ML_PLASTICITY_REGIME_TTL_SECONDS: float = 86400.0
-    ML_PLASTICITY_NOISE_THRESHOLD: float = 0.3
-    ML_PLASTICITY_PERSIST_EVERY_N: int = 10
-    ML_PLASTICITY_IMMEDIATE_PERSIST_THRESHOLD: float = 0.15
-    ML_PLASTICITY_REDIS_CACHE_TTL_SECONDS: float = 60.0
-
-    # JSON strings for dicts — ejemplo: '{"STABLE": 0.10, "TRENDING": 0.20}'
-    ML_PLASTICITY_REGIME_ALPHAS: str = '{"STABLE":0.10,"TRENDING":0.20,"VOLATILE":0.25,"NOISY":0.08,"TRANSITIONAL":0.18}'
-    ML_PLASTICITY_LR_FACTORS: str = '{"STABLE":1.0,"TRENDING":1.2,"VOLATILE":1.5,"NOISY":0.8,"UNKNOWN":1.0,"TRANSITIONAL":1.1}'
-
-    # --- Decision engine tuning (OCP: configurable thresholds) ---
-    ML_DECISION_CONSERVATIVE_THRESHOLD: float = 0.8
-    ML_DECISION_CONSERVATIVE_SAFETY_MARGIN: float = 1.2
-    ML_DECISION_CONFIDENCE_FLOOR: float = 0.6
-    ML_DECISION_CONFIDENCE_CEILING: float = 0.95
-    ML_DECISION_ESCALATION_THRESHOLD: int = 5
-    ML_DECISION_ATT_STABLE_DRIFT_THRESHOLD: float = 0.10
-    ML_DECISION_CONFIDENCE_REDUCTION_SPARSE: float = 0.9
-
-    # JSON for base_scores and amplifier thresholds
-    ML_DECISION_BASE_SCORES: str = '{"critical":0.90,"high":0.70,"medium":0.45,"low":0.25,"info":0.05,"warning":0.45}'
-    ML_DECISION_AMP_THRESHOLDS: str = '{"count_high":5,"count_medium":3,"ratio_high":0.60,"ratio_low":0.30,"drift_high":0.70,"drift_low":0.40}'
-
-    # --- Anomaly tracking (Redis/memory) ---
-    ML_ANOMALY_TTL_SECONDS: float = 7200.0
-    ML_ANOMALY_MAX_ENTRIES_PER_SERIES: int = 500
-    ML_ANOMALY_KEY_TTL_SECONDS: int = 3600
-    ML_ANOMALY_TRACKER_BACKEND: str = "memory"  # memory | redis
-
-    # --- Contextual Decision Engine Config (Paso 7) ---
-    ML_DECISION_AMP_CONSECUTIVE_5: float = 1.35
-    ML_DECISION_AMP_CONSECUTIVE_3: float = 1.20
-    ML_DECISION_AMP_RATE_HIGH: float = 1.20
-    ML_DECISION_AMP_RATE_MED: float = 1.10
-    ML_DECISION_AMP_VOLATILE: float = 1.15
-    ML_DECISION_AMP_NOISY: float = 1.10
-    ML_DECISION_AMP_DRIFT_HIGH: float = 1.20
-    ML_DECISION_AMP_DRIFT_MED: float = 1.10
-    ML_DECISION_ATT_STABLE: float = 0.85
-    ML_DECISION_ATT_LOW_CRITICALITY: float = 0.80
-    ML_DECISION_ATT_NO_CONTEXT: float = 0.90
-    ML_DECISION_SUPPRESSION_WINDOW_MINUTES: float = 5.0
-    
-    # --- Contextual Decision Thresholds (mapeo score → acción) ---
-    ML_DECISION_THRESHOLD_ESCALATE: float = 0.85
-    ML_DECISION_THRESHOLD_INVESTIGATE: float = 0.65
-    ML_DECISION_THRESHOLD_MONITOR: float = 0.40
-
-    # --- Experiment Tracking (EXP-1 / MLflow) ---
-    MLFLOW_ENABLED: bool = False  # Master switch for MLflow tracking
-    MLFLOW_TRACKING_URI: str = "http://localhost:5000"
-    MLFLOW_EXPERIMENT_NAME: str = "zenin-cognitive-pipeline"
-
-    # --- Probabilistic Confidence Calibration (CAL-1) ---
-    ML_PROBABILISTIC_CALIBRATION_ENABLED: bool = False  # Master switch
-    ML_CALIBRATION_MIN_SAMPLES_PLATT: int = 50
-    ML_CALIBRATION_MIN_SAMPLES_ISOTONIC: int = 200
-    ML_CALIBRATION_WINDOW_SIZE_PLATT: int = 500
-    ML_CALIBRATION_WINDOW_SIZE_ISOTONIC: int = 1000
-    ML_CALIBRATION_SPARSE_UPDATE_THRESHOLD: int = 100  # Updates cada N predicciones en alto volumen
-    ML_CALIBRATION_LOG_ECE_EVERY_N: int = 100  # Log ECE a MLflow cada N predicciones
-
-    @field_validator("ML_DECISION_ENGINE")
-    @classmethod
-    def _validate_decision_engine(cls, v: str) -> str:
-        """Valida que el motor de decisión sea conocido."""
-        allowed = {"simple", "contextual", "conservative", "aggressive", "cost_optimized"}
-        if v not in allowed:
-            return "simple"  # Fallback seguro
-        return v
-    
-    @field_validator("ML_DECISION_ENGINE_STRATEGY")
-    @classmethod
-    def _validate_strategy(cls, v: str) -> str:
-        """Valida que la estrategia sea conocida."""
-        allowed = {"simple", "conservative", "aggressive", "cost_optimized"}
-        if v not in allowed:
-            return "simple"  # Fallback seguro
-        return v
-    
-    def get_decision_engine(self) -> str:
-        """Retorna el motor de decisión activo.
-        
-        ML_DECISION_ENGINE tiene prioridad sobre ML_DECISION_ENGINE_STRATEGY.
-        """
-        return self.ML_DECISION_ENGINE or self.ML_DECISION_ENGINE_STRATEGY or "simple"
-
-    def get_active_engine_name(self, sensor_id: int) -> str:
-        """Legacy: determina motor por sensor_id numérico."""
-        return self.get_active_engine_for_series(str(sensor_id))
+    Returns:
+        FeatureFlags instance with all defaults.
+    """
+    return FeatureFlags()

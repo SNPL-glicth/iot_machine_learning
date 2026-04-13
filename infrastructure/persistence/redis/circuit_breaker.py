@@ -67,7 +67,7 @@ class CircuitBreaker:
         logger.debug(
             "circuit_breaker_created",
             extra={
-                "name": name,
+                "circuit_name": name,
                 "threshold": failure_threshold,
                 "recovery_timeout": recovery_timeout,
             }
@@ -87,11 +87,11 @@ class CircuitBreaker:
         # Check if we should transition from OPEN to HALF_OPEN
         if self._state == CircuitState.OPEN:
             if self._should_attempt_reset():
-                logger.info("circuit_half_open", extra={"name": self.name})
+                logger.info("circuit_half_open", extra={"circuit_name": self.name})
                 self._state = CircuitState.HALF_OPEN
                 self._half_open_successes = 0
             else:
-                logger.debug("circuit_open_reject", extra={"name": self.name})
+                logger.debug("circuit_open_reject", extra={"circuit_name": self.name})
                 if fallback:
                     return fallback()
                 raise CircuitOpenError(
@@ -108,10 +108,10 @@ class CircuitBreaker:
             self._on_failure()
             
             if fallback:
-                logger.warning(
+                logger.debug(
                     "circuit_fallback_executed",
                     extra={
-                        "name": self.name,
+                        "circuit_name": self.name,
                         "error": str(e),
                         "state": self._state.value,
                     }
@@ -131,7 +131,7 @@ class CircuitBreaker:
             self._half_open_successes += 1
             
             if self._half_open_successes >= self.half_open_max_calls:
-                logger.info("circuit_closed", extra={"name": self.name})
+                logger.info("circuit_closed", extra={"circuit_name": self.name})
                 self._state = CircuitState.CLOSED
                 self._failure_count = 0
                 self._half_open_successes = 0
@@ -147,7 +147,7 @@ class CircuitBreaker:
             logger.warning(
                 "circuit_reopened",
                 extra={
-                    "name": self.name,
+                    "circuit_name": self.name,
                     "failure_count": self._failure_count,
                 }
             )
@@ -157,7 +157,7 @@ class CircuitBreaker:
             logger.error(
                 "circuit_opened",
                 extra={
-                    "name": self.name,
+                    "circuit_name": self.name,
                     "failure_count": self._failure_count,
                     "threshold": self.failure_threshold,
                 }
@@ -168,14 +168,14 @@ class CircuitBreaker:
         """Manually open the circuit (for maintenance/testing)."""
         self._state = CircuitState.OPEN
         self._last_failure_time = time.time()
-        logger.warning("circuit_force_opened", extra={"name": self.name})
+        logger.warning("circuit_force_opened", extra={"circuit_name": self.name})
     
     def force_close(self) -> None:
         """Manually close the circuit (after fixing issue)."""
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._half_open_successes = 0
-        logger.info("circuit_force_closed", extra={"name": self.name})
+        logger.info("circuit_force_closed", extra={"circuit_name": self.name})
     
     def get_metrics(self) -> dict:
         """Get circuit breaker metrics."""

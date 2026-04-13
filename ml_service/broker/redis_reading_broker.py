@@ -95,7 +95,7 @@ class RedisReadingBroker(ReadingBroker):
         
         def _fallback():
             # Circuit open or connection failed - operate in degraded mode
-            logger.warning(
+            logger.debug(
                 "[REDIS_BROKER] Operating in degraded mode (no Redis). "
                 "Readings queued locally."
             )

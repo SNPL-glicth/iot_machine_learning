@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 _PLASTICITY_AVAILABLE = True
 try:
-    from iot_machine_learning.infrastructure.ml.cognitive.plasticity import PlasticityTracker
+    from iot_machine_learning.infrastructure.ml.cognitive.bayesian_weight_tracker import (
+        BayesianWeightTracker as PlasticityTracker,
+    )
 except (ImportError, ModuleNotFoundError):
     PlasticityTracker = None  # type: ignore[assignment,misc]
 

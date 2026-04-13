@@ -47,12 +47,14 @@ class AnalyzeDocumentUseCase:
         cache: CachePort,
         persistence: Optional[DocumentPersistencePort] = None,
         plasticity: Optional[PlasticityPort] = None,
+        deterministic_mode: bool = False,
     ) -> None:
         """Inicializa caso de uso con dependencias inyectadas."""
         self._engine = engine
         self._cache = cache
         self._persistence = persistence
         self._plasticity = plasticity
+        self._deterministic_mode = deterministic_mode
     
     def execute(
         self,
@@ -88,6 +90,16 @@ class AnalyzeDocumentUseCase:
             cached.processing_time_ms = round((time.time() - start) * 1000, 2)
             cached.cached = True
             return cached
+        
+        # In deterministic mode, cache is mandatory - fail if not found
+        if self._deterministic_mode:
+            logger.error(
+                "deterministic_mode_cache_miss",
+                extra={"document_id": document_id, "cache_key": cache_key}
+            )
+            raise ValueError(
+                f"Deterministic mode requires cached result for document {document_id}"
+            )
         
         logger.info(f"analysis_cache_miss: document_id={document_id}")
         

@@ -5,23 +5,29 @@ approach.  Uses exponential moving average (EMA) with optional
 trend correction (double exponential smoothing / Holt's method).
 
 Design:
-    - Stateless per call (no warmup buffer).
+    - Auto-tuning of α and β via grid search.
+    - Persistence of optimal parameters per series.
+    - Re-optimization after 50 predictions if MAE improves > 5%.
     - Configurable smoothing factor α and trend factor β.
     - Exposes diagnostic metadata for the cognitive orchestrator.
     - Noise-resistant by construction (EMA is a low-pass filter).
 
-Pure computation — no I/O, no persistence.
+FASE 3: Added adaptive parameter optimization and persistence.
 """
 
 from __future__ import annotations
 
+import logging
 import math
-from typing import List, Optional
+from collections import deque
+from typing import Deque, List, Optional
 
 from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,
     PredictionResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _ema(values: List[float], alpha: float) -> List[float]:
@@ -72,12 +78,16 @@ def _compute_residual_std(
 
 
 class StatisticalPredictionEngine(PredictionEngine):
-    """EMA/Holt-based prediction engine.
+    """EMA/Holt-based prediction engine with adaptive parameters.
 
     Attributes:
         _alpha: EMA smoothing factor (higher = more reactive).
         _beta: Trend smoothing factor for Holt's method.
         _horizon: Steps ahead to predict.
+        _series_id: Series identifier for parameter persistence.
+        _prediction_history: Recent predictions for re-optimization.
+        _prediction_count: Count of predictions since last optimization.
+        _current_mae: Current MAE from loaded params.
     """
 
     def __init__(
@@ -85,6 +95,8 @@ class StatisticalPredictionEngine(PredictionEngine):
         alpha: float = 0.3,
         beta: float = 0.1,
         horizon: int = 1,
+        series_id: Optional[str] = None,
+        enable_optimization: bool = True,
     ) -> None:
         if not 0.0 < alpha <= 1.0:
             raise ValueError(f"alpha must be in (0, 1], got {alpha}")
@@ -92,8 +104,34 @@ class StatisticalPredictionEngine(PredictionEngine):
             raise ValueError(f"beta must be in [0, 1], got {beta}")
         if horizon < 1:
             raise ValueError(f"horizon must be >= 1, got {horizon}")
-        self._alpha = alpha
-        self._beta = beta
+        
+        self._series_id = series_id
+        self._enable_optimization = enable_optimization
+        self._prediction_history: Deque[float] = deque(maxlen=100)
+        self._prediction_count = 0
+        self._current_mae = 999.0
+        
+        # Try to load optimized params from DB
+        if series_id and enable_optimization:
+            loaded = self._load_params(series_id)
+            if loaded:
+                self._alpha, self._beta, self._current_mae = loaded
+                logger.info(
+                    "statistical_params_loaded_from_db",
+                    extra={
+                        "series_id": series_id,
+                        "alpha": self._alpha,
+                        "beta": self._beta,
+                        "mae": round(self._current_mae, 4),
+                    },
+                )
+            else:
+                self._alpha = alpha
+                self._beta = beta
+        else:
+            self._alpha = alpha
+            self._beta = beta
+        
         self._horizon = horizon
 
     @property
@@ -163,6 +201,97 @@ class StatisticalPredictionEngine(PredictionEngine):
 
     def supports_uncertainty(self) -> bool:
         return False
+    
+    def record_actual(self, predicted: float, actual: float) -> None:
+        """Record actual value for re-optimization.
+        
+        Args:
+            predicted: Predicted value
+            actual: Actual observed value
+        """
+        if not self._enable_optimization:
+            return
+        
+        self._prediction_history.append(actual)
+        self._prediction_count += 1
+        
+        # Re-optimize after 50 predictions
+        if self._prediction_count >= 50 and len(self._prediction_history) >= 20:
+            self._reoptimize()
+            self._prediction_count = 0
+    
+    def _load_params(self, series_id: str) -> Optional[tuple[float, float, float]]:
+        """Load parameters from DB.
+        
+        Args:
+            series_id: Series identifier
+            
+        Returns:
+            Tuple of (alpha, beta, mae) or None
+        """
+        try:
+            from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.statistical_params_repository import (
+                StatisticalParamsRepository,
+            )
+            repo = StatisticalParamsRepository()
+            return repo.load_params(series_id)
+        except Exception as exc:
+            logger.warning(
+                "statistical_params_load_failed",
+                extra={"series_id": series_id, "error": str(exc)},
+            )
+            return None
+    
+    def _reoptimize(self) -> None:
+        """Re-optimize parameters if MAE improves > 5%."""
+        if not self._series_id:
+            return
+        
+        try:
+            from iot_machine_learning.infrastructure.ml.engines.statistical.param_optimizer import (
+                StatisticalParamOptimizer,
+            )
+            from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.statistical_params_repository import (
+                StatisticalParamsRepository,
+            )
+            
+            optimizer = StatisticalParamOptimizer()
+            values = list(self._prediction_history)
+            
+            new_alpha, new_beta, new_mae = optimizer.optimize(values)
+            
+            # Only update if MAE improves > 5%
+            improvement = (self._current_mae - new_mae) / self._current_mae
+            if improvement > 0.05:
+                self._alpha = new_alpha
+                self._beta = new_beta
+                self._current_mae = new_mae
+                
+                # Persist to DB
+                repo = StatisticalParamsRepository()
+                repo.save_params(
+                    series_id=self._series_id,
+                    alpha=new_alpha,
+                    beta=new_beta,
+                    mae=new_mae,
+                    n_samples=len(values),
+                )
+                
+                logger.info(
+                    "statistical_params_reoptimized",
+                    extra={
+                        "series_id": self._series_id,
+                        "new_alpha": new_alpha,
+                        "new_beta": new_beta,
+                        "new_mae": round(new_mae, 4),
+                        "improvement_pct": round(improvement * 100, 2),
+                    },
+                )
+        except Exception as exc:
+            logger.warning(
+                "statistical_reoptimization_failed",
+                extra={"series_id": self._series_id, "error": str(exc)},
+            )
 
     def _fallback(self, values: List[float]) -> PredictionResult:
         tail = values[-min(3, len(values)):]

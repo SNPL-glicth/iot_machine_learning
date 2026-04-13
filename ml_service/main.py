@@ -12,18 +12,18 @@ La lógica de negocio está en api/services/.
 
 from __future__ import annotations
 
+# FIX: Load env vars BEFORE any other imports that might use them
+from dotenv import load_dotenv
+load_dotenv()
+
 import logging
 import os
 import threading
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
-# Load .env from the iot_machine_learning root directory
-_env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(_env_path, override=False)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,14 @@ async def lifespan(app: FastAPI):
 
     # Startup
     logger.info("[ML-SERVICE] Starting up...")
+    
+    # FIX: Reset circuit breakers to ensure fresh connection state
+    try:
+        from iot_machine_learning.infrastructure.persistence.redis import reset_all_circuits
+        reset_all_circuits()
+        logger.info("[ML-SERVICE] Circuit breakers reset")
+    except Exception as e:
+        logger.warning("[ML-SERVICE] Could not reset circuits: %s", e)
     
     # Initialize broker if Redis is enabled
     try:
@@ -96,6 +104,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS configuration - load from FeatureFlags
+from .config.loader import get_feature_flags
+_flags = get_feature_flags()
+ALLOWED_ORIGINS = os.getenv(
+    "ML_CORS_ORIGINS",
+    _flags.ML_CORS_ORIGINS
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key", "Content-Type"],
+)
 
 # Import and include router after app creation to avoid circular imports
 from .api.routes import router

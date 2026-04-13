@@ -57,12 +57,13 @@ def extract_raw_data(payload: Dict[str, Any], content_type: str) -> Any:
     
     if "data" in payload:
         data = payload["data"]
-        logger.info(f"[UNIVERSAL_BRIDGE] Found 'data' key with: {list(data.keys())}")
-        if "full_text" in data:
-            full_text = data["full_text"]
-            logger.info(f"[UNIVERSAL_BRIDGE] Found full_text: length={len(full_text)}, preview={full_text[:100]!r}")
-            # CRITICAL FIX: Return the actual text string, not the dict
-            return full_text
+        if isinstance(data, dict):
+            logger.info(f"[UNIVERSAL_BRIDGE] Found 'data' key with: {list(data.keys())}")
+            if "full_text" in data:
+                full_text = data["full_text"]
+                logger.info(f"[UNIVERSAL_BRIDGE] Found full_text: length={len(full_text)}, preview={full_text[:100]!r}")
+                # CRITICAL FIX: Return the actual text string, not the dict
+                return full_text
     
     if "full_text" in payload:
         logger.info(f"[UNIVERSAL_BRIDGE] Found top-level full_text")
@@ -157,22 +158,35 @@ def analyze_with_universal(
                 entities = _extract_entities_regex(full_text)
             
             # Build pre_computed_scores directly
+            urgency_score = urgency.score if urgency else 0.0
+            urgency_severity = urgency.severity if urgency else "info"
+            
+            # Determine real regime from urgency (no hardcoding)
+            if urgency_score >= 0.8:
+                urgency_regime = "critical"
+            elif urgency_score >= 0.5:
+                urgency_regime = "high"
+            elif urgency_score >= 0.3:
+                urgency_regime = "medium"
+            else:
+                urgency_regime = "low"
+            
             pre_computed_scores = {
                 "sentiment_score": sentiment.score if sentiment else 0.0,
                 "sentiment_label": sentiment.label if sentiment else "neutral",
-                "urgency_score": urgency.score if urgency else 0.0,
-                "urgency_severity": urgency.severity if urgency else "info",
+                "urgency_score": urgency_score,
+                "urgency_severity": urgency_severity,
                 "word_count": word_count,
                 "paragraph_count": paragraph_count,
                 "entities": entities,
-                # ROOT FIX 3: Use only stable_operations to avoid unknown pattern errors
+                # Use REAL urgency data for patterns (no hardcoding)
                 "patterns": {
                     "pattern_summary": {
-                        "urgency_regime": "medium",  # Use medium to avoid sustained_degradation detection
-                        "n_change_points": 0,
-                        "n_spikes": 0,
-                        "has_escalation": False,  # Force False to avoid narrative_escalation
-                        "improvement_points": 1,  # Force 1 to avoid sustained_degradation
+                        "urgency_regime": urgency_regime,  # REAL value
+                        "n_change_points": 1 if urgency_score > 0.5 else 0,  # Based on urgency
+                        "n_spikes": 1 if urgency_score > 0.7 else 0,  # Based on urgency
+                        "has_escalation": urgency_score > 0.6,  # REAL condition
+                        "improvement_points": 0 if urgency_score > 0.5 else 1,  # Inverse to urgency
                     }
                 },
             }

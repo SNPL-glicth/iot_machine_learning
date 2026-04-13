@@ -16,6 +16,7 @@ Enterprise features:
 - Auto-tuning de pesos (online learning cada 10 updates).
 - Circuit breaker implícito: engine que falla N veces seguidas
   recibe peso 0 hasta reset.
+- **FASE 1 — CRÍTICO**: Pesos persistidos en zenin_ml.ensemble_weights
 
 ISO 27001: Metadata incluye pesos, predicciones individuales y
 contribución de cada engine para auditoría.
@@ -53,6 +54,9 @@ class EnsembleWeightedPredictor(PredictionPort):
         _adapt_weights: Si ``True``, ajusta pesos según performance.
         _engine_errors: Historial de errores por engine.
         _update_count: Contador de updates para recalcular pesos.
+        _series_id: Series ID for persistence (optional).
+        _domain_type: Domain type for persistence.
+        _weights_repo: Repository for weight persistence.
     """
 
     def __init__(
@@ -60,6 +64,9 @@ class EnsembleWeightedPredictor(PredictionPort):
         engines: List[PredictionPort],
         initial_weights: Optional[List[float]] = None,
         adapt_weights: bool = True,
+        series_id: Optional[str] = None,
+        domain_type: str = "sensor",
+        auto_load_weights: bool = True,
     ) -> None:
         """Inicializa el ensemble.
 
@@ -67,6 +74,9 @@ class EnsembleWeightedPredictor(PredictionPort):
             engines: Lista de engines (>= 2 para ensemble real).
             initial_weights: Pesos iniciales.  Si ``None``, uniformes.
             adapt_weights: Si ``True``, auto-tuning de pesos.
+            series_id: Series ID for persistence (optional).
+            domain_type: Domain type for persistence.
+            auto_load_weights: If True, auto-load weights from DB.
 
         Raises:
             ValueError: Si no hay engines o pesos no coinciden.
@@ -77,9 +87,46 @@ class EnsembleWeightedPredictor(PredictionPort):
         self._engines = engines
         self._adapt_weights = adapt_weights
         self._update_count: int = 0
+        self._series_id = series_id
+        self._domain_type = domain_type
+
+        # Initialize weights repository if series_id provided
+        self._weights_repo = None
+        if series_id:
+            try:
+                from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.ensemble_weights_repository import (
+                    EnsembleWeightsRepository,
+                )
+                self._weights_repo = EnsembleWeightsRepository()
+            except Exception as exc:
+                logger.warning(
+                    "ensemble_weights_repo_init_failed",
+                    extra={"error": str(exc)},
+                )
+
+        # Try to load weights from DB first
+        loaded_weights = None
+        if auto_load_weights and self._weights_repo and series_id:
+            loaded_weights = self._weights_repo.load_weights(series_id)
 
         # Inicializar pesos
-        if initial_weights is not None:
+        if loaded_weights:
+            # Use loaded weights from DB
+            self._weights = [
+                loaded_weights.get(engine.name, 1.0 / len(engines))
+                for engine in engines
+            ]
+            # Renormalize
+            total = sum(self._weights)
+            self._weights = [w / total for w in self._weights]
+            logger.info(
+                "ensemble_weights_loaded_from_db",
+                extra={
+                    "series_id": series_id,
+                    "weights": {engines[i].name: round(self._weights[i], 4) for i in range(len(engines))},
+                },
+            )
+        elif initial_weights is not None:
             if len(initial_weights) != len(engines):
                 raise ValueError(
                     f"Pesos ({len(initial_weights)}) no coinciden con "
@@ -277,6 +324,36 @@ class EnsembleWeightedPredictor(PredictionPort):
                 "new_weights": [round(w, 4) for w in self._weights],
             },
         )
+
+        # Persist weights to DB if repository available
+        if self._weights_repo and self._series_id:
+            try:
+                weights_dict = {
+                    self._engines[i].name: self._weights[i]
+                    for i in range(len(self._engines))
+                }
+                errors_dict = {
+                    self._engines[i].name: avg_errors[i]
+                    for i in range(len(self._engines))
+                }
+                self._weights_repo.save_weights(
+                    series_id=self._series_id,
+                    domain_type=self._domain_type,
+                    weights=weights_dict,
+                    errors=errors_dict,
+                )
+                logger.debug(
+                    "ensemble_weights_persisted",
+                    extra={"series_id": self._series_id},
+                )
+            except Exception as exc:
+                logger.warning(
+                    "ensemble_weights_persist_failed",
+                    extra={
+                        "series_id": self._series_id,
+                        "error": str(exc),
+                    },
+                )
 
     def supports_confidence_interval(self) -> bool:
         return False

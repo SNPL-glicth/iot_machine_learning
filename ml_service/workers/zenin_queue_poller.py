@@ -16,7 +16,7 @@ import time
 from typing import Any, Dict
 
 from iot_machine_learning.infrastructure.persistence.sql.zenin_db_connection import ZeninDbConnection
-from iot_machine_learning.ml_service.api.services.document_analyzer import DocumentAnalyzer
+from iot_machine_learning.ml_service.api.services.analysis.document_analyzer_factory import create_document_analyzer
 
 from iot_machine_learning.ml_service.workers import queue_repository as repo
 from iot_machine_learning.ml_service.workers.job_processor import parse_queue_row, build_payload
@@ -52,7 +52,7 @@ class ZeninQueuePoller:
         except Exception as e:
             logger.warning(f"[ZENIN_POLLER] Could not load feature flags: {e}")
         
-        self.document_analyzer = DocumentAnalyzer(feature_flags=feature_flags)
+        self.document_analyzer = create_document_analyzer(feature_flags=feature_flags)
         self._weaviate_url = resolve_weaviate_url()
 
         # Stats

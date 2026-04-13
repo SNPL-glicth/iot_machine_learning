@@ -23,6 +23,7 @@ from ...domain.services.memory_recall_enricher import (
     MemoryRecallEnricher,
 )
 from ...domain.services.prediction_domain_service import PredictionDomainService
+from ...domain.validators.data_sanitizer import DataSanitizer
 from ...ml_service.config.feature_flags import FeatureFlags
 from ..dto.prediction_dto import PredictionDTO
 
@@ -49,6 +50,7 @@ class PredictSensorValueUseCase:
         self._flags = flags
         self._experiment_tracker = experiment_tracker or NullExperimentTracker()
         self._prediction_count = 0
+        self._sanitizer = DataSanitizer()
 
         self._recall_enricher: Optional[MemoryRecallEnricher] = None
         if cognitive is not None:
@@ -74,16 +76,47 @@ class PredictSensorValueUseCase:
                 f"Sensor {sensor_id} no tiene lecturas disponibles"
             )
 
+        # 1.5. Sanitizar datos (boundary de robustez)
+        # Intercepta los 9 escenarios de ROBUSTNESS_AUDIT.md
+        try:
+            sanitized = self._sanitizer.sanitize(
+                values=window.values,
+                timestamps=window.timestamps,
+            )
+        except ValueError as e:
+            # Re-raise con contexto para que routes.py devuelva 422
+            raise ValueError(
+                f"Data validation failed for sensor {sensor_id}: {e}"
+            ) from e
+
+        # Log warnings no fatales
+        if sanitized.warnings:
+            logger.warning(
+                "input_sanitization_warnings",
+                extra={
+                    "sensor_id": sensor_id,
+                    "warnings": sanitized.warnings,
+                },
+            )
+
+        # Reconstruir ventana con datos sanitizados
+        sanitized_window = SensorWindow(
+            sensor_id=window.sensor_id,
+            values=sanitized.values,
+            timestamps=sanitized.timestamps,
+        )
+
         logger.info(
             "use_case_predict_start",
             extra={
                 "sensor_id": sensor_id,
-                "window_size": window.size,
+                "window_size": sanitized_window.size,
+                "sanitization_warnings": len(sanitized.warnings),
             },
         )
 
         # 2. Generar predicción
-        prediction = self._prediction_service.predict(window)
+        prediction = self._prediction_service.predict(sanitized_window)
 
         # 3. Persistir + build DTO
         self._persist(prediction, sensor_id)
@@ -116,11 +149,42 @@ class PredictSensorValueUseCase:
             raise ValueError(
                 f"Sensor {sensor_window.sensor_id} no tiene lecturas disponibles"
             )
+
+        # Sanitizar datos (boundary de robustez)
+        try:
+            sanitized = self._sanitizer.sanitize(
+                values=sensor_window.values,
+                timestamps=sensor_window.timestamps,
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Data validation failed for sensor {sensor_window.sensor_id}: {e}"
+            ) from e
+
+        if sanitized.warnings:
+            logger.warning(
+                "input_sanitization_warnings",
+                extra={
+                    "sensor_id": sensor_window.sensor_id,
+                    "warnings": sanitized.warnings,
+                },
+            )
+
+        sanitized_window = SensorWindow(
+            sensor_id=sensor_window.sensor_id,
+            values=sanitized.values,
+            timestamps=sanitized.timestamps,
+        )
+
         logger.info(
             "use_case_predict_preloaded_start",
-            extra={"sensor_id": sensor_window.sensor_id, "window_size": sensor_window.size},
+            extra={
+                "sensor_id": sensor_window.sensor_id,
+                "window_size": sanitized_window.size,
+                "sanitization_warnings": len(sanitized.warnings),
+            },
         )
-        prediction = self._prediction_service.predict(sensor_window)
+        prediction = self._prediction_service.predict(sanitized_window)
         self._persist(prediction, sensor_window.sensor_id)
         elapsed_ms = (time.monotonic() - t_start) * 1000.0
         dto = self._build_dto(prediction)

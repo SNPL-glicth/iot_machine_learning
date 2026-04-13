@@ -13,6 +13,13 @@ from iot_machine_learning.domain.ports.analysis import (
     Signal,
 )
 
+# Import format_conclusion for rich narrative output
+try:
+    from ...ml_service.api.services.analysis.conclusion_formatter import format_conclusion
+    _HAS_FORMATTER = True
+except ImportError:
+    _HAS_FORMATTER = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,12 +104,37 @@ class ExplainPhase:
         signal: Signal,
         context: AnalysisContext,
     ) -> str:
-        """Construye narrativa legible."""
+        """Construye narrativa legible con formato rico."""
+        logger.warning(f"[EXPLAIN_PHASE] _build_narrative called: domain={signal.domain}, has_formatter={_HAS_FORMATTER}")
+        
         if self._narrative_builder is not None:
             try:
                 return self._narrative_builder.build(decision, signal, context)
             except Exception as e:
                 logger.warning(f"narrative_builder_failed: {e}")
+        
+        # Build rich narrative using format_conclusion
+        # Create a mock result object with the data we have
+        class MockResult:
+            def __init__(self, signal, decision):
+                self.signal = signal
+                self.decision = decision
+                self.domain = signal.domain
+                self.confidence = decision.confidence
+                # Build analysis dict from signal features
+                self.analysis = getattr(signal, 'features', {})
+                self.explanation = None
+        
+        mock_result = MockResult(signal, decision)
+        
+        if _HAS_FORMATTER:
+            try:
+                logger.warning(f"[EXPLAIN_PHASE] Calling format_conclusion with domain={mock_result.domain}, words={mock_result.analysis.get('word_count', 0)}")
+                narrative = format_conclusion(mock_result)
+                logger.warning(f"[EXPLAIN_PHASE] format_conclusion returned: {narrative[:100]}...")
+                return narrative
+            except Exception as e:
+                logger.warning(f"[EXPLAIN_PHASE] format_conclusion_failed: {e}", exc_info=True)
         
         # Fallback: narrativa simple
         parts = [

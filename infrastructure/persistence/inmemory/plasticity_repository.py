@@ -31,7 +31,7 @@ class InMemoryPlasticityRepository(PlasticityRepositoryPort):
         self._state: Dict[str, List[RegimeWeightState]] = {}
         
         if warn_on_init:
-            logger.warning(
+            logger.debug(
                 "InMemoryPlasticityRepository initialized. "
                 "Plasticity state will be LOST on process restart. "
                 "Configure SqlPlasticityRepository for production."

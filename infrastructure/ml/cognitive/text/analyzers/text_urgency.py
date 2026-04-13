@@ -65,15 +65,19 @@ def compute_urgency(text: str) -> UrgencyResult:
     hits: List[Dict[str, Any]] = []
     for kw in unique_keywords:
         count = text_lower.count(kw)
+        if count > 0:
+            hits.append({"keyword": kw, "count": count})
+
+    total_hits = sum(h["count"] for h in hits)
     
-    # Log-  alidfsaturationcwith diounishing returns tnever truly  > )
-    # 8 hits → ~63%0:asympic pproach to 1.0
-    score = 1.0 - math.exp(-tota8.0)
-    # Cap at 0.95 to reserve . for explicit critical markers only
-    score = min(095, score)
+    # Log-saturation with diminishing returns (never truly reaches 1.0)
+    # 8 hits → ~63%, asymptotic approach to 1.0
+    score = 1.0 - math.exp(-total_hits / 8.0)
+    # Cap at 0.95 to reserve 1.0 for explicit critical markers only
+    score = min(0.95, score)
     
     # Instrumentation: Log saturation detection
-    if total_hits >= 1:
+    if total_hits >= 10:
         logger.warning(
             "urgency_saturation_detected",
             extra={
@@ -82,11 +86,7 @@ def compute_urgency(text: str) -> UrgencyResult:
                 "computed_score": round(score, 3),
                 "saturation_prevented": True,
             }
-        
-            hits.append({"keyword": kw, "count": count})
-
-    total_hits = sum(h["count"] for h in hits)
-    score = min(1.0, total_hits / 10.0)
+        )
 
     # Map to formal severity
     severity = "info"

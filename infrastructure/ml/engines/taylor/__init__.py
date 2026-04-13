@@ -9,6 +9,9 @@ Package structure:
     diagnostics.py  — stability analysis, acceleration variance
     time_step.py    — robust Δt estimation from timestamps
     least_squares.py — Least-squares derivative estimation
+    coefficient_cache.py — FASE 2: Coefficient caching with TTL
+    performance_tracker.py — FASE 2: MAE/RMSE tracking for confidence
+    gap_detector.py — FASE 2: Temporal gap detection
 
 Note: TaylorPredictionAdapter was deprecated and removed.
 Use TaylorPredictionEngine(...).as_port() instead.
@@ -22,6 +25,9 @@ from .diagnostics import compute_diagnostic
 from .polynomial import compute_local_fit_error, project
 from .time_step import compute_dt
 from .types import DerivativeMethod, TaylorCoefficients, TaylorDiagnostic
+from .coefficient_cache import TaylorCoefficientCache
+from .performance_tracker import TaylorPerformanceTracker
+from .gap_detector import TemporalGapDetector
 
 __all__ = [
     "TaylorPredictionEngine",
@@ -33,4 +39,7 @@ __all__ = [
     "compute_local_fit_error",
     "estimate_derivatives",
     "project",
+    "TaylorCoefficientCache",
+    "TaylorPerformanceTracker",
+    "TemporalGapDetector",
 ]

@@ -206,11 +206,16 @@ class TestOrchestratorComplexityGuard:
 
     def test_orchestrator_delegates_to_submodules(self) -> None:
         """Verify the orchestrator uses its sub-modules."""
-        from iot_machine_learning.infrastructure.ml.cognitive import orchestrator
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import orchestrator
         source = inspect.getsource(orchestrator)
+        # Phase 3 architecture: core orchestrator delegates to focused sub-modules
         required_delegates = [
-            "SignalAnalyzer", "InhibitionGate", "WeightedFusion",
-            "ExplanationBuilder", "PlasticityTracker",
+            "SignalAnalyzer",      # Signal analysis
+            "InhibitionGate",        # Weight suppression
+            "WeightedFusion",        # Weighted fusion of predictions
+            "BayesianWeightTracker", # Renamed from PlasticityTracker (honest naming)
+            "WeightResolutionService",  # Phase 3: consolidated weight resolution
+            "PipelineExecutor",      # Phase 3: extracted pipeline execution
         ]
         for delegate in required_delegates:
             assert delegate in source, (

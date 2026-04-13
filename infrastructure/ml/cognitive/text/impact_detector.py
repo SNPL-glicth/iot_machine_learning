@@ -51,6 +51,11 @@ _EXTREME_METRIC_PATTERNS: List[re.Pattern] = [
         r"(?:temperatura|temperature|temp)[^0-9]{0,40}?(\d+\.?\d*)\s*°?\s*[cC]",
         re.IGNORECASE,
     ),
+    # Standalone temperature values: "94°C", "94 °C", "94C" (no prefix needed)
+    re.compile(
+        r"(\d{2,3})\s*°?\s*[cC]\b",
+        re.IGNORECASE,
+    ),
     # CPU/Memory/Disk: >= 90%
     # Allows intervening words: "CPU al 95%", "uso de memoria: 92%"
     re.compile(
@@ -279,19 +284,29 @@ def _scan_extreme_metrics(text: str) -> List[ImpactSignal]:
 
             full_match = match.group(0).lower()
             is_extreme = False
+            metric_type = "unknown"
 
-            # Temperature check
+            # Temperature check - explicit prefix
             if any(t in full_match for t in ("temp", "temperatura", "temperature")):
+                metric_type = "temperature"
+                if value >= _TEMP_CRITICAL_C:
+                    is_extreme = True
+
+            # Standalone temperature (°C suffix only, 2-3 digits)
+            elif re.search(r'\d{2,3}\s*°?\s*[cC]\b', match.group(0)):
+                metric_type = "temperature"
                 if value >= _TEMP_CRITICAL_C:
                     is_extreme = True
 
             # Resource usage check (CPU, memory, disk)
             elif any(r in full_match for r in ("cpu", "memoria", "memory", "disco", "disk", "uso", "usage", "load")):
+                metric_type = "resource"
                 if value >= _RESOURCE_CRITICAL_PCT:
                     is_extreme = True
 
             # Availability check (low = bad)
             elif any(a in full_match for a in ("disponibilidad", "availability", "uptime")):
+                metric_type = "availability"
                 if value < _AVAILABILITY_CRITICAL_PCT:
                     is_extreme = True
 

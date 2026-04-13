@@ -1,7 +1,6 @@
 """Gradient-based optimization algorithms."""
 
 from .sgd import SGDOptimizer, MomentumSGD, NesterovSGD
-from .adam import AdamOptimizer, AdaGradOptimizer, RMSPropOptimizer
 from .gradient_clip import clip_gradients, compute_gradient_norm
 from .scheduler import (
     LearningRateScheduler,
@@ -10,13 +9,13 @@ from .scheduler import (
     WarmupScheduler,
 )
 
+# NOTE: Adam, AdaGrad, RMSProp moved to _experimental/gradient/adam.py
+# They are not currently used in production pipelines.
+
 __all__ = [
     "SGDOptimizer",
     "MomentumSGD",
     "NesterovSGD",
-    "AdamOptimizer",
-    "AdaGradOptimizer",
-    "RMSPropOptimizer",
     "clip_gradients",
     "compute_gradient_norm",
     "LearningRateScheduler",

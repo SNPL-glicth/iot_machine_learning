@@ -74,7 +74,7 @@ def create_broker(
             raise ConnectionError(health.get("last_error", "Unknown error"))
     except Exception as e:
         if fallback_to_memory:
-            logger.warning(
+            logger.debug(
                 "[BROKER_FACTORY] Redis unavailable (%s), falling back to InMemory",
                 str(e),
             )

@@ -60,20 +60,25 @@ def fuse_perceptions_simple(
 def classify_severity_simple(
     fused_score: float,
     domain: str,
+    urgency_score: float = 0.0,
 ) -> str:
-    """Clasifica severidad con umbrales simples (fallback).
+    """Clasifica severidad considerando fused_score y urgency del texto.
     
     Args:
         fused_score: Score fusionado [0-1]
         domain: Dominio del análisis
-    
+        urgency_score: Urgencia detectada en el texto [0-1]
+        
     Returns:
         Severidad ('info', 'warning', 'critical')
     """
-    # Fallback: umbrales simples
-    if fused_score >= 0.8:
+    # Usar el máximo entre fused_score y urgency para no ignorar señales críticas
+    max_score = max(fused_score, urgency_score)
+    
+    # Clasificación con umbrales
+    if max_score >= 0.8:
         return "critical"
-    elif fused_score >= 0.5:
+    elif max_score >= 0.5:
         return "warning"
     else:
         return "info"

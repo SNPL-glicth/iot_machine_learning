@@ -2,8 +2,8 @@
 
 Gradient-based optimizers:
 - SGD, Momentum, Nesterov
-- Adam, AdaGrad, RMSProp
 - Learning rate schedulers
+- NOTE: Adam, AdaGrad, RMSProp moved to _experimental/ (not production)
 
 Convex optimization:
 - Newton-Raphson, L-BFGS
@@ -20,7 +20,7 @@ Unified optimizer:
 """
 
 from .types import OptimizationResult, OptimizerConfig
-from .gradient import SGDOptimizer, AdamOptimizer, MomentumSGD
+from .gradient import SGDOptimizer, MomentumSGD
 from .convex import NewtonRaphsonOptimizer, LBFGSOptimizer
 from .nonconvex import SimulatedAnnealing, GeneticOptimizer, ParticleSwarmOptimizer
 from .unified import UnifiedOptimizer
@@ -29,7 +29,6 @@ __all__ = [
     "OptimizationResult",
     "OptimizerConfig",
     "SGDOptimizer",
-    "AdamOptimizer",
     "MomentumSGD",
     "NewtonRaphsonOptimizer",
     "LBFGSOptimizer",

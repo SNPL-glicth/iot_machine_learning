@@ -32,8 +32,8 @@ class IterationConfig:
     confidence_threshold: float = 0.85
     time_budget_ms: float = 5000.0
     
-    # Refinement strategies (placeholders for future expansion)
-    expand_window_on_retry: bool = False  # Placeholder: disabled for now
+    # Refinement strategies (NOT IMPLEMENTED — see TECHNICAL_DEBT.md)
+    expand_window_on_retry: bool = False  # NOT IMPLEMENTED — see TECHNICAL_DEBT.md
     window_expansion_factor: float = 1.5
     
     def __post_init__(self):
@@ -227,26 +227,17 @@ class CognitiveLoopController:
         timestamps: Optional[List[float]],
         iteration: int,
     ) -> tuple[List[float], Optional[List[float]]]:
-        """Refine input for next iteration.
-        
-        Currently minimal placeholder - just returns input unchanged.
-        Future: could expand window, smooth noise, etc.
-        
-        Args:
-            values: Current values
-            timestamps: Current timestamps
-            iteration: Current iteration number (0-indexed)
-            
-        Returns:
-            (refined_values, refined_timestamps)
         """
-        # Placeholder: no refinement for now
-        # Future implementations could:
-        # - Fetch more historical data
-        # - Apply smoothing
-        # - Remove outliers
-        # - etc.
-        
+        PLACEHOLDER — no refinement is performed.
+
+        This method currently returns input unchanged. The iterative loop
+        re-runs the same pipeline with identical inputs on each iteration.
+        Confidence improvement across iterations comes only from pipeline
+        variance, not from input refinement.
+
+        Status: NOT IMPLEMENTED. See TECHNICAL_DEBT.md Phase 3.
+        Do not reference this as a feature in documentation.
+        """
         logger.debug(f"Refine placeholder iteration {iteration}: no changes")
         return values, timestamps
     

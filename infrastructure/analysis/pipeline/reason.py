@@ -141,15 +141,24 @@ class ReasonPhase:
             fusion_result = fuse_perceptions_simple(active_perceptions, weights)
         
         # 4. Clasificar severidad
+        # Extraer urgency_score de las features del signal
+        urgency_score = 0.0
+        if hasattr(signal, 'features') and signal.features:
+            urgency_score = signal.features.get('urgency_score', 0.0)
+        
+        logger.warning(f"[REASON_PHASE] Classifying severity: fused_score={fusion_result['fused_score']:.3f}, urgency_score={urgency_score:.3f}, max={max(fusion_result['fused_score'], urgency_score):.3f}")
+        
         try:
             severity = self._severity_classifier.classify(
                 fusion_result["fused_score"],
                 signal.domain,
                 active_perceptions,
             )
+            logger.warning(f"[REASON_PHASE] Custom classifier returned: {severity}")
         except Exception as e:
             logger.warning(f"severity_classification_failed: {e}")
-            severity = classify_severity_simple(fusion_result["fused_score"], signal.domain)
+            severity = classify_severity_simple(fusion_result["fused_score"], signal.domain, urgency_score)
+            logger.warning(f"[REASON_PHASE] Fallback classifier returned: {severity}")
         
         timing["reason"] = (time.monotonic() - t0) * 1000
         

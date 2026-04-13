@@ -24,6 +24,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pipelin
 )
 from .monte_carlo import MonteCarloSimulator
 from .pattern_plasticity import PatternPlasticityTracker
+from ..validation.coherence_validator import CoherenceValidator
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,8 @@ class UniversalAnalysisEngine:
         enable_plasticity: bool = True,
         enable_monte_carlo: bool = True,
         budget_ms: float = 2000.0,
+        deterministic_mode: bool = False,
+        analysis_seed: int = 42,
     ) -> None:
         """Initialize universal engine with cognitive components."""
         self._perceive = PerceivePhase()
@@ -63,8 +66,18 @@ class UniversalAnalysisEngine:
         self._explain = ExplainPhase()
         self._monte_carlo_simulator = MonteCarloSimulator(n_simulations=1000)
         self._pattern_plasticity = PatternPlasticityTracker()
+        self._coherence_validator = CoherenceValidator()
         self._enable_monte_carlo = enable_monte_carlo
         self._budget_ms = budget_ms
+        self._deterministic_mode = deterministic_mode
+        self._analysis_seed = analysis_seed
+        
+        # Set seed if deterministic mode
+        if self._deterministic_mode:
+            import random
+            import numpy as np
+            random.seed(self._analysis_seed)
+            np.random.seed(self._analysis_seed)
 
     def analyze(
         self,
@@ -119,14 +132,10 @@ class UniversalAnalysisEngine:
                 perceptions, domain, ctx.series_id, timing
             )
             
-            explanation = self._explain.execute(
-                builder, fused_val, fused_conf, fused_trend,
-                final_weights, selected, reason, method, timing
-            )
-            
             # Run Monte Carlo simulation for uncertainty quantification
+            # Skip if deterministic mode is enabled
             monte_carlo_result = None
-            if self._enable_monte_carlo:
+            if self._enable_monte_carlo and not self._deterministic_mode:
                 monte_carlo_result = self._run_monte_carlo(
                     perceptions, input_type, domain, metadata, timing
                 )
@@ -143,16 +152,14 @@ class UniversalAnalysisEngine:
                 input_type, metadata, perceptions, final_weights, signal, pre_computed_scores, monte_carlo_result
             )
             
-            # After analysis completes, update pattern plasticity
-            if self._pattern_plasticity and interpreted_patterns:
-                for pattern in interpreted_patterns:
-                    self._pattern_plasticity.record_pattern_outcome(
-                        domain=domain,
-                        pattern_name=pattern.pattern_type,
-                        was_predictive=severity.severity in ["warning", "critical"]
-                    )
+            # Build explanation BEFORE creating result (frozen dataclass)
+            explanation = self._explain.execute(
+                builder, fused_val, fused_conf, fused_trend,
+                final_weights, selected, reason, method, timing
+            )
             
-            return UniversalResult(
+            # Create final result with all fields
+            final_result = UniversalResult(
                 explanation=explanation,
                 severity=severity,
                 analysis=analysis,
@@ -164,6 +171,20 @@ class UniversalAnalysisEngine:
                 patterns=interpreted_patterns,
                 monte_carlo=monte_carlo_result,
             )
+            
+            # COHERENCE VALIDATION (after result creation)
+            coherence_report = self._coherence_validator.validate(final_result)
+            
+            # After analysis completes, update pattern plasticity
+            if self._pattern_plasticity and interpreted_patterns:
+                for pattern in interpreted_patterns:
+                    self._pattern_plasticity.record_pattern_outcome(
+                        domain=domain,
+                        pattern_name=pattern.pattern_type,
+                        was_predictive=final_result.severity.severity in ["warning", "critical"]
+                    )
+            
+            return final_result
         
         except Exception as e:
             logger.error(f"universal_analysis_failed: {e}", exc_info=True)

@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
-from .dependencies import DbConnDep
+from .dependencies import DbConnDep, verify_api_key
 from .schemas import (
     MetacognitiveResponse,
     PredictRequest,
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health() -> HealthResponse:
+async def health(_: str = Depends(verify_api_key)) -> HealthResponse:
     """Liveness probe — always returns ok if process is running."""
     broker_health = None
     try:
@@ -41,7 +41,7 @@ async def health() -> HealthResponse:
 
 
 @router.get("/ready")
-async def ready(conn: DbConnDep) -> dict:
+async def ready(conn: DbConnDep, _: str = Depends(verify_api_key)) -> dict:
     """Readiness probe — checks DB connectivity."""
     try:
         from sqlalchemy import text
@@ -53,7 +53,7 @@ async def ready(conn: DbConnDep) -> dict:
 
 
 @router.post("/ml/predict", response_model=PredictResponse)
-async def ml_predict(payload: PredictRequest, conn: DbConnDep) -> PredictResponse:
+async def ml_predict(payload: PredictRequest, conn: DbConnDep, _: str = Depends(verify_api_key)) -> PredictResponse:
     """Generate a prediction for a sensor.
     
     Args:
@@ -118,7 +118,7 @@ async def ml_predict(payload: PredictRequest, conn: DbConnDep) -> PredictRespons
 
 
 @router.get("/ml/broker/health")
-async def broker_health() -> dict:
+async def broker_health(_: str = Depends(verify_api_key)) -> dict:
     """Get broker health status."""
     try:
         from ..broker import get_broker_health
@@ -131,7 +131,7 @@ async def broker_health() -> dict:
 
 
 @router.get("/ml/metrics")
-async def ml_metrics() -> dict:
+async def ml_metrics(_: str = Depends(verify_api_key)) -> dict:
     """Get ML service performance metrics."""
     try:
         from ..metrics import get_metrics

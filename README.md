@@ -1,15 +1,23 @@
-# ZENIN Cognitive IoT Analytics Engine — GOLD 0.2.2
+# ZENIN Cognitive Analytics Engine — GOLD 0.3.0
 
-**Version:** 0.2.2-GOLD | **Tests:** ~1337 passed | **Architecture:** Hexagonal + Cognitive + Zero Magic Numbers  
+**Version:** 0.3.0-GOLD | **Tests:** ~1400+ passed | **Architecture:** Hexagonal + Cognitive + Temporal + Zero Magic Numbers  
 **Status:** Production-Ready | **License:** Internal ZENIN Project
+
+**What's New in 0.3.0:**
+- ✅ Universal Analysis Engine (text, numeric, tabular, mixed inputs)
+- ✅ Document Analysis Pipeline with full cognitive phases
+- ✅ Consistent severity classification (urgency-aware)
+- ✅ Enhanced entity detection (temperatures, metrics without prefixes)
+- ✅ Real-time pattern interpretation (no hardcoded values)
+- ✅ End-to-end explainability for document analysis
 
 ---
 
 ## 🎯 What is ZENIN?
 
-ZENIN transforms raw IoT sensor data into **intelligent decisions** through a transparent, multi-phase cognitive pipeline. Unlike traditional ML systems that are black boxes, ZENIN provides full explainability of every prediction and action.
+ZENIN transforms raw **sensor data AND documents** into **intelligent decisions** through a transparent, multi-phase cognitive pipeline. Unlike traditional ML systems that are black boxes, ZENIN provides full explainability of every prediction, anomaly, and document analysis.
 
-### The Cognitive Pipeline
+### The Cognitive Pipeline (Numeric & Time-Series)
 
 ```
 PERCEIVE → PREDICT → ADAPT → INHIBIT → FUSE → EXPLAIN → DECIDE → ACT
@@ -17,22 +25,37 @@ PERCEIVE → PREDICT → ADAPT → INHIBIT → FUSE → EXPLAIN → DECIDE → A
 
 - **PERCEIVE:** Analyze signal structure (regime, noise, trends)
 - **PREDICT:** Multi-engine forecasting (Taylor, Baseline, Statistical)
-- **ADAPT:** Learn which engine works best in each context (Plasticity)
+- **ADAPT:** Learn which engine works best in each context (Bayesian weight tracking — not RL)
 - **INHIBIT:** Suppress unreliable engines
 - **FUSE:** Weighted consensus prediction
 - **EXPLAIN:** Build reasoning trace
 - **DECIDE:** Map to recommended action with business impact
 - **ACT:** Execute with safety guardrails (AUTO/ASK/DENY)
 
+### The Universal Analysis Pipeline (Text & Documents)
+
+```
+INPUT → PERCEIVE → ANALYZE → REMEMBER → REASON → EXPLAIN → DECIDE
+```
+
+- **PERCEIVE:** Auto-detect input type, classify domain, extract entities
+- **ANALYZE:** Text urgency, sentiment, readability, pattern detection
+- **REMEMBER:** Recall similar past analyses (cognitive memory)
+- **REASON:** Inhibit unreliable signals, adapt weights, fuse perceptions
+- **EXPLAIN:** Build narrative with detected entities, severity, actions
+- **DECIDE:** Classify severity (critical/warning/info) with urgency-aware logic
+
 ### Key Differentiators
 
 | Feature | Traditional ML | ZENIN |
 |---------|-----------------|-------|
+| **Input Types** | Numeric only | Numeric + Text + Documents + Tabular |
 | **Reasoning** | Black box model | Transparent cognitive phases |
 | **Learning** | Retrain models | Real-time weight adaptation |
 | **Safety** | Post-hoc monitoring | Built-in guard system |
 | **Actions** | Manual interpretation | Autonomous with approval gates |
 | **Explainability** | SHAP/LIME approximations | Full trace per prediction |
+| **Severity** | Fixed thresholds | Urgency-aware dynamic classification |
 
 ---
 
@@ -75,12 +98,39 @@ uvicorn ml_service.main:app --host 0.0.0.0 --port 8002 --reload
 
 # Verify
 curl http://localhost:8002/
-# {"service": "iot-ml-service", "version": "0.2.1-GOLD", "status": "ok"}
+# {"service": "iot-ml-service", "version": "0.3.0-GOLD", "status": "ok"}
 ```
+
+> **Security note:** The service uses API key authentication
+> (`X-API-Key` header). Set `ML_API_KEY` in your `.env` file.
+> If `ML_API_KEY` is empty, authentication is disabled (dev mode only).
+> **Do not expose this service to the internet without VPN or
+> a reverse proxy until Phase 2 auth (JWT + tenant isolation) is complete.**
 
 ---
 
-## 📊 GOLD 0.2.1 Release Highlights
+## 📊 GOLD 0.3.0 Release Highlights
+
+### Universal Analysis Engine
+
+| Feature | Description | Impact |
+|---------|-------------|--------|
+| **Multi-Input Support** | Analyze text, numeric, tabular, and mixed inputs | Single engine for all data types |
+| **Document Analysis** | Full 5-phase cognitive pipeline for text documents | Crisis reports, logs, emails fully analyzed |
+| **Urgency-Aware Severity** | Dynamic severity classification based on urgency (0.45 weight) + sentiment (0.20) + impact (0.35) | Critical urgency (≥0.85) + negative sentiment = CRITICAL |
+| **Real-Time Patterns** | Pattern detection uses actual urgency/sentiment values | No more hardcoded "Operación estable" for crisis documents |
+| **Enhanced Entity Detection** | Standalone temperature values detected (e.g., "94°C") | Captures metrics without explicit context |
+
+### Critical Bug Fixes (Document Analysis)
+
+| Issue | Fix | Impact |
+|-------|-----|--------|
+| **Severity inconsistency** | Urgency 0.88 now correctly maps to CRITICAL | Crisis documents properly flagged |
+| **Pattern hardcoding** | Eliminated hardcoded pattern values in universal_bridge.py | Dynamic pattern generation based on real data |
+| **Impact detection** | Added standalone metric patterns for °C/°F values | Temperatures like "94°C" now detected |
+| **Severity formula** | Updated weights: urgency 0.45, sentiment 0.20, impact 0.35 | Urgency has appropriate influence on severity |
+
+### GOLD 0.2.1 Release Highlights
 
 ### Critical Bug Fixes
 
@@ -148,6 +198,87 @@ Three-level guard system for all autonomous actions:
 - WARNING severity → ASK (important but not urgent)
 - Low confidence (< 0.6) → ASK
 - Too frequent adjustments (>3/hour) → DENY
+
+### 2.6 Universal Analysis & Document Processing (NEW in 0.3.0)
+
+**Input-Agnostic Analysis:** The UniversalAnalysisEngine handles any input type:
+- **TEXT:** Reports, logs, emails, alerts with urgency/sentiment analysis
+- **NUMERIC:** Time-series sensor data with regime detection
+- **TABULAR:** Structured data with first-column analysis
+- **MIXED:** Hybrid documents with multiple data types
+
+**Document Analysis Pipeline:**
+```
+Document Input
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 1. UNIVERSAL BRIDGE                                         │
+│    • Auto-detect content type                               │
+│    • Extract entities (temperatures, costs, percentages)      │
+│    • Compute urgency (0-1) and sentiment (pos/neg/neutral)  │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. PERCEIVE PHASE                                           │
+│    • Classify domain (infrastructure/security/finance)      │
+│    • Build signal profile with metadata                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. ANALYZE PHASE                                            │
+│    • Text urgency engine (keyword-based + context)            │
+│    • Sentiment analyzer (positive/negative/neutral)          │
+│    • Pattern detector (regime changes, spikes)            │
+│    • Impact signal scanner (SLA breaches, extreme metrics)  │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. REASON PHASE (Severity Classification)                     │
+│    • Fuse multiple perceptions with plasticity weights       │
+│    • Classify severity: critical/warning/info               │
+│    • Urgency-aware: 0.85+ urgency + negative = critical     │
+│    • Impact-aware: Extreme metrics elevate severity         │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 5. EXPLAIN PHASE                                            │
+│    • Build rich narrative with entities detected            │
+│    • Pattern interpretation (escalation/degradation/stable) │
+│    • Context-specific recommendations                       │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+AnalysisOutput with conclusion, severity, entities, actions
+```
+
+**Example Document Analysis:**
+```
+Input: "ALERTA: Rack B-07 temperatura 94°C (límite 80°C). Servidores offline."
+
+Output:
+  Domain: infrastructure
+  Urgency: 0.88 (critical)
+  Sentiment: negative
+  Entities: ["94°C", "80°C"]
+  Severity: Critical (HIGH)
+  Pattern: Escalada narrativa
+  Actions: Restart affected node immediately, Check sensor readings
+```
+
+**Severity Classification Formula:**
+```
+composite = urgency×0.45 + sentiment×0.20 + impact×0.35
+
+Overrides:
+- urgency ≥ 0.85 + negative sentiment → critical
+- urgency ≥ 0.75 → warning (minimum)
+- 3+ impact categories hit → critical
+```
 
 ---
 
@@ -380,7 +511,8 @@ Input (sensor readings)
 ┌─────────────────────────────────────────────────────────────────┐
 │ 5. EVALUATE (Iterative - Optional)                              │
 │    • Check confidence >= threshold (default: 0.85)             │
-│    • If low: refine input and retry (max 3 iterations)         │
+│    • If low: re-runs pipeline (input unchanged — refinement    │
+│      not yet implemented)                                       │
 │    • Track best result across iterations                        │
 │    • Respect time budget (default: 5000ms)                     │
 └─────────────────────────────────────────────────────────────────┘
@@ -658,6 +790,25 @@ iot_machine_learning/
 │   │   │   ├── analysis/
 │   │   │   │   ├── signal_analyzer.py   # Regime detection
 │   │   │   │   └── types.py             # MetaDiagnostic, PipelineTimer
+│   │   │   ├── universal/                 # Universal Analysis Engine (NEW 0.3.0)
+│   │   │   │   ├── analysis/
+│   │   │   │   │   ├── engine.py        # UniversalAnalysisEngine
+│   │   │   │   │   ├── types.py         # UniversalResult, UniversalInput
+│   │   │   │   │   ├── pipeline/        # 5-phase pipeline
+│   │   │   │   │   │   ├── perceive.py  # Input detection, domain classification
+│   │   │   │   │   │   ├── analyze.py   # Perception collection
+│   │   │   │   │   │   ├── remember.py  # Cognitive memory recall
+│   │   │   │   │   │   ├── reason.py    # Fusion, inhibition, severity
+│   │   │   │   │   │   └── explain.py   # Narrative generation
+│   │   │   │   │   ├── perception_collector.py
+│   │   │   │   │   ├── input_detector.py
+│   │   │   │   │   └── monte_carlo.py   # Uncertainty quantification
+│   │   │   │   ├── text/                # Text analysis components
+│   │   │   │   │   ├── severity_mapper.py    # Urgency-aware severity
+│   │   │   │   │   ├── impact_detector.py    # Hard signal detection
+│   │   │   │   │   ├── pattern_interpreter.py # Pattern interpretation
+│   │   │   │   │   └── analyzers/       # Text analyzers (urgency, sentiment)
+│   │   │   │   └── comparative.py       # Comparative engine
 │   │   │   ├── plasticity/
 │   │   │   │   └── base.py              # PlasticityTracker
 │   │   │   ├── fusion/
@@ -677,9 +828,13 @@ iot_machine_learning/
 │
 ├── application/                         # Use cases
 │   ├── use_cases/
-│   │   └── predict_sensor_value.py      # PredictSensorValueUseCase
+│   │   ├── predict_sensor_value.py      # PredictSensorValueUseCase
+│   │   ├── analyze_document.py          # AnalyzeDocumentUseCase (NEW 0.3.0)
+│   │   └── detect_anomalies.py          # DetectAnomaliesUseCase
 │   ├── dto/
-│   │   └── prediction_dto.py
+│   │   ├── prediction_dto.py
+│   │   ├── text_decision_output.py      # Document analysis DTOs
+│   │   └── anomaly_dto.py
 │   └── explainability/
 │       └── explanation_renderer.py
 │
@@ -688,7 +843,14 @@ iot_machine_learning/
 │   │   ├── routes.py                    # HTTP endpoints
 │   │   ├── schemas.py                   # Pydantic models
 │   │   └── services/
-│   │       └── prediction_service.py
+│   │       ├── prediction_service.py    # Numeric predictions
+│   │       ├── document_analyzer.py     # Document analysis (NEW 0.3.0)
+│   │       └── analysis/                # Universal analysis components
+│   │           ├── universal_bridge.py      # Bridge to Universal Engine
+│   │           ├── conclusion_formatter.py  # Rich output formatting
+│   │           ├── entity_extractor.py      # Entity extraction
+│   │           ├── decision_engine_service.py
+│   │           └── document_analyzer_factory.py
 │   ├── config/
 │   │   ├── feature_flags.py             # Main facade
 │   │   ├── flags.py                     # FeatureFlags model
@@ -869,7 +1031,58 @@ Response:
 }
 ```
 
-### 9.3 Health Check
+### 9.3 Document Analysis Endpoint (NEW in 0.3.0)
+
+**POST** `/api/v1/analyze-document`
+
+Analyze text documents (reports, logs, alerts) with full cognitive pipeline.
+
+Request:
+```json
+{
+  "document_id": "crisis_report_001",
+  "content": "ALERTA: Rack B-07 temperatura 94°C (límite 80°C). Servidores web-prod-11 al web-prod-18 offline. 77% de capacidad perdida.",
+  "tenant_id": "acme_corp",
+  "content_type": "text"
+}
+```
+
+Response:
+```json
+{
+  "document_id": "crisis_report_001",
+  "tenant_id": "acme_corp",
+  "classification": "infrastructure",
+  "conclusion": "Infrastructure incident — Critical (HIGH) | Confidence: 65.0%\n635 words. Entities: 94°C, 80°C\nUrgency: 0.88 | Sentiment: negative\nPatrón: Escalada narrativa: El documento muestra progresión de alertas menores hacia incidente crítico.",
+  "confidence": 0.65,
+  "severity": "critical",
+  "analysis": {
+    "domain": "infrastructure",
+    "urgency_score": 0.88,
+    "sentiment": "negative",
+    "entities": ["94°C", "80°C"],
+    "word_count": 635,
+    "patterns": {
+      "urgency_regime": "critical",
+      "has_escalation": true
+    }
+  },
+  "explanation": {
+    "narrative": "Escalada narrativa: El documento muestra progresión de alertas menores hacia incidente crítico. Típico de situaciones que no recibieron atención temprana.",
+    "context": "Típico de incidentes de infraestructura que no recibieron respuesta temprana. Revisa logs de sistema y métricas de rendimiento.",
+    "confidence": 0.95
+  },
+  "actions": [
+    "Restart affected node immediately",
+    "Check sensor readings and thresholds",
+    "Reduce system load to prevent cascade failure"
+  ],
+  "processing_time_ms": 145.2,
+  "cached": false
+}
+```
+
+### 9.4 Health Check
 
 **GET** `/health`
 
@@ -877,7 +1090,7 @@ Response:
 ```json
 {
   "status": "healthy",
-  "version": "0.2.1-GOLD",
+  "version": "0.3.0-GOLD",
   "services": {
     "redis": "connected",
     "sqlserver": "connected",
@@ -886,7 +1099,8 @@ Response:
   "metrics": {
     "predictions_total": 15234,
     "plasticity_updates": 8765,
-    "active_windows": 142
+    "active_windows": 142,
+    "documents_analyzed": 3847
   }
 }
 ```
@@ -1091,7 +1305,7 @@ export ML_ROLLBACK_TO_BASELINE=true
    Statistical: 87.0°C (confidence: 0.81, trend: rising)
    ```
 
-4. **ADAPT:** Plasticity retrieves weights for TRENDING regime
+4. **ADAPT:** Bayesian weight tracker retrieves weights for TRENDING regime
    ```
    Weights from Redis: {taylor: 0.6, statistical: 0.3, baseline: 0.1}
    ```
@@ -1438,13 +1652,57 @@ class MyCustomTool(Tool):
 
 See `ARCHITECTURE.md` for detailed design decisions and `MIGRATION_SCORECARD.md` for legacy API sunset plan.
 
+---
+
+## Changelog
+
+### GOLD 0.3.0 (2026-04-12)
+
+**Major Features:**
+- **Universal Analysis Engine:** Input-agnostic cognitive pipeline supporting text, numeric, tabular, and mixed inputs
+- **Document Analysis Pipeline:** Full 5-phase analysis (PERCEIVE→ANALYZE→REMEMBER→REASON→EXPLAIN) for documents
+- **Urgency-Aware Severity Classification:** Dynamic severity based on urgency score (0.45 weight) + sentiment (0.20) + impact (0.35)
+- **Enhanced Entity Detection:** Standalone temperature detection (e.g., "94°C" without "temperature" prefix)
+- **Real-Time Pattern Interpretation:** Dynamic pattern detection based on actual urgency/sentiment (no hardcoded values)
+
+**Critical Fixes:**
+- **Fix:** Eliminated hardcoded pattern values in universal_bridge.py (lines 169-178)
+- **Fix:** Severity inconsistency - urgency 0.88 now correctly maps to CRITICAL
+- **Fix:** Pattern detection - crisis documents now show "Escalada narrativa" instead of "Operación estable"
+- **Fix:** Impact detector now captures standalone temperature values with °C/°F suffixes
+- **Fix:** Reason phase now considers max(fused_score, urgency_score) for severity classification
+
+**Architecture Improvements:**
+- Added `SeverityResult` with urgency overrides (≥0.85 + negative = critical)
+- Enhanced `ImpactSignalDetector` with 5 categories: critical markers, SLA breaches, extreme metrics, temporal risk, cascade
+- Refactored `UniversalPerceptionCollector` to use real urgency scores for pattern generation
+- Updated `classify_text_severity()` with urgency-weighted composite formula
+
+**Files Modified:**
+- `ml_service/api/services/analysis/universal_bridge.py` - Dynamic pattern generation
+- `infrastructure/ml/cognitive/text/severity_mapper.py` - Urgency-aware classification
+- `infrastructure/ml/cognitive/text/impact_detector.py` - Standalone metric detection
+- `infrastructure/analysis/pipeline/reason_helpers.py` - Urgency-based severity
+
+### GOLD 0.2.2 (2026-04-11)
+
+**Features:**
+- Cognitive pipeline with 8 phases
+- Plasticity learning (Bayesian weight updates)
+- Tool system with safety guards (AUTO/ASK/DENY)
+- Redis-backed shared state
+- Circuit breaker for persistence
+
+**Stats:** ~1337 tests passed
+
 ## License
 
 Internal ZENIN project. All rights reserved.
 
 ---
 
-**Last Updated:** 2026-04-11  
-**System Status:** GOLD 0.2.2 — Production-ready  
+**Last Updated:** 2026-04-12  
+**System Status:** GOLD 0.3.0 — Production-ready with Universal Analysis  
 **Contact:** ML Platform Team  
-**Support:** support@zenin.ai
+**Support:** support@zenin.ai  
+**Document Analysis:** Fully operational — tested with crisis scenarios

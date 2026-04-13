@@ -13,9 +13,15 @@ import time
 import numpy as np
 from typing import Callable, Optional
 from ..types import OptimizationResult, OptimizerConfig
-from ..gradient import AdamOptimizer
+from ..gradient import SGDOptimizer
 from ..convex import LBFGSOptimizer, ConjugateGradientOptimizer
 from ..nonconvex import SimulatedAnnealing, ParticleSwarmOptimizer
+
+# NOTE: Adam moved to _experimental — using SGD with momentum as fallback
+try:
+    from ..._experimental.gradient import AdamOptimizer
+except ImportError:
+    AdamOptimizer = SGDOptimizer  # type: ignore[misc,assignment]
 
 
 class UnifiedOptimizer:

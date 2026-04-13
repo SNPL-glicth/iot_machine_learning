@@ -7,7 +7,7 @@ from typing import List, Optional
 from ...interfaces import PredictionEngine, PredictionResult
 from ..fusion import WeightedFusion
 from ..inhibition import InhibitionConfig, InhibitionGate
-from ..plasticity import PlasticityTracker, build_advanced_plasticity, null_advanced_plasticity
+from ..bayesian_weight_tracker import BayesianWeightTracker, build_advanced_bayesian, null_advanced_bayesian
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
 from ..analysis.signal_analyzer import SignalAnalyzer
 from ..perception.record_actual_handler import record_actual_dispatch
@@ -66,8 +66,8 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._last_explanation = None
         self._last_timer: Optional[PipelineTimer] = None
         
-        # Plasticity (learning) - must be before weight_resolver
-        self._plasticity = PlasticityTracker() if enable_plasticity else None
+        # Bayesian weight tracking (learning) - must be before weight_resolver
+        self._plasticity = BayesianWeightTracker() if enable_plasticity else None
         self._enable_advanced_plasticity = enable_advanced_plasticity
         
         # GOLD: Weight resolution service (consolidated from Phase 3 refactor)
@@ -78,7 +78,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             storage_adapter=storage_adapter,
         )
         
-        # Build advanced plasticity components
+        # Build advanced Bayesian weight tracking components
         if enable_advanced_plasticity:
             (
                 self._plasticity_coordinator,
@@ -86,7 +86,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
                 self._asymmetric_penalty,
                 self._contextual_tracker,
                 self._health_monitor,
-            ) = build_advanced_plasticity(storage_adapter)
+            ) = build_advanced_bayesian(storage_adapter)
         else:
             (
                 self._plasticity_coordinator,
@@ -94,7 +94,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
                 self._asymmetric_penalty,
                 self._contextual_tracker,
                 self._health_monitor,
-            ) = null_advanced_plasticity()
+            ) = null_advanced_bayesian()
         
         # Iterative cognitive loop
         self._enable_iterative = enable_iterative

@@ -10,7 +10,12 @@ import numpy as np
 from typing import Dict, Optional
 
 from .feedforward import FeedforwardLayer
-from iot_machine_learning.infrastructure.ml.optimization.gradient.adam import AdamOptimizer
+
+# NOTE: Adam optimizer moved to _experimental/ — using SGD fallback
+try:
+    from iot_machine_learning.infrastructure.ml._experimental.gradient.adam import AdamOptimizer
+except ImportError:
+    from iot_machine_learning.infrastructure.ml.optimization.gradient.sgd import SGDOptimizer as AdamOptimizer
 
 
 class OnlineLearner:
