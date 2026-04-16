@@ -24,6 +24,7 @@ from .recent_anomaly_tracker_port import (
     RecentAnomalyTrackerPort,
     NullAnomalyTracker,
 )
+from .expert_port import ExpertPort, ExpertOutput, ExpertCapability
 
 __all__ = [
     "PredictionPort",
@@ -43,4 +44,7 @@ __all__ = [
     "NullCalibrator",
     "RecentAnomalyTrackerPort",
     "NullAnomalyTracker",
+    "ExpertPort",
+    "ExpertOutput",
+    "ExpertCapability",
 ]

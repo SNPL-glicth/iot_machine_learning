@@ -17,6 +17,9 @@ from .iterative_controller import CognitiveLoopController, IterationConfig
 from .error_history_manager import create_error_history_manager
 from .context_state_manager import ContextStateManager
 
+# MoE Gateway integration (optional dependency)
+from ...moe.gateway.moe_gateway import MoEGateway
+
 
 class MetaCognitiveOrchestrator(PredictionEngine):
     """Orchestrates multiple engines with cognitive reasoning.
@@ -42,6 +45,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         enable_advanced_plasticity: bool = False,
         correlation_port=None,
         enable_iterative: bool = False,
+        moe_gateway: Optional[MoEGateway] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -110,6 +114,10 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             )
         else:
             self._loop_controller = None
+        
+        # MoE Gateway (optional, for MoE architecture integration)
+        # DIP: Orchestrator depends on abstraction (PredictionPort), not concrete implementation
+        self._moe_gateway = moe_gateway
 
     @property
     def name(self) -> str:
@@ -129,6 +137,33 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             raise ValueError(
                 "flags_snapshot is required. Pass feature flags via constructor "
                 "or flags_snapshot parameter to enable testable injection."
+            )
+        
+        # OCP: Conditional branch for MoE architecture (does not modify existing logic)
+        # DIP: Orchestrator delegates to MoEGateway (implements PredictionPort abstraction)
+        if self._moe_gateway is not None and getattr(flags_snapshot, 'ML_MOE_ENABLED', False):
+            # Use MoE Gateway for prediction
+            from ....domain.entities.iot.sensor_reading import SensorWindow, Reading
+            
+            # Create SensorWindow from values/timestamps
+            if timestamps is None:
+                timestamps = list(range(len(values)))
+            
+            readings = [
+                Reading(series_id=series_id, value=v, timestamp=float(ts))
+                for v, ts in zip(values, timestamps)
+            ]
+            window = SensorWindow(series_id=series_id, readings=readings)
+            
+            # Delegate to MoE Gateway (DIP: depends on PredictionPort abstraction)
+            moe_prediction = self._moe_gateway.predict(window)
+            
+            # Convert domain Prediction back to PredictionResult for compatibility
+            return PredictionResult(
+                predicted_value=moe_prediction.predicted_value,
+                confidence=moe_prediction.confidence,
+                trend=moe_prediction.trend,
+                metadata=moe_prediction.metadata,
             )
         
         # Track prediction count for this specific series
