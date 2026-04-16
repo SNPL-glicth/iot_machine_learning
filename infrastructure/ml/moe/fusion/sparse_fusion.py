@@ -105,9 +105,9 @@ class SparseFusionLayer:
         return Prediction(
             series_id="fused",  # Placeholder, se actualiza en gateway
             predicted_value=fused_value,
-            confidence=fused_confidence,
+            confidence_score=fused_confidence,
             trend=fused_trend,
-            timestamp=0.0,  # Se actualiza en gateway
+            engine_name="moe_fusion",
             metadata=metadata,
         )
     

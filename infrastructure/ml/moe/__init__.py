@@ -11,6 +11,7 @@ Componentes principales:
 - ExpertRegistry: Catálogo de expertos disponibles
 - GatingNetwork: Estrategias de routing (Strategy pattern)
 - SparseFusionLayer: Fusión de k expertos (no todos)
+- FusionWeights: Pesos normalizados de fusión
 - CapacityScheduler: Adaptación dinámica de carga
 
 Ejemplo de uso:
@@ -30,17 +31,17 @@ Ejemplo de uso:
 """
 
 from .registry import ExpertRegistry, ExpertEntry
-from .gateway import MoEGateway, MoEMetadata
-from .fusion import SparseFusionLayer, FusedResult
+from .gateway.moe_gateway import MoEGateway, MoEMetadata
+from .fusion.sparse_fusion import SparseFusionLayer, FusionWeights
 from .scheduler import CapacityScheduler, SystemLoadMetrics, create_default_scheduler
 
 # Gating strategies
 from .gating import (
     GatingNetwork,
     GatingProbs,
-    ContextVector,
     RegimeBasedGating,
     RegimeRoutingRule,
+    TreeGatingNetwork,
 )
 
 # Expert adapters
@@ -59,16 +60,16 @@ __all__ = [
     "ExpertRegistry",
     "ExpertEntry",
     "SparseFusionLayer",
-    "FusedResult",
+    "FusionWeights",
     "CapacityScheduler",
     "SystemLoadMetrics",
     "create_default_scheduler",
     # Gating
     "GatingNetwork",
     "GatingProbs",
-    "ContextVector",
     "RegimeBasedGating",
     "RegimeRoutingRule",
+    "TreeGatingNetwork",
     # Adapters
     "EngineExpertAdapter",
     "EnsembleExpertAdapter",

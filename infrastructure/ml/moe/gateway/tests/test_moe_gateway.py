@@ -54,7 +54,7 @@ class MockFallbackEngine(PredictionPort):
     def name(self) -> str: return "fallback"
     
     def predict(self, window: SensorWindow) -> Prediction:
-        return Prediction(series_id="test", predicted_value=50.0, confidence=0.5, trend="stable", timestamp=0.0, metadata={"source": "fallback"})
+        return Prediction(series_id="test", predicted_value=50.0, confidence_score=0.5, trend="stable", engine_name="fallback", metadata={"source": "fallback"})
     
     def can_handle(self, n_points: int) -> bool: return n_points >= 1
 

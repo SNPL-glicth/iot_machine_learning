@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
+from domain.model.context_vector import ContextVector
+
 
 @dataclass(frozen=True)
 class GatingProbs:
@@ -75,62 +77,6 @@ class GatingProbs:
     def min_probability(self) -> float:
         """Probabilidad del experto menos probable."""
         return min(self.probabilities.values()) if self.probabilities else 0.0
-
-
-@dataclass(frozen=True)
-class ContextVector:
-    """Vector de contexto para decisión de routing.
-    
-    Contiene todas las features necesarias para que el gating
-    network decida qué expertos activar.
-    
-    Attributes:
-        regime: Régimen detectado (stable, trending, volatile, noisy).
-        domain: Dominio del contexto (iot, finance, healthcare).
-        n_points: Número de puntos en la ventana.
-        signal_features: Features extraídos de la señal.
-        temporal_features: Features temporales (hora, día, etc).
-        historical_performance: MAE histórico por experto (opcional).
-    """
-    regime: str
-    domain: str
-    n_points: int
-    signal_features: Dict[str, float]
-    temporal_features: Optional[Dict[str, any]] = None
-    historical_performance: Optional[Dict[str, float]] = None
-    
-    def to_array(self) -> List[float]:
-        """Convierte a lista numérica para modelos ML.
-        
-        Returns:
-            Lista de valores numéricos en orden consistente.
-        """
-        # Orden determinístico para reproducibilidad
-        base = [
-            self.n_points,
-            self.signal_features.get("mean", 0.0),
-            self.signal_features.get("std", 0.0),
-            self.signal_features.get("slope", 0.0),
-            self.signal_features.get("curvature", 0.0),
-            self.signal_features.get("noise_ratio", 0.0),
-            self.signal_features.get("stability", 0.0),
-        ]
-        
-        # One-hot encoding simple para régimen
-        regimes = ["stable", "trending", "volatile", "noisy"]
-        regime_encoded = [1.0 if r == self.regime else 0.0 for r in regimes]
-        
-        return base + regime_encoded
-    
-    def to_dict(self) -> Dict[str, any]:
-        """Serializa a diccionario."""
-        return {
-            "regime": self.regime,
-            "domain": self.domain,
-            "n_points": self.n_points,
-            "signal_features": self.signal_features,
-            "temporal_features": self.temporal_features,
-        }
 
 
 class GatingNetwork(ABC):

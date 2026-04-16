@@ -29,6 +29,10 @@ from iot_machine_learning.infrastructure.security.audit_logger import (
     NullAuditLogger,
 )
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
+from iot_machine_learning.infrastructure.config.moe_factory import (
+    create_moe_gateway_safe,
+)
+from iot_machine_learning.infrastructure.ml.moe import MoEGateway
 
 from ..adapters.enterprise_prediction import EnterprisePredictionAdapter
 
@@ -62,6 +66,7 @@ class BatchEnterpriseContainer:
         self._storage: Optional[SqlServerStorageAdapter] = None
         self._audit: Optional[AuditPort] = None
         self._prediction_adapter: Optional[EnterprisePredictionAdapter] = None
+        self._moe_gateway: Optional[object] = None  # MoE gateway (lazy, solo si ML_MOE_ENABLED)
 
     @property
     def flags(self) -> FeatureFlags:
@@ -91,35 +96,74 @@ class BatchEnterpriseContainer:
                 self._audit = NullAuditLogger()
         return self._audit
 
+    def _get_or_create_moe_gateway(self) -> Optional[MoEGateway]:
+        """Lazy initialization de MoE gateway (solo si ML_MOE_ENABLED)."""
+        if self._moe_gateway is None:
+            # Verificar si MoE está habilitado (string "true" o boolean True)
+            moe_enabled = getattr(self._flags, 'ML_MOE_ENABLED', False)
+            if isinstance(moe_enabled, str):
+                moe_enabled = moe_enabled.lower() == 'true'
+            
+            if moe_enabled:
+                logger.info("MoE feature flag activo", extra={"flag": "ML_MOE_ENABLED"})
+                try:
+                    self._moe_gateway = create_moe_gateway_safe(sparsity_k=2)
+                    if self._moe_gateway:
+                        logger.info("MoE gateway activo con k=2")
+                    else:
+                        logger.warning("MoE gateway falló, usando fallback estándar")
+                except Exception as exc:
+                    logger.error(f"Error inicializando MoE: {exc}")
+                    self._moe_gateway = None
+            else:
+                logger.debug("MoE deshabilitado")
+        return self._moe_gateway
+
     def get_prediction_adapter(self) -> EnterprisePredictionAdapter:
         """Enterprise prediction adapter (singleton por container)."""
         if self._prediction_adapter is None:
             storage = self.get_storage()
             audit = self.get_audit()
 
-            # Build engine list: baseline as fallback
-            from iot_machine_learning.infrastructure.ml.engines.core import (
-                EngineFactory,
-            )
+            # INTENTAR MODO MOE PRIMERO (si feature flag está activo)
+            moe_gateway = self._get_or_create_moe_gateway()
+            
+            if moe_gateway:
+                # MODO MOE: Usar gateway como único engine (internamente hace fusión)
+                logger.info(
+                    "prediction_adapter_moe_mode",
+                    extra={"mode": "moe", "sparsity_k": 2},
+                )
+                engines = [moe_gateway]  # MoEGateway implementa PredictionPort
+            else:
+                # MODO ESTÁNDAR: Fallback a selección tradicional de engines
+                logger.info(
+                    "prediction_adapter_standard_mode",
+                    extra={"mode": "standard"},
+                )
+                # Build engine list: baseline as fallback
+                from iot_machine_learning.infrastructure.ml.engines.core import (
+                    EngineFactory,
+                )
 
-            baseline_engine = EngineFactory.create("baseline_moving_average")
-            engines = [baseline_engine.as_port()]
+                baseline_engine = EngineFactory.create("baseline_moving_average")
+                engines = [baseline_engine.as_port()]
 
-            # Add Taylor if enabled
-            if self._flags.ML_USE_TAYLOR_PREDICTOR:
-                try:
-                    from iot_machine_learning.infrastructure.ml.engines.core import (
-                        EngineFactory,
-                    )
+                # Add Taylor if enabled
+                if self._flags.ML_USE_TAYLOR_PREDICTOR:
+                    try:
+                        from iot_machine_learning.infrastructure.ml.engines.core import (
+                            EngineFactory,
+                        )
 
-                    taylor_engine = EngineFactory.create("taylor")
-                    taylor_port = taylor_engine.as_port()
-                    engines.insert(0, taylor_port)
-                except Exception as exc:
-                    logger.warning(
-                        "container_taylor_init_failed",
-                        extra={"error": str(exc)},
-                    )
+                        taylor_engine = EngineFactory.create("taylor")
+                        taylor_port = taylor_engine.as_port()
+                        engines.insert(0, taylor_port)
+                    except Exception as exc:
+                        logger.warning(
+                            "container_taylor_init_failed",
+                            extra={"error": str(exc)},
+                        )
 
             domain_service = PredictionDomainService(
                 engines=engines,
@@ -149,6 +193,7 @@ class BatchEnterpriseContainer:
                 extra={
                     "engines": [e.name for e in engines],
                     "audit_enabled": self._flags.ML_ENABLE_AUDIT_LOGGING,
+                    "moe_enabled": moe_gateway is not None,
                 },
             )
 
