@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
-from domain.model.context_vector import ContextVector
+from iot_machine_learning.domain.model.context_vector import ContextVector
 
 
 @dataclass(frozen=True)

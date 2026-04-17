@@ -93,6 +93,11 @@ def fallback_to_baseline(
             "fallback_baseline_error",
             extra={"sensor_id": sensor_id, "error": str(exc)},
         )
+        # OBSERVABILITY: Track silent failure in fallback path
+        from ...metrics.observability import get_observability
+        get_observability().silent_failures.record(
+            "fallback_baseline", str(exc), {"sensor_id": sensor_id}
+        )
         return BatchPredictionResult(
             predicted_value=0.0,
             confidence=0.0,

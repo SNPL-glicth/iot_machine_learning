@@ -24,6 +24,15 @@ from iot_machine_learning.domain.services.prediction_domain_service import (
 from iot_machine_learning.infrastructure.persistence.sql.storage import (
     SqlServerStorageAdapter,
 )
+from iot_machine_learning.infrastructure.persistence.sql.zenin_ml_storage import (
+    ZeninMLStorageAdapter,
+)
+from iot_machine_learning.infrastructure.persistence.sql.dual_write_storage import (
+    DualWriteStorageAdapter,
+)
+from iot_machine_learning.infrastructure.persistence.sql.zenin_ml_only_storage import (
+    ZeninMLOnlyStorageAdapter,
+)
 from iot_machine_learning.infrastructure.security.audit_logger import (
     FileAuditLogger,
     NullAuditLogger,
@@ -79,10 +88,23 @@ class BatchEnterpriseContainer:
         return self._conn
 
     def get_storage(self) -> StoragePort:
-        """StoragePort (singleton por container, refreshed on reconnect)."""
+        """StoragePort (singleton por container, refreshed on reconnect).
+        
+        Uses ZeninMLOnlyStorageAdapter when enterprise mode is enabled:
+        - Reads from legacy dbo (SqlServerStorageAdapter)
+        - Writes ONLY to zenin_ml.predictions (ZeninMLStorageAdapter)
+        
+        Falls back to legacy SqlServerStorageAdapter (dbo.predictions only)
+        when ML_BATCH_USE_ENTERPRISE is False.
+        """
         conn = self.get_connection()
         if self._storage is None or self._storage._conn is not conn:
-            self._storage = SqlServerStorageAdapter(conn)
+            if self._flags.ML_BATCH_USE_ENTERPRISE:
+                self._storage = ZeninMLOnlyStorageAdapter(conn)
+                logger.info("[BATCH_CONTAINER] Using ZeninMLOnlyStorageAdapter (reads legacy, writes ONLY to zenin_ml)")
+            else:
+                self._storage = SqlServerStorageAdapter(conn)
+                logger.info("[BATCH_CONTAINER] Using SqlServerStorageAdapter (legacy dbo.predictions only)")
         return self._storage
 
     def get_audit(self) -> AuditPort:
@@ -105,7 +127,10 @@ class BatchEnterpriseContainer:
                 moe_enabled = moe_enabled.lower() == 'true'
             
             if moe_enabled:
-                logger.info("MoE feature flag activo", extra={"flag": "ML_MOE_ENABLED"})
+                # CONTROLLED ACTIVATION: Log whitelist status for safety audit
+                whitelist_str = getattr(self._flags, 'ML_BATCH_ENTERPRISE_SENSORS', None)
+                mode = "whitelist" if whitelist_str else "global"
+                logger.info("MoE feature flag activo", extra={"flag": "ML_MOE_ENABLED", "mode": mode})
                 try:
                     self._moe_gateway = create_moe_gateway_safe(sparsity_k=2)
                     if self._moe_gateway:
@@ -196,6 +221,11 @@ class BatchEnterpriseContainer:
                     "moe_enabled": moe_gateway is not None,
                 },
             )
+            # OBSERVABILITY: Track engine usage distribution
+            from ...metrics.observability import get_observability
+            obs = get_observability()
+            for e in engines:
+                obs.engine_usage.record(e.name, -1)  # -1 = generic sensor (per-prediction tracking happens in adapter)
 
         return self._prediction_adapter
 

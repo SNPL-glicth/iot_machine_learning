@@ -13,9 +13,9 @@ from __future__ import annotations
 import time
 from typing import Dict, Optional, List, Any
 
-from domain.ports.prediction_port import PredictionPort
-from domain.entities.prediction import Prediction
-from domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.ports.prediction_port import PredictionPort
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 
 from ..registry.expert_registry import ExpertRegistry
 from ..gating.base import GatingNetwork

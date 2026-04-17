@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-from infrastructure.ml.moe.gating.base import GatingNetwork, GatingProbs, ContextVector
+from iot_machine_learning.infrastructure.ml.moe.gating.base import GatingNetwork, GatingProbs, ContextVector
 
 
 @dataclass(frozen=True)

@@ -66,7 +66,12 @@ class UniversalPerceptionCollector:
             List of EnginePerception (one per sub-analyzer)
         """
         if input_type == InputType.TEXT:
-            return self._collect_text(pre_computed_scores or {})
+            # Merge pre_computed_scores with metadata (includes semantic_enrichment)
+            merged_scores = {**(pre_computed_scores or {})}
+            # Add semantic_enrichment from metadata if present
+            if metadata and "semantic_enrichment" in metadata:
+                merged_scores["semantic_enrichment"] = metadata["semantic_enrichment"]
+            return self._collect_text(merged_scores)
         
         if input_type == InputType.NUMERIC:
             return self._collect_numeric(raw_data, None, metadata)
@@ -164,6 +169,63 @@ class UniversalPerceptionCollector:
                             ))
             except Exception as e:
                 logger.debug(f"attention_context_failed: {e}")
+        
+        # --- Semantic Entity Extraction ---
+        # Generate EnginePerception from structured entities if available
+        semantic_enrichment = scores.get("semantic_enrichment")
+        if semantic_enrichment and isinstance(semantic_enrichment, dict):
+            try:
+                entity_count = semantic_enrichment.get("entity_count", 0)
+                critical_count = len(semantic_enrichment.get("critical_entities", []))
+                equipment_metrics = semantic_enrichment.get("equipment_metric_pairs", [])
+                
+                # Compute semantic richness score (0-1)
+                # Based on: entity density, critical entities, equipment-metric pairs
+                richness = min(1.0, (
+                    (entity_count / 10) * 0.3 +  # Max 0.3 for 10+ entities
+                    (critical_count / 5) * 0.4 +  # Max 0.4 for 5+ critical
+                    (len(equipment_metrics) / 3) * 0.3  # Max 0.3 for 3+ pairs
+                ))
+                
+                # Create semantic entity perception
+                perceptions.append(EnginePerception(
+                    engine_name="semantic_entities",
+                    predicted_value=round(richness, 4),
+                    confidence=semantic_enrichment.get("enrichment_confidence", 0.7),
+                    trend="up" if critical_count > 0 else "stable",
+                    stability=0.4 if equipment_metrics else 0.6,
+                    local_fit_error=0.2,
+                    metadata={
+                        "entity_count": entity_count,
+                        "critical_count": critical_count,
+                        "equipment_metric_pairs": equipment_metrics,
+                        "entity_types": list(set(
+                            e.get("entity_type") for e in 
+                            semantic_enrichment.get("entities", [])
+                        )),
+                        "domain_detected": semantic_enrichment.get("domain_detected", "general"),
+                    },
+                ))
+                
+                # Add critical entity alert perception if critical entities exist
+                if critical_count > 0:
+                    critical_confidence = min(0.95, 0.6 + (critical_count * 0.1))
+                    perceptions.append(EnginePerception(
+                        engine_name="semantic_critical_alert",
+                        predicted_value=min(1.0, critical_count * 0.25),  # Scale with count
+                        confidence=critical_confidence,
+                        trend="up",
+                        stability=0.2,  # Unstable = alert condition
+                        local_fit_error=0.3,
+                        metadata={
+                            "critical_entities": semantic_enrichment.get("critical_entities", [])[:3],
+                            "alert_reason": "critical_semantic_entities_detected",
+                            "n_critical": critical_count,
+                        },
+                    ))
+                    
+            except Exception as e:
+                logger.debug(f"semantic_entity_perception_failed: {e}")
         
         return perceptions
 

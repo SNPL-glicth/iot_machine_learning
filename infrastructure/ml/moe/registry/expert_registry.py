@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Iterator, Any, Protocol
 from dataclasses import dataclass
 from collections import OrderedDict
 
-from domain.model.context_vector import ContextVector
+from iot_machine_learning.domain.model.context_vector import ContextVector
 from .expert_capability import ExpertCapability
 
 

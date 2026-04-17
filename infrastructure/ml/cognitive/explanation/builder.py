@@ -144,6 +144,40 @@ class ExplanationBuilder:
         from ..perception import phase_setters
         return phase_setters.set_audit_trace_id(self, trace_id)
 
+    def set_semantic_enrichment(
+        self, 
+        enrichment: dict,
+    ) -> ExplanationBuilder:
+        """Registra enriquecimiento semántico (fase ENRICH opcional).
+        
+        Almacena entidades extraídas para que aparezcan en la explicación.
+        """
+        from ..perception import phase_setters
+        # Store in builder state for later use in explanation
+        if not hasattr(self, '_semantic_enrichment'):
+            self._semantic_enrichment = None
+        self._semantic_enrichment = enrichment
+        
+        # Add ENRICH phase to trace if we have enrichment
+        if enrichment and enrichment.get("entity_count", 0) > 0:
+            from iot_machine_learning.domain.entities.explainability.reasoning_trace import (
+                ReasoningPhase,
+                PhaseKind,
+            )
+            phase = ReasoningPhase(
+                kind=PhaseKind.ENRICH,  # Will need to add this to enum
+                summary=f"Extracted {enrichment.get('entity_count')} semantic entities",
+                inputs={"domain": enrichment.get("domain_detected", "general")},
+                outputs={
+                    "critical_count": len(enrichment.get("critical_entities", [])),
+                    "equipment_metric_pairs": len(enrichment.get("equipment_metric_pairs", [])),
+                },
+                duration_ms=0.0,  # Will be set by timing
+            )
+            self._phases.append(phase)
+        
+        return self
+
     # ── Build ───────────────────────────────────────────────────
 
     def build(self) -> Explanation:

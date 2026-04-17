@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 import math
 
-from domain.entities.prediction import Prediction
-from domain.ports.expert_port import ExpertOutput
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.ports.expert_port import ExpertOutput
 
 
 @dataclass(frozen=True)

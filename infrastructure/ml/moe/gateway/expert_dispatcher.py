@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import Dict, List
 import logging
 
-from domain.ports.expert_port import ExpertPort, ExpertOutput
-from domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 from ..registry.expert_registry import ExpertRegistry
 
 logger = logging.getLogger(__name__)

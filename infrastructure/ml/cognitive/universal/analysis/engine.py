@@ -54,12 +54,17 @@ class UniversalAnalysisEngine:
         *,
         enable_plasticity: bool = True,
         enable_monte_carlo: bool = True,
+        enable_semantic_enrichment: bool = True,
         budget_ms: float = 2000.0,
         deterministic_mode: bool = False,
         analysis_seed: int = 42,
     ) -> None:
         """Initialize universal engine with cognitive components."""
         self._perceive = PerceivePhase()
+        self._enrich = None
+        if enable_semantic_enrichment:
+            from .enrich_phase import SemanticEnrichmentPhase
+            self._enrich = SemanticEnrichmentPhase(enabled=True)
         self._analyze = AnalyzePhase()
         self._remember = RememberPhase()
         self._reason = ReasonPhase(enable_plasticity=enable_plasticity)
@@ -71,6 +76,7 @@ class UniversalAnalysisEngine:
         self._budget_ms = budget_ms
         self._deterministic_mode = deterministic_mode
         self._analysis_seed = analysis_seed
+        self._enable_semantic_enrichment = enable_semantic_enrichment
         
         # Set seed if deterministic mode
         if self._deterministic_mode:
@@ -102,6 +108,17 @@ class UniversalAnalysisEngine:
                 raw_data, ctx, timing
             )
             
+            # Semantic Enrichment Phase (between Perceive and Analyze)
+            # Enriches metadata with structured entities for TEXT inputs
+            enrichment_result = None
+            if self._enrich and input_type == InputType.TEXT:
+                metadata, enrichment_result = self._enrich.execute(
+                    raw_data, input_type, metadata, domain, timing
+                )
+                # Store enrichment in builder for explanation
+                if enrichment_result:
+                    builder.set_semantic_enrichment(enrichment_result.to_dict())
+            
             perceptions = self._analyze.execute(
                 raw_data, input_type, metadata, pre_computed_scores, timing
             )
@@ -125,6 +142,11 @@ class UniversalAnalysisEngine:
             except Exception as e:
                 logger.warning(f"pattern_interpretation_failed: {e}")
                 # Graceful-fail - continue without patterns
+                # OBSERVABILITY: Track silent failure
+                from .....ml_service.metrics.observability import get_observability
+                get_observability().silent_failures.record(
+                    "pattern_interpretation", str(e), {"domain": domain}
+                )
             
             recall_ctx = self._remember.execute(raw_data, domain, ctx, timing)
             
@@ -188,6 +210,11 @@ class UniversalAnalysisEngine:
         
         except Exception as e:
             logger.error(f"universal_analysis_failed: {e}", exc_info=True)
+            # OBSERVABILITY: Track silent failure in main pipeline
+            from .....ml_service.metrics.observability import get_observability
+            get_observability().silent_failures.record(
+                "universal_analysis", str(e), {"input_type": getattr(input_type, 'value', str(input_type))}
+            )
             return self._build_error_result(str(e))
 
     def _classify_severity(

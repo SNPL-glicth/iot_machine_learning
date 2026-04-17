@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import List
 
-from domain.model.context_vector import ContextVector
-from domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.model.context_vector import ContextVector
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 
 
 class ContextEncoderService:

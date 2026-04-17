@@ -12,6 +12,13 @@ La lógica de negocio está en api/services/.
 
 from __future__ import annotations
 
+# FIX: Add project root to PYTHONPATH for proper module resolution
+import sys
+from pathlib import Path
+_project_root = Path(__file__).parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 # FIX: Load env vars BEFORE any other imports that might use them
 from dotenv import load_dotenv
 load_dotenv()

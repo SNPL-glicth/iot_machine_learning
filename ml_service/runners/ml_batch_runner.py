@@ -14,6 +14,12 @@ al runner de producción en iot_ingest_services, no aquí.
 
 from __future__ import annotations
 
+# CRITICAL: Load environment variables BEFORE any imports that use feature flags
+from dotenv import load_dotenv
+import os
+_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
+load_dotenv(_env_path)
+
 import argparse
 import logging
 import time
@@ -85,12 +91,19 @@ class MLBatchRunner:
                     engine=engine,
                     flags=self._flags,
                 )
+                logger.info("[ML_BATCH] Enterprise container initialized successfully")
             except Exception as exc:
-                logger.warning(
+                logger.exception(
                     "[ML_BATCH] Enterprise container init failed: %s", exc
                 )
                 return None
-        return self._enterprise_container.get_prediction_adapter()
+        try:
+            adapter = self._enterprise_container.get_prediction_adapter()
+            logger.info("[ML_BATCH] Enterprise adapter obtained successfully")
+            return adapter
+        except Exception as exc:
+            logger.exception("[ML_BATCH] Failed to get prediction adapter: %s", exc)
+            return None
 
     def run_once(self) -> int:
         """Ejecuta un ciclo de procesamiento.
@@ -110,11 +123,23 @@ class MLBatchRunner:
             self._flags.ML_BATCH_USE_ENTERPRISE
             or self._flags.ML_BATCH_ENTERPRISE_SENSORS
         )
+        logger.info(
+            "[ML_BATCH] Checking enterprise activation: flags.ML_BATCH_USE_ENTERPRISE=%s, "
+            "any_enterprise=%s, ML_ROLLBACK_TO_BASELINE=%s",
+            self._flags.ML_BATCH_USE_ENTERPRISE, any_enterprise, self._flags.ML_ROLLBACK_TO_BASELINE
+        )
         if any_enterprise and not self._flags.ML_ROLLBACK_TO_BASELINE:
+            logger.info("[ML_BATCH] Enterprise mode ACTIVE - initializing adapter...")
             try:
                 enterprise_adapter_instance = self._get_enterprise_adapter(engine)
+                if enterprise_adapter_instance:
+                    logger.info("[ML_BATCH] Enterprise adapter READY")
+                else:
+                    logger.warning("[ML_BATCH] Enterprise adapter is None - check previous errors")
             except Exception as exc:
-                logger.warning("[ML_BATCH] Enterprise adapter unavailable: %s", exc)
+                logger.exception("[ML_BATCH] Enterprise adapter unavailable: %s", exc)
+        else:
+            logger.info("[ML_BATCH] Enterprise mode DISABLED - using baseline only")
         
         with engine.begin() as conn:
             sensors = list(_iter_sensors(conn))

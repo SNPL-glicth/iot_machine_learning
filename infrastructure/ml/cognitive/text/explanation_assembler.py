@@ -156,9 +156,11 @@ class TextExplanationAssembler:
 
 def _find_inhibition(
     engine_name: str,
-    states: List[InhibitionState],
+    states: Optional[List[InhibitionState]],
 ) -> Optional[InhibitionState]:
     """Find InhibitionState for a given engine."""
+    if states is None:
+        return None
     for s in states:
         if s.engine_name == engine_name:
             return s

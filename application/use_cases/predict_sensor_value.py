@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Optional
 
-from ...domain.entities.sensor_reading import SensorWindow
+from ...domain.entities.sensor_reading import SensorReading, SensorWindow
 from ...domain.ports.audit_port import AuditPort
 from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
 from ...domain.ports.experiment_tracker_port import (
@@ -101,9 +101,11 @@ class PredictSensorValueUseCase:
 
         # Reconstruir ventana con datos sanitizados
         sanitized_window = SensorWindow(
-            sensor_id=window.sensor_id,
-            values=sanitized.values,
-            timestamps=sanitized.timestamps,
+            series_id=window.series_id,
+            readings=[
+                SensorReading(series_id=window.series_id, value=v, timestamp=ts)
+                for v, ts in zip(sanitized.values, sanitized.timestamps)
+            ],
         )
 
         logger.info(
@@ -238,6 +240,11 @@ class PredictSensorValueUseCase:
                 "memory_recall_failed",
                 extra={"sensor_id": sensor_id, "error": str(exc)},
             )
+            # OBSERVABILITY: Track silent failure in memory recall
+            from ...ml_service.metrics.observability import get_observability
+            get_observability().silent_failures.record(
+                "memory_recall", str(exc), {"sensor_id": sensor_id}
+            )
         return None
 
     def _should_recall(self) -> bool:
@@ -286,3 +293,8 @@ class PredictSensorValueUseCase:
         except Exception as exc:
             # Fail-safe: never break pipeline for tracking errors
             logger.debug("prediction_tracking_failed", extra={"error": str(exc)})
+            # OBSERVABILITY: Track silent failure in tracking
+            from ...ml_service.metrics.observability import get_observability
+            get_observability().silent_failures.record(
+                "prediction_tracking", str(exc), {"sensor_id": sensor_id}
+            )

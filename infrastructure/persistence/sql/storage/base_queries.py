@@ -82,12 +82,12 @@ class BaseQueries:
                 ts = 0.0
 
             readings.append(SensorReading(
-                sensor_id=sensor_id,
+                series_id=str(sensor_id),
                 value=value,
                 timestamp=ts,
             ))
 
-        return SensorWindow(sensor_id=sensor_id, readings=readings)
+        return SensorWindow(series_id=str(sensor_id), readings=readings)
 
     def list_active_sensor_ids(self) -> List[int]:
         """Retorna IDs de sensores activos."""

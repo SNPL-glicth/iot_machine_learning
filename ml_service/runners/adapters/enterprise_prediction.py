@@ -141,6 +141,9 @@ class EnterprisePredictionAdapter:
         )
         self._metrics.enterprise_success += 1
         self._metrics.total_elapsed_ms += elapsed
+        # OBSERVABILITY: Track engine usage per prediction
+        from ...metrics.observability import get_observability
+        get_observability().engine_usage.record(result.engine_used, sensor_id)
         self._audit.log_event(
             event_type=event_type, action="predict",
             resource=f"sensor_{sensor_id}", user_id="ml_batch_runner",
@@ -155,16 +158,23 @@ class EnterprisePredictionAdapter:
     def _on_failure(self, exc, t0, sensor_id, window_size):
         elapsed = (time.monotonic() - t0) * 1000.0
         reason = f"{type(exc).__name__}: {exc}"
-        logger.error(
+        logger.exception(
             "enterprise_prediction_failed",
             extra={"sensor_id": sensor_id, "error": reason},
         )
         self._metrics.enterprise_failure += 1
+        # OBSERVABILITY: Track fallback with counter and per-sensor metrics
+        from ...metrics.observability import get_observability
+        obs = get_observability()
+        obs.fallback.record(sensor_id, reason)
+        fallback_rate = obs.get_fallback_rate(self._metrics.enterprise_success + self._metrics.enterprise_failure)
+        if fallback_rate > 0.10:
+            logger.critical("ml.enterprise.fallback.rate_critical", extra={"rate": fallback_rate})
         self._audit.log_event(
             event_type="batch_prediction_fallback",
             action="fallback_baseline",
             resource=f"sensor_{sensor_id}", user_id="ml_batch_runner",
-            details={"reason": reason, "elapsed_ms": round(elapsed, 2)},
+            details={"reason": reason, "elapsed_ms": round(elapsed, 2), "fallback_rate": fallback_rate},
             result="warning",
         )
         from .fallback_baseline import fallback_to_baseline

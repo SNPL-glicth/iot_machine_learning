@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-from domain.model.context_vector import ContextVector
+from iot_machine_learning.domain.model.context_vector import ContextVector
 from .base import GatingNetwork, GatingProbs
 
 

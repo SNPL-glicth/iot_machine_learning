@@ -5,11 +5,12 @@ y las agrupa en un ``ReasoningTrace`` ordenado cronológicamente.
 
 Pipeline cognitivo:
     1. perceive  — análisis de señal
-    2. filter    — filtrado aplicado
-    3. predict   — predicciones individuales
-    4. inhibit   — supresión de engines inestables
-    5. adapt     — ajuste de pesos por plasticidad
-    6. fuse      — fusión ponderada
+    2. enrich    — extracción de entidades semánticas (opcional)
+    3. filter    — filtrado aplicado
+    4. predict   — predicciones individuales
+    5. inhibit   — supresión de engines inestables
+    6. adapt     — ajuste de pesos por plasticidad
+    7. fuse      — fusión ponderada
 
 Cada fase registra: qué se hizo, qué entró, qué salió, y cuánto
 tardó (opcional).
@@ -28,6 +29,7 @@ class PhaseKind(str, Enum):
     """Fases del pipeline cognitivo."""
 
     PERCEIVE = "perceive"
+    ENRICH = "enrich"  # Semantic entity extraction (optional)
     FILTER = "filter"
     PREDICT = "predict"
     INHIBIT = "inhibit"
