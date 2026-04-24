@@ -9,8 +9,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
-    PlasticityContext,
+from iot_machine_learning.domain.entities.plasticity.signal_context import (
+    SignalContext,
     RegimeType,
 )
 
@@ -21,8 +21,8 @@ def build_plasticity_context(
     consecutive_failures: int = 0,
     error_magnitude: float = 0.0,
     is_critical_zone: bool = False,
-) -> PlasticityContext:
-    """Create PlasticityContext from signal profile.
+) -> SignalContext:
+    """Create SignalContext from signal profile.
     
     Args:
         profile: Signal profile from analyzer (StructuralAnalysis or similar)
@@ -32,7 +32,7 @@ def build_plasticity_context(
         is_critical_zone: Whether in critical operational zone
     
     Returns:
-        PlasticityContext with regime, volatility, noise, time
+        SignalContext with regime, volatility, noise, time
     """
     # Map regime string to RegimeType enum
     regime_str = profile.regime.value if hasattr(profile, 'regime') else 'unknown'
@@ -55,7 +55,7 @@ def build_plasticity_context(
     
     # Create context
     now = datetime.now()
-    return PlasticityContext(
+    return SignalContext(
         regime=regime_type,
         noise_ratio=min(max(noise_ratio, 0.0), 1.0),
         volatility=min(max(volatility, 0.0), 1.0),

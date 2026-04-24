@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional
 
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext
+from iot_machine_learning.domain.entities.plasticity.signal_context import SignalContext
+from ..error_store import EngineErrorStore
 from ..fusion.contextual_weight_calculator import resolve_contextual_weights
 from .contextual_storage import ContextualErrorStorage
 
@@ -30,6 +31,7 @@ class ContextualWeightTracker:
         min_samples: int = 5,
         epsilon: float = 0.1,
         max_contexts_per_engine: int = 20,
+        error_store: Optional[EngineErrorStore] = None,
     ) -> None:
         if window_size < 1:
             raise ValueError(f"window_size must be >= 1, got {window_size}")
@@ -45,8 +47,10 @@ class ContextualWeightTracker:
         self._min_samples = min_samples
         self._epsilon = epsilon
         self._window_size = window_size  # Exposed for test compatibility
-        
-        # Modular storage component
+        self._error_store = error_store  # IMP-4a single-writer bus
+
+        # Modular storage component — keeps context-keyed aggregation
+        # (not a duplicate error log: the raw stream lives in EngineErrorStore).
         self._storage = ContextualErrorStorage(
             window_size=window_size,
             max_contexts_per_engine=max_contexts_per_engine,
@@ -67,11 +71,11 @@ class ContextualWeightTracker:
         """Small value to prevent division by zero."""
         return self._epsilon
     
-    def _aggregate_context_key(self, context: PlasticityContext) -> str:
+    def _aggregate_context_key(self, context: SignalContext) -> str:
         """Aggregate context to reduce entropy from 288 to 32 buckets.
         
         Maps contexts to: {regime}|{time_block}|{volatility_binary}
-        Matches PlasticityContext.context_key format.
+        Matches SignalContext.context_key format.
         Result: Maximum 32 contexts per engine (4 regimes × 4 time blocks × 2 volatility).
         """
         time_block = context.time_of_day // 6
@@ -83,12 +87,22 @@ class ContextualWeightTracker:
         series_id: str,
         engine_name: str,
         error: float,
-        context: PlasticityContext,
+        context: SignalContext,
     ) -> None:
-        """Record prediction error for a specific context."""
+        """Record prediction error for a specific context.
+
+        IMP-4a: when an :class:`EngineErrorStore` is injected the raw
+        error is also forwarded to the store so it participates in the
+        single-writer bus. The local context-keyed aggregation is kept
+        because it indexes by context (not by raw error) — it is an
+        aggregation, not a second log.
+        """
         if error < 0:
             raise ValueError(f"error must be >= 0, got {error}")
-        
+
+        if self._error_store is not None:
+            self._error_store.record(series_id, engine_name, error)
+
         context_key = self._aggregate_context_key(context)
         count = self._storage.record(series_id, engine_name, context_key, error)
         
@@ -107,7 +121,7 @@ class ContextualWeightTracker:
         self,
         series_id: str,
         engine_name: str,
-        context: PlasticityContext,
+        context: SignalContext,
     ) -> Optional[float]:
         """Get MAE for a specific context."""
         context_key = self._aggregate_context_key(context)
@@ -122,7 +136,7 @@ class ContextualWeightTracker:
         self,
         series_id: str,
         engine_names: List[str],
-        context: PlasticityContext,
+        context: SignalContext,
     ) -> Optional[Dict[str, float]]:
         """Calculate contextual weights for engines."""
         if not engine_names:
@@ -152,7 +166,7 @@ class ContextualWeightTracker:
         self,
         series_id: str,
         engine_name: str,
-        context: PlasticityContext,
+        context: SignalContext,
     ) -> int:
         """Get number of samples for a specific context."""
         context_key = self._aggregate_context_key(context)

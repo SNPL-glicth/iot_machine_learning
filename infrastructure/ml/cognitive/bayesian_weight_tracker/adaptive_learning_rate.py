@@ -10,7 +10,7 @@ import logging
 from collections import OrderedDict
 from typing import List, Optional, Tuple
 
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext
+from iot_machine_learning.domain.entities.plasticity.signal_context import SignalContext
 from .lr_calculator import compute_learning_rate
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class AdaptiveLearningRate:
     def compute_adaptive_lr(
         self,
         error: float,
-        context: PlasticityContext,
+        context: SignalContext,
         engine_name: Optional[str] = None,
         series_id: Optional[str] = None,
     ) -> float:
@@ -100,7 +100,7 @@ class AdaptiveLearningRate:
     def compute_batch_lr(
         self,
         errors: List[float],
-        contexts: List[PlasticityContext],
+        contexts: List[SignalContext],
     ) -> List[float]:
         """Compute adaptive learning rates for a batch."""
         if len(errors) != len(contexts):

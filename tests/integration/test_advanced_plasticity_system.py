@@ -647,15 +647,15 @@ class TestComponentIntegration:
         )
         
         # Verify:
-        # 1. PlasticityContext was created
-        assert orchestrator._last_plasticity_context is not None
+        # 1. SignalContext was created
+        assert orchestrator._last_signal_context is not None
         
         # 2. Context has correct regime
-        assert orchestrator._last_plasticity_context.regime is not None
+        assert orchestrator._last_signal_context.regime is not None
         
         # 3. Contextual tracker has data
         tracker = orchestrator._contextual_tracker
-        count = tracker.get_sample_count("sensor_1", "good_engine", orchestrator._last_plasticity_context)
+        count = tracker.get_sample_count("sensor_1", "good_engine", orchestrator._last_signal_context)
         assert count == 1
         
         # 4. Health monitor has state

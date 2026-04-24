@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import threading
 import warnings
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from ...interfaces import PredictionEngine, PredictionResult
+from ..error_store import EngineErrorStore
 from ..fusion import WeightedFusion
 from ..inhibition import InhibitionConfig, InhibitionGate
+from ..reliability import EngineReliabilityTracker
+from ..hyperparameters import HyperparameterAdaptor
 from ..bayesian_weight_tracker import BayesianWeightTracker, build_advanced_bayesian, null_advanced_bayesian
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
 from ..analysis.signal_analyzer import SignalAnalyzer
@@ -46,20 +49,48 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         correlation_port=None,
         enable_iterative: bool = False,
         moe_gateway: Optional[MoEGateway] = None,
+        redis_client: Optional[Any] = None,
+        hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
-        
+
+        # IMP-4a: single canonical error bus (Redis or in-memory).
+        self._error_store = EngineErrorStore(redis_client=redis_client)
+        # IMP-4b: Beta-Bernoulli reliability tracker feeds InhibitionGate
+        # and replaces the three hardcoded threshold rules.
+        self._reliability_tracker = EngineReliabilityTracker(
+            error_store=self._error_store,
+            redis_client=redis_client,
+        )
+        # IMP-4c: single source of truth for per-series hyperparameters
+        # (Redis-only; inert when redis_client is None).
+        self._hyperparameter_adaptor = hyperparameter_adaptor or HyperparameterAdaptor(
+            redis_client=redis_client,
+        )
+
         # Core components
         self._engines = engines
+        # IMP-4c: share the adaptor with engines that expose a ``_hyperparams``
+        # slot and were built without one. Explicit adaptors set on the engine
+        # take precedence and are left untouched.
+        for _engine in self._engines:
+            if getattr(_engine, "_hyperparams", "missing") is None:
+                _engine._hyperparams = self._hyperparameter_adaptor
         self._analyzer = SignalAnalyzer()
-        self._inhibition = InhibitionGate(inhibition_config)
+        self._inhibition = InhibitionGate(
+            inhibition_config,
+            reliability_tracker=self._reliability_tracker,
+        )
         self._fusion = WeightedFusion()
         self._budget_ms = budget_ms
-        
+
         # R-1: Per-series state isolation via ContextStateManager
         self._state_manager = ContextStateManager(max_series=10000)
-        self._error_history = create_error_history_manager(max_history=50)
+        self._error_history = create_error_history_manager(
+            max_history=50,
+            error_store=self._error_store,
+        )
         
         # GOLD: Initialize storage adapter (was missing - critical bug fix)
         self._storage = storage_adapter
@@ -71,7 +102,12 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._last_timer: Optional[PipelineTimer] = None
         
         # Bayesian weight tracking (learning) - must be before weight_resolver
-        self._plasticity = BayesianWeightTracker() if enable_plasticity else None
+        # IMP-4a: share the single EngineErrorStore so the 99p cap is
+        # sourced from the canonical error bus (no second copy).
+        self._plasticity = (
+            BayesianWeightTracker(error_store=self._error_store)
+            if enable_plasticity else None
+        )
         self._enable_advanced_plasticity = enable_advanced_plasticity
         
         # GOLD: Weight resolution service (consolidated from Phase 3 refactor)
@@ -198,7 +234,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             actual_value=actual_value,
             last_regime=series_state.last_regime,
             last_perceptions=series_state.last_perceptions,
-            last_plasticity_context=series_state.last_plasticity_context,
+            last_signal_context=series_state.last_signal_context,
             enable_advanced_plasticity=self._enable_advanced_plasticity,
             plasticity_coordinator=self._plasticity_coordinator,
             plasticity_tracker=self._plasticity,
@@ -206,6 +242,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             storage=self._storage,
             series_id=series_id,
             series_context=series_context,
+            reliability_tracker=self._reliability_tracker,
         )
 
     @property

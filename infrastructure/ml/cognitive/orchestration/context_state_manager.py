@@ -30,7 +30,7 @@ class SeriesState:
     
     last_regime: Optional[str] = None
     last_perceptions: List[EnginePerception] = field(default_factory=list)
-    last_plasticity_context: Optional[object] = None
+    last_signal_context: Optional[object] = None
     prediction_count: int = 0
     last_prediction_timestamp: Optional[float] = None
 

@@ -12,33 +12,48 @@ from collections import defaultdict, deque
 from threading import RLock
 from typing import Any, Deque, Dict, List, Optional, Set
 
+from ..error_store import EngineErrorStore
 from .error_history_redis import ErrorHistoryRedis
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorHistoryManager:
-    """Manages prediction error history per series_id and engine."""
-    
+    """Manages prediction error history per series_id and engine.
+
+    IMP-4a: when an :class:`EngineErrorStore` is injected it becomes the
+    single source of truth for raw error floats. The manager preserves
+    its public API (``record_error``, ``get_errors`` ...) and simply
+    delegates to the store. Legacy ``ErrorHistoryRedis`` and in-memory
+    deques remain as untouched fallbacks for callers constructed without
+    a store (tests, legacy wiring).
+    """
+
     def __init__(
         self,
         max_history: int = 50,
         max_series: int = 10000,
         redis_client: Optional[Any] = None,
         backend: Optional[str] = None,
+        error_store: Optional[EngineErrorStore] = None,
     ) -> None:
         self.max_history = max_history
         self.max_series = max_series
-        
+        self._error_store = error_store
+
         self._backend = backend or os.environ.get("ML_ERROR_HISTORY_BACKEND", "memory")
-        
-        # Redis component
+
+        # Redis component — only constructed when no error_store is present.
+        # Rationale: EngineErrorStore is the canonical Redis writer; keeping
+        # ErrorHistoryRedis alive alongside would re-introduce the dual-write
+        # that IMP-4a is eliminating.
         self._redis_backend = None
-        if self._backend == "redis" and redis_client is not None:
-            self._redis_backend = ErrorHistoryRedis(redis_client, max_history)
-        elif self._backend == "redis":
-            logger.warning("redis_no_client_fallback")
-            self._backend = "memory"
+        if self._error_store is None:
+            if self._backend == "redis" and redis_client is not None:
+                self._redis_backend = ErrorHistoryRedis(redis_client, max_history)
+            elif self._backend == "redis":
+                logger.warning("redis_no_client_fallback")
+                self._backend = "memory"
         
         # Memory structures
         self._errors: Dict[str, Dict[str, Deque[float]]] = defaultdict(
@@ -72,19 +87,27 @@ class ErrorHistoryManager:
         """Record a prediction error."""
         if error < 0:
             raise ValueError(f"error >= 0 required, got {error}")
-        
+
+        if self._error_store is not None:
+            # Single-writer path — EngineErrorStore owns persistence.
+            self._error_store.record(series_id, engine_name, error)
+            return
+
         if self._redis_backend and self._redis_backend.record(series_id, engine_name, error, regime):
             return
         self._record_to_memory(series_id, engine_name, error)
-    
+
     def get_errors(self, series_id: str, engine_name: str) -> List[float]:
         """Get error history for series and engine."""
+        if self._error_store is not None:
+            return self._error_store.get_recent(series_id, engine_name, self.max_history)
+
         # Try Redis first
         if self._redis_backend is not None:
             errors = self._redis_backend.get_errors(series_id, engine_name)
             if errors is not None:
                 return errors
-        
+
         # Memory fallback
         with self._lock:
             if series_id not in self._errors or engine_name not in self._errors[series_id]:
@@ -159,6 +182,11 @@ class ErrorHistoryManager:
 def create_error_history_manager(
     max_history: int = 50,
     redis_client: Optional[Any] = None,
+    error_store: Optional[EngineErrorStore] = None,
 ) -> ErrorHistoryManager:
     """Factory for ErrorHistoryManager."""
-    return ErrorHistoryManager(max_history=max_history, redis_client=redis_client)
+    return ErrorHistoryManager(
+        max_history=max_history,
+        redis_client=redis_client,
+        error_store=error_store,
+    )

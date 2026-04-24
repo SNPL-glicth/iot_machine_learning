@@ -10,8 +10,8 @@ Validates:
 
 import pytest
 
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
-    PlasticityContext,
+from iot_machine_learning.domain.entities.plasticity.signal_context import (
+    SignalContext,
     RegimeType,
 )
 from iot_machine_learning.infrastructure.ml.cognitive.plasticity.adaptive_learning_rate import (
@@ -63,7 +63,7 @@ class TestErrorMagnitudeScaling:
     def test_small_error_low_lr(self) -> None:
         """Small errors should produce low learning rates."""
         calc = AdaptiveLearningRate(base_lr=0.05)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         lr = calc.compute_adaptive_lr(error=0.1, context=ctx)
         
@@ -73,7 +73,7 @@ class TestErrorMagnitudeScaling:
     def test_medium_error_medium_lr(self) -> None:
         """Medium errors should produce medium learning rates."""
         calc = AdaptiveLearningRate(base_lr=0.05)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         lr = calc.compute_adaptive_lr(error=5.0, context=ctx)
         
@@ -83,7 +83,7 @@ class TestErrorMagnitudeScaling:
     def test_large_error_high_lr(self) -> None:
         """Large errors should produce high learning rates."""
         calc = AdaptiveLearningRate(base_lr=0.05)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         lr = calc.compute_adaptive_lr(error=50.0, context=ctx)
         
@@ -93,7 +93,7 @@ class TestErrorMagnitudeScaling:
     def test_logarithmic_scaling(self) -> None:
         """Learning rate should scale logarithmically, not linearly."""
         calc = AdaptiveLearningRate(base_lr=0.05)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         lr_1 = calc.compute_adaptive_lr(error=1.0, context=ctx)
         lr_10 = calc.compute_adaptive_lr(error=10.0, context=ctx)
@@ -106,7 +106,7 @@ class TestErrorMagnitudeScaling:
     def test_negative_error_raises(self) -> None:
         """Negative errors should raise ValueError."""
         calc = AdaptiveLearningRate()
-        ctx = PlasticityContext.create_default()
+        ctx = SignalContext.create_default()
         
         with pytest.raises(ValueError, match="error must be >= 0"):
             calc.compute_adaptive_lr(error=-1.0, context=ctx)
@@ -118,7 +118,7 @@ class TestRegimeAdjustments:
     def test_stable_regime_baseline(self) -> None:
         """STABLE regime should use baseline factor (1.0)."""
         calc = AdaptiveLearningRate(base_lr=0.05)
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -137,7 +137,7 @@ class TestRegimeAdjustments:
         """VOLATILE regime should increase learning rate (1.5x)."""
         calc = AdaptiveLearningRate(base_lr=0.05)
         
-        ctx_stable = PlasticityContext(
+        ctx_stable = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -146,7 +146,7 @@ class TestRegimeAdjustments:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_volatile = PlasticityContext(
+        ctx_volatile = SignalContext(
             regime=RegimeType.VOLATILE,
             noise_ratio=0.0,
             volatility=0.8,
@@ -166,7 +166,7 @@ class TestRegimeAdjustments:
         """NOISY regime should decrease learning rate (0.8x)."""
         calc = AdaptiveLearningRate(base_lr=0.05)
         
-        ctx_stable = PlasticityContext(
+        ctx_stable = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -175,7 +175,7 @@ class TestRegimeAdjustments:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_noisy = PlasticityContext(
+        ctx_noisy = SignalContext(
             regime=RegimeType.NOISY,
             noise_ratio=0.5,
             volatility=0.0,
@@ -199,7 +199,7 @@ class TestNoisePenalty:
         """Low noise (< 0.3) should not trigger penalty."""
         calc = AdaptiveLearningRate(base_lr=0.05)
         
-        ctx_clean = PlasticityContext(
+        ctx_clean = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.0,
@@ -208,7 +208,7 @@ class TestNoisePenalty:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_moderate = PlasticityContext(
+        ctx_moderate = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.25,
             volatility=0.0,
@@ -228,7 +228,7 @@ class TestNoisePenalty:
         """High noise (> 0.3) should trigger 50% penalty."""
         calc = AdaptiveLearningRate(base_lr=0.05, noise_penalty=0.5)
         
-        ctx_low_noise = PlasticityContext(
+        ctx_low_noise = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.2,
             volatility=0.0,
@@ -237,7 +237,7 @@ class TestNoisePenalty:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_high_noise = PlasticityContext(
+        ctx_high_noise = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.5,
             volatility=0.0,
@@ -261,7 +261,7 @@ class TestFailureStreakBoost:
         """Few failures (< threshold) should not trigger boost."""
         calc = AdaptiveLearningRate(base_lr=0.05, failure_threshold=5)
         
-        ctx_no_failures = PlasticityContext(
+        ctx_no_failures = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -270,7 +270,7 @@ class TestFailureStreakBoost:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_few_failures = PlasticityContext(
+        ctx_few_failures = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -290,7 +290,7 @@ class TestFailureStreakBoost:
         """Many failures (>= threshold) should trigger 2x boost."""
         calc = AdaptiveLearningRate(base_lr=0.05, failure_threshold=5, failure_boost=2.0)
         
-        ctx_no_failures = PlasticityContext(
+        ctx_no_failures = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -299,7 +299,7 @@ class TestFailureStreakBoost:
             error_magnitude=5.0,
             is_critical_zone=False,
         )
-        ctx_many_failures = PlasticityContext(
+        ctx_many_failures = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.0,
             volatility=0.0,
@@ -324,7 +324,7 @@ class TestSafetyLimits:
         calc = AdaptiveLearningRate(base_lr=0.05, lr_min=0.001)
         
         # Extreme conditions that would normally produce very low lr
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.NOISY,
             noise_ratio=0.9,
             volatility=0.0,
@@ -343,7 +343,7 @@ class TestSafetyLimits:
         calc = AdaptiveLearningRate(base_lr=0.05, lr_max=0.2)
         
         # Extreme conditions that would normally produce very high lr
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.VOLATILE,
             noise_ratio=0.0,
             volatility=1.0,
@@ -366,7 +366,7 @@ class TestSafetyLimits:
         random.seed(42)
         
         for _ in range(100):
-            ctx = PlasticityContext(
+            ctx = SignalContext(
                 regime=random.choice(list(RegimeType)),
                 noise_ratio=random.uniform(0, 1),
                 volatility=random.uniform(0, 1),
@@ -391,9 +391,9 @@ class TestBatchComputation:
         
         errors = [1.0, 5.0, 10.0]
         contexts = [
-            PlasticityContext.create_default(RegimeType.STABLE),
-            PlasticityContext.create_default(RegimeType.VOLATILE),
-            PlasticityContext.create_default(RegimeType.NOISY),
+            SignalContext.create_default(RegimeType.STABLE),
+            SignalContext.create_default(RegimeType.VOLATILE),
+            SignalContext.create_default(RegimeType.NOISY),
         ]
         
         lrs = calc.compute_batch_lr(errors, contexts)
@@ -406,7 +406,7 @@ class TestBatchComputation:
         calc = AdaptiveLearningRate()
         
         errors = [1.0, 5.0]
-        contexts = [PlasticityContext.create_default()]
+        contexts = [SignalContext.create_default()]
         
         with pytest.raises(ValueError, match="same length"):
             calc.compute_batch_lr(errors, contexts)

@@ -267,9 +267,9 @@ class PlasticityFeedbackLoop:
                 EnginePerception,
             )
             from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import (
-                PlasticityContext,
+                SignalContext,
             )
-            from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
+            from iot_machine_learning.domain.entities.plasticity.signal_context import (
                 RegimeType,
             )
             
@@ -295,10 +295,10 @@ class PlasticityFeedbackLoop:
             }
             regime_type = regime_map.get(regime, RegimeType.STABLE)
             
-            # Build PlasticityContext if we have context dict
+            # Build SignalContext if we have context dict
             plasticity_context = None
             if context:
-                plasticity_context = PlasticityContext(
+                plasticity_context = SignalContext(
                     regime=regime_type,
                     noise_ratio=context.get("noise_ratio", 0.3),
                     volatility=context.get("volatility", 0.5),
@@ -314,7 +314,7 @@ class PlasticityFeedbackLoop:
                 actual_value=actual_value,
                 last_regime=regime,
                 last_perceptions=engine_perceptions,
-                last_plasticity_context=plasticity_context,
+                last_signal_context=plasticity_context,
                 enable_advanced_plasticity=self._enable_advanced,
                 plasticity_coordinator=self._plasticity_coordinator,
                 plasticity_tracker=self._plasticity_tracker,

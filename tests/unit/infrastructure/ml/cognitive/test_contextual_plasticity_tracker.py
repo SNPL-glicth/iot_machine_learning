@@ -10,8 +10,8 @@ Validates:
 
 import pytest
 
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import (
-    PlasticityContext,
+from iot_machine_learning.domain.entities.plasticity.signal_context import (
+    SignalContext,
     RegimeType,
 )
 from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import (
@@ -57,7 +57,7 @@ class TestErrorRecording:
     def test_record_single_error(self) -> None:
         """Test recording a single error."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         tracker.record_error("sensor_1", "taylor", 5.0, ctx)
         
@@ -67,7 +67,7 @@ class TestErrorRecording:
     def test_record_multiple_errors_same_context(self) -> None:
         """Test recording multiple errors in same context."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         for i in range(10):
             tracker.record_error("sensor_1", "taylor", float(i), ctx)
@@ -79,7 +79,7 @@ class TestErrorRecording:
         """Test that different contexts are tracked separately."""
         tracker = ContextualPlasticityTracker()
         
-        ctx_stable = PlasticityContext(
+        ctx_stable = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -88,7 +88,7 @@ class TestErrorRecording:
             error_magnitude=1.0,
             is_critical_zone=False,
         )
-        ctx_volatile = PlasticityContext(
+        ctx_volatile = SignalContext(
             regime=RegimeType.VOLATILE,
             noise_ratio=0.1,
             volatility=0.8,
@@ -110,7 +110,7 @@ class TestErrorRecording:
     def test_negative_error_raises(self) -> None:
         """Test that negative errors raise ValueError."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default()
+        ctx = SignalContext.create_default()
         
         with pytest.raises(ValueError, match="error must be >= 0"):
             tracker.record_error("sensor_1", "taylor", -1.0, ctx)
@@ -122,7 +122,7 @@ class TestMAECalculation:
     def test_mae_with_sufficient_samples(self) -> None:
         """Test MAE calculation with enough samples."""
         tracker = ContextualPlasticityTracker(min_samples=3)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         # Record 5 errors: [2, 4, 6, 8, 10]
         for i in range(1, 6):
@@ -136,7 +136,7 @@ class TestMAECalculation:
     def test_mae_insufficient_samples_returns_none(self) -> None:
         """Test that MAE returns None with insufficient samples."""
         tracker = ContextualPlasticityTracker(min_samples=5)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         # Record only 3 errors (need 5)
         for i in range(3):
@@ -153,7 +153,7 @@ class TestWeightCalculation:
     def test_weights_with_sufficient_data(self) -> None:
         """Test weight calculation with enough data for all engines."""
         tracker = ContextualPlasticityTracker(min_samples=3, epsilon=0.1)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         # Engine A: MAE = 2.0
         for _ in range(5):
@@ -175,7 +175,7 @@ class TestWeightCalculation:
     def test_weights_insufficient_data_returns_none(self) -> None:
         """Test that weights return None if any engine lacks data."""
         tracker = ContextualPlasticityTracker(min_samples=5)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         # Engine A has enough data
         for _ in range(10):
@@ -197,7 +197,7 @@ class TestWindowSizeEnforcement:
     def test_window_size_limit(self) -> None:
         """Test that only last N errors are kept."""
         tracker = ContextualPlasticityTracker(window_size=10, min_samples=5)
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         # Record 20 errors
         for i in range(20):
@@ -215,7 +215,7 @@ class TestReset:
     def test_reset_all(self) -> None:
         """Test resetting all data."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         tracker.record_error("sensor_1", "taylor", 5.0, ctx)
         tracker.record_error("sensor_2", "baseline", 3.0, ctx)
@@ -228,7 +228,7 @@ class TestReset:
     def test_reset_specific_series(self) -> None:
         """Test resetting specific series."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         tracker.record_error("sensor_1", "taylor", 5.0, ctx)
         tracker.record_error("sensor_2", "baseline", 3.0, ctx)
@@ -241,7 +241,7 @@ class TestReset:
     def test_reset_specific_engine(self) -> None:
         """Test resetting specific engine in series."""
         tracker = ContextualPlasticityTracker()
-        ctx = PlasticityContext.create_default(RegimeType.STABLE)
+        ctx = SignalContext.create_default(RegimeType.STABLE)
         
         tracker.record_error("sensor_1", "taylor", 5.0, ctx)
         tracker.record_error("sensor_1", "baseline", 3.0, ctx)
@@ -259,7 +259,7 @@ class TestContextTracking:
         """Test retrieving all tracked contexts."""
         tracker = ContextualPlasticityTracker()
         
-        ctx1 = PlasticityContext(
+        ctx1 = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -268,7 +268,7 @@ class TestContextTracking:
             error_magnitude=1.0,
             is_critical_zone=False,
         )
-        ctx2 = PlasticityContext(
+        ctx2 = SignalContext(
             regime=RegimeType.VOLATILE,
             noise_ratio=0.1,
             volatility=0.8,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
-from ..entities.plasticity.plasticity_context import PlasticityContext
+from ..entities.plasticity.signal_context import SignalContext
 
 
 class PlasticityPort(ABC):
@@ -18,7 +18,7 @@ class PlasticityPort(ABC):
         self,
         regime: str,
         engine_names: List[str],
-        context: Optional[PlasticityContext] = None,
+        context: Optional[SignalContext] = None,
     ) -> Dict[str, float]:
         """Return normalized weights for the given engines in this regime.
 
@@ -39,7 +39,7 @@ class PlasticityPort(ABC):
         engine_name: str,
         error: float,
         regime: str,
-        context: Optional[PlasticityContext] = None,
+        context: Optional[SignalContext] = None,
     ) -> None:
         """Record a prediction error for an engine in a regime.
 

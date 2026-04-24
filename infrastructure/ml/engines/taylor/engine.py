@@ -36,6 +36,9 @@ from .polynomial import project
 from .coefficient_cache import TaylorCoefficientCache
 from .performance_tracker import TaylorPerformanceTracker
 from .gap_detector import TemporalGapDetector
+from iot_machine_learning.infrastructure.ml.cognitive.hyperparameters import (
+    HyperparameterAdaptor,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,7 @@ class TaylorPredictionEngine(PredictionEngine):
         enable_tracking: bool = True,
         enable_gap_detection: bool = True,
         series_id: Optional[str] = None,
+        hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
     ) -> None:
         if horizon < 1:
             raise ValueError(f"horizon debe ser >= 1, recibido {horizon}")
@@ -84,6 +88,8 @@ class TaylorPredictionEngine(PredictionEngine):
         self._max_confidence = max_confidence
         self._clamp_margin_pct = clamp_margin_pct
         self._series_id = series_id
+        # IMP-4c: sole source of truth for per-series hyperparameters.
+        self._hyperparams = hyperparameter_adaptor
         
         # FASE 2: Coefficient cache
         self._cache = TaylorCoefficientCache(ttl_seconds=cache_ttl_seconds) if enable_cache else None
@@ -112,6 +118,8 @@ class TaylorPredictionEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        # IMP-4c: refresh per-series hyperparameters before each predict().
+        self._load_hyperparams(window_size=len(values))
         validate_window(values, min_size=1)
         n = len(values)
         
@@ -240,7 +248,34 @@ class TaylorPredictionEngine(PredictionEngine):
             )
 
     # -- private helpers --------------------------------------------------
-    
+
+    def _load_hyperparams(self, window_size: int) -> None:
+        """Load adaptive hyperparameters from the HyperparameterAdaptor.
+
+        Redis is the sole source of truth (IMP-4c). When the adaptor is
+        inert or the series has no stored params, the engine keeps its
+        hardcoded defaults.
+        """
+        if self._hyperparams is None or not self._series_id:
+            return
+        params = self._hyperparams.load(self._series_id, self.name)
+        if not params:
+            return
+        order_raw = params.get("order")
+        if order_raw is not None:
+            try:
+                new_order = int(order_raw)
+            except (TypeError, ValueError):
+                new_order = self._order
+            self._order = max(1, min(new_order, 3))
+        logger.debug(
+            "hyperparams_loaded series=%s engine=%s order=%d window=%d",
+            self._series_id,
+            self.name,
+            self._order,
+            window_size,
+        )
+
     def _compute_coefficients(self, values: List[float], dt: float):
         """Compute Taylor coefficients with variance check (CRIT-4)."""
         variance = self._compute_variance(values)

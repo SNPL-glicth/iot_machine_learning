@@ -20,11 +20,17 @@ from iot_machine_learning.domain.value_objects.plasticity_scope import Plasticit
 from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
 from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
 
+from ..error_store import EngineErrorStore
 from .constants import _PERSIST_EVERY_N_UPDATES, WeightTrackerConfig
 from .redis_client import WeightTrackerRedisClient
 from .persistence import WeightTrackerPersistence
 from .checkpoint import WeightTrackerCheckpoint
 from .weight_calculator import compute_weights_from_accuracy
+
+_ERROR_STORE_PERCENTILE: float = 99.0
+_ERROR_STORE_CAP_MULTIPLIER: float = 3.0
+_ERROR_STORE_MIN_SAMPLES: int = 10
+_PERCENTILE_SAMPLE_SIZE: int = 100
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,7 @@ class BayesianWeightTracker:
         scope: Optional[PlasticityScope] = None,
         immediate_persist_threshold: float = 0.15,
         domain_namespace: str = "default",
+        error_store: Optional[EngineErrorStore] = None,
     ) -> None:
         self._config = WeightTrackerConfig(
             alpha=alpha, min_weight=min_weight, max_regimes=max_regimes,
@@ -52,7 +59,8 @@ class BayesianWeightTracker:
         )
         self._scope = scope
         self._domain_namespace = domain_namespace
-        
+        self._error_store = error_store
+
         # Core state
         self._accuracy: Dict[str, Dict[str, float]] = defaultdict(dict)
         self._priors: Dict[str, Dict[str, GaussianPrior]] = defaultdict(dict)
@@ -60,7 +68,10 @@ class BayesianWeightTracker:
         self._regime_last_access: Dict[str, float] = {}
         self._regime_last_update: Dict[str, float] = {}
         self._update_counter = 0
-        self._error_history: Dict[str, List[float]] = defaultdict(list)  # S7 fix
+        # Legacy in-memory error history. Only populated when no
+        # ``error_store`` was injected; when a store is present it owns
+        # the data and the local dict stays empty (IMP-4a).
+        self._error_history: Dict[str, List[float]] = defaultdict(list)
         
         # Components
         self._persistence = WeightTrackerPersistence(repository)
@@ -76,50 +87,93 @@ class BayesianWeightTracker:
         self,
         prediction_error: float,
         regime: str,
+        series_id: Optional[str] = None,
+        engine_name: Optional[str] = None,
     ) -> float:
-        """
-        Compute accuracy from prediction error.
+        """Compute accuracy from prediction error.
 
-        Caps error at 99th percentile of historical errors to prevent
-        a single spike from permanently destroying engine weights.
-        See ROBUSTNESS_AUDIT.md S7.
+        Caps the error at the 99th percentile of the relevant history
+        times a safety multiplier, so a single outlier cannot destroy
+        engine weights (ROBUSTNESS_AUDIT.md S7).
+
+        IMP-4a: when an :class:`EngineErrorStore` is injected together
+        with both ``series_id`` and ``engine_name`` the cap is computed
+        from the store's history. The local ``_error_history`` dict is
+        left untouched in that mode — the store is the single source
+        of truth. Legacy callers (no store or missing identifiers) fall
+        back to the previous per-regime list.
         """
         abs_error = abs(prediction_error)
 
-        # Cap error usando historial del régimen si hay suficiente historia
+        if (
+            self._error_store is not None
+            and series_id is not None
+            and engine_name is not None
+        ):
+            recent = self._error_store.get_recent(
+                series_id, engine_name, _PERCENTILE_SAMPLE_SIZE
+            )
+            if len(recent) >= _ERROR_STORE_MIN_SAMPLES:
+                cap = self._error_store.get_percentile(
+                    series_id, engine_name, _ERROR_STORE_PERCENTILE
+                ) * _ERROR_STORE_CAP_MULTIPLIER
+                if cap > 0.0:
+                    abs_error = min(abs_error, cap)
+            return 1.0 / (1.0 + abs_error)
+
+        # Legacy per-regime history (no store injected)
         history = self._error_history.get(regime, [])
-        if len(history) >= 10:
-            cap = float(np.percentile(history, 99)) * 3.0
+        if len(history) >= _ERROR_STORE_MIN_SAMPLES:
+            cap = float(np.percentile(history, _ERROR_STORE_PERCENTILE)) * _ERROR_STORE_CAP_MULTIPLIER
             abs_error = min(abs_error, cap)
 
-        # Registrar error en historial (máximo 100 por régimen)
         if regime not in self._error_history:
             self._error_history[regime] = []
         self._error_history[regime].append(abs_error)
-        if len(self._error_history[regime]) > 100:
+        if len(self._error_history[regime]) > _PERCENTILE_SAMPLE_SIZE:
             self._error_history[regime].pop(0)
 
         return 1.0 / (1.0 + abs_error)
 
-    def update(self, regime: str, engine_name: str, prediction_error: float, alpha: Optional[float] = None) -> None:
-        """Record a prediction outcome."""
+    def update(
+        self,
+        regime: str,
+        engine_name: str,
+        prediction_error: float,
+        alpha: Optional[float] = None,
+        *,
+        series_id: Optional[str] = None,
+    ) -> None:
+        """Record a prediction outcome.
+
+        Args:
+            regime: Signal regime label.
+            engine_name: Prediction engine identifier.
+            prediction_error: ``abs(predicted - actual)``.
+            alpha: Optional override for the Bayesian learning rate.
+            series_id: Optional series identifier. When supplied together
+                with an injected :class:`EngineErrorStore`, the error is
+                read from the store for percentile capping (IMP-4a).
+        """
         # Add domain namespace to regime key
         namespaced_regime = f"{self._domain_namespace}:{regime}"
-        
+
         # LRU eviction
         if namespaced_regime not in self._accuracy and len(self._accuracy) >= self._config.max_regimes:
             coldest = min(self._regime_last_access, key=self._regime_last_access.get)
             del self._accuracy[coldest]
             del self._regime_last_access[coldest]
             self._regime_last_update.pop(coldest, None)
-        
+
         now = time.monotonic()
         self._regime_last_access[namespaced_regime] = now
         self._regime_last_update[namespaced_regime] = now
-        
-        # Compute accuracy (S7 fix: capped error)
+
+        # Compute accuracy (S7 fix: capped error; IMP-4a: store-aware cap)
         effective_alpha = alpha if alpha is not None else self._config.get_regime_alpha(regime)
-        accuracy = self._compute_accuracy(prediction_error, regime)
+        accuracy = self._compute_accuracy(
+            prediction_error, regime, series_id=series_id, engine_name=engine_name
+        )
         previous_accuracy = self._accuracy[namespaced_regime].get(engine_name, 0.0)
         
         # Bayesian update

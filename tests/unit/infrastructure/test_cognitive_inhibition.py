@@ -12,6 +12,12 @@ from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
     EnginePerception,
     InhibitionState,
 )
+from iot_machine_learning.infrastructure.ml.cognitive.error_store import (
+    EngineErrorStore,
+)
+from iot_machine_learning.infrastructure.ml.cognitive.reliability import (
+    EngineReliabilityTracker,
+)
 
 
 def _perception(
@@ -100,4 +106,57 @@ class TestInhibitionConfig:
         perceptions = [_perception("a", stability=0.5)]
         weights = {"a": 0.5}
         states = gate.compute(perceptions, weights)
+        assert states[0].suppression_factor > 0.0
+
+
+class TestInhibitionViaReliability:
+    """IMP-4b: Beta-Bernoulli path overrides the legacy 3 rules."""
+
+    def _build(self, errors):
+        store = EngineErrorStore()
+        for e in errors:
+            store.record("s1", "a", e)
+        tracker = EngineReliabilityTracker(store)
+        gate = InhibitionGate(reliability_tracker=tracker)
+        return gate, tracker
+
+    def test_reliable_engine_passes_through_at_full_weight(self) -> None:
+        gate, tracker = self._build([1.0] * 20)
+        for _ in range(20):
+            tracker.record_outcome("s1", "a", 0.1)
+        # Intentionally extreme perception values \u2014 the 3 legacy rules
+        # would suppress. The reliability path must ignore them.
+        perceptions = [_perception("a", stability=0.99, fit_error=100.0)]
+        states = gate.compute(
+            perceptions,
+            {"a": 0.5},
+            recent_errors={"a": [100.0] * 10},
+            series_id="s1",
+        )
+        assert states[0].inhibited_weight == pytest.approx(0.5)
+        assert states[0].inhibition_reason == "none"
+        assert states[0].suppression_factor == 0.0
+
+    def test_unreliable_engine_is_hard_excluded(self) -> None:
+        gate, tracker = self._build([1.0] * 20)
+        for _ in range(200):
+            tracker.record_outcome("s1", "a", 99.0)
+        # Clean-looking perception \u2014 legacy rules would PASS. The
+        # reliability path must exclude because P(broken) > 0.95.
+        perceptions = [_perception("a", stability=0.0, fit_error=0.0)]
+        states = gate.compute(perceptions, {"a": 0.5}, series_id="s1")
+        assert states[0].inhibited_weight == 0.0
+        assert states[0].suppression_factor == 1.0
+        assert "unreliable" in states[0].inhibition_reason
+
+    def test_fresh_engine_is_reliable_by_default(self) -> None:
+        gate, _tracker = self._build([])
+        perceptions = [_perception("a")]
+        states = gate.compute(perceptions, {"a": 0.5}, series_id="new_series")
+        assert states[0].inhibited_weight == pytest.approx(0.5)
+
+    def test_legacy_path_still_works_without_tracker(self) -> None:
+        gate = InhibitionGate()  # no tracker
+        perceptions = [_perception("a", stability=0.9)]
+        states = gate.compute(perceptions, {"a": 0.5})
         assert states[0].suppression_factor > 0.0

@@ -11,7 +11,7 @@ from datetime import datetime
 
 from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import ContextualPlasticityTracker
 from iot_machine_learning.infrastructure.ml.cognitive.monitoring.engine_health_monitor import EngineHealthMonitor
-from iot_machine_learning.domain.entities.plasticity.plasticity_context import PlasticityContext, RegimeType
+from iot_machine_learning.domain.entities.plasticity.signal_context import SignalContext, RegimeType
 
 
 class TestContextualTrackerThreadSafety:
@@ -21,7 +21,7 @@ class TestContextualTrackerThreadSafety:
         """10 threads writing 100 errors each should result in ~50 (window limit)."""
         tracker = ContextualPlasticityTracker(window_size=50)
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -65,7 +65,7 @@ class TestContextualTrackerThreadSafety:
         """Mix of reads and writes should not deadlock."""
         tracker = ContextualPlasticityTracker()
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.VOLATILE,
             noise_ratio=0.3,
             volatility=0.7,
@@ -115,7 +115,7 @@ class TestContextualTrackerThreadSafety:
         """Concurrent resets should not crash."""
         tracker = ContextualPlasticityTracker()
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -274,7 +274,7 @@ class TestIntegratedThreadSafety:
         tracker = ContextualPlasticityTracker()
         monitor = EngineHealthMonitor(failure_threshold=10)
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -323,7 +323,7 @@ class TestPerformanceOverhead:
         """Measure baseline performance without contention."""
         tracker = ContextualPlasticityTracker()
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,
@@ -346,7 +346,7 @@ class TestPerformanceOverhead:
         """Measure performance with 10 threads (should be < 5x slower)."""
         tracker = ContextualPlasticityTracker()
         
-        ctx = PlasticityContext(
+        ctx = SignalContext(
             regime=RegimeType.STABLE,
             noise_ratio=0.1,
             volatility=0.2,

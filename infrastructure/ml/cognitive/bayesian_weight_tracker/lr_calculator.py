@@ -37,7 +37,7 @@ def get_regime_factor(regime: RegimeType) -> float:
 
 def compute_learning_rate(
     error: float,
-    context: PlasticityContext,
+    context: SignalContext,
     base_lr: float,
     lr_min: float,
     lr_max: float,

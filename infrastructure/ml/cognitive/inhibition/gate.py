@@ -1,23 +1,21 @@
-"""Neural-inspired inhibition gate for engine weight suppression.
+"""Inhibition gate for engine weight suppression.
 
-Analogous to lateral inhibition in the brain: if an engine shows
-signs of unreliability (high instability, high fit error, excessive
-recent prediction error), its weight is suppressed toward zero.
+IMP-4b: the authoritative decision is taken from an
+:class:`EngineReliabilityTracker` Beta-Bernoulli posterior when one is
+injected. ``is_reliable(engine, series) == False`` → the engine's
+inhibited weight is driven to ``0.0`` (hard exclusion, not min_weight).
 
-The suppression is *temporary* — once the engine's diagnostics
-improve, its weight recovers.  This prevents a single noisy engine
-from corrupting the fused prediction.
-
-Suppression rules (applied multiplicatively):
-    1. Instability suppression: stability > threshold → suppress
-    2. Fit error suppression: local_fit_error > threshold → suppress
-    3. Recent error suppression: mean |error| > threshold → suppress
+The legacy path (three hardcoded thresholds on stability, fit error and
+recent error) is kept **only for backward compatibility** with callers
+that do not yet inject a reliability tracker. It will be deleted in a
+subsequent cleanup once all call sites are wired.
 
 Pure logic — no I/O, no persistence.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from collections import OrderedDict
@@ -25,6 +23,9 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from ..analysis.types import EnginePerception, InhibitionState
+from ..reliability import EngineReliabilityTracker
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -59,11 +60,17 @@ class InhibitionGate:
     returns inhibition states.
     """
 
-    def __init__(self, config: Optional[InhibitionConfig] = None, max_entries: int = 10000) -> None:
+    def __init__(
+        self,
+        config: Optional[InhibitionConfig] = None,
+        max_entries: int = 10000,
+        reliability_tracker: Optional[EngineReliabilityTracker] = None,
+    ) -> None:
         self._cfg = config or InhibitionConfig()
         self._prev_suppression: OrderedDict[Tuple[str, str], float] = OrderedDict()
         self._last_update: Dict[Tuple[str, str], float] = {}
         self._max_entries = max_entries
+        self._reliability = reliability_tracker
 
     def compute(
         self,
@@ -75,6 +82,11 @@ class InhibitionGate:
     ) -> List[InhibitionState]:
         """Apply inhibition rules to each engine's weight.
 
+        IMP-4b: when a reliability tracker is injected it is the sole
+        authority. Engines for which ``is_reliable`` returns ``False``
+        are driven to ``inhibited_weight = 0.0``. Otherwise the base
+        weight is passed through unchanged.
+
         Args:
             perceptions: Each engine's perception from current step.
             base_weights: Pre-inhibition weights per engine name.
@@ -85,6 +97,11 @@ class InhibitionGate:
         Returns:
             List of InhibitionState, one per perception.
         """
+        if self._reliability is not None:
+            return self._compute_via_reliability(
+                perceptions, base_weights, series_id or "_default"
+            )
+
         errors = recent_errors or {}
         states: List[InhibitionState] = []
         now = time.monotonic()
@@ -195,4 +212,39 @@ class InhibitionGate:
                 suppression_factor=smoothed_suppression,
             ))
 
+        return states
+
+    def _compute_via_reliability(
+        self,
+        perceptions: List[EnginePerception],
+        base_weights: Dict[str, float],
+        series_id: str,
+    ) -> List[InhibitionState]:
+        """IMP-4b path: Beta-Bernoulli reliability drives inhibition.
+
+        A reliable engine passes through at its base weight with
+        ``suppression_factor=0``. An unreliable engine is hard-excluded
+        with ``inhibited_weight=0.0`` and ``suppression_factor=1.0``.
+        """
+        states: List[InhibitionState] = []
+        for p in perceptions:
+            bw = base_weights.get(p.engine_name, 0.0)
+            reliable = self._reliability.is_reliable(series_id, p.engine_name)
+            if reliable:
+                states.append(InhibitionState(
+                    engine_name=p.engine_name,
+                    base_weight=bw,
+                    inhibited_weight=bw,
+                    inhibition_reason="none",
+                    suppression_factor=0.0,
+                ))
+            else:
+                p_broken = self._reliability.p_broken(series_id, p.engine_name)
+                states.append(InhibitionState(
+                    engine_name=p.engine_name,
+                    base_weight=bw,
+                    inhibited_weight=0.0,
+                    inhibition_reason=f"unreliable p_broken={p_broken:.3f}",
+                    suppression_factor=1.0,
+                ))
         return states

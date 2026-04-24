@@ -63,8 +63,8 @@ class AdvancedBayesianCoordinator:
         """True if any plasticity data exists."""
         return self._legacy_tracker.has_history(regime) if self._legacy_tracker else False
 
-    def create_plasticity_context(self, profile, series_id: str):
-        """Create PlasticityContext from signal profile."""
+    def create_signal_context(self, profile, series_id: str):
+        """Create SignalContext from signal profile."""
         return build_plasticity_context(profile, series_id)
 
     def record_actual_advanced(

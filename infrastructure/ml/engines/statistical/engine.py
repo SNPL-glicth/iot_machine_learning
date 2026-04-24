@@ -26,6 +26,9 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,
     PredictionResult,
 )
+from iot_machine_learning.infrastructure.ml.cognitive.hyperparameters import (
+    HyperparameterAdaptor,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,7 @@ class StatisticalPredictionEngine(PredictionEngine):
         horizon: int = 1,
         series_id: Optional[str] = None,
         enable_optimization: bool = True,
+        hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
     ) -> None:
         if not 0.0 < alpha <= 1.0:
             raise ValueError(f"alpha must be in (0, 1], got {alpha}")
@@ -104,34 +108,19 @@ class StatisticalPredictionEngine(PredictionEngine):
             raise ValueError(f"beta must be in [0, 1], got {beta}")
         if horizon < 1:
             raise ValueError(f"horizon must be >= 1, got {horizon}")
-        
+
         self._series_id = series_id
         self._enable_optimization = enable_optimization
         self._prediction_history: Deque[float] = deque(maxlen=100)
         self._prediction_count = 0
         self._current_mae = 999.0
-        
-        # Try to load optimized params from DB
-        if series_id and enable_optimization:
-            loaded = self._load_params(series_id)
-            if loaded:
-                self._alpha, self._beta, self._current_mae = loaded
-                logger.info(
-                    "statistical_params_loaded_from_db",
-                    extra={
-                        "series_id": series_id,
-                        "alpha": self._alpha,
-                        "beta": self._beta,
-                        "mae": round(self._current_mae, 4),
-                    },
-                )
-            else:
-                self._alpha = alpha
-                self._beta = beta
-        else:
-            self._alpha = alpha
-            self._beta = beta
-        
+
+        # IMP-4c: HyperparameterAdaptor is the sole source of truth.
+        # StatisticalParamsRepository coexistence was dropped.
+        self._hyperparams = hyperparameter_adaptor
+
+        self._alpha = alpha
+        self._beta = beta
         self._horizon = horizon
 
     @property
@@ -148,6 +137,9 @@ class StatisticalPredictionEngine(PredictionEngine):
     ) -> PredictionResult:
         if not values:
             raise ValueError("values cannot be empty")
+
+        # IMP-4c: refresh per-series hyperparameters before each predict().
+        self._load_hyperparams(window_size=len(values))
 
         n = len(values)
         if not self.can_handle(n):
@@ -220,63 +212,86 @@ class StatisticalPredictionEngine(PredictionEngine):
             self._reoptimize()
             self._prediction_count = 0
     
-    def _load_params(self, series_id: str) -> Optional[tuple[float, float, float]]:
-        """Load parameters from DB.
-        
-        Args:
-            series_id: Series identifier
-            
-        Returns:
-            Tuple of (alpha, beta, mae) or None
+    def _load_hyperparams(self, window_size: int) -> None:
+        """Load adaptive alpha/beta from the HyperparameterAdaptor (IMP-4c).
+
+        Redis is the sole source of truth. When the adaptor is inert or
+        the series has no stored params, the engine keeps the defaults
+        configured at construction time.
         """
-        try:
-            from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.statistical_params_repository import (
-                StatisticalParamsRepository,
-            )
-            repo = StatisticalParamsRepository()
-            return repo.load_params(series_id)
-        except Exception as exc:
-            logger.warning(
-                "statistical_params_load_failed",
-                extra={"series_id": series_id, "error": str(exc)},
-            )
-            return None
-    
+        if self._hyperparams is None or not self._series_id:
+            return
+        params = self._hyperparams.load(self._series_id, self.name)
+        if not params:
+            return
+        alpha_raw = params.get("alpha")
+        beta_raw = params.get("beta")
+        mae_raw = params.get("mae")
+        if alpha_raw is not None:
+            try:
+                a = float(alpha_raw)
+                if 0.0 < a <= 1.0:
+                    self._alpha = a
+            except (TypeError, ValueError):
+                pass
+        if beta_raw is not None:
+            try:
+                b = float(beta_raw)
+                if 0.0 <= b <= 1.0:
+                    self._beta = b
+            except (TypeError, ValueError):
+                pass
+        if mae_raw is not None:
+            try:
+                self._current_mae = float(mae_raw)
+            except (TypeError, ValueError):
+                pass
+        logger.debug(
+            "hyperparams_loaded series=%s engine=%s alpha=%.4f beta=%.4f window=%d",
+            self._series_id,
+            self.name,
+            self._alpha,
+            self._beta,
+            window_size,
+        )
+
     def _reoptimize(self) -> None:
-        """Re-optimize parameters if MAE improves > 5%."""
+        """Re-optimize parameters if MAE improves > 5%% (IMP-4c).
+
+        Persists new params via the HyperparameterAdaptor (Redis). When
+        no adaptor is configured the re-optimization is skipped — the
+        engine simply keeps its current in-memory params.
+        """
         if not self._series_id:
             return
-        
+
         try:
             from iot_machine_learning.infrastructure.ml.engines.statistical.param_optimizer import (
                 StatisticalParamOptimizer,
             )
-            from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.statistical_params_repository import (
-                StatisticalParamsRepository,
-            )
-            
+
             optimizer = StatisticalParamOptimizer()
             values = list(self._prediction_history)
-            
+
             new_alpha, new_beta, new_mae = optimizer.optimize(values)
-            
-            # Only update if MAE improves > 5%
+
             improvement = (self._current_mae - new_mae) / self._current_mae
             if improvement > 0.05:
                 self._alpha = new_alpha
                 self._beta = new_beta
                 self._current_mae = new_mae
-                
-                # Persist to DB
-                repo = StatisticalParamsRepository()
-                repo.save_params(
-                    series_id=self._series_id,
-                    alpha=new_alpha,
-                    beta=new_beta,
-                    mae=new_mae,
-                    n_samples=len(values),
-                )
-                
+
+                if self._hyperparams is not None:
+                    self._hyperparams.save(
+                        self._series_id,
+                        self.name,
+                        {
+                            "alpha": new_alpha,
+                            "beta": new_beta,
+                            "mae": new_mae,
+                        },
+                    )
+
                 logger.info(
                     "statistical_params_reoptimized",
                     extra={

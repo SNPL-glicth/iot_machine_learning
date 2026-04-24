@@ -58,7 +58,7 @@ class PerceivePhase:
         # Create plasticity context if enabled
         plasticity_context = None
         if orchestrator._enable_advanced_plasticity and orchestrator._plasticity_coordinator:
-            plasticity_context = orchestrator._plasticity_coordinator.create_plasticity_context(
+            plasticity_context = orchestrator._plasticity_coordinator.create_signal_context(
                 profile, ctx.series_id
             )
         

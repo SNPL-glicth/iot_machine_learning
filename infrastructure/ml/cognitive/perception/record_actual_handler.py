@@ -25,17 +25,22 @@ def record_actual_legacy(
     plasticity_tracker,
     storage,
     series_id: Optional[str],
+    reliability_tracker=None,
 ) -> None:
-    """Legacy plasticity path: direct error tracking.
+    """Direct error tracking path.
 
     Args:
         actual_value: True observed value.
         perceptions: List of EnginePerception from last predict().
         regime: Signal regime string from last predict().
         error_history: ErrorHistoryManager instance (CRIT-1 fix: series-scoped).
-        plasticity_tracker: Optional PlasticityTracker instance.
+        plasticity_tracker: Optional BayesianWeightTracker instance.
         storage: Optional storage adapter for recording errors.
         series_id: Optional series identifier for storage.
+        reliability_tracker: Optional :class:`EngineReliabilityTracker`
+            (IMP-4b). When provided, each outcome updates the Beta
+            posterior so :meth:`is_reliable` reflects the latest
+            evidence by the next ``predict()``.
     """
     for p in perceptions:
         error = abs(p.predicted_value - actual_value)
@@ -44,7 +49,12 @@ def record_actual_legacy(
             error_history.record_error(series_id, p.engine_name, error)
 
         if plasticity_tracker is not None:
-            plasticity_tracker.update(regime, p.engine_name, error)
+            plasticity_tracker.update(
+                regime, p.engine_name, error, series_id=series_id
+            )
+
+        if reliability_tracker is not None and series_id is not None:
+            reliability_tracker.record_outcome(series_id, p.engine_name, error)
 
         if storage and series_id:
             storage.record_prediction_error(
@@ -59,7 +69,7 @@ def record_actual_dispatch(
     actual_value: float,
     last_regime: Optional[str],
     last_perceptions: List,
-    last_plasticity_context,
+    last_signal_context,
     enable_advanced_plasticity: bool,
     plasticity_coordinator,
     plasticity_tracker,
@@ -67,6 +77,7 @@ def record_actual_dispatch(
     storage,
     series_id: Optional[str],
     series_context,
+    reliability_tracker=None,
 ) -> None:
     """Dispatch record_actual to the appropriate plasticity path.
 
@@ -77,7 +88,7 @@ def record_actual_dispatch(
         actual_value: True observed value.
         last_regime: Regime string from last predict() call.
         last_perceptions: Perceptions from last predict() call.
-        last_plasticity_context: PlasticityContext from last predict() call.
+        last_signal_context: SignalContext from last predict() call.
         enable_advanced_plasticity: Whether advanced plasticity is active.
         plasticity_coordinator: AdvancedPlasticityCoordinator or None.
         plasticity_tracker: PlasticityTracker or None.
@@ -91,13 +102,13 @@ def record_actual_dispatch(
 
     if (
         enable_advanced_plasticity
-        and last_plasticity_context is not None
+        and last_signal_context is not None
         and plasticity_coordinator is not None
     ):
         plasticity_coordinator.record_actual_advanced(
             actual_value=actual_value,
             perceptions=last_perceptions,
-            plasticity_context=last_plasticity_context,
+            plasticity_context=last_signal_context,
             regime=last_regime,
             series_id=series_id,
             series_context=series_context,
@@ -113,4 +124,5 @@ def record_actual_dispatch(
             plasticity_tracker=plasticity_tracker,
             storage=storage,
             series_id=series_id,
+            reliability_tracker=reliability_tracker,
         )
