@@ -1,0 +1,32 @@
+{
+  "description": "Keywords para clasificación de intención",
+  "version": "1.0",
+  "conversational": [
+    "hola", "buenos días", "buenas tardes", "buenas noches",
+    "gracias", "ok", "bien", "todo bien", "qué tal", "cómo estás",
+    "puedes", "ayuda", "explica", "cómo", "qué significa",
+    "adiós", "hasta luego", "chao"
+  ],
+  "analysis": [
+    "incidente", "alerta", "warning", "critical", "crítico",
+    "infrastructure", "operations", "escalada", "anomalía",
+    "fallo", "error", "falla", "problema",
+    "temperatura", "presión", "voltaje", "corriente", "vibración",
+    "análisis", "revisar", "reporte"
+  ],
+  "metrics": [
+    "último", "últimas", "ayer", "hoy", "semana",
+    "historial", "cuántas", "cuántos", "promedio", "tendencia",
+    "métricas", "estadísticas", "datos", "valor", "medición"
+  ],
+  "command": [
+    "reinicia", "reiniciar", "detén", "detener", "para",
+    "activa", "activar", "desactiva", "desactivar",
+    "configura", "configurar", "exporta", "exportar",
+    "limpia", "limpiar", "reset", "borrar"
+  ],
+  "thresholds": {
+    "max_short": 120,
+    "min_long": 200
+  }
+}

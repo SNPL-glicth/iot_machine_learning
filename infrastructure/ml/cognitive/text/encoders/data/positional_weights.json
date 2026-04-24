@@ -1,0 +1,14 @@
+{
+  "description": "Configuración de pesos posicionales",
+  "version": "1.0",
+  "start_ratio": 0.2,
+  "end_ratio": 0.2,
+  "start_weight": 1.5,
+  "middle_weight": 1.0,
+  "end_weight": 1.3,
+  "length_thresholds": {
+    "short": 50,
+    "medium": 200,
+    "long": 1000
+  }
+}
