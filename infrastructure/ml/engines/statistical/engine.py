@@ -113,6 +113,7 @@ class StatisticalPredictionEngine(PredictionEngine):
         self._enable_optimization = enable_optimization
         self._prediction_history: Deque[float] = deque(maxlen=100)
         self._prediction_count = 0
+        self._needs_reoptimization = False
         self._current_mae = 999.0
 
         # IMP-4c: HyperparameterAdaptor is the sole source of truth.
@@ -196,21 +197,36 @@ class StatisticalPredictionEngine(PredictionEngine):
     
     def record_actual(self, predicted: float, actual: float) -> None:
         """Record actual value for re-optimization.
-        
+
+        Does NOT trigger re-optimization — caller must invoke
+        ``optimize()`` at a safe moment (e.g., between requests).
+
         Args:
             predicted: Predicted value
             actual: Actual observed value
         """
         if not self._enable_optimization:
             return
-        
+
         self._prediction_history.append(actual)
         self._prediction_count += 1
-        
-        # Re-optimize after 50 predictions
+
+        # Defer re-optimization to external optimize() call
         if self._prediction_count >= 50 and len(self._prediction_history) >= 20:
-            self._reoptimize()
-            self._prediction_count = 0
+            self._needs_reoptimization = True
+
+    def optimize(self) -> None:
+        """Trigger deferred re-optimization if threshold was reached.
+
+        Safe to call from orchestrator between requests — fully
+        externalizes the mutable-state write that was inside
+        ``record_actual()``.
+        """
+        if not self._needs_reoptimization:
+            return
+        self._reoptimize()
+        self._needs_reoptimization = False
+        self._prediction_count = 0
     
     def _load_hyperparams(self, window_size: int) -> None:
         """Load adaptive alpha/beta from the HyperparameterAdaptor (IMP-4c).

@@ -262,11 +262,30 @@ class TestTextPerceptionCollector:
 
     def test_pattern_unavailable_returns_default(self):
         collector = TextPerceptionCollector()
-        inp = _make_input(pattern_available=False)
+        inp = _make_input(
+            pattern_available=False,
+            readability_sentences=[],
+        )
         perceptions = collector.collect(inp)
         pattern_p = perceptions[4]
         assert pattern_p.predicted_value == 0.5
         assert pattern_p.confidence == 0.3
+
+    def test_pattern_computed_on_the_fly_when_sentences_present(self):
+        collector = TextPerceptionCollector()
+        inp = _make_input(
+            pattern_available=False,
+            readability_sentences=[
+                "El sistema funciona correctamente.",
+                "Se detecto una alerta menor.",
+                "Error critico en el modulo principal.",
+            ],
+        )
+        perceptions = collector.collect(inp)
+        pattern_p = perceptions[4]
+        assert pattern_p.metadata["available"] is True
+        assert pattern_p.predicted_value >= 0.0
+        assert pattern_p.confidence > 0.3
 
     def test_default_weights_sum_to_one(self):
         total = sum(DEFAULT_TEXT_WEIGHTS.values())

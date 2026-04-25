@@ -1,9 +1,9 @@
 """Ensemble predictor — weighted combination of multiple engines.
 
-Components:
-    - EnsembleWeightedPredictor: Combines multiple PredictionPort engines with dynamic weights
+DEPRECATED: EnsembleWeightedPredictor moved to deprecated/.
+Use WeightedFusion + InhibitionGate instead.
 """
 
-from .predictor import EnsembleWeightedPredictor
+from ..deprecated.ensemble_predictor import EnsembleWeightedPredictor
 
 __all__ = ["EnsembleWeightedPredictor"]

@@ -17,8 +17,23 @@ Extensible vía ``extra`` dict en cada componente.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+import logging
+from dataclasses import dataclass, field, replace
+from types import MappingProxyType
+from typing import Any, Dict, Mapping, Optional
+
+logger = logging.getLogger(__name__)
+
+# IMP-5: allowed Outcome.kind values. Widen deliberately when a new
+# kind is introduced so tests/lint catch unintended strings.
+_ALLOWED_OUTCOME_KINDS: frozenset = frozenset({
+    "prediction",
+    "anomaly",
+    "prediction+anomaly",
+    "text_analysis",
+    "analysis",
+})
+_ALLOWED_TRENDS: frozenset = frozenset({"up", "down", "stable"})
 
 from .contribution_breakdown import ContributionBreakdown
 from .reasoning_trace import ReasoningTrace
@@ -49,7 +64,52 @@ class Outcome:
     trend: str = "stable"
     is_anomaly: bool = False
     anomaly_score: Optional[float] = None
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # IMP-5: constructor invariants.
+        if self.kind not in _ALLOWED_OUTCOME_KINDS:
+            raise ValueError(
+                f"Outcome.kind must be one of {sorted(_ALLOWED_OUTCOME_KINDS)}; got {self.kind!r}"
+            )
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(
+                f"Outcome.confidence must be in [0.0, 1.0]; got {self.confidence!r}"
+            )
+        if self.trend not in _ALLOWED_TRENDS:
+            raise ValueError(
+                f"Outcome.trend must be one of {sorted(_ALLOWED_TRENDS)}; got {self.trend!r}"
+            )
+        if self.anomaly_score is not None and not (0.0 <= self.anomaly_score <= 1.0):
+            raise ValueError(
+                f"Outcome.anomaly_score must be in [0.0, 1.0] or None; got {self.anomaly_score!r}"
+            )
+        if self.is_anomaly and self.anomaly_score is None:
+            logger.debug(
+                "outcome_is_anomaly_without_score",
+                extra={"kind": self.kind, "confidence": self.confidence},
+            )
+        # IMP-5: deep-freeze extra via MappingProxyType (read-only view over
+        # a defensive copy). Mutating the original dict after construction
+        # no longer leaks into the Outcome.
+        object.__setattr__(self, "extra", MappingProxyType(dict(self.extra)))
+
+    def with_extra(self, **kwargs: Any) -> "Outcome":
+        """Return a new Outcome with ``extra`` merged with ``kwargs``.
+
+        Kwargs override existing keys. The original Outcome is untouched.
+        """
+        merged = {**self.extra, **kwargs}
+        return replace(self, extra=merged)
+
+    def with_updates(self, **fields: Any) -> "Outcome":
+        """Return a new Outcome with the supplied fields replaced.
+
+        Thin wrapper around :func:`dataclasses.replace` kept for API
+        symmetry with :meth:`with_extra`. All constructor invariants
+        re-run on the new instance.
+        """
+        return replace(self, **fields)
 
     def to_dict(self) -> dict:
         d: dict = {

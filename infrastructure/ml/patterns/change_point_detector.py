@@ -49,6 +49,8 @@ class CUSUMDetector(ChangePointDetectionPort):
         threshold: Optional[float] = None,
         drift: Optional[float] = None,
         config: Optional[AnomalyDetectorConfig] = None,
+        *,
+        cooldown_periods: int = 5,
     ) -> None:
         """Initialize CUSUM detector.
         
@@ -79,9 +81,15 @@ class CUSUMDetector(ChangePointDetectionPort):
             raise ValueError(f"threshold debe ser > 0, recibido {effective_threshold}")
         if effective_drift < 0:
             raise ValueError(f"drift debe ser >= 0, recibido {effective_drift}")
+        if cooldown_periods < 0:
+            raise ValueError(
+                f"cooldown_periods debe ser >= 0, recibido {cooldown_periods}"
+            )
 
         self._threshold = effective_threshold
         self._drift = effective_drift
+        self._cooldown_periods = cooldown_periods
+        self._cooldown_remaining = 0
 
         # Estado online
         self._cumsum_pos: float = 0.0
@@ -99,6 +107,11 @@ class CUSUMDetector(ChangePointDetectionPort):
             ``ChangePoint`` si se detectó cambio, ``None`` si no.
         """
         self._n_seen += 1
+
+        # Cooldown: suppress detections after a recent change point
+        if self._cooldown_remaining > 0:
+            self._cooldown_remaining -= 1
+            return None
 
         if self._baseline_mean is None:
             self._baseline_mean = value
@@ -120,6 +133,7 @@ class CUSUMDetector(ChangePointDetectionPort):
             self._cumsum_pos = 0.0
             self._cumsum_neg = 0.0
             self._baseline_mean = value
+            self._cooldown_remaining = self._cooldown_periods
 
             logger.info(
                 "cusum_change_detected",
@@ -149,6 +163,7 @@ class CUSUMDetector(ChangePointDetectionPort):
             self._cumsum_neg = 0.0
             self._cumsum_pos = 0.0
             self._baseline_mean = value
+            self._cooldown_remaining = self._cooldown_periods
 
             logger.info(
                 "cusum_change_detected",
@@ -243,6 +258,7 @@ class CUSUMDetector(ChangePointDetectionPort):
         self._cumsum_neg = 0.0
         self._baseline_mean = None
         self._n_seen = 0
+        self._cooldown_remaining = 0
 
 
 class PELTDetector(ChangePointDetectionPort):

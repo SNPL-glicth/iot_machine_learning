@@ -1,5 +1,18 @@
 """Motor de predicción ensemble con pesos dinámicos.
 
+.. deprecated::
+    This class is never instantiated in production.
+    select_engine_for_series() recommends it for
+    high-volatility series but EngineFactory does not
+    register it, so the factory silently falls back to
+    BaselineMovingAverageEngine.
+    Scheduled for deletion after one of:
+      a) A proper high-volatility engine is registered
+         in EngineFactory, OR
+      b) select_engine_for_series() is updated to
+         recommend an existing registered engine.
+    Do not add new callers. Do not extend this class.
+
 Combina múltiples motores de predicción (Taylor, Baseline, etc.)
 usando weighted average con auto-tuning de pesos basado en error reciente.
 
@@ -26,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 from collections import deque
 from typing import Deque, Dict, List, Optional
 
@@ -208,8 +222,26 @@ class EnsembleWeightedPredictor(PredictionPort):
         ]
 
         if not valid_indices:
-            raise RuntimeError(
-                f"Todos los engines fallaron para serie {window.sensor_id}"
+            warnings.warn(
+                "EnsembleWeightedPredictor is deprecated and will "
+                "be removed. Use MetaCognitiveOrchestrator instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            logger.warning(
+                "ensemble_all_engines_failed",
+                extra={"series_id": self._series_id},
+            )
+            return Prediction(
+                series_id=str(window.sensor_id),
+                predicted_value=0.0,
+                confidence_score=0.0,
+                trend="stable",
+                engine_name="ensemble_weighted",
+                metadata={
+                    "is_ensemble_fallback": True,
+                    "reason": "all_engines_failed",
+                },
             )
 
         valid_preds = [predictions[i] for i in valid_indices]

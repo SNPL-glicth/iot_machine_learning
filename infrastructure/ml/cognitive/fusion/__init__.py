@@ -9,11 +9,14 @@ Components:
 """
 
 from .engine_selector import WeightedFusion
+from .hampel_filter import HampelResult, hampel_filter
 from .weight_mediator import WeightMediator
 from .weight_adjustment_service import WeightAdjustmentService
 
 __all__ = [
+    "HampelResult",
     "WeightedFusion",
     "WeightMediator",
     "WeightAdjustmentService",
+    "hampel_filter",
 ]

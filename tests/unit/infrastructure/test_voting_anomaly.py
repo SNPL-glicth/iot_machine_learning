@@ -24,13 +24,13 @@ from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
 )
 
 
-def _make_window(sensor_id: int, values: list[float]) -> SensorWindow:
+def _make_window(series_id: str, values: list[float]) -> SensorWindow:
     """Helper para crear SensorWindow desde lista de valores."""
     readings = [
-        SensorReading(sensor_id=sensor_id, value=v, timestamp=float(i))
+        SensorReading(series_id=series_id, value=v, timestamp=float(i))
         for i, v in enumerate(values)
     ]
-    return SensorWindow(sensor_id=sensor_id, readings=readings)
+    return SensorWindow(series_id=series_id, readings=readings)
 
 
 class TestVotingDetection:
@@ -50,7 +50,7 @@ class TestVotingDetection:
 
     def test_normal_value_not_anomaly(self) -> None:
         """Valor dentro del rango normal → no anomalía."""
-        window = _make_window(1, [20.0, 20.1, 19.9, 20.2, 20.5])
+        window = _make_window("1", [20.0, 20.1, 19.9, 20.2, 20.5])
         result = self.detector.detect(window)
 
         assert result.is_anomaly is False
@@ -77,7 +77,7 @@ class TestVotingDetection:
         )
         detector.train([20.0 + random.gauss(0, 1.0) for _ in range(200)])
 
-        window = _make_window(1, [20.0, 20.1, 19.9, 20.2, 50.0])
+        window = _make_window("1", [20.0, 20.1, 19.9, 20.2, 50.0])
         result = detector.detect(window)
 
         assert result.is_anomaly is True
@@ -87,7 +87,7 @@ class TestVotingDetection:
 
     def test_method_votes_present(self) -> None:
         """Todos los métodos deben votar."""
-        window = _make_window(1, [20.0, 20.1, 19.9, 20.2, 35.0])
+        window = _make_window("1", [20.0, 20.1, 19.9, 20.2, 35.0])
         result = self.detector.detect(window)
 
         assert "z_score" in result.method_votes
@@ -97,7 +97,7 @@ class TestVotingDetection:
 
     def test_empty_window_returns_normal(self) -> None:
         """Ventana vacía → resultado normal."""
-        window = SensorWindow(sensor_id=1, readings=[])
+        window = SensorWindow(series_id="1", readings=[])
         result = self.detector.detect(window)
 
         assert result.is_anomaly is False
@@ -113,12 +113,36 @@ class TestVotingTraining:
         with pytest.raises(ValueError, match="50"):
             detector.train([1.0] * 30)
 
-    def test_not_trained_raises_on_detect(self) -> None:
-        """Detectar sin entrenar debe fallar."""
+    def test_detect_without_train_autofires_train(self) -> None:
+        """Auto-entrena en primera llamada si hay suficientes datos."""
         detector = VotingAnomalyDetector()
-        window = _make_window(1, [20.0])
-        with pytest.raises(RuntimeError, match="no entrenado"):
-            detector.detect(window)
+        random.seed(42)
+        values = [20.0 + random.gauss(0, 1.0) for _ in range(60)]
+        window = _make_window("1", values)
+        result = detector.detect(window)
+        assert result is not None
+        assert detector.is_trained() is True
+
+    def test_detect_insufficient_data_returns_neutral(self) -> None:
+        """Ventana pequeña sin entrenar previo → resultado neutral."""
+        detector = VotingAnomalyDetector()
+        window = _make_window("1", [20.0] * 10)
+        result = detector.detect(window)
+        assert result.is_anomaly is False
+        assert result.score == 0.0
+        assert "cold_start" in result.method_votes
+        assert result.context["reason"] == "auto_train_skipped"
+
+    def test_explicit_train_still_works(self) -> None:
+        """Comportamiento existente sin cambios cuando train() se llama primero."""
+        detector = VotingAnomalyDetector()
+        random.seed(42)
+        detector.train([20.0 + random.gauss(0, 1.0) for _ in range(100)])
+        assert detector.is_trained() is True
+
+        window = _make_window("1", [20.0, 20.1, 19.9, 20.2, 20.5])
+        result = detector.detect(window)
+        assert result.is_anomaly is False
 
     def test_is_trained_flag(self) -> None:
         """Flag de entrenamiento debe actualizarse."""

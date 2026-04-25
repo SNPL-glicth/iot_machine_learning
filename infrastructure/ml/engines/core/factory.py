@@ -25,7 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 class BaselineMovingAverageEngine(PredictionEngine):
-    """Motor baseline: media móvil simple (fallback)."""
+    """Motor baseline: media móvil simple (fallback).
+
+    FIX-11: window kwarg respected; default is ``min(20, len(values))``.
+    """
+
+    def __init__(self, *, window: Optional[int] = None) -> None:
+        self._window = window
 
     @property
     def name(self) -> str:
@@ -34,20 +40,48 @@ class BaselineMovingAverageEngine(PredictionEngine):
     def can_handle(self, n_points: int) -> bool:
         return n_points >= 1
 
+    def _sanitize_inputs(
+        self,
+        values: List[float],
+        timestamps: Optional[List[float]],
+    ) -> tuple[List[float], Optional[List[float]]]:
+        """Filtra NaN e inf del input. No lanza excepciones."""
+        ts = timestamps if timestamps is not None else list(range(len(values)))
+        clean = [
+            (v, t)
+            for v, t in zip(values, ts)
+            if v is not None
+            and not (v != v)  # NaN check
+            and abs(v) != float("inf")
+        ]
+        if not clean:
+            return [], None
+        c_values, c_timestamps = zip(*clean)
+        return list(c_values), list(c_timestamps) if timestamps is not None else None
+
     def predict(
         self,
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        values, timestamps = self._sanitize_inputs(values, timestamps)
         if not values:
-            raise ValueError("values no puede estar vacía")
+            return PredictionResult(
+                predicted_value=None,  # type: ignore[arg-type]
+                confidence=0.0,
+                trend="unknown",  # type: ignore[arg-type]
+                metadata={"reason": "all_inputs_invalid"},
+            )
 
         from iot_machine_learning.infrastructure.ml.engines.baseline.engine import (
             BaselineConfig,
             predict_moving_average,
         )
 
-        cfg = BaselineConfig(window=len(values))
+        effective_window = self._window if self._window is not None else min(20, len(values))
+        if effective_window < 1:
+            effective_window = 1
+        cfg = BaselineConfig(window=effective_window)
         predicted, confidence = predict_moving_average(values, cfg)
 
         return PredictionResult(
@@ -55,7 +89,7 @@ class BaselineMovingAverageEngine(PredictionEngine):
             confidence=confidence,
             trend="stable",
             metadata={
-                "window": len(values),
+                "window": effective_window,
                 "fallback": None,
                 "clamped": False,
             },

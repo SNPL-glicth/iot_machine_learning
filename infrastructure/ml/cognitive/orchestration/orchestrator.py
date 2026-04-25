@@ -10,11 +10,13 @@ from ..fusion import WeightedFusion
 from ..inhibition import InhibitionConfig, InhibitionGate
 from ..reliability import EngineReliabilityTracker
 from ..hyperparameters import HyperparameterAdaptor
+from ..series_values import SeriesValuesStore
 from ..bayesian_weight_tracker import BayesianWeightTracker, build_advanced_bayesian, null_advanced_bayesian
 from ..analysis.types import EnginePerception, MetaDiagnostic, PipelineTimer
 from ..analysis.signal_analyzer import SignalAnalyzer
 from ..perception.record_actual_handler import record_actual_dispatch
 from .pipeline_executor import execute_pipeline
+from .pipeline_executor_factory import PipelineExecutorFactory
 from .weight_resolution_service import WeightResolutionService
 from .iterative_controller import CognitiveLoopController, IterationConfig
 from .error_history_manager import create_error_history_manager
@@ -51,6 +53,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         moe_gateway: Optional[MoEGateway] = None,
         redis_client: Optional[Any] = None,
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
+        series_values_store: Optional[SeriesValuesStore] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -68,6 +71,14 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._hyperparameter_adaptor = hyperparameter_adaptor or HyperparameterAdaptor(
             redis_client=redis_client,
         )
+        # IMP-1: rolling raw-values buffer consumed by SanitizePhase.
+        # Inert when no redis_client supplied. Read by the phase from
+        # ctx.orchestrator._series_values_store.
+        self._series_values_store = series_values_store or SeriesValuesStore(
+            redis_client=redis_client,
+        )
+        # IMP-3: fresh PipelineExecutor per predict() — no singleton race.
+        self._pipeline_executor_factory = PipelineExecutorFactory()
 
         # Core components
         self._engines = engines

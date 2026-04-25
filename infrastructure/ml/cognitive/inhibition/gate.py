@@ -65,12 +65,17 @@ class InhibitionGate:
         config: Optional[InhibitionConfig] = None,
         max_entries: int = 10000,
         reliability_tracker: Optional[EngineReliabilityTracker] = None,
+        *,
+        entry_ttl_seconds: float = 3600.0,
     ) -> None:
+        if entry_ttl_seconds < 0:
+            raise ValueError(f"entry_ttl_seconds must be >= 0, got {entry_ttl_seconds}")
         self._cfg = config or InhibitionConfig()
         self._prev_suppression: OrderedDict[Tuple[str, str], float] = OrderedDict()
         self._last_update: Dict[Tuple[str, str], float] = {}
         self._max_entries = max_entries
         self._reliability = reliability_tracker
+        self._entry_ttl_seconds = entry_ttl_seconds
 
     def compute(
         self,
@@ -174,7 +179,7 @@ class InhibitionGate:
 
             # Apply exponential decay to previous suppression
             key = (sid, p.engine_name)
-            if key in self._prev_suppression:
+            if key in self._prev_suppression and not self._is_expired(key, now):
                 elapsed = now - self._last_update.get(key, now)
                 decay_rate = 0.1
                 decay_factor = math.exp(-decay_rate * elapsed)
@@ -188,12 +193,15 @@ class InhibitionGate:
                 self._cfg.suppression_smoothing * instant_suppression
             )
             
+            # Lazy purge of expired entries on write
+            self.purge_expired(now)
+
             # LRU eviction
             if len(self._prev_suppression) >= self._max_entries:
                 oldest = min(self._last_update, key=self._last_update.get)
                 self._prev_suppression.pop(oldest, None)
                 self._last_update.pop(oldest, None)
-            
+
             self._prev_suppression[key] = smoothed_suppression
             self._last_update[key] = now
             if key in self._prev_suppression:
@@ -213,6 +221,31 @@ class InhibitionGate:
             ))
 
         return states
+
+    def _is_expired(
+        self, key: Tuple[str, str], now: Optional[float] = None
+    ) -> bool:
+        """Check if a suppression entry has exceeded its TTL."""
+        if self._entry_ttl_seconds <= 0:
+            return False
+        if key not in self._last_update:
+            return True
+        t = now if now is not None else time.monotonic()
+        return (t - self._last_update[key]) > self._entry_ttl_seconds
+
+    def purge_expired(self, now: Optional[float] = None) -> int:
+        """Remove all entries whose TTL has expired. Returns count removed."""
+        if self._entry_ttl_seconds <= 0:
+            return 0
+        t = now if now is not None else time.monotonic()
+        expired = [
+            key for key in self._last_update
+            if (t - self._last_update[key]) > self._entry_ttl_seconds
+        ]
+        for key in expired:
+            self._prev_suppression.pop(key, None)
+            self._last_update.pop(key, None)
+        return len(expired)
 
     def _compute_via_reliability(
         self,

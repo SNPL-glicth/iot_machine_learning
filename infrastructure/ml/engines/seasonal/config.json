@@ -1,0 +1,5 @@
+{
+  "resample_method": "linear",
+  "max_gap_multiplier": 5,
+  "min_points_after_resample": 6
+}

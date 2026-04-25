@@ -14,17 +14,12 @@ from .types import InputType
 
 logger = logging.getLogger(__name__)
 
-_ML_COMPONENTS_AVAILABLE = True
-try:
-    from ....patterns.delta_spike import DeltaSpikeClassifier
-    from ....patterns.change_point import CUSUMDetector
-    from ....patterns.regime_detector import RegimeDetector
-    from ....anomaly.core.detector import VotingAnomalyDetector
-    from ....anomaly.core.config import AnomalyDetectorConfig
-    from iot_machine_learning.domain.validators.structural_analysis import compute_structural_analysis
-    from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading, SensorWindow
-except Exception:
-    _ML_COMPONENTS_AVAILABLE = False
+from ....patterns.change_point_detector import CUSUMDetector
+from ....patterns.regime_detector import RegimeDetector
+from ....anomaly.core.detector import VotingAnomalyDetector
+from ....anomaly.core.config import AnomalyDetectorConfig
+from iot_machine_learning.domain.validators.structural_analysis import compute_structural_analysis
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading, SensorWindow
 
 # --- Attention Integration (optional) ---
 _ATTENTION_AVAILABLE = False
@@ -96,8 +91,8 @@ class UniversalPerceptionCollector:
         
         sentiment_score = scores.get("sentiment_score", 0.0)
         sentiment_label = scores.get("sentiment_label", "neutral")
-        normalized = (sentiment_score + 1.0) / 2.0
-        
+        normalized = max(0.0, min(1.0, (sentiment_score + 1.0) / 2.0))
+
         perceptions.append(EnginePerception(
             engine_name="text_sentiment",
             predicted_value=round(normalized, 4),
@@ -108,9 +103,9 @@ class UniversalPerceptionCollector:
             metadata={"label": sentiment_label, "raw_score": sentiment_score},
         ))
         
-        urgency_score = scores.get("urgency_score", 0.0)
+        urgency_score = max(0.0, min(1.0, scores.get("urgency_score", 0.0)))
         urgency_severity = scores.get("urgency_severity", "info")
-        
+
         perceptions.append(EnginePerception(
             engine_name="text_urgency",
             predicted_value=round(urgency_score, 4),
@@ -238,8 +233,7 @@ class UniversalPerceptionCollector:
         """Build perceptions for numeric series.
 
         REUSES existing infrastructure/ml/ components:
-            - numeric_spikes: DeltaSpikeClassifier
-            - numeric_drift: CUSUMDetector  
+            - numeric_drift: CUSUMDetector
             - numeric_regime: RegimeDetector
             - numeric_anomaly: VotingAnomalyDetector
             - numeric_structural: compute_structural_analysis()
@@ -252,10 +246,6 @@ class UniversalPerceptionCollector:
         
         if timestamps is None:
             timestamps = [float(i) for i in range(n)]
-        
-        if not _ML_COMPONENTS_AVAILABLE:
-            logger.warning("ML components not available for numeric analysis")
-            return perceptions
         
         try:
             structural = compute_structural_analysis(values, timestamps)
@@ -275,23 +265,16 @@ class UniversalPerceptionCollector:
         except Exception as e:
             logger.debug(f"structural_analysis failed: {e}")
         
-        try:
-            classifier = DeltaSpikeClassifier()
-            spike_result = classifier.detect_spikes(values, threshold_sigma=2.5)
-            n_spikes = len(spike_result.spike_indices) if hasattr(spike_result, 'spike_indices') else 0
-            spike_score = min(1.0, n_spikes / 10.0)
-            
-            perceptions.append(EnginePerception(
-                engine_name="numeric_spikes",
-                predicted_value=round(1.0 - spike_score, 4),
-                confidence=0.7,
-                trend="stable" if n_spikes == 0 else "up",
-                stability=round(1.0 - spike_score, 4),
-                local_fit_error=round(spike_score, 4),
-                metadata={"n_spikes": n_spikes},
-            ))
-        except Exception as e:
-            logger.debug(f"delta_spike failed: {e}")
+        # numeric_spikes: neutral placeholder (DeltaSpikeClassifier removed)
+        perceptions.append(EnginePerception(
+            engine_name="numeric_spikes",
+            predicted_value=0.0,
+            confidence=0.0,
+            trend="stable",
+            stability=1.0,
+            local_fit_error=0.0,
+            metadata={"reason": "delta_spike_classifier_removed"},
+        ))
         
         if n >= 20:
             try:

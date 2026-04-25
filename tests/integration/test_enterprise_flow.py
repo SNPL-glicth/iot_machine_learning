@@ -42,9 +42,6 @@ from iot_machine_learning.domain.services.pattern_domain_service import (
 from iot_machine_learning.infrastructure.ml.patterns.change_point_detector import (
     CUSUMDetector,
 )
-from iot_machine_learning.infrastructure.ml.patterns.delta_spike_classifier import (
-    DeltaSpikeClassifier,
-)
 from iot_machine_learning.infrastructure.security.audit_logger import (
     FileAuditLogger,
     NullAuditLogger,
@@ -119,13 +116,13 @@ class _MockAnomalyDetector(AnomalyDetectionPort):
         return self._trained
 
 
-def _make_window(sensor_id: int, values: List[float]) -> SensorWindow:
+def _make_window(series_id: str, values: List[float]) -> SensorWindow:
     """Helper para crear SensorWindow."""
     readings = [
-        SensorReading(sensor_id=sensor_id, value=v, timestamp=float(i))
+        SensorReading(series_id=series_id, value=v, timestamp=float(i))
         for i, v in enumerate(values)
     ]
-    return SensorWindow(sensor_id=sensor_id, readings=readings)
+    return SensorWindow(series_id=series_id, readings=readings)
 
 
 class TestPredictionDomainServiceFlow:
@@ -136,7 +133,7 @@ class TestPredictionDomainServiceFlow:
         engine = _MockPredictionEngine("baseline")
         service = PredictionDomainService(engines=[engine])
 
-        window = _make_window(1, [20.0, 21.0, 22.0])
+        window = _make_window("1", [20.0, 21.0, 22.0])
         prediction = service.predict(window)
 
         assert prediction.series_id == "1"
@@ -162,7 +159,7 @@ class TestPredictionDomainServiceFlow:
         fallback = _MockPredictionEngine("fallback")
 
         service = PredictionDomainService(engines=[failing, fallback])
-        window = _make_window(1, [20.0, 21.0])
+        window = _make_window("1", [20.0, 21.0])
         prediction = service.predict(window)
 
         assert "fallback" in prediction.engine_name
@@ -172,7 +169,7 @@ class TestPredictionDomainServiceFlow:
         engine = _MockPredictionEngine()
         service = PredictionDomainService(engines=[engine])
 
-        window = SensorWindow(sensor_id=1, readings=[])
+        window = SensorWindow(series_id="1", readings=[])
 
         with pytest.raises(ValueError, match="vacía"):
             service.predict(window)
@@ -185,7 +182,7 @@ class TestPredictionDomainServiceFlow:
         engine = _MockPredictionEngine()
         service = PredictionDomainService(engines=[engine], audit=audit)
 
-        window = _make_window(1, [20.0, 21.0, 22.0])
+        window = _make_window("1", [20.0, 21.0, 22.0])
         service.predict(window)
 
         # Verificar que se escribió audit log
@@ -212,7 +209,7 @@ class TestAnomalyDomainServiceFlow:
         detector.train([20.0] * 100)
         service = AnomalyDomainService(detectors=[detector])
 
-        window = _make_window(1, [20.0, 20.1, 19.9])
+        window = _make_window("1", [20.0, 20.1, 19.9])
         result = service.detect(window)
 
         assert result.is_anomaly is False
@@ -223,7 +220,7 @@ class TestAnomalyDomainServiceFlow:
         detector.train([20.0] * 100)
         service = AnomalyDomainService(detectors=[detector])
 
-        window = _make_window(1, [20.0, 20.1, 50.0])
+        window = _make_window("1", [20.0, 20.1, 50.0])
         result = service.detect(window)
 
         assert result.is_anomaly is True
@@ -241,7 +238,7 @@ class TestAnomalyDomainServiceFlow:
             voting_threshold=0.5,
         )
 
-        window = _make_window(1, [20.0, 50.0])
+        window = _make_window("1", [20.0, 50.0])
         result = service.detect(window)
 
         # d1 vota 0.9, d2 vota 0.0 → promedio 0.45 < 0.5
@@ -252,7 +249,7 @@ class TestAnomalyDomainServiceFlow:
         detector = _MockAnomalyDetector()
         service = AnomalyDomainService(detectors=[detector])
 
-        window = SensorWindow(sensor_id=1)
+        window = SensorWindow(series_id="1")
         result = service.detect(window)
 
         assert result.is_anomaly is False
@@ -282,22 +279,21 @@ class TestPatternDomainServiceFlow:
 
         assert len(cps) >= 1
 
-    def test_spike_classification(self) -> None:
-        """Clasificar spike como delta o noise."""
-        classifier = DeltaSpikeClassifier(min_history=20)
-        service = PatternDomainService(spike_classifier=classifier)
+    def test_spike_classification_without_classifier(self) -> None:
+        """Sin clasificador → retorna NORMAL (comportamiento por defecto)."""
+        service = PatternDomainService()
 
-        # Delta spike: cambio persistente
         values = [20.0] * 30 + [30.0] * 10
         result = service.classify_spike(values, spike_index=30)
 
-        assert result.classification.value in ("delta_spike", "noise_spike", "normal")
+        assert result.classification.value == "normal"
+        assert result.confidence == 0.0
 
     def test_no_detector_returns_defaults(self) -> None:
         """Sin detectores configurados → resultados por defecto."""
         service = PatternDomainService()
 
-        window = _make_window(1, [20.0, 21.0])
+        window = _make_window("1", [20.0, 21.0])
         pattern = service.detect_pattern(window)
         assert pattern.pattern_type.value == "stable"
         assert pattern.confidence == 0.0
@@ -397,7 +393,7 @@ class TestAuditTrailIntegration:
         engine = _MockPredictionEngine()
         service = PredictionDomainService(engines=[engine], audit=audit)
 
-        window = _make_window(1, [20.0, 21.0, 22.0])
+        window = _make_window("1", [20.0, 21.0, 22.0])
         prediction = service.predict(window)
 
         # Leer audit log
@@ -419,7 +415,7 @@ class TestAuditTrailIntegration:
         detector.train([20.0] * 100)
         service = AnomalyDomainService(detectors=[detector], audit=audit)
 
-        window = _make_window(1, [20.0, 50.0])
+        window = _make_window("1", [20.0, 50.0])
         service.detect(window)
 
         content = audit_file.read_text().strip()

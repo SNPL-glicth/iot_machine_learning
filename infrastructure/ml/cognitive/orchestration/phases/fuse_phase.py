@@ -6,12 +6,39 @@ Weighted fusion and spatial correction.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+import os
+from typing import TYPE_CHECKING, List, Tuple
+
+from ...fusion import hampel_filter
 
 if TYPE_CHECKING:
     from . import PipelineContext
+    from ...analysis.types import EnginePerception, InhibitionState
 
 logger = logging.getLogger(__name__)
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"", "0", "false", "no", "off"}
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        logger.warning("invalid_env_float", extra={"name": name, "value": raw})
+        return default
+
+
+# IMP-2 kill switches.
+ML_HAMPEL_ENABLED: bool = _env_bool("ML_HAMPEL_ENABLED", True)
+ML_HAMPEL_K: float = _env_float("ML_HAMPEL_K", 3.0)
 
 
 def _compute_robust_gradient(values: list) -> float:
@@ -78,10 +105,15 @@ class FusePhase:
         """Execute fusion phase."""
         orchestrator = ctx.orchestrator
         
+        # IMP-2: pre-fusion Hampel outlier filter.
+        filtered_perceptions, filtered_states, fusion_flags, hampel_diag = (
+            self._apply_hampel(ctx.perceptions, ctx.inhibition_states)
+        )
+        
         # Perform fusion
         fused_result = orchestrator._fusion.fuse(
-            ctx.perceptions,
-            ctx.inhibition_states,
+            filtered_perceptions,
+            filtered_states,
             neighbor_trends=ctx.neighbor_trends,
             signal_std=ctx.profile.std if ctx.profile else 0.0,
         )
@@ -97,8 +129,8 @@ class FusePhase:
         if orchestrator._correlation_port and ctx.neighbors:
             fused_val = self._apply_field_smoothing(ctx, fused_val)
         
-        # Determine fusion method
-        method = "weighted_average" if len(ctx.perceptions) > 1 else "single_engine"
+        # Determine fusion method (from filtered perceptions, post-Hampel)
+        method = "weighted_average" if len(filtered_perceptions) > 1 else "single_engine"
         
         # Update explanation builder
         if ctx.explanation and hasattr(ctx.explanation, 'set_fusion'):
@@ -115,7 +147,56 @@ class FusePhase:
             selected_engine=selected,
             selection_reason=reason,
             fusion_method=method,
+            fusion_flags=fusion_flags,
+            hampel_diagnostic=hampel_diag,
         )
+    
+    def _apply_hampel(
+        self,
+        perceptions: List["EnginePerception"],
+        inhibition_states: List["InhibitionState"],
+    ) -> Tuple[
+        List["EnginePerception"],
+        List["InhibitionState"],
+        List[str],
+        dict,
+    ]:
+        """Apply Hampel filter before weighted fusion.
+        
+        Returns (filtered_perceptions, filtered_states, fusion_flags, diagnostic_dict).
+        Falls back to raw perceptions when:
+            * kill switch disabled (ML_HAMPEL_ENABLED=0);
+            * fewer than 3 perceptions (Hampel no-ops by design);
+            * all perceptions would be rejected (defensive).
+        """
+        flags: List[str] = []
+        if not ML_HAMPEL_ENABLED or not perceptions:
+            return list(perceptions), list(inhibition_states), flags, {}
+        
+        result = hampel_filter(perceptions, k=ML_HAMPEL_K)
+        if not result.kept:
+            flags.append("hampel_all_rejected_bypassed")
+            logger.warning(
+                "hampel_all_rejected",
+                extra={"n_perceptions": len(perceptions), "median": result.median},
+            )
+            return list(perceptions), list(inhibition_states), flags, result.to_dict()
+        
+        if result.rejected:
+            flags.append(f"hampel_rejected:{len(result.rejected)}")
+            logger.info(
+                "hampel_outliers_rejected",
+                extra={
+                    "n_rejected": len(result.rejected),
+                    "median": round(result.median, 4),
+                    "mad": round(result.mad, 4),
+                    "rejected_engines": [r[0] for r in result.rejected],
+                },
+            )
+        
+        kept_names = {p.engine_name for p in result.kept}
+        filtered_states = [s for s in inhibition_states if s.engine_name in kept_names]
+        return result.kept, filtered_states, flags, result.to_dict()
     
     def _apply_field_smoothing(self, ctx: PipelineContext, fused_val: float) -> float:
         """Apply spatial smoothing with high-correlation neighbors."""

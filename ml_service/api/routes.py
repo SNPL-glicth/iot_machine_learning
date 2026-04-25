@@ -19,11 +19,13 @@ from .schemas import (
 )
 from .services import PredictionService
 from .routes_observability import router as observability_router
+from .routes_query import router as query_router
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 router.include_router(observability_router)
+router.include_router(query_router)
 
 
 @router.get("/health", response_model=HealthResponse)

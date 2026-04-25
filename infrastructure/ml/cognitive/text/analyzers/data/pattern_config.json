@@ -1,0 +1,19 @@
+{
+  "urgency_keywords": {
+    "es": [
+      "critico", "critica", "urgente", "inmediato", "inmediata", "fallo",
+      "falla", "error", "alerta", "emergencia", "grave", "severo", "severa",
+      "incidente", "detenido", "detenida", "parado", "parada", "roto", "rota"
+    ],
+    "en": [
+      "critical", "urgent", "immediate", "failure", "error", "alert",
+      "emergency", "severe", "grave", "incident", "stopped", "broken",
+      "down", "outage", "degraded", "disruption"
+    ]
+  },
+  "change_threshold": 0.25,
+  "spike_sigma_multiplier": 2.0,
+  "local_window_size": 3,
+  "max_patterns_cap": 10,
+  "min_sentences": 2
+}

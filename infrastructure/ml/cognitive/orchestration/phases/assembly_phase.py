@@ -7,16 +7,62 @@ GOLD: Added cognitive_trace combining drift, shadow, and circuit breaker status.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from . import PipelineContext
 
 from ....interfaces import PredictionResult
+from ...compliance import ComplianceExporter
+from ...compliance.compliance_exporter import load_hmac_key_from_env
 
 logger = logging.getLogger(__name__)
+
+
+# IMP-5: process-level lazy ComplianceExporter.
+#
+# Resolved the first time AssemblyPhase sees the ``ML_COMPLIANCE_EXPORT_PATH``
+# env var. Subsequent requests reuse the same exporter so the sink file is
+# opened+appended with a shared lock across concurrent pipelines.
+_compliance_exporter: Optional[ComplianceExporter] = None
+_compliance_exporter_lock = Lock()
+_compliance_export_path: Optional[str] = None
+
+
+def _resolve_compliance_exporter() -> Optional[ComplianceExporter]:
+    """Return the process-level exporter, creating it on first use."""
+    global _compliance_exporter, _compliance_export_path
+    path = os.environ.get("ML_COMPLIANCE_EXPORT_PATH")
+    if not path:
+        return None
+    with _compliance_exporter_lock:
+        if _compliance_exporter is None or _compliance_export_path != path:
+            try:
+                _compliance_exporter = ComplianceExporter(
+                    sink_path=Path(path),
+                    hmac_key=load_hmac_key_from_env(),
+                )
+                _compliance_export_path = path
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning(
+                    "compliance_exporter_init_failed",
+                    extra={"path": path, "error": str(exc)},
+                )
+                _compliance_exporter = None
+    return _compliance_exporter
+
+
+def _reset_compliance_exporter() -> None:
+    """Test-only helper: clear the cached exporter."""
+    global _compliance_exporter, _compliance_export_path
+    with _compliance_exporter_lock:
+        _compliance_exporter = None
+        _compliance_export_path = None
 
 
 @dataclass(frozen=True)
@@ -69,12 +115,29 @@ class AssemblyPhase:
             except Exception as e:
                 logger.debug(f"confidence_interval_failed: {e}")
         
-        return PredictionResult(
+        result = PredictionResult(
             predicted_value=ctx.fused_value,
             confidence=ctx.fused_confidence,
             trend=ctx.fused_trend,
             metadata=metadata,
         )
+        # IMP-5: opt-in audit export. Must NEVER corrupt the return
+        # envelope — any export failure is logged and swallowed.
+        self._maybe_export_compliance(ctx.series_id, result)
+        return result
+    
+    @staticmethod
+    def _maybe_export_compliance(series_id: str, result: PredictionResult) -> None:
+        exporter = _resolve_compliance_exporter()
+        if exporter is None:
+            return
+        try:
+            exporter.export(series_id, result)
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning(
+                "compliance_export_hook_failed",
+                extra={"series_id": series_id, "error": str(exc)},
+            )
     
     def _build_metadata(self, ctx: PipelineContext) -> Dict[str, Any]:
         """Build comprehensive metadata dict with GOLD cognitive trace."""
@@ -83,7 +146,16 @@ class AssemblyPhase:
             "explanation": ctx.explanation.to_dict() if ctx.explanation else None,
             "pipeline_timing": ctx.timer.to_dict() if ctx.timer else None,
             "cognitive_trace": self._build_cognitive_trace(ctx),
+            # IMP-1: always surface sanitization flags (empty list on clean input).
+            "sanitization_flags": list(getattr(ctx, "sanitization_flags", [])),
+            # IMP-2: fusion/Hampel flags + per-engine failure visibility.
+            "fusion_flags": list(getattr(ctx, "fusion_flags", [])),
+            "engine_failures": list(getattr(ctx, "engine_failures", [])),
         }
+        # IMP-2: include Hampel diagnostic when something was computed.
+        hampel_diag = getattr(ctx, "hampel_diagnostic", None)
+        if hampel_diag:
+            metadata["hampel"] = hampel_diag
         
         # Add boundary check if available
         if ctx.boundary_result is not None and ctx.boundary_result.within_domain:

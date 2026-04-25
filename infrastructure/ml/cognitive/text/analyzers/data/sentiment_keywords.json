@@ -1,0 +1,30 @@
+{
+  "positive": {
+    "es": [
+      "excelente", "óptimo", "correcto", "estable", "resuelto",
+      "mejorado", "satisfactorio", "normal", "operativo", "exitoso"
+    ],
+    "en": [
+      "excellent", "optimal", "correct", "stable", "resolved",
+      "improved", "satisfactory", "normal", "operational", "successful"
+    ]
+  },
+  "negative": {
+    "es": [
+      "crítico", "falla", "error", "alerta", "grave", "urgente",
+      "pérdida", "caída", "anomalía", "defecto", "riesgo", "daño"
+    ],
+    "en": [
+      "critical", "failure", "error", "alert", "severe", "urgent",
+      "loss", "crash", "anomaly", "defect", "risk", "damage"
+    ]
+  },
+  "intensifiers": {
+    "es": ["muy", "extremadamente", "completamente", "totalmente"],
+    "en": ["very", "extremely", "completely", "totally"]
+  },
+  "negators": {
+    "es": ["no", "nunca", "jamás", "sin"],
+    "en": ["not", "never", "without", "no"]
+  }
+}

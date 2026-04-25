@@ -251,6 +251,8 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         
         Aplica normalización si el detector fue entrenado con scaler.
 
+        Auto-entrena en la primera llamada si hay suficientes datos.
+
         Args:
             window: Ventana temporal del sensor.
 
@@ -258,7 +260,30 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
             ``AnomalyResult`` con score combinado y votos individuales.
         """
         if not self._trained_flag:
-            raise RuntimeError("Detector no entrenado")
+            if window.size >= self._config.min_training_points:
+                self.train(window.values, timestamps=window.timestamps)
+            else:
+                logger.info(
+                    "anomaly_detector_cold_start_skipped",
+                    extra={
+                        "series_id": str(window.series_id),
+                        "n_values": window.size,
+                        "required": self._config.min_training_points,
+                    },
+                )
+                return AnomalyResult(
+                    series_id=str(window.series_id),
+                    is_anomaly=False,
+                    score=0.0,
+                    confidence=0.0,
+                    method_votes={"cold_start": 0.0},
+                    explanation="Cold start: insufficient data for auto-training",
+                    context={
+                        "reason": "auto_train_skipped",
+                        "n": window.size,
+                        "required": self._config.min_training_points,
+                    },
+                )
 
         if window.is_empty or window.last_value is None:
             return AnomalyResult.normal(series_id=str(window.sensor_id))

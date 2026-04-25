@@ -1,17 +1,24 @@
-"""Orchestrator Helper Functions.
+"""Orchestrator perception helpers — thin shell.
 
-Auxiliary functions extracted from MetaCognitiveOrchestrator to reduce complexity.
+Delegates to extracted modules to keep this file under 180 lines.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional
 
-from ..analysis.types import EnginePerception, PipelineTimer
-from ..explanation.explanation_builder import ExplanationBuilder
-from ...interfaces import PredictionResult
-from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
+from ..analysis.types import EnginePerception
+
+from .env_knobs import (
+    ML_ENGINE_TIMEOUT_MS,
+    ML_PREDICT_ENGINE_TIMEOUT_MS,
+    ML_PREDICT_MAX_WORKERS,
+)
+from .failure_collector import _clear_failures, _record_failure, consume_engine_failures
+from .engine_runner import _run_engine_with_timeout
+from .fallback import create_fallback_result
 
 logger = logging.getLogger(__name__)
 
@@ -22,87 +29,105 @@ def collect_perceptions(
     timestamps: Optional[List[float]],
 ) -> List[EnginePerception]:
     """Collect predictions from all capable engines.
-    
-    Args:
-        engines: List of PredictionEngine instances
-        values: Time series values
-        timestamps: Optional timestamps
-    
-    Returns:
-        List of EnginePerception objects
+
+    Dispatches between sequential and parallel modes based on
+    ``ML_PREDICT_MAX_WORKERS`` and the number of capable engines.
+    Falls back to sequential on any ThreadPoolExecutor failure.
     """
+    _clear_failures()
+
+    capable = [e for e in engines if e.can_handle(len(values))]
+    for e in engines:
+        if e not in capable:
+            _record_failure(e.name, "cannot_handle")
+
+    if len(capable) <= 1 or ML_PREDICT_MAX_WORKERS <= 1:
+        return _collect_perceptions_sequential(capable, values, timestamps)
+
+    try:
+        return _collect_perceptions_parallel(
+            capable,
+            values,
+            timestamps,
+            max_workers=min(ML_PREDICT_MAX_WORKERS, len(capable)),
+            timeout_ms=ML_PREDICT_ENGINE_TIMEOUT_MS,
+        )
+    except Exception as exc:
+        logger.warning(
+            "parallel_execution_failed",
+            extra={"error": str(exc), "fallback": "sequential"},
+        )
+        return _collect_perceptions_sequential(capable, values, timestamps)
+
+
+def _collect_perceptions_sequential(
+    engines: List,
+    values: List[float],
+    timestamps: Optional[List[float]],
+) -> List[EnginePerception]:
+    """Single-threaded loop with per-engine wall-clock timeout."""
     out: List[EnginePerception] = []
     for eng in engines:
         if not eng.can_handle(len(values)):
+            _record_failure(eng.name, "cannot_handle")
             continue
-        try:
-            r = eng.predict(values, timestamps)
-            d = r.metadata.get("diagnostic", {}) or {}
-            out.append(EnginePerception(
-                engine_name=eng.name,
-                predicted_value=r.predicted_value,
-                confidence=r.confidence,
-                trend=r.trend,
-                stability=d.get("stability_indicator", 0.0) if isinstance(d, dict) else 0.0,
-                local_fit_error=d.get("local_fit_error", 0.0) if isinstance(d, dict) else 0.0,
-                metadata=r.metadata,
-            ))
-        except Exception as exc:
-            logger.warning("engine_failed", extra={
-                "engine": eng.name, "error": str(exc)})
+        p = _run_engine_with_timeout(
+            eng, values, timestamps, timeout_ms=ML_ENGINE_TIMEOUT_MS,
+        )
+        if p is not None:
+            out.append(p)
     return out
 
 
-def create_fallback_result(
+def _collect_perceptions_parallel(
+    engines: List,
     values: List[float],
-    profile: StructuralAnalysis,
-    builder: ExplanationBuilder,
-    timer: Optional[PipelineTimer] = None,
-    reason: str = "no_valid_perceptions",
-) -> PredictionResult:
-    """Create fallback prediction result when all engines fail.
-    
-    Args:
-        values: Time series values
-        profile: Signal profile
-        builder: ExplanationBuilder instance
-        timer: Optional pipeline timer
-        reason: Reason for fallback
-    
-    Returns:
-        PredictionResult with fallback prediction
+    timestamps: Optional[List[float]],
+    *,
+    max_workers: int,
+    timeout_ms: Optional[float] = None,
+) -> List[EnginePerception]:
+    """Run capable engines concurrently with per-engine timeout.
+
+    Returns results in input-engine order (not completion order).
+    Engines already pre-filtered by ``can_handle`` on the caller side.
     """
-    from ..analysis.types import MetaDiagnostic
-    
-    tail = values[-min(3, len(values)):] if values else [0.0]
-    predicted = sum(tail) / len(tail)
-    builder.set_fallback(predicted, reason=reason)
+    if timeout_ms is None:
+        timeout_ms = ML_PREDICT_ENGINE_TIMEOUT_MS
 
-    fallback_reason = reason
-    diag = MetaDiagnostic(
-        signal_profile=profile,
-        perceptions=[],
-        inhibition_states=[],
-        final_weights={},
-        selected_engine="none",
-        selection_reason="all_engines_failed",
-        fusion_method="fallback",
-        fallback_reason=fallback_reason,
-    )
-    
-    explanation = builder.build()
+    results: Dict[int, EnginePerception] = {}
+    with ThreadPoolExecutor(
+        max_workers=max_workers, thread_name_prefix="engine"
+    ) as pool:
+        future_to_idx = {
+            pool.submit(
+                _run_engine_with_timeout,
+                eng, values, timestamps,
+                timeout_ms,
+            ): (idx, eng.name)
+            for idx, eng in enumerate(engines)
+        }
+        for future, (idx, name) in future_to_idx.items():
+            try:
+                perception = future.result()
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning(
+                    "engine_future_failed", extra={"engine": name, "error": str(exc)}
+                )
+                _record_failure(name, "exception", str(exc))
+                continue
+            if perception is not None:
+                results[idx] = perception
 
-    metadata: dict = {
-        "cognitive_diagnostic": diag.to_dict(),
-        "explanation": explanation.to_dict(),
-    }
-    
-    if timer:
-        metadata["pipeline_timing"] = timer.to_dict()
+    return [results[i] for i in sorted(results)]
 
-    return PredictionResult(
-        predicted_value=predicted,
-        confidence=0.2,
-        trend="unknown",
-        metadata=metadata,
-    )
+
+__all__ = [
+    "ML_PREDICT_MAX_WORKERS",
+    "ML_PREDICT_ENGINE_TIMEOUT_MS",
+    "collect_perceptions",
+    "consume_engine_failures",
+    "create_fallback_result",
+    "_collect_perceptions_parallel",
+    "_collect_perceptions_sequential",
+]

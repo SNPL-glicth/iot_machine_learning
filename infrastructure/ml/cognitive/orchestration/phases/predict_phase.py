@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from . import PipelineContext
 
 from ...explanation import ExplanationBuilder
-from ...perception.helpers import collect_perceptions
+from ...perception.helpers import collect_perceptions, consume_engine_failures
 from ..fallback_handler import handle_fallback
 
 logger = logging.getLogger(__name__)
@@ -34,8 +34,9 @@ class PredictPhase:
         if ctx.profile:
             builder.set_signal(ctx.profile)
         
-        # Collect perceptions
+        # Collect perceptions (IMP-2: runs in parallel when possible)
         perceptions = collect_perceptions(orchestrator._engines, ctx.values, ctx.timestamps)
+        engine_failures = consume_engine_failures()
         
         # Handle no valid perceptions
         if not perceptions:
@@ -47,9 +48,11 @@ class PredictPhase:
                 fallback_reason="no_valid_perceptions",
                 diagnostic=diag,
                 explanation=expl,
+                engine_failures=engine_failures,
                 metadata={
                     "cognitive_diagnostic": diag.to_dict() if diag else None,
                     "explanation": expl.to_dict() if expl else None,
+                    "engine_failures": engine_failures,
                 },
             )
         
@@ -68,9 +71,11 @@ class PredictPhase:
                 fallback_reason="budget_exceeded",
                 diagnostic=diag,
                 explanation=expl,
+                engine_failures=engine_failures,
                 metadata={
                     "cognitive_diagnostic": diag.to_dict() if diag else None,
                     "explanation": expl.to_dict() if expl else None,
+                    "engine_failures": engine_failures,
                 },
             )
         
@@ -79,4 +84,5 @@ class PredictPhase:
         return ctx.with_field(
             perceptions=perceptions,
             explanation=builder,
+            engine_failures=engine_failures,
         )

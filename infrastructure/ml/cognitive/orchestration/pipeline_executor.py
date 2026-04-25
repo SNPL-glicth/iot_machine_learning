@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ...interfaces import PredictionResult
 
 from .phases import PipelineContext, create_initial_context
+from ..sanitize import SanitizePhase
 from .phases.boundary_check_phase import BoundaryCheckPhase
 from .phases.perceive_phase import PerceivePhase
 from .phases.predict_phase import PredictPhase
@@ -44,8 +45,25 @@ class PipelineExecutor:
     """
     
     def __init__(self) -> None:
-        """Inicializa el executor con todas las fases configuradas."""
+        """Inicializa el executor con todas las fases configuradas.
+
+        Phase order (IMP-1: SanitizePhase inserted at index 0):
+            [0]  SanitizePhase      — NaN/Inf hard-stop, 6σ clamp, CUSUM flag
+            [1]  BoundaryCheckPhase — domain boundary validation
+            [2]  PerceivePhase      — engine perceptions
+            [3]  PredictPhase
+            [4]  AdaptPhase
+            [5]  InhibitPhase
+            [6]  FusePhase
+            [7]  DecisionArbiterPhase
+            [8]  CoherenceCheckPhase
+            [9]  ConfidenceCalibrationPhase
+            [10] ExplainPhase
+            [11] ActionGuardPhase
+            [12] NarrativeUnificationPhase
+        """
         self._phases = [
+            SanitizePhase(),
             BoundaryCheckPhase(),
             PerceivePhase(),
             PredictPhase(),
@@ -107,6 +125,10 @@ class PipelineExecutor:
             if ctx.is_fallback and ctx.fallback_reason == "out_of_domain":
                 return self._create_early_result(ctx)
             
+            # IMP-1: Early termination si SanitizePhase rechazó NaN/Inf
+            if ctx.is_fallback and ctx.fallback_reason == "nan_or_inf_rejected":
+                return self._create_sanitize_fallback_result(ctx)
+            
             # Early termination si es fallback normal
             if ctx.is_fallback and ctx.diagnostic is not None:
                 return self._create_fallback_result(ctx)
@@ -130,10 +152,30 @@ class PipelineExecutor:
             trend="unknown",
             metadata=ctx.metadata,
         )
+    
+    def _create_sanitize_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
+        """IMP-1: minimal PredictionResult when NaN/Inf hard-stop fires."""
+        from ...interfaces import PredictionResult
+        
+        return PredictionResult(
+            predicted_value=None,
+            confidence=0.0,
+            trend="unknown",
+            metadata={
+                "is_sanitize_fallback": True,
+                "rejection_reason": "nan_or_inf_rejected",
+                "sanitization_flags": list(ctx.sanitization_flags),
+            },
+        )
 
 
-# Instancia global del executor (singleton pattern)
-_pipeline_executor = PipelineExecutor()
+# IMP-3: No more module-level singleton. Callers go through
+# PipelineExecutorFactory (preferred) or the execute_pipeline() helper
+# below (which instantiates a fresh executor per call via the factory).
+#
+# Rationale: phases carry per-call mutable state (Sanitize's flag list,
+# Fuse's Hampel diagnostic, etc.). Sharing a singleton across concurrent
+# requests would race on those attributes.
 
 
 def execute_pipeline(
@@ -144,18 +186,29 @@ def execute_pipeline(
     flags_snapshot: Optional[Any] = None,
 ) -> PredictionResult:
     """Entry point para ejecutar el pipeline.
-    
+
+    Prefers the orchestrator's own :class:`PipelineExecutorFactory`
+    (``orchestrator._pipeline_executor_factory``) when available;
+    otherwise constructs a one-shot factory. Either path produces a
+    fresh :class:`PipelineExecutor` per invocation.
+
     Args:
         orchestrator: MetaCognitiveOrchestrator instance
         values: Time series values
         timestamps: Optional timestamps
         series_id: Series identifier
         flags_snapshot: Feature flags snapshot (required por CRIT-3)
-    
+
     Returns:
         PredictionResult with cognitive metadata
     """
-    return _pipeline_executor.execute(
+    from .pipeline_executor_factory import PipelineExecutorFactory
+
+    factory = getattr(orchestrator, "_pipeline_executor_factory", None)
+    if not isinstance(factory, PipelineExecutorFactory):
+        factory = PipelineExecutorFactory()
+    executor = factory.create(flags_snapshot)
+    return executor.execute(
         orchestrator=orchestrator,
         values=values,
         timestamps=timestamps,

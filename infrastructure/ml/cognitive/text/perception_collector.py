@@ -158,6 +158,11 @@ def _structural_perception(inp: TextAnalysisInput) -> EnginePerception:
 
 def _pattern_perception(inp: TextAnalysisInput) -> EnginePerception:
     """Map pattern detection scores → EnginePerception."""
+    if not inp.pattern_available and inp.readability_sentences:
+        from .analyzers.text_pattern import compute_text_patterns
+
+        return compute_text_patterns(inp.readability_sentences)
+
     if not inp.pattern_available:
         return EnginePerception(
             engine_name="text_pattern",

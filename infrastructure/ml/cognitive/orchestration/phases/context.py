@@ -27,6 +27,13 @@ class PipelineContext:
     timer: Any
     
     # Phase outputs (initialized to None, filled progressively)
+    # IMP-1: sanitize phase outputs.
+    sanitized_values: Optional[List[float]] = None
+    sanitization_flags: List[str] = field(default_factory=list)
+    # IMP-2: fusion/Hampel outputs + per-engine failure surface.
+    fusion_flags: List[str] = field(default_factory=list)
+    hampel_diagnostic: Optional[Dict[str, Any]] = None
+    engine_failures: List[Dict[str, Any]] = field(default_factory=list)
     boundary_result: Optional[Any] = None
     profile: Optional[Any] = None
     regime: Optional[str] = None
@@ -66,6 +73,11 @@ class PipelineContext:
             'series_id': self.series_id,
             'flags': self.flags,
             'timer': self.timer,
+            'sanitized_values': self.sanitized_values,
+            'sanitization_flags': list(self.sanitization_flags),
+            'fusion_flags': list(self.fusion_flags),
+            'hampel_diagnostic': self.hampel_diagnostic,
+            'engine_failures': list(self.engine_failures),
             'boundary_result': self.boundary_result,
             'profile': self.profile,
             'regime': self.regime,

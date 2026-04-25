@@ -1,18 +1,24 @@
-"""SanitizePhase — input validation and clamping before PerceivePhase.
+"""SanitizePhase — IMP-1 phase [0] of the cognitive pipeline.
 
-Invariant: output values are finite and bounded per-series history.
-No prediction, no inhibition, no fusion — only sanitization.
-
-Pipeline-phase implementation: receives and returns PipelineContext.
+Invariants: never raises; NaN/Inf → hard-stop fallback; clamp to 6σ
+using Redis-backed history (:class:`SeriesValuesStore`) with local
+window as fallback; two-sided CUSUM (k=0.5σ, h=4σ) flags ramps.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
-import logging
+from .bounds_provider import (
+    BoundsProvider,
+    LocalWindowBoundsProvider,
+    SeriesValuesBoundsProvider,
+)
+from .cusum import detect_ramp
+from ..series_values import SeriesValuesStore
 
 logger = logging.getLogger(__name__)
 
@@ -20,67 +26,70 @@ if TYPE_CHECKING:
     from ..orchestration.phases import PipelineContext
 
 
-class SeriesStatisticsProvider(Protocol):
-    """Protocol for retrieving per-series mean and std."""
-
-    def get_statistics(self, series_id: str) -> Optional[Tuple[float, float]]:
-        """Return (mean, std) for the series, or None if unavailable."""
-        ...
-
-
-class LocalWindowStatisticsProvider:
-    """Fallback provider: computes mean/std from the current values window."""
-
-    def get_statistics(self, series_id: str) -> Optional[Tuple[float, float]]:
-        return None
-
-
 @dataclass(frozen=True)
 class SanitizeConfig:
-    """Thresholds for sanitization — all configurable via constructor."""
+    """Tunables. ``max_values_buffered`` caps the Redis rolling buffer."""
 
     sigma_multiplier: float = 6.0
     min_window_size: int = 3
-    fallback_sigma: float = 1.0  # used when no history and window too small
+    redis_min_samples: int = 20
+    max_values_buffered: int = 500
+    cusum_k_sigma_factor: float = 0.5
+    cusum_h_sigma_factor: float = 4.0
 
 
 class SanitizePhase:
-    """Clamp values to [mean - 6σ, mean + 6σ] using per-series history.
+    """Pipeline phase [0]: sanitize raw inputs before any perception."""
 
-    Hard-stops on NaN/Inf: sets is_fallback=True and
-    fallback_reason="nan_or_inf_rejected".
-    """
+    name = "sanitize"
 
     def __init__(
         self,
         config: Optional[SanitizeConfig] = None,
-        statistics_provider: Optional[SeriesStatisticsProvider] = None,
+        *,
+        series_values_store: Optional[SeriesValuesStore] = None,
+        primary_provider: Optional[BoundsProvider] = None,
+        fallback_provider: Optional[BoundsProvider] = None,
     ) -> None:
         self._cfg = config or SanitizeConfig()
-        self._stats_provider = statistics_provider or LocalWindowStatisticsProvider()
+        self._store = series_values_store
+        self._primary = primary_provider or (
+            SeriesValuesBoundsProvider(
+                series_values_store, min_samples=self._cfg.redis_min_samples
+            )
+            if series_values_store is not None
+            else None
+        )
+        self._fallback = fallback_provider or LocalWindowBoundsProvider(
+            min_window_size=self._cfg.min_window_size,
+        )
 
-    def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Sanitize ctx.values and update ctx with results.
+    # -- main entry point ---------------------------------------------
 
-        Args:
-            ctx: Pipeline context with raw values.
+    def execute(self, ctx: "PipelineContext") -> "PipelineContext":
+        """Sanitize ``ctx.values``. Never raises."""
+        try:
+            return self._execute(ctx)
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning(
+                "sanitize_exception_swallowed",
+                extra={"series_id": getattr(ctx, "series_id", ""), "error": str(exc)},
+            )
+            flags = list(getattr(ctx, "sanitization_flags", []))
+            flags.append("sanitize_exception_swallowed")
+            return ctx.with_field(sanitization_flags=flags)
 
-        Returns:
-            Modified context with sanitized_values and sanitization_flags.
-            If NaN/Inf detected, ctx.is_fallback=True and
-            ctx.fallback_reason="nan_or_inf_rejected".
-        """
+    def _execute(self, ctx: "PipelineContext") -> "PipelineContext":
         values = ctx.values
         series_id = ctx.series_id
-        flags: List[str] = []
+        flags: List[str] = list(getattr(ctx, "sanitization_flags", []))
+
+        store, primary = self._runtime_providers(ctx)
 
         if not values:
-            return ctx.with_field(
-                sanitized_values=None,
-                sanitization_flags=flags,
-            )
+            return ctx.with_field(sanitized_values=None, sanitization_flags=flags)
 
-        # Hard-stop on NaN/Inf
+        # 1. Hard-stop on NaN / Inf.
         if any(not math.isfinite(v) for v in values):
             flags.append("nan_or_inf_rejected")
             logger.warning(
@@ -94,62 +103,63 @@ class SanitizePhase:
                 fallback_reason="nan_or_inf_rejected",
             )
 
-        sanitized, flags = self._sanitize_values(values, series_id, flags)
+        # 2. Resolve clamping bounds (primary Redis → local window fallback).
+        bounds = self._bounds(values, series_id, primary)
+        if bounds is None:
+            flags.append("bounds_unavailable_skipped")
+            sanitized = list(values)
+        else:
+            sanitized, flags = self._clamp(values, bounds, flags, series_id)
+
+        # 3. CUSUM ramp detection (does not block).
+        if detect_ramp(
+            sanitized,
+            k_sigma_factor=self._cfg.cusum_k_sigma_factor,
+            h_sigma_factor=self._cfg.cusum_h_sigma_factor,
+        ):
+            flags.append("cusum_ramp_detected")
+
+        # 4. Persist for future invocations.
+        if store is not None:
+            store.append_many(series_id, sanitized)
 
         return ctx.with_field(
-            values=sanitized,  # downstream phases see sanitized values
+            values=sanitized,
             sanitized_values=sanitized,
             sanitization_flags=flags,
         )
 
-    def _sanitize_values(
-        self, values: List[float], series_id: str, flags: List[str]
-    ) -> Tuple[List[float], List[str]]:
-        """Clamp values to [mean - 6σ, mean + 6σ]."""
-        mean, std = self._resolve_statistics(values, series_id)
-        if std is None or std == 0.0:
-            return values, flags
+    # -- helpers ------------------------------------------------------
 
-        lower = mean - self._cfg.sigma_multiplier * std
-        upper = mean + self._cfg.sigma_multiplier * std
+    def _runtime_providers(self, ctx):
+        """Pick up store/primary from ctx.orchestrator (singleton path)."""
+        store, primary = self._store, self._primary
+        if store is None:
+            cand = getattr(getattr(ctx, "orchestrator", None), "_series_values_store", None)
+            if isinstance(cand, SeriesValuesStore):
+                store = cand
+        if primary is None and store is not None:
+            primary = SeriesValuesBoundsProvider(store, min_samples=self._cfg.redis_min_samples)
+        return store, primary
 
-        sanitized: List[float] = []
-        clamped_count = 0
-        for v in values:
-            if v < lower or v > upper:
-                clamped = max(lower, min(upper, v))
-                sanitized.append(clamped)
-                clamped_count += 1
-            else:
-                sanitized.append(v)
+    def _bounds(self, values, series_id, primary):
+        sm = self._cfg.sigma_multiplier
+        if primary is not None:
+            b = primary.get_bounds(series_id, values, sm)
+            if b is not None:
+                return b
+        return self._fallback.get_bounds(series_id, values, sm)
 
-        if clamped_count > 0:
-            flags.append(f"value_clamped:{clamped_count}")
+    @staticmethod
+    def _clamp(values, bounds, flags, series_id):
+        lower, upper = bounds
+        sanitized = [max(lower, min(upper, v)) for v in values]
+        clamped = sum(1 for s, v in zip(sanitized, values) if s != v)
+        if clamped > 0:
+            flags.append(f"value_clamped:{clamped}")
             logger.info(
                 "sanitize_values_clamped",
-                extra={
-                    "series_id": series_id,
-                    "clamped_count": clamped_count,
-                    "bounds": (round(lower, 4), round(upper, 4)),
-                },
+                extra={"series_id": series_id, "clamped_count": clamped,
+                       "bounds": (round(lower, 4), round(upper, 4))},
             )
-
         return sanitized, flags
-
-    def _resolve_statistics(
-        self, values: List[float], series_id: str
-    ) -> Tuple[float, Optional[float]]:
-        """Return (mean, std) from provider or local window."""
-        stats = self._stats_provider.get_statistics(series_id)
-        if stats is not None:
-            return stats
-
-        n = len(values)
-        if n < self._cfg.min_window_size:
-            # Insufficient data — cannot compute robust statistics
-            return 0.0, None
-
-        mean = sum(values) / n
-        variance = sum((v - mean) ** 2 for v in values) / n
-        std = math.sqrt(variance) if variance > 0 else 0.0
-        return mean, std

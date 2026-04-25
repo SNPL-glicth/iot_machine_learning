@@ -25,7 +25,7 @@ from iot_machine_learning.infrastructure.ml.engines.core import (
 )
 from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
 from iot_machine_learning.infrastructure.ml.engines.statistical import StatisticalPredictionEngine
-from iot_machine_learning.infrastructure.ml.engines.ensemble import EnsembleWeightedPredictor
+from iot_machine_learning.infrastructure.ml.engines.deprecated.ensemble_predictor import EnsembleWeightedPredictor
 
 # BaselineMovingAverageEngine ya se registra en core/factory.py
 EngineFactory.register("taylor", TaylorPredictionEngine)
