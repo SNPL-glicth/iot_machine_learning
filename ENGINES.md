@@ -17,6 +17,13 @@ This document describes **every engine** in ZENIN: how it works, what it predict
 - [Cognitive Orchestration](#cognitive-orchestration)
   - [MetaCognitiveOrchestrator](#metacognitiveorchestrator)
   - [TextCognitiveEngine](#textcognitiveengine)
+- [Neural Engines](#neural-engines)
+  - [HybridNeuralEngine](#hybridneuralengine)
+  - [SNNLayer with STDP](#snnlayer)
+- [Mixture of Experts (MoE)](#mixture-of-experts-moe)
+  - [MoEGateway](#moegateway)
+- [Optimization Toolkit](#optimization-toolkit)
+- [Statistical Inference Toolkit](#statistical-inference-toolkit)
 - [Integration Points](#integration-points)
 - [How Engines Complement Each Other](#how-engines-complement-each-other)
 - [Adding a New Engine](#adding-a-new-engine)
@@ -31,6 +38,10 @@ ZENIN runs two families of engines:
 |--------|---------|----------|
 | **Prediction Engines** | Forecast the next numeric value from a time-series window | `infrastructure/ml/engines/` |
 | **Cognitive Engines** | Analyze signals, fuse predictions, and produce decisions with explanations | `infrastructure/ml/cognitive/` |
+| **Neural Engines** | Hybrid SNN + classical feedforward analysis for severity classification | `infrastructure/ml/cognitive/neural/` |
+| **Mixture of Experts** | Sparse MoE gateway that routes windows to the best k expert engines | `infrastructure/ml/moe/` |
+| **Optimization Toolkit** | Gradient, convex, and non-convex optimizers for parameter tuning | `infrastructure/ml/optimization/` |
+| **Statistical Inference** | MLE, Bayesian updating, and probability calibration utilities | `infrastructure/ml/inference/` |
 
 All prediction engines implement the same interface: `PredictionEngine` (defined in `infrastructure/ml/interfaces.py`). They expose:
 
@@ -349,6 +360,165 @@ Deep cognitive analysis for text documents — sentiment, urgency, readability, 
 
 ---
 
+## Neural Engines
+
+### HybridNeuralEngine
+
+**File:** `infrastructure/ml/cognitive/neural/hybrid_engine.py`
+
+**What it does:**
+Hybrid neural pipeline that combines a biologically realistic **Spiking Neural Network (SNN)** with a classical **feedforward layer** for severity classification of analysis scores.
+
+**Pipeline stages:**
+
+| Stage | Component | What happens |
+|-------|-----------|-------------|
+| **1. Encode** | `SpikeEncoder` | Converts numeric analysis scores into spike trains (temporal coding) |
+| **2. SNN forward** | `SNNLayer` | Runs spike trains through LIF neurons with Xavier-init weights; outputs spike patterns |
+| **3. Classical forward** | `FeedforwardLayer` | Standard dense layer (softmax) over the same input scores |
+| **4. Fuse** | `FusionStage` | Weighted combination of SNN and classical outputs (default `snn_weight=0.5`) |
+| **5. Decode** | `SpikeDecoder` | Maps fused output to severity label: `info` / `low` / `medium` / `high` / `critical` |
+| **6. Energy metrics** | — | Extracts total energy, active/silent neuron counts from the SNN |
+
+**Online learning:**
+- `OnlineLearner` updates classical feedforward weights via feedback
+- Domain-specific weight histories are persisted and reloaded per domain
+- `update_from_feedback()` called after ground-truth severity is known
+
+**Fallback:** On any exception, returns `severity="info"`, `confidence=0.3` with zero energy metrics.
+
+**Integration:**
+- Called by `DocumentAnalyzer` for deep cognitive classification
+- Input is `analysis_scores: Dict[str, float]` (sentiment, urgency, readability, etc.)
+- Output is `NeuralResult` with severity, confidence, spike patterns, and energy metrics
+- Comparable to `UniversalResult` for arbitration in the cognitive pipeline
+
+---
+
+### SNNLayer with STDP
+
+**File:** `infrastructure/ml/cognitive/neural/snn/network.py`
+
+**What it does:**
+Biologically-inspired spiking neural network layer with **Spike-Timing Dependent Plasticity (STDP)** — online Hebbian learning based on pre/post spike timing.
+
+**Architecture:**
+```
+input(N) → hidden(H) → output(O)
+Fully connected, LIF (Leaky Integrate-and-Fire) neurons
+```
+
+**STDP learning rule:**
+- **Potentiation** (`ΔW > 0`): pre fires *before* post → `ΔW = A+ · exp(-Δt/τ+)`
+- **Depression** (`ΔW < 0`): post fires *before* pre → `ΔW = -A- · exp(Δt/τ-)`
+
+**Parameters (default):**
+| Param | Value | Meaning |
+|-------|-------|---------|
+| `A_plus` | 0.01 | Potentiation amplitude |
+| `A_minus` | 0.012 | Depression amplitude |
+| `τ_plus` / `τ_minus` | 20 ms | Time constants |
+| `w_min` / `w_max` | 0.0 / 1.0 | Weight bounds |
+
+**Integration:**
+- Instantiated inside `HybridNeuralEngine`
+- Weights initialized with **Xavier** (`np.random.RandomState(42)`)
+- `enable_stdp=True` triggers weight updates after every forward pass
+- Energy and active/silent neuron counts exposed for explainability
+
+---
+
+## Mixture of Experts (MoE)
+
+### MoEGateway
+
+**File:** `infrastructure/ml/moe/gateway/moe_gateway.py`
+
+**What it does:**
+Implements `PredictionPort` using a **sparse Mixture of Experts** internally. Instead of running *all* engines on every window, it routes to the top-k most suitable experts based on signal context.
+
+**Execution flow:**
+
+```
+SensorWindow
+    ↓
+ContextEncoderService.encode() → ContextVector
+    ↓
+GatingNetwork.route() → GatingProbs
+    ↓
+get_top_k(k=2) → selected experts
+    ↓
+ExpertDispatcher.dispatch() → ExpertOutput[]
+    ↓
+SparseFusionLayer.fuse() → Prediction
+    ↓
+PredictionEnricher.enrich() → Prediction + MoEMetadata
+```
+
+**Feature flag:** `ML_MOE_ENABLED`
+- `true` — full MoE pipeline (sparse, context-aware routing)
+- `false` — delegates to `fallback_engine` (backward-compatible mode)
+
+**Key components:**
+
+| Component | File | Role |
+|-----------|------|------|
+| `ExpertRegistry` | `moe/registry/expert_registry.py` | Catalog of registered experts |
+| `GatingNetwork` | `moe/gating/` | Routing strategy (regime-based, tree-based, etc.) |
+| `SparseFusionLayer` | `moe/fusion/sparse_fusion.py` | Fuses only the k selected experts |
+| `EngineExpertAdapter` | `moe/expert_wrappers/engine_adapter.py` | Wraps any `PredictionEngine` into an `ExpertPort` |
+| `CapacityScheduler` | `moe/scheduler.py` | Adapts `sparsity_k` based on system load |
+
+**Integration:**
+- Wraps existing prediction engines (Taylor, Statistical, Baseline, Seasonal) via `EngineExpertAdapter`
+- Adapters declare `ExpertCapability` — regimes, domains, min/max points, computational cost
+- Gating uses these capabilities to route windows to the cheapest+most-relevant experts
+- Metadata includes: `selected_experts`, `gating_probs`, `fusion_weights`, `dominant_expert`, `total_latency_ms`
+
+---
+
+## Optimization Toolkit
+
+**Folder:** `infrastructure/ml/optimization/`
+
+General-purpose optimization algorithms used internally and available for extending ZENIN.
+
+| Category | Algorithms | Use |
+|----------|-----------|-----|
+| **Gradient** | `SGDOptimizer`, `MomentumSGD` | Weight updates in `OnlineLearner` (feedforward layer) |
+| **Convex** | `NewtonRaphsonOptimizer`, `LBFGSOptimizer`, `ConjugateGradientOptimizer` | Convex quadratic / large-scale problems |
+| **Non-convex** | `SimulatedAnnealing`, `GeneticOptimizer`, `ParticleSwarmOptimizer` | Discrete / mixed-variable optimization |
+| **Unified** | `UnifiedOptimizer` | Auto-selects best method per problem |
+
+**Production usage:**
+- `SGDOptimizer` is the fallback for `OnlineLearner` when `AdamOptimizer` (experimental) is unavailable
+- `StatisticalParamOptimizer` (embedded inside `StatisticalPredictionEngine`) runs grid search over α/β — it does **not** use this toolkit directly, but the same algorithms could be plugged in for future auto-tuning
+
+**Note:** `AdamOptimizer`, `AdaGrad`, `RMSProp` are in `_experimental/` and not recommended for production.
+
+---
+
+## Statistical Inference Toolkit
+
+**Folder:** `infrastructure/ml/inference/`
+
+Utilities for probability calibration, maximum-likelihood estimation, and Bayesian updating.
+
+| Component | File | What it does |
+|-----------|------|-------------|
+| `ProbabilityCalibrator` | `bayesian/calibrator.py` | Platt scaling: `P_calibrated = sigmoid(a·score + b)`. Fixes overconfident heuristic scores |
+| `BayesianUpdater` | `bayesian/posterior.py` | Conjugate prior → posterior updates |
+| `NaiveBayesClassifier` | `bayesian/naive_bayes.py` | Online multi-class Naive Bayes |
+| `MaximumLikelihoodEstimator` | `mle/estimator.py` | Fit distributions (Gaussian, Poisson, Gamma) via MLE |
+| `ParameterFitter` | `mle/parameter_fitter.py` | Distribution selection + parameter estimation |
+
+**Integration:**
+- `ProbabilityCalibrator` can be called after any engine that outputs raw confidence scores to produce well-calibrated probabilities
+- `NaiveBayesClassifier` works with the `TextCognitiveEngine` as a lightweight alternative to the neural path
+- `MaximumLikelihoodEstimator` can be used for anomaly detection: fit a distribution to historical residuals, flag points with low likelihood
+
+---
+
 ## Integration Points
 
 ### IoT / Sensor Data Flow
@@ -477,6 +647,19 @@ if regime == "my_regime":
 | TextCognitiveEngine | `infrastructure/ml/cognitive/text/engine.py` |
 | PredictionEngine interface | `infrastructure/ml/interfaces.py` |
 | Engine selection logic | `application/use_cases/select_engine.py` |
+| HybridNeuralEngine | `infrastructure/ml/cognitive/neural/hybrid_engine.py` |
+| SNNLayer (STDP) | `infrastructure/ml/cognitive/neural/snn/network.py` |
+| MoEGateway | `infrastructure/ml/moe/gateway/moe_gateway.py` |
+| ExpertRegistry | `infrastructure/ml/moe/registry/expert_registry.py` |
+| SparseFusionLayer | `infrastructure/ml/moe/fusion/sparse_fusion.py` |
+| EngineExpertAdapter | `infrastructure/ml/moe/expert_wrappers/engine_adapter.py` |
+| StatisticalParamOptimizer | `infrastructure/ml/engines/statistical/param_optimizer.py` |
+| ProbabilityCalibrator | `infrastructure/ml/inference/bayesian/calibrator.py` |
+| MaximumLikelihoodEstimator | `infrastructure/ml/inference/mle/estimator.py` |
+| BayesianUpdater | `infrastructure/ml/inference/bayesian/posterior.py` |
+| NaiveBayesClassifier | `infrastructure/ml/inference/bayesian/naive_bayes.py` |
+| UnifiedOptimizer | `infrastructure/ml/optimization/unified/optimizer.py` |
+| SGDOptimizer | `infrastructure/ml/optimization/gradient/sgd.py` |
 
 ---
 

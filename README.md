@@ -103,6 +103,10 @@ curl http://localhost:8002/
 | **Decision Guardrails** | AUTO / ASK / DENY safety levels for every autonomous action |
 | **Full Explainability** | Every prediction carries a reasoning trace: regime, engine contributions, confidence, and recommended actions |
 | **Universal Analysis** *(v0.3.0)* | Text, numeric, tabular, and mixed-input analysis through a unified 5-phase cognitive pipeline |
+| **Neural Engines** *(v0.3.0)* | Hybrid SNN + classical feedforward with STDP online learning for severity classification |
+| **Mixture of Experts** *(v0.3.0)* | Sparse MoE gateway routes windows to top-k expert engines by signal context |
+| **Optimization Toolkit** | Gradient, convex, and non-convex optimizers (SGD, Newton, L-BFGS, genetic, PSO) |
+| **Statistical Inference** | Platt calibration, MLE, Bayesian updating, Naive Bayes for probability estimation |
 
 ---
 
@@ -132,7 +136,7 @@ ZENIN is built on a **hexagonal architecture** with clean separation between dom
 - **Hot-reload flags** — change behavior without restarting the service
 - **Circuit breakers** — graceful degradation when dependencies fail
 - **Correlation IDs** — full traceability across distributed calls
-- **Test-driven** — 1400+ tests, hexagonal architecture enables mocking at port boundaries
+- **Test-driven** — 1,800+ tests, hexagonal architecture enables mocking at port boundaries
 
 ## How It Works
 
@@ -145,7 +149,7 @@ PERCEIVE → PREDICT → ADAPT → INHIBIT → FUSE → EXPLAIN → DECIDE → A
 | Phase | What happens |
 |-------|-------------|
 | **PERCEIVE** | Analyze signal structure — classify regime, measure noise, detect trends |
-| **PREDICT** | Run all capable engines concurrently (Taylor, seasonal FFT, statistical, baseline) |
+| **PREDICT** | Run all capable engines concurrently (Taylor, seasonal FFT, statistical, baseline) — optionally via sparse MoE top-k routing |
 | **ADAPT** | Retrieve per-regime weights from plasticity tracker (Redis) |
 | **INHIBIT** | Suppress engines with high recent error or low confidence |
 | **FUSE** | Hampel-filter outliers, then weighted consensus — selected engine gets primary weight |
@@ -414,6 +418,20 @@ iot_machine_learning/
 │   │   │   └── decision/
 │   │   │       └── decision_executor.py
 │   │   └── interfaces.py                # PredictionEngine ABC
+│   ├── moe/                             # Mixture of Experts (sparse routing)
+│   │   ├── gateway/                     # MoEGateway + context encoder
+│   │   ├── gating/                      # Regime-based / tree-based routing
+│   │   ├── fusion/                      # SparseFusionLayer
+│   │   ├── expert_wrappers/             # EngineExpertAdapter
+│   │   └── registry/                    # ExpertRegistry + capabilities
+│   ├── optimization/                    # Optimization algorithms
+│   │   ├── gradient/                    # SGD, MomentumSGD
+│   │   ├── convex/                      # Newton, L-BFGS, Conjugate Gradient
+│   │   ├── nonconvex/                   # Simulated Annealing, Genetic, PSO
+│   │   └── unified/                     # Auto-selection optimizer
+│   ├── inference/                       # Statistical inference utilities
+│   │   ├── bayesian/                    # Platt calibrator, Naive Bayes, posterior
+│   │   └── mle/                         # Maximum Likelihood Estimator
 │   ├── adapters/                        # Port implementations
 │   │   ├── sqlserver_storage.py
 │   │   ├── redis_cache.py
