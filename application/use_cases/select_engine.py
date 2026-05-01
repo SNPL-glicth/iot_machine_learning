@@ -143,10 +143,11 @@ def select_engine_for_series(
         return {"engine_name": "baseline_moving_average", "kwargs": {}}
 
     # 3. Alta volatilidad → ensemble (si disponible)
-    # TODO: ensemble_weighted is not registered in
-    # EngineFactory. This recommendation silently falls
-    # back to baseline. Fix by registering a real
-    # high-volatility engine or changing this recommendation.
+    # BUG: ensemble_weighted no está registrado en EngineFactory.
+    # Si ML_ENABLE_ENSEMBLE=true, la selección devuelve "ensemble_weighted"
+    # pero el engine no existe → fallará silenciosamente a baseline.
+    # Fix: registrar EnsembleWeightedPredictor en EngineFactory
+    # antes de activar ML_ENABLE_ENSEMBLE.
     if profile.volatility == VolatilityLevel.HIGH:
         return {
             "engine_name": "ensemble_weighted",

@@ -3,6 +3,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,22 +31,6 @@ class AnalysisOutput:
         semantic_conclusion: Optional[str] = None,
     ) -> "AnalysisOutput":
         """Construye desde AnalysisResult del motor unificado."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        # DEBUG: Log what we're receiving
-        logger.warning(
-            f"[FROM_RESULT] Building output from result type: {type(result).__name__}, has_semantic={semantic_conclusion is not None}",
-            extra={
-                "document_id": document_id,
-                "has_domain": hasattr(result, 'domain'),
-                "has_confidence": hasattr(result, 'confidence'),
-                "has_severity": hasattr(result, 'severity'),
-                "has_analysis": hasattr(result, 'analysis'),
-                "has_explanation": hasattr(result, 'explanation'),
-            }
-        )
-        
         # Safe navigation for input_type (can be None)
         input_type_value = "unknown"
         if hasattr(result, 'signal') and result.signal is not None:
@@ -71,56 +58,50 @@ class AnalysisOutput:
         elif hasattr(result, 'severity') and result.severity is not None:
             severity = result.severity.severity if hasattr(result.severity, 'severity') else str(result.severity)
         
-        # DEBUG: Log extracted values
-        logger.warning(
-            f"[FROM_RESULT] Extracted fields: domain={domain}, confidence={confidence}, severity={severity}"
-        )
-        
         # Use format_conclusion for rich output
         narrative = "Analysis completed"
         try:
             # If semantic_conclusion is provided, use it directly
             if semantic_conclusion and len(semantic_conclusion) > 50:
-                logger.warning(f"[FROM_RESULT] Using provided semantic_conclusion: {semantic_conclusion[:100]}...")
                 narrative = semantic_conclusion
             # Check if this is AnalysisResult wrapper (data is in nested structure)
             elif hasattr(result, 'signal') and hasattr(result, 'decision') and hasattr(result, 'explanation'):
-                # AnalysisResult wrapper - build narrative manually since data doesn't transfer
-                logger.warning("[FROM_RESULT] AnalysisResult detected - building narrative manually")
-                
-                # Use explanation.narrative if it exists and is not generic
+                # AnalysisResult wrapper — use explanation.narrative if rich enough
                 if result.explanation and hasattr(result.explanation, 'narrative'):
                     narrative = result.explanation.narrative
-                    logger.warning(f"[FROM_RESULT] explanation.narrative = '{narrative[:200] if narrative else 'NONE'}'")
-                    
-                    if narrative and narrative != "Analysis completed" and len(narrative) > 50:
-                        logger.warning(f"[FROM_RESULT] Using rich explanation.narrative")
-                    else:
-                        # Build from available fields
+                    if not narrative or narrative == "Analysis completed" or len(narrative) <= 50:
                         narrative = f"{domain.title()} incident — {severity.title()} | Confidence: {confidence:.1%}"
-                        logger.warning(f"[FROM_RESULT] explanation.narrative too short/generic - built from fields: {narrative}")
                 else:
-                    # Build from available fields
                     narrative = f"{domain.title()} incident — {severity.title()} | Confidence: {confidence:.1%}"
-                    logger.warning(f"[FROM_RESULT] Built narrative from fields: {narrative}")
             else:
-                # UniversalResult - call format_conclusion
-                from iot_machine_learning.ml_service.api.services.analysis.conclusion_formatter import format_conclusion
-                logger.warning("[FROM_RESULT] UniversalResult detected - calling format_conclusion")
-                narrative = format_conclusion(result)
+                # UniversalResult — call format_conclusion with pre-extracted entities
+                from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
+                from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
+                    extract_entities,
+                    extract_urgency_sentiment,
+                )
+                entity_list, word_count = extract_entities(result)
+                urgency_score, sentiment_label = extract_urgency_sentiment(result)
+                entities_dict: Dict[str, Any] = {
+                    "entities": entity_list,
+                    "word_count": word_count,
+                    "urgency_score": urgency_score,
+                    "sentiment_label": sentiment_label,
+                }
+                narrative = format_conclusion(result, entities_dict)
         except Exception as exc:
-            # Log the error for debugging
-            import logging
-            logger = logging.getLogger(__name__)
             logger.error(
-                f"format_conclusion_failed: {exc}",
+                "format_conclusion_failed",
                 exc_info=True,
                 extra={
-                    "has_explanation": hasattr(result, 'explanation'),
-                    "has_domain": hasattr(result, 'domain'),
-                    "has_severity": hasattr(result, 'severity'),
-                    "has_confidence": hasattr(result, 'confidence'),
-                }
+                    "component": "AnalysisOutput.from_result",
+                    "event": "conclusion_build_error",
+                    "context": {
+                        "document_id": document_id,
+                        "result_type": type(result).__name__,
+                        "error": str(exc),
+                    },
+                },
             )
             # Fallback to explanation narrative
             if hasattr(result, 'explanation') and result.explanation is not None and hasattr(result.explanation, 'narrative'):

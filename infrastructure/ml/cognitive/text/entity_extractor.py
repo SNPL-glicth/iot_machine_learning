@@ -14,44 +14,31 @@ from typing import Any, Dict, List, Tuple
 
 def extract_entities(analysis_result) -> Tuple[List[str], int]:
     """Extract entities and word count from analysis_result.
-    
+
     Args:
         analysis_result: UniversalResult or AnalysisResult with analysis data
-        
+
     Returns:
         Tuple of (entities_list, word_count)
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     entities = []
     word_count = 0
-    
+
     # Try UniversalResult.analysis first
     if hasattr(analysis_result, 'analysis') and analysis_result.analysis:
         analysis = analysis_result.analysis
         word_count = analysis.get('word_count', 0)
         entities = analysis.get('entities', [])
-        logger.warning(f"[EXTRACT_ENTITIES] From UniversalResult.analysis: words={word_count}, entities={len(entities)}")
     # Try AnalysisResult.signal.features
     elif hasattr(analysis_result, 'signal') and analysis_result.signal:
-        signal = analysis_result.signal
-        logger.warning(f"[EXTRACT_ENTITIES] AnalysisResult.signal type: {type(signal).__name__}, has features: {hasattr(signal, 'features')}")
-        
-        features = getattr(signal, 'features', {})
-        logger.warning(f"[EXTRACT_ENTITIES] Features: {features}")
-        
+        features = getattr(analysis_result.signal, 'features', {})
         word_count = features.get('word_count', 0)
         entities = features.get('entities', [])
-        
         # If features is empty, try explanation.metadata
         if word_count == 0 and hasattr(analysis_result, 'explanation') and analysis_result.explanation:
             metadata = getattr(analysis_result.explanation, 'metadata', {})
-            logger.warning(f"[EXTRACT_ENTITIES] Trying explanation.metadata: {list(metadata.keys())}")
             word_count = metadata.get('word_count', 0)
             entities = metadata.get('entities', [])
-        
-        logger.warning(f"[EXTRACT_ENTITIES] From AnalysisResult: words={word_count}, entities={len(entities)}")
     
     # Deduplicate entities while preserving order
     seen = set()

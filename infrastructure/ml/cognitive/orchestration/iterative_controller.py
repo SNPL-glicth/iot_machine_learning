@@ -32,8 +32,14 @@ class IterationConfig:
     confidence_threshold: float = 0.85
     time_budget_ms: float = 5000.0
     
-    # Refinement strategies (NOT IMPLEMENTED — see TECHNICAL_DEBT.md)
-    expand_window_on_retry: bool = False  # NOT IMPLEMENTED — see TECHNICAL_DEBT.md
+    # Refinement strategies
+    # NOT IMPLEMENTED: expand_window_on_retry
+    # Cuando se implemente, requiere:
+    #   1. SlidingWindowStore.expand(series_id, n) — amplía la ventana de lecturas
+    #   2. Re-run prediction con ventana expandida vía execute_pipeline()
+    #   3. Comparar confianza antes/después; aceptar si mejora > threshold
+    # Hasta entonces este flag no tiene efecto aunque se establezca a True.
+    expand_window_on_retry: bool = False
     window_expansion_factor: float = 1.5
     
     def __post_init__(self):

@@ -13,12 +13,11 @@ from iot_machine_learning.domain.ports.analysis import (
     Signal,
 )
 
-# Import format_conclusion for rich narrative output
-try:
-    from ...ml_service.api.services.analysis.conclusion_formatter import format_conclusion
-    _HAS_FORMATTER = True
-except ImportError:
-    _HAS_FORMATTER = False
+from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
+from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
+    extract_entities,
+    extract_urgency_sentiment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,37 +104,44 @@ class ExplainPhase:
         context: AnalysisContext,
     ) -> str:
         """Construye narrativa legible con formato rico."""
-        logger.warning(f"[EXPLAIN_PHASE] _build_narrative called: domain={signal.domain}, has_formatter={_HAS_FORMATTER}")
-        
         if self._narrative_builder is not None:
             try:
                 return self._narrative_builder.build(decision, signal, context)
             except Exception as e:
-                logger.warning(f"narrative_builder_failed: {e}")
-        
-        # Build rich narrative using format_conclusion
-        # Create a mock result object with the data we have
-        class MockResult:
-            def __init__(self, signal, decision):
+                logger.error(
+                    "narrative_builder_failed",
+                    exc_info=True,
+                    extra={"component": "ExplainPhase", "event": "narrative_builder_error", "context": {"error": str(e)}},
+                )
+
+        # Build rich narrative using format_conclusion with pre-extracted entities
+        class _MockResult:
+            def __init__(self, signal: Signal, decision: Decision) -> None:
                 self.signal = signal
                 self.decision = decision
                 self.domain = signal.domain
                 self.confidence = decision.confidence
-                # Build analysis dict from signal features
                 self.analysis = getattr(signal, 'features', {})
                 self.explanation = None
-        
-        mock_result = MockResult(signal, decision)
-        
-        if _HAS_FORMATTER:
-            try:
-                logger.warning(f"[EXPLAIN_PHASE] Calling format_conclusion with domain={mock_result.domain}, words={mock_result.analysis.get('word_count', 0)}")
-                narrative = format_conclusion(mock_result)
-                logger.warning(f"[EXPLAIN_PHASE] format_conclusion returned: {narrative[:100]}...")
-                return narrative
-            except Exception as e:
-                logger.warning(f"[EXPLAIN_PHASE] format_conclusion_failed: {e}", exc_info=True)
-        
+
+        mock_result = _MockResult(signal, decision)
+        try:
+            entity_list, word_count = extract_entities(mock_result)
+            urgency_score, sentiment_label = extract_urgency_sentiment(mock_result)
+            entities_dict = {
+                "entities": entity_list,
+                "word_count": word_count,
+                "urgency_score": urgency_score,
+                "sentiment_label": sentiment_label,
+            }
+            return format_conclusion(mock_result, entities_dict)
+        except Exception as e:
+            logger.error(
+                "format_conclusion_failed",
+                exc_info=True,
+                extra={"component": "ExplainPhase", "event": "conclusion_build_error", "context": {"error": str(e)}},
+            )
+
         # Fallback: narrativa simple
         parts = [
             f"Análisis de {signal.input_type.value} en dominio {signal.domain}.",

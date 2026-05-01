@@ -47,7 +47,45 @@ async def lifespan(app: FastAPI):
 
     # Startup
     logger.info("[ML-SERVICE] Starting up...")
-    
+
+    # IMP-5: Resolve compliance exporter once at startup (PIPE-2 fix).
+    # Path traversal validation: sink must live under ALLOWED_BASE_DIR.
+    _compliance_export_path = os.environ.get("ML_COMPLIANCE_EXPORT_PATH")
+    if _compliance_export_path:
+        from pathlib import Path
+        _allowed_base = Path(
+            os.environ.get("ML_COMPLIANCE_BASE_DIR", "/var/lib/zenin/compliance")
+        ).resolve()
+        _resolved_sink = Path(_compliance_export_path).resolve()
+        if not str(_resolved_sink).startswith(str(_allowed_base)):
+            logger.error(
+                "compliance_path_traversal_blocked",
+                extra={"sink": str(_resolved_sink), "allowed_base": str(_allowed_base)},
+            )
+            app.state.compliance_exporter = None
+        else:
+            from iot_machine_learning.infrastructure.ml.cognitive.compliance.compliance_exporter import (
+                ComplianceExporter,
+                load_hmac_key_from_env,
+            )
+            try:
+                app.state.compliance_exporter = ComplianceExporter(
+                    sink_path=_resolved_sink,
+                    hmac_key=load_hmac_key_from_env(),
+                )
+                logger.info(
+                    "compliance_exporter_ready",
+                    extra={"sink": str(_resolved_sink)},
+                )
+            except Exception as exc:
+                logger.error(
+                    "compliance_exporter_init_failed",
+                    extra={"sink": str(_resolved_sink), "error": str(exc)},
+                )
+                app.state.compliance_exporter = None
+    else:
+        app.state.compliance_exporter = None
+
     # FIX: Reset circuit breakers to ensure fresh connection state
     try:
         from iot_machine_learning.infrastructure.persistence.redis import reset_all_circuits

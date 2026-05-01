@@ -54,6 +54,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         redis_client: Optional[Any] = None,
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
         series_values_store: Optional[SeriesValuesStore] = None,
+        compliance_exporter: Optional[Any] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -78,7 +79,10 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             redis_client=redis_client,
         )
         # IMP-3: fresh PipelineExecutor per predict() — no singleton race.
-        self._pipeline_executor_factory = PipelineExecutorFactory()
+        # PIPE-2: compliance_exporter injected from app.state (None if disabled).
+        self._pipeline_executor_factory = PipelineExecutorFactory(
+            compliance_exporter=compliance_exporter,
+        )
 
         # Core components
         self._engines = engines

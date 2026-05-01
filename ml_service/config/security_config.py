@@ -19,6 +19,7 @@ class SecurityConfig(BaseModel):
 
     # --- Security ---
     ML_API_KEY: str = ""  # Empty = auth disabled (dev mode)
+    ML_API_KEY_READONLY: str = ""  # Read-only key for GET endpoints (SEC-3)
     ML_CORS_ORIGINS: str = (
         "http://localhost:3000,"
         "http://localhost:8080,"
@@ -26,6 +27,7 @@ class SecurityConfig(BaseModel):
         "http://localhost:8001,"
         "http://localhost:9090"
     )
+    ML_CORS_ALLOW_CREDENTIALS: bool = False  # SEC-2: explicit opt-in required
 
     # --- Enterprise Features (Fase 3) ---
     ML_ENABLE_DELTA_SPIKE_DETECTION: bool = False

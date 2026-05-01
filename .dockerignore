@@ -1,0 +1,41 @@
+# ═══════════════════════════════════════════
+# ZENIN ML Service — .dockerignore
+# ═══════════════════════════════════════════
+
+.env
+.env.example
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.git/
+.gitignore
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Directorios que no van a producción
+tests/
+test_*.py
+docs/
+scripts/
+*.md
+ARCHITECTURE.md
+ENGINES.md
+README.md
+MIGRATION_SCORECARD.md
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

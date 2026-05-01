@@ -7,11 +7,8 @@ GOLD: Added cognitive_trace combining drift, shadow, and circuit breaker status.
 from __future__ import annotations
 
 import logging
-import os
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
@@ -19,50 +16,8 @@ if TYPE_CHECKING:
 
 from ....interfaces import PredictionResult
 from ...compliance import ComplianceExporter
-from ...compliance.compliance_exporter import load_hmac_key_from_env
 
 logger = logging.getLogger(__name__)
-
-
-# IMP-5: process-level lazy ComplianceExporter.
-#
-# Resolved the first time AssemblyPhase sees the ``ML_COMPLIANCE_EXPORT_PATH``
-# env var. Subsequent requests reuse the same exporter so the sink file is
-# opened+appended with a shared lock across concurrent pipelines.
-_compliance_exporter: Optional[ComplianceExporter] = None
-_compliance_exporter_lock = Lock()
-_compliance_export_path: Optional[str] = None
-
-
-def _resolve_compliance_exporter() -> Optional[ComplianceExporter]:
-    """Return the process-level exporter, creating it on first use."""
-    global _compliance_exporter, _compliance_export_path
-    path = os.environ.get("ML_COMPLIANCE_EXPORT_PATH")
-    if not path:
-        return None
-    with _compliance_exporter_lock:
-        if _compliance_exporter is None or _compliance_export_path != path:
-            try:
-                _compliance_exporter = ComplianceExporter(
-                    sink_path=Path(path),
-                    hmac_key=load_hmac_key_from_env(),
-                )
-                _compliance_export_path = path
-            except Exception as exc:  # pragma: no cover — defensive
-                logger.warning(
-                    "compliance_exporter_init_failed",
-                    extra={"path": path, "error": str(exc)},
-                )
-                _compliance_exporter = None
-    return _compliance_exporter
-
-
-def _reset_compliance_exporter() -> None:
-    """Test-only helper: clear the cached exporter."""
-    global _compliance_exporter, _compliance_export_path
-    with _compliance_exporter_lock:
-        _compliance_exporter = None
-        _compliance_export_path = None
 
 
 @dataclass(frozen=True)
@@ -94,15 +49,18 @@ class CognitiveTrace:
 
 class AssemblyPhase:
     """Final phase: Assemble metadata and create PredictionResult."""
-    
+
+    def __init__(self, compliance_exporter: Optional[ComplianceExporter] = None) -> None:
+        self._compliance_exporter = compliance_exporter
+
     @property
     def name(self) -> str:
         return "assembly"
-    
+
     def execute(self, ctx: PipelineContext) -> PredictionResult:
         """Assemble final result from context."""
         metadata = self._build_metadata(ctx)
-        
+
         # Get confidence interval if storage available
         orchestrator = ctx.orchestrator
         if orchestrator._storage and ctx.series_id != "unknown":
@@ -114,7 +72,7 @@ class AssemblyPhase:
                     metadata["confidence_interval"] = ci
             except Exception as e:
                 logger.debug(f"confidence_interval_failed: {e}")
-        
+
         result = PredictionResult(
             predicted_value=ctx.fused_value,
             confidence=ctx.fused_confidence,
@@ -125,14 +83,12 @@ class AssemblyPhase:
         # envelope — any export failure is logged and swallowed.
         self._maybe_export_compliance(ctx.series_id, result)
         return result
-    
-    @staticmethod
-    def _maybe_export_compliance(series_id: str, result: PredictionResult) -> None:
-        exporter = _resolve_compliance_exporter()
-        if exporter is None:
+
+    def _maybe_export_compliance(self, series_id: str, result: PredictionResult) -> None:
+        if self._compliance_exporter is None:
             return
         try:
-            exporter.export(series_id, result)
+            self._compliance_exporter.export(series_id, result)
         except Exception as exc:  # pragma: no cover — defensive
             logger.warning(
                 "compliance_export_hook_failed",

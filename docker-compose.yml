@@ -1,0 +1,56 @@
+# ════════════════════════════════════════════════════════════════════
+# ZENIN IoT System — Docker Compose
+# Servicios: ML Service + Redis
+# Uso: docker compose -f iot_machine_learning/docker-compose.yml up
+# ════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  zenin-ml:
+    build:
+      context: ..
+      dockerfile: iot_machine_learning/Dockerfile
+    container_name: zenin-ml-service
+    ports:
+      - "8002:8002"
+    environment:
+      - PYTHONPATH=/app
+      - ML_ENV=production
+      - ML_LOG_LEVEL=${ML_LOG_LEVEL:-INFO}
+      - ML_COMPLIANCE_BASE_DIR=/var/lib/zenin/compliance
+      - REDIS_URL=redis://redis:6379/0
+      - ZENIN_DB_HOST=${ZENIN_DB_HOST:-db}
+      - ZENIN_DB_PORT=${ZENIN_DB_PORT:-1433}
+      - ZENIN_DB_NAME=${ZENIN_DB_NAME:-zenin_db}
+      - ZENIN_DB_USER=${ZENIN_DB_USER:-sa}
+      - ZENIN_DB_PASSWORD=${ZENIN_DB_PASSWORD:?ZENIN_DB_PASSWORD is required}
+    env_file:
+      - .env
+    volumes:
+      - zenin_compliance_data:/var/lib/zenin/compliance
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: zenin-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  zenin_compliance_data:

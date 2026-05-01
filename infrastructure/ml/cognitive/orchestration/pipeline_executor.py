@@ -30,6 +30,7 @@ from .phases.action_guard_phase import ActionGuardPhase
 from .phases.narrative_unification_phase import NarrativeUnificationPhase
 from .phases.assembly_phase import AssemblyPhase
 from ..analysis.types import PipelineTimer
+from ..compliance import ComplianceExporter
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class PipelineExecutor:
         phases: Lista ordenada de fases a ejecutar
     """
     
-    def __init__(self) -> None:
+    def __init__(self, compliance_exporter: Optional[ComplianceExporter] = None) -> None:
         """Inicializa el executor con todas las fases configuradas.
 
         Phase order (IMP-1: SanitizePhase inserted at index 0):
@@ -77,7 +78,7 @@ class PipelineExecutor:
             ActionGuardPhase(),
             NarrativeUnificationPhase(),
         ]
-        self._assembly = AssemblyPhase()
+        self._assembly = AssemblyPhase(compliance_exporter=compliance_exporter)
     
     def execute(
         self,

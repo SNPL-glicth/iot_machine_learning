@@ -1,4 +1,4 @@
-"""PipelineExecutorFactory — IMP-3.
+"""PipelineExecutorFactory — IMP-3 + PIPE-2.
 
 Replaces the former module-level ``_pipeline_executor`` singleton.
 Each call to :meth:`create` returns a **fresh** :class:`PipelineExecutor`
@@ -22,6 +22,7 @@ import logging
 from typing import Any, Optional
 
 from .pipeline_executor import PipelineExecutor
+from ..compliance import ComplianceExporter
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ class PipelineExecutorFactory:
     Callers are expected to invoke :meth:`create` once per pipeline run
     and then discard the returned instance. No caching is performed.
     """
+
+    def __init__(self, compliance_exporter: Optional[ComplianceExporter] = None) -> None:
+        self._compliance_exporter = compliance_exporter
 
     def create(self, flags_snapshot: Optional[Any] = None) -> PipelineExecutor:
         """Return a new :class:`PipelineExecutor`.
@@ -44,7 +48,7 @@ class PipelineExecutorFactory:
         # Touching flags_snapshot explicitly avoids "unused arg" lint
         # warnings and documents intent.
         _ = flags_snapshot
-        return PipelineExecutor()
+        return PipelineExecutor(compliance_exporter=self._compliance_exporter)
 
 
 __all__ = ["PipelineExecutorFactory"]
