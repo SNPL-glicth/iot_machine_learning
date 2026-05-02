@@ -11,6 +11,7 @@ Restricción: < 180 líneas.
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -70,9 +71,10 @@ class BatchEnterpriseContainer:
         self._flags = flags
         self._audit_log_path = audit_log_path
 
-        # Lazy singletons
-        self._conn: Optional[Connection] = None
-        self._storage: Optional[SqlServerStorageAdapter] = None
+        # Thread-local storage — one connection + storage per thread
+        self._thread_local = threading.local()
+
+        # Lazy singletons (thread-safe container-level)
         self._audit: Optional[AuditPort] = None
         self._prediction_adapter: Optional[EnterprisePredictionAdapter] = None
         self._moe_gateway: Optional[object] = None  # MoE gateway (lazy, solo si ML_MOE_ENABLED)
@@ -83,9 +85,11 @@ class BatchEnterpriseContainer:
 
     def get_connection(self) -> Connection:
         """Conexión SQLAlchemy (singleton por container, auto-reconnect)."""
-        if self._conn is None or self._conn.closed:
-            self._conn = self._engine.connect()
-        return self._conn
+        if not hasattr(self._thread_local, "connection") or \
+           self._thread_local.connection is None or \
+           self._thread_local.connection.closed:
+            self._thread_local.connection = self._engine.connect()
+        return self._thread_local.connection
 
     def get_storage(self) -> StoragePort:
         """StoragePort (singleton por container, refreshed on reconnect).
@@ -98,14 +102,16 @@ class BatchEnterpriseContainer:
         when ML_BATCH_USE_ENTERPRISE is False.
         """
         conn = self.get_connection()
-        if self._storage is None or self._storage._conn is not conn:
+        if not hasattr(self._thread_local, "storage") or \
+           self._thread_local.storage is None or \
+           self._thread_local.storage._conn is not conn:
             if self._flags.ML_BATCH_USE_ENTERPRISE:
-                self._storage = ZeninMLOnlyStorageAdapter(conn)
+                self._thread_local.storage = ZeninMLOnlyStorageAdapter(conn)
                 logger.info("[BATCH_CONTAINER] Using ZeninMLOnlyStorageAdapter (reads legacy, writes ONLY to zenin_ml)")
             else:
-                self._storage = SqlServerStorageAdapter(conn)
+                self._thread_local.storage = SqlServerStorageAdapter(conn)
                 logger.info("[BATCH_CONTAINER] Using SqlServerStorageAdapter (legacy dbo.predictions only)")
-        return self._storage
+        return self._thread_local.storage
 
     def get_audit(self) -> AuditPort:
         """AuditPort (singleton por container)."""
@@ -231,11 +237,12 @@ class BatchEnterpriseContainer:
 
     def close(self) -> None:
         """Cierra recursos abiertos."""
-        if self._conn is not None:
+        conn = getattr(self._thread_local, "connection", None)
+        if conn is not None:
             try:
-                self._conn.close()
+                conn.close()
             except Exception:
                 pass
-            self._conn = None
-        self._storage = None
+            self._thread_local.connection = None
+        self._thread_local.storage = None
         self._prediction_adapter = None

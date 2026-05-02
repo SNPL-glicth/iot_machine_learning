@@ -150,7 +150,7 @@ class TestSensorProcessorUsesWriterA:
             assert meta.get("device_id") == 7
 
             # Assert delta-spike adjustment is also called (Writer A feature)
-            mock_predictions.adjust_for_delta_spike.assert_called_once_with(12345, 42)
+            mock_storage_instance.adjust_for_delta_spike.assert_called_once_with(12345, 42)
 
     def test_process_never_uses_prediction_writer(self, mock_conn, processor_deps):
         """Writer B (PredictionWriter) must NEVER be instantiated or called."""
@@ -228,18 +228,12 @@ class TestSensorProcessorUsesWriterA:
 class TestPredictionWriterDeprecated:
     """Verify Writer B emits DeprecationWarning and is not in __all__."""
 
-    def test_prediction_writer_emits_deprecation_warning(self):
-        from iot_machine_learning.ml_service.runners.common.prediction_writer import (
-            PredictionWriter,
-        )
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            writer = PredictionWriter(event_writer=Mock())
-
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "PredictionWriter is deprecated" in str(w[0].message)
+    def test_prediction_writer_module_removed(self):
+        """Writer B module must no longer exist."""
+        with pytest.raises(ImportError):
+            from iot_machine_learning.ml_service.runners.common.prediction_writer import (
+                PredictionWriter,
+            )
 
     def test_prediction_writer_not_in_all(self):
         from iot_machine_learning.ml_service.runners.common import __all__

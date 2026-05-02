@@ -15,6 +15,7 @@ from iot_machine_learning.domain.entities.explainability.signal_snapshot import 
     SignalSnapshot,
 )
 from iot_machine_learning.domain.services.situation_vector_builder import (
+    _SITUATION_VECTOR_DIM,
     _clamp01,
     _circuit_to_numeric,
     build_situation_vector,
@@ -78,7 +79,8 @@ class TestBuildSituationVector:
             },
         }
         vec = build_situation_vector(explanation, metadata=metadata)
-        assert len(vec) == 18
+        # 18 = 13 dims activas + 5 reservadas MoE (dims 12-16, siempre 0.0)
+        assert len(vec) == _SITUATION_VECTOR_DIM
         assert vec[9] == pytest.approx(0.5, abs=1e-6)   # 2.5/5
         assert vec[10] == pytest.approx(0.5, abs=1e-6)  # half_open
         assert vec[11] == 1.0                           # amnesic

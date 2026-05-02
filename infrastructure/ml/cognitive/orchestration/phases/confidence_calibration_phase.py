@@ -25,11 +25,6 @@ class ConfidenceCalibrationPhase:
     
     def execute(self, ctx: PipelineContext) -> PipelineContext:
         """Execute confidence calibration if enabled."""
-        flags = ctx.flags
-        
-        if not flags.ML_CONFIDENCE_CALIBRATION_ENABLED:
-            return ctx
-        
         try:
             calibrator = ConfidenceCalibrator()
             

@@ -28,9 +28,6 @@ from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_domain imp
 from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_explanation import (
     build_text_explanation,
 )
-from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_legacy import (
-    build_text_conclusion,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -164,9 +161,55 @@ def build_tabular_conclusion(
     return "\n".join(parts)
 
 
+def build_text_conclusion(
+    *,
+    word_count: int = 0,
+    n_sentences: int = 0,
+    paragraph_count: int = 0,
+    sentiment_label: str = "neutral",
+    sentiment_score: float = 0.0,
+    urgency_score: float = 0.0,
+    urgency_total_hits: int = 0,
+    urgency_hits: Optional[List[Dict[str, Any]]] = None,
+    urgency_severity: str = "low",
+    readability_avg_sentence_len: float = 0.0,
+    readability_vocabulary_richness: float = 0.0,
+) -> str:
+    """Legacy text conclusion builder (simple string assembly).
+
+    Kept for backward compatibility with callers and tests
+    that expect this exact function name and output format.
+    """
+    parts: List[str] = [
+        f"Documento de texto: {word_count} palabras, {n_sentences} oraciones, "
+        f"{paragraph_count} párrafos."
+    ]
+
+    urgency_label = (
+        "ALTA" if urgency_severity == "critical"
+        else "MODERADA" if urgency_severity == "warning"
+        else "BAJA"
+    )
+    parts.append(
+        f"Sentimiento: {sentiment_label} ({sentiment_score:.2f}). "
+        f"Urgencia {urgency_label} — {urgency_total_hits} indicios detectados."
+    )
+
+    if urgency_hits:
+        hit_names = [h.get("keyword", "?") for h in urgency_hits]
+        parts.append(f"Términos clave: {', '.join(hit_names)}.")
+
+    parts.append(
+        f"Legibilidad: longitud media oración = {readability_avg_sentence_len:.1f}, "
+        f"riqueza vocabulario = {readability_vocabulary_richness:.2f}."
+    )
+
+    return "\n".join(parts)
+
+
 _DOMAIN_LABELS = {
     "infrastructure": "Infrastructure",
-    "security": "Security", 
+    "security": "Security",
     "operations": "Operations",
     "business": "Business",
     "general": "General",

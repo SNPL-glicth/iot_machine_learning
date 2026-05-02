@@ -28,8 +28,11 @@ class CognitiveConfig(BaseModel):
     ML_ENABLE_MONTE_CARLO: bool = True
 
     # MEDIUM — keep enabled with timeout (2-5s each)
-    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # max 3s timeout
     ML_HYBRID_TIMEOUT_SECONDS: float = 3.0
+
+    # MEDIUM — Cognitive Memory
+    ML_COHERE_API_KEY: str = ""  # inline
+    ML_MEMORY_MAX_RESULTS: int = 5
 
     # SLOW — disable until GPU available (> 5s each)
     ML_ENABLE_ATTENTION: bool = False  # too slow for CPU

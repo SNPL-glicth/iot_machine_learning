@@ -13,7 +13,7 @@ Ahora (Orchestrator — 1 responsabilidad):
   - Coordina el flujo delegando a:
     • RegressionPredictionService (Modeling)
     • PredictionNarrator (Narrative)
-    • ModelManager, PredictionWriter, EventWriter (Infra — ya existían)
+    • SqlServerStorageAdapter, EventWriter (Infra)
 
 Módulos extraídos:
   - regression_prediction_service.py (Modeling puro)
@@ -29,15 +29,17 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy.engine import Connection
 
 try:
+    from iot_machine_learning.domain.entities.prediction import Prediction
+    from iot_machine_learning.infrastructure.persistence.sql.storage import SqlServerStorageAdapter
     from .model_manager import ModelManager
-    from .prediction_writer import PredictionWriter
     from .event_writer import EventWriter
     from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
     from .regression_prediction_service import RegressionPredictionService
     from .prediction_narrator import PredictionNarrator
 except ImportError:
+    from domain.entities.prediction import Prediction
+    from infrastructure.persistence.sql.storage import SqlServerStorageAdapter
     from model_manager import ModelManager
-    from prediction_writer import PredictionWriter
     from event_writer import EventWriter
     from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
     from regression_prediction_service import RegressionPredictionService
@@ -64,13 +66,22 @@ class SensorProcessor:
     No contiene cálculos, reglas de negocio ni generación de texto.
     """
 
-    def __init__(self):
-        self._model_manager = ModelManager()
-        self._severity_classifier = SeverityClassifier()
-        self._event_writer = EventWriter()
-        self._prediction_writer = PredictionWriter(self._event_writer)
-        self._regression_service = RegressionPredictionService()
-        self._narrator = PredictionNarrator(self._severity_classifier)
+    def __init__(
+        self,
+        *,
+        storage_adapter: Optional[SqlServerStorageAdapter] = None,
+        event_writer: Optional[EventWriter] = None,
+        regression_service: Optional[RegressionPredictionService] = None,
+        severity_classifier: Optional[SeverityClassifier] = None,
+        model_manager: Optional[ModelManager] = None,
+        narrator: Optional[PredictionNarrator] = None,
+    ):
+        self._storage_adapter = storage_adapter
+        self._event_writer = event_writer or EventWriter()
+        self._severity_classifier = severity_classifier or SeverityClassifier()
+        self._regression_service = regression_service or RegressionPredictionService()
+        self._model_manager = model_manager or ModelManager()
+        self._narrator = narrator or PredictionNarrator(self._severity_classifier)
 
     def process(
         self,
@@ -172,21 +183,49 @@ class SensorProcessor:
             user_defined_range=user_range,
         )
 
-        # 5. Persistir predicción (Infra — delegado a writers existentes)
+        # 5. Persistir predicción (Infra — delegado a Writer A)
         device_id = get_device_id_for_sensor(conn, sensor_id)
         model_id = self._model_manager.get_or_create_model_id(conn, sensor_id)
-        target_ts = _utc_now() + timedelta(minutes=reg_cfg.horizon_minutes)
 
-        prediction_id = self._prediction_writer.insert_prediction(
-            conn,
-            model_id=model_id,
-            sensor_id=sensor_id,
-            device_id=device_id,
-            explanation=explanation,
-            target_ts_utc=target_ts,
-            horizon_minutes=reg_cfg.horizon_minutes,
-            window_points=pred_result.window_points_effective,
+        if enterprise_adapter is not None:
+            engine_name = getattr(
+                enterprise_result, "engine_used",
+                getattr(reg_cfg, "engine_name", "regression"),
+            )
+        else:
+            engine_name = getattr(
+                pred_result, "engine_name",
+                getattr(reg_cfg, "engine_name", "regression"),
+            )
+
+        prediction = Prediction(
+            series_id=str(sensor_id),
+            predicted_value=pred_result.predicted_value,
+            confidence_score=getattr(
+                pred_result, "confidence",
+                getattr(pred_result, "confidence_score", 0.0),
+            ),
+            trend=pred_result.trend or "stable",
+            engine_name=engine_name,
+            horizon_steps=1,
+            metadata={
+                "is_anomaly": explanation.anomaly,
+                "anomaly_score": explanation.anomaly_score,
+                "severity": explanation.severity,
+                "risk_level": explanation.risk_level,
+                "explanation": explanation.explanation,
+                "window_points": pred_result.window_points_effective,
+                "model_id": model_id,
+                "device_id": device_id,
+                "horizon_minutes": reg_cfg.horizon_minutes,
+            },
         )
+
+        storage = self._storage_adapter or SqlServerStorageAdapter(conn)
+        prediction_id = storage.save_prediction(
+            prediction, horizon_minutes_per_step=reg_cfg.horizon_minutes
+        )
+        storage.adjust_for_delta_spike(prediction_id, sensor_id)
 
         logger.info(
             "[SENSOR_PROC] prediction id=%s sensor=%s pred=%.4f conf=%.2f",

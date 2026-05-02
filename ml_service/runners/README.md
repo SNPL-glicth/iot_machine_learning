@@ -19,7 +19,6 @@ Runners de ejecución ML: batch (SQL) y stream (broker en memoria).
 | `event_writer.py` | `EventWriter` — lógica de negocio para emitir/resolver eventos ML |
 | `event_queries.py` | Queries SQL puras: `query_upsert_event`, `query_resolve_event`, `query_active_threshold` |
 | `sensor_processor.py` | `SensorProcessor` — orquesta predicción + anomalía + severidad + narrativa |
-| `prediction_writer.py` | `PredictionWriter` — escritura legacy (dev/test) |
 | `severity_classifier.py` | `SeverityClassifier` — clasifica severidad por umbrales de usuario |
 | `model_manager.py` | `ModelManager` — carga y cachea modelos ML desde BD |
 | `prediction_narrator.py` | Genera narrativa textual de predicciones |

@@ -23,6 +23,23 @@ from typing import Any, Optional
 
 from .pipeline_executor import PipelineExecutor
 from ..compliance import ComplianceExporter
+from .phases.action_guard_phase import ActionGuardPhase
+from .phases.boundary_check_phase import BoundaryCheckPhase
+from .phases.coherence_check_phase import CoherenceCheckPhase
+from .phases.confidence_calibration_phase import ConfidenceCalibrationPhase
+from .phases.decision_arbiter_phase import DecisionArbiterPhase
+from .phases.explain_phase import ExplainPhase
+from .phases.narrative_unification_phase import NarrativeUnificationPhase
+from .phases.perceive_phase import PerceivePhase
+from .phases.predict_phase import PredictPhase
+from .phases.adapt_phase import AdaptPhase
+from .phases.inhibit_phase import InhibitPhase
+from .phases.fuse_phase import FusePhase
+
+# PIPE-3: Fases opcionales instanciadas solo si flag activo.
+# Nota: AdaptPhase, FusePhase e InhibitPhase tienen estado
+# compartido a nivel módulo — NO son candidatas a lazy init.
+from ml_service.config.feature_flags import get_feature_flags
 
 logger = logging.getLogger(__name__)
 
@@ -41,14 +58,38 @@ class PipelineExecutorFactory:
         """Return a new :class:`PipelineExecutor`.
 
         Args:
-            flags_snapshot: Feature-flag snapshot for this run. Reserved
-                for future phase-selection logic; currently unused
-                (phase list is static — see module docstring).
+            flags_snapshot: Feature-flag snapshot for this run. If None,
+                flags are read fresh from the environment.
         """
-        # Touching flags_snapshot explicitly avoids "unused arg" lint
-        # warnings and documents intent.
-        _ = flags_snapshot
-        return PipelineExecutor(compliance_exporter=self._compliance_exporter)
+        flags = flags_snapshot or get_feature_flags()
+
+        phases = [
+            PerceivePhase(),
+            PredictPhase(),
+            FusePhase(),
+            InhibitPhase(),
+            AdaptPhase(),
+            BoundaryCheckPhase(),
+        ]
+
+        # Fases opcionales — instanciar solo si flag activo (PIPE-3)
+        if flags.ML_DECISION_ARBITER_ENABLED:
+            phases.append(DecisionArbiterPhase())
+        if flags.ML_COHERENCE_CHECK_ENABLED:
+            phases.append(CoherenceCheckPhase())
+        if flags.ML_CONFIDENCE_CALIBRATION_ENABLED:
+            phases.append(ConfidenceCalibrationPhase())
+        if flags.ML_ACTION_GUARD_ENABLED:
+            phases.append(ActionGuardPhase())
+        if flags.ML_EXPLAINABILITY_ENABLED:
+            phases.append(ExplainPhase())
+        if flags.ML_NARRATIVE_ENABLED:
+            phases.append(NarrativeUnificationPhase())
+
+        return PipelineExecutor(
+            phases=phases,
+            compliance_exporter=self._compliance_exporter,
+        )
 
 
 __all__ = ["PipelineExecutorFactory"]

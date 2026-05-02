@@ -6,6 +6,7 @@ ISO 27001 A.12.4: audit trail, fallback garantizado, métricas A/B.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -39,32 +40,45 @@ class BatchPredictionResult:
 
 @dataclass
 class _AdapterMetrics:
-    """Métricas internas para A/B testing."""
+    """Métricas internas para A/B testing (thread-safe)."""
 
+    _lock: threading.Lock = field(default_factory=threading.Lock)
     enterprise_success: int = 0
     enterprise_failure: int = 0
     total_elapsed_ms: float = 0.0
 
+    def record_success(self, elapsed_ms: float) -> None:
+        with self._lock:
+            self.enterprise_success += 1
+            self.total_elapsed_ms += elapsed_ms
+
+    def record_failure(self) -> None:
+        with self._lock:
+            self.enterprise_failure += 1
+
     @property
     def success_rate(self) -> float:
-        total = self.enterprise_success + self.enterprise_failure
-        return self.enterprise_success / total if total > 0 else 0.0
+        with self._lock:
+            total = self.enterprise_success + self.enterprise_failure
+            return self.enterprise_success / total if total > 0 else 0.0
 
     @property
     def avg_elapsed_ms(self) -> float:
-        return (
-            self.total_elapsed_ms / self.enterprise_success
-            if self.enterprise_success > 0
-            else 0.0
-        )
+        with self._lock:
+            return (
+                self.total_elapsed_ms / self.enterprise_success
+                if self.enterprise_success > 0
+                else 0.0
+            )
 
     def to_dict(self) -> dict:
-        return {
-            "enterprise_success": self.enterprise_success,
-            "enterprise_failure": self.enterprise_failure,
-            "success_rate": round(self.success_rate, 4),
-            "avg_elapsed_ms": round(self.avg_elapsed_ms, 2),
-        }
+        with self._lock:
+            return {
+                "enterprise_success": self.enterprise_success,
+                "enterprise_failure": self.enterprise_failure,
+                "success_rate": round(self.success_rate, 4),
+                "avg_elapsed_ms": round(self.avg_elapsed_ms, 2),
+            }
 
 
 class EnterprisePredictionAdapter:
@@ -102,7 +116,7 @@ class EnterprisePredictionAdapter:
         t0 = time.monotonic()
         try:
             dto = self._use_case.execute(
-                sensor_id=sensor_id, window_size=window_size,
+                series_id=str(sensor_id), window_size=window_size,
             )
             return self._on_success(
                 dto, t0, sensor_id, window_size, "batch_prediction_enterprise",
@@ -139,8 +153,7 @@ class EnterprisePredictionAdapter:
             trace_id=dto.audit_trace_id,
             elapsed_ms=elapsed,
         )
-        self._metrics.enterprise_success += 1
-        self._metrics.total_elapsed_ms += elapsed
+        self._metrics.record_success(elapsed)
         # OBSERVABILITY: Track engine usage per prediction
         from ...metrics.observability import get_observability
         get_observability().engine_usage.record(result.engine_used, sensor_id)
@@ -162,7 +175,7 @@ class EnterprisePredictionAdapter:
             "enterprise_prediction_failed",
             extra={"sensor_id": sensor_id, "error": reason},
         )
-        self._metrics.enterprise_failure += 1
+        self._metrics.record_failure()
         # OBSERVABILITY: Track fallback with counter and per-sensor metrics
         from ...metrics.observability import get_observability
         obs = get_observability()

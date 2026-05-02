@@ -13,9 +13,13 @@ Pure logic — no I/O, no state, no logging.
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Dict, List, Literal, Optional, Tuple
 
 from ..analysis.types import EnginePerception, InhibitionState
+
+logger = logging.getLogger(__name__)
 
 
 class WeightedFusion:
@@ -74,7 +78,16 @@ class WeightedFusion:
         for p in perceptions:
             w = norm_weights.get(p.engine_name, 0.0)
             fused_value += p.predicted_value * w
-            fused_confidence += p.confidence * w
+            confidence = max(0.0, min(1.0, p.confidence))
+            if not (0.0 <= p.confidence <= 1.0):
+                logger.warning(json.dumps({
+                    "event": "confidence_out_of_range",
+                    "component": "WeightedFusion",
+                    "engine": p.engine_name,
+                    "raw_confidence": p.confidence,
+                    "clamped_to": confidence,
+                }))
+            fused_confidence += confidence * w
             trend_votes[p.trend] += w
 
         # Apply spatial bias from correlated neighbours

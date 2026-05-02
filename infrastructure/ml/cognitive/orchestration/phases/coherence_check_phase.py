@@ -24,12 +24,7 @@ class CoherenceCheckPhase:
         return "coherence_check"
     
     def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Execute coherence check if enabled."""
-        flags = ctx.flags
-        
-        if not flags.ML_COHERENCE_CHECK_ENABLED:
-            return ctx
-        
+        """Execute coherence check."""
         try:
             checker = SignalCoherenceChecker()
             historical = ctx.values if len(ctx.values) > 0 else None

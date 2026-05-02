@@ -127,7 +127,7 @@ class PredictionService:
         t_start = time.monotonic()
 
         # 1. Delegar predicción al use case enterprise
-        dto = self._predict_use_case.execute(sensor_id=sensor_id, window_size=window)
+        dto = self._predict_use_case.execute(series_id=str(sensor_id), window_size=window)
 
         # 2. El use case ya persistió la predicción vía StoragePort.
         #    Obtener IDs para compatibilidad con respuesta legacy.
@@ -194,6 +194,7 @@ class PredictionService:
             "structural_analysis": enrichment.get("structural_analysis"),
             "metacognitive": enrichment.get("metacognitive"),
             "audit_trace_id": dto.audit_trace_id,
+            "explanation_summary": dto.explanation_summary,
             "processing_time_ms": elapsed_ms,
         }
 

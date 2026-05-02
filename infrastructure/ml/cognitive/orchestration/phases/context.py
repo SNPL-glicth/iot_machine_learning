@@ -60,6 +60,7 @@ class PipelineContext:
     unified_narrative: Optional[Any] = None
     diagnostic: Optional[Any] = None
     explanation: Optional[Any] = None
+    explanation_summary: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     is_fallback: bool = False
     fallback_reason: Optional[str] = None

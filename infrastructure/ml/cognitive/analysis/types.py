@@ -16,6 +16,21 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional
 
+try:
+    from prometheus_client import Histogram
+except ImportError:
+    Histogram = None
+
+# Prometheus metric: pipeline phase duration
+if Histogram is not None:
+    PIPELINE_PHASE_DURATION = Histogram(
+        "zenin_pipeline_phase_duration_seconds",
+        "Duración de cada fase del pipeline cognitivo",
+        ["phase_name"]
+    )
+else:
+    PIPELINE_PHASE_DURATION = None
+
 from iot_machine_learning.domain.entities.series.structural_analysis import (
     StructuralAnalysis,
 )
@@ -55,6 +70,8 @@ class PipelineTimer:
         elapsed = (time.perf_counter() - self._start) * 1000.0
         if hasattr(self, f"{phase}_ms"):
             setattr(self, f"{phase}_ms", elapsed)
+        if PIPELINE_PHASE_DURATION is not None:
+            PIPELINE_PHASE_DURATION.labels(phase_name=phase).observe(elapsed / 1000.0)
         return elapsed
 
     @property

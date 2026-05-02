@@ -142,6 +142,49 @@ class PredictionQueries:
 
         return prediction_id
 
+    def adjust_for_delta_spike(self, prediction_id: int, sensor_id: int) -> None:
+        """Ajusta severidad si hay un DELTA_SPIKE activo/ack reciente.
+
+        Args:
+            prediction_id: ID de la predicción recién insertada.
+            sensor_id: Identificador del sensor.
+        """
+        try:
+            from iot_machine_learning.ml_service.runners.common.event_queries import (
+                query_has_recent_delta_spike,
+            )
+        except ImportError:
+            from ml_service.runners.common.event_queries import (
+                query_has_recent_delta_spike,
+            )
+
+        if not query_has_recent_delta_spike(self._conn, sensor_id, window_seconds=30):
+            return
+
+        self._conn.execute(
+            text(
+                """
+                UPDATE dbo.predictions
+                SET
+                  anomaly_score = CASE
+                    WHEN anomaly_score IS NULL OR anomaly_score < 0.3 THEN 0.3
+                    ELSE anomaly_score
+                  END,
+                  severity = CASE
+                    WHEN UPPER(severity) = 'CRITICAL' THEN severity
+                    WHEN severity IS NULL OR UPPER(severity) NOT IN ('WARNING','CRITICAL') THEN 'WARNING'
+                    ELSE severity
+                  END
+                WHERE id = :id
+                """
+            ),
+            {"id": prediction_id},
+        )
+        logger.debug(
+            "storage_adjusted_delta_spike",
+            extra={"prediction_id": prediction_id, "sensor_id": sensor_id},
+        )
+
     def get_latest_prediction(self, sensor_id: int) -> Optional[Prediction]:
         """Obtiene la última predicción de un sensor."""
         row = self._conn.execute(

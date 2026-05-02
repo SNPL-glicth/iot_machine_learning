@@ -52,13 +52,13 @@ class MockPredictionPort:
 class MockStoragePort:
     """Mock de StoragePort para tests."""
 
-    def load_sensor_window(self, sensor_id: int, limit: int) -> SensorWindow:
+    def load_series_window(self, series_id: str, limit: int) -> SensorWindow:
         from iot_machine_learning.domain.entities.iot.sensor_reading import Reading, SensorWindow
         readings = [
-            Reading(series_id=str(sensor_id), value=float(i), timestamp=1000 + i)
+            Reading(series_id=series_id, value=float(i), timestamp=1000 + i)
             for i in range(limit)
         ]
-        return SensorWindow(series_id=str(sensor_id), readings=readings)
+        return SensorWindow(series_id=series_id, readings=readings)
 
     def save_prediction(self, prediction: Prediction) -> None:
         pass
@@ -136,7 +136,7 @@ class TestPredictUseCaseWithTracker:
         use_case, tracker = mock_use_case_with_tracker
 
         # Ejecutar predicción
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
 
         # Verificar que se loguearon métricas
         assert len(tracker.metrics_logged) > 0
@@ -150,7 +150,7 @@ class TestPredictUseCaseWithTracker:
         """Los parámetros (engine, series_id, window_size) se loguean."""
         use_case, tracker = mock_use_case_with_tracker
 
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
 
         # Verificar parámetros
         param_dict = dict(tracker.params_logged)
@@ -161,26 +161,26 @@ class TestPredictUseCaseWithTracker:
         assert param_dict["window_size"] == 10
 
     def test_tags_set(self, mock_use_case_with_tracker):
-        """Los tags (pipeline_version, sensor_id) se setean."""
+        """Los tags (pipeline_version, series_id) se setean."""
         use_case, tracker = mock_use_case_with_tracker
 
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
 
         # Verificar tags
         tag_dict = dict(tracker.tags_set)
         assert "pipeline_version" in tag_dict
         assert tag_dict["pipeline_version"] == "0.2.1-GOLD"
-        assert "sensor_id" in tag_dict
-        assert tag_dict["sensor_id"] == "1"
+        assert "series_id" in tag_dict
+        assert tag_dict["series_id"] == "1"
 
     def test_step_increment(self, mock_use_case_with_tracker):
         """El step incrementa con cada predicción."""
         use_case, tracker = mock_use_case_with_tracker
 
         # Ejecutar 3 predicciones
-        use_case.execute(sensor_id=1, window_size=10)
-        use_case.execute(sensor_id=2, window_size=10)
-        use_case.execute(sensor_id=3, window_size=10)
+        use_case.execute(series_id="1", window_size=10)
+        use_case.execute(series_id="2", window_size=10)
+        use_case.execute(series_id="3", window_size=10)
 
         # Verificar que steps son 1, 2, 3
         confidence_metrics = [m for m in tracker.metrics_logged if m[0] == "confidence_score"]
@@ -201,7 +201,7 @@ class TestPredictUseCaseWithTracker:
         )
 
         # Debe funcionar sin error
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
         assert dto is not None
         assert dto.confidence_score == 0.85
 
@@ -214,14 +214,14 @@ class TestPredictUseCaseWithTracker:
         tracker.log_metrics = MagicMock(side_effect=Exception("Tracking error"))
 
         # La predicción debe seguir funcionando
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
         assert dto is not None
 
     def test_confidence_interval_width_logged(self, mock_use_case_with_tracker):
         """Si hay confidence_interval, se loguea su ancho."""
         use_case, tracker = mock_use_case_with_tracker
 
-        dto = use_case.execute(sensor_id=1, window_size=10)
+        dto = use_case.execute(series_id="1", window_size=10)
 
         # Verificar que se logueó confidence_interval_width
         metric_keys = [m[0] for m in tracker.metrics_logged]
@@ -250,5 +250,5 @@ class TestBackwardCompatibility:
         )
 
         # Debe funcionar
-        dto = use_case.execute(sensor_id=1)
+        dto = use_case.execute(series_id="1")
         assert dto is not None

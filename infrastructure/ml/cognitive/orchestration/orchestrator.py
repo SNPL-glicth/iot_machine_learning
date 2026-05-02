@@ -45,6 +45,8 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         initial_weights: Optional[Dict[str, float]] = None,
         inhibition_config: Optional[InhibitionConfig] = None,
         enable_plasticity: bool = True,
+        # ARCH: Config BUDGET_MS=25000 (25s pipeline max) vs this guard=500ms
+        # The 500ms guard fires early for single-phase budget; 25s is total cycle.
         budget_ms: float = 500.0,
         storage_adapter=None,
         enable_advanced_plasticity: bool = False,

@@ -46,12 +46,12 @@ from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 @pytest.fixture
 def mock_storage() -> MagicMock:
     mock = MagicMock(spec=StoragePort)
-    mock.load_sensor_window.return_value = SensorWindow(
-        sensor_id=1,
+    mock.load_series_window.return_value = SensorWindow(
+        series_id="1",
         readings=[
-            SensorReading(sensor_id=1, value=20.0, timestamp=1000.0),
-            SensorReading(sensor_id=1, value=21.0, timestamp=1001.0),
-            SensorReading(sensor_id=1, value=22.0, timestamp=1002.0),
+            SensorReading(series_id="1", value=20.0, timestamp=1000.0),
+            SensorReading(series_id="1", value=21.0, timestamp=1001.0),
+            SensorReading(series_id="1", value=22.0, timestamp=1002.0),
         ],
     )
     mock.save_prediction.return_value = 42
@@ -119,7 +119,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.memory_context is not None
         assert "enriched_explanation" in dto.memory_context
@@ -135,7 +135,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.predicted_value == 23.0
 
@@ -149,7 +149,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.confidence_score == 0.85
 
@@ -163,7 +163,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.trend == "up"
 
@@ -177,7 +177,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        uc.execute(sensor_id=1)
+        uc.execute(series_id="1")
 
         mock_cognitive.recall_similar_explanations.assert_called_once()
         mock_cognitive.recall_similar_anomalies.assert_called_once()
@@ -192,7 +192,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         enriched = dto.memory_context["enriched_explanation"]
         assert "Upward trend detected" in enriched
@@ -208,7 +208,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
         d = dto.to_dict()
 
         assert "memory_context" in d
@@ -226,7 +226,7 @@ class TestRecallEnabled:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.memory_context is None
 
@@ -246,7 +246,7 @@ class TestRecallDisabledFlag:
             cognitive=mock_cognitive,
             flags=flags_recall_disabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.memory_context is None
 
@@ -260,7 +260,7 @@ class TestRecallDisabledFlag:
             cognitive=mock_cognitive,
             flags=flags_recall_disabled,
         )
-        uc.execute(sensor_id=1)
+        uc.execute(series_id="1")
 
         mock_cognitive.recall_similar_explanations.assert_not_called()
         mock_cognitive.recall_similar_anomalies.assert_not_called()
@@ -275,7 +275,7 @@ class TestRecallDisabledFlag:
             cognitive=mock_cognitive,
             flags=flags_recall_disabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.predicted_value == 23.0
         assert dto.confidence_score == 0.85
@@ -296,7 +296,7 @@ class TestRecallNoCognitivePort:
             cognitive=None,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.memory_context is None
 
@@ -309,7 +309,7 @@ class TestRecallNoCognitivePort:
             cognitive=mock_cognitive,
             flags=None,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.memory_context is None
 
@@ -333,7 +333,7 @@ class TestRecallFailureFallback:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         # Pipeline still works
         assert dto.predicted_value == 23.0
@@ -353,7 +353,7 @@ class TestRecallFailureFallback:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         # Pipeline still works — enricher catches the error internally
         assert dto.predicted_value == 23.0
@@ -372,7 +372,7 @@ class TestRecallFailureFallback:
             cognitive=mock_cognitive,
             flags=flags_recall_enabled,
         )
-        uc.execute(sensor_id=1)
+        uc.execute(series_id="1")
 
         mock_storage.save_prediction.assert_called_once()
 
@@ -390,7 +390,7 @@ class TestBackwardCompatibility:
             prediction_service=mock_prediction_service,
             storage=mock_storage,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
 
         assert dto.predicted_value == 23.0
         assert dto.memory_context is None
@@ -402,7 +402,7 @@ class TestBackwardCompatibility:
             prediction_service=mock_prediction_service,
             storage=mock_storage,
         )
-        dto = uc.execute(sensor_id=1)
+        dto = uc.execute(series_id="1")
         d = dto.to_dict()
 
         assert "memory_context" not in d

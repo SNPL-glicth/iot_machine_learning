@@ -255,6 +255,10 @@ class ReadingsStreamConsumer:
             return
         try:
             from ..config.feature_flags import get_feature_flags
+            # ARCHITECTURE NOTE (INF-5): stream predictions y batch runner
+            # son paths MUTUAMENTE EXCLUYENTES. Habilitar ambos produce
+            # filas duplicadas en dbo.predictions y eventos duplicados en
+            # dbo.ml_events. El guard en lifespan previene esta configuración.
             if not get_feature_flags().ML_STREAM_PREDICTIONS_ENABLED:
                 logger.debug("stream_predictions_disabled sensor=%d", sensor_id)
                 return

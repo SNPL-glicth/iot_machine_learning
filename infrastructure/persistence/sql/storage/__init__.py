@@ -61,7 +61,11 @@ class SqlServerStorageAdapter(StoragePort):
     
     def get_latest_prediction(self, sensor_id: int) -> Optional[Prediction]:
         return self._predictions.get_latest_prediction(sensor_id)
-    
+
+    def adjust_for_delta_spike(self, prediction_id: int, sensor_id: int) -> None:
+        """Ajusta severidad si hay un DELTA_SPIKE activo/ack reciente."""
+        return self._predictions.adjust_for_delta_spike(prediction_id, sensor_id)
+
     # Delegate to anomaly queries
     def save_anomaly_event(
         self,

@@ -27,9 +27,6 @@ class DecisionArbiterPhase:
         """Execute decision arbiter if enabled."""
         flags = ctx.flags
         
-        if not flags.ML_DECISION_ARBITER_ENABLED:
-            return ctx
-        
         try:
             flag_engine = (
                 flags.get_active_engine_for_series(ctx.series_id) 

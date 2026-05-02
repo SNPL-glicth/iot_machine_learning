@@ -7,9 +7,6 @@ This package provides shared components for ML processing runners:
 - severity_classifier: Severity classification (moved to infrastructure)
 """
 
-# LEGACY: PredictionWriter is deprecated — used only by SensorProcessor batch runner.
-# Migration path: replace with SqlServerStorageAdapter.save_prediction()
-from .prediction_writer import PredictionWriter
 from .event_writer import EventWriter
 from .sensor_processor import SensorProcessor
 from .model_manager import ModelManager

@@ -113,10 +113,12 @@ class MemoryRecallEnricher:
         try:
             return self._do_enrich(prediction)
         except Exception as exc:
-            logger.warning(
+            logger.error(
                 "memory_recall_enrichment_failed",
                 extra={
-                    "series_id": prediction.series_id,
+                    "event": "memory_recall_failed",
+                    "component": "MemoryRecallEnricher",
+                    "series_id": getattr(prediction, "series_id", "unknown"),
                     "error": str(exc),
                 },
             )

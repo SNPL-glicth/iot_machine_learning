@@ -45,8 +45,12 @@ class PipelineExecutor:
         phases: Lista ordenada de fases a ejecutar
     """
     
-    def __init__(self, compliance_exporter: Optional[ComplianceExporter] = None) -> None:
-        """Inicializa el executor con todas las fases configuradas.
+    def __init__(
+        self,
+        phases: Optional[list] = None,
+        compliance_exporter: Optional[ComplianceExporter] = None,
+    ) -> None:
+        """Inicializa el executor con las fases configuradas.
 
         Phase order (IMP-1: SanitizePhase inserted at index 0):
             [0]  SanitizePhase      — NaN/Inf hard-stop, 6σ clamp, CUSUM flag
@@ -63,21 +67,23 @@ class PipelineExecutor:
             [11] ActionGuardPhase
             [12] NarrativeUnificationPhase
         """
-        self._phases = [
-            SanitizePhase(),
-            BoundaryCheckPhase(),
-            PerceivePhase(),
-            PredictPhase(),
-            AdaptPhase(),
-            InhibitPhase(),
-            FusePhase(),
-            DecisionArbiterPhase(),
-            CoherenceCheckPhase(),
-            ConfidenceCalibrationPhase(),
-            ExplainPhase(),
-            ActionGuardPhase(),
-            NarrativeUnificationPhase(),
-        ]
+        if phases is None:
+            phases = [
+                SanitizePhase(),
+                BoundaryCheckPhase(),
+                PerceivePhase(),
+                PredictPhase(),
+                AdaptPhase(),
+                InhibitPhase(),
+                FusePhase(),
+                DecisionArbiterPhase(),
+                CoherenceCheckPhase(),
+                ConfidenceCalibrationPhase(),
+                ExplainPhase(),
+                ActionGuardPhase(),
+                NarrativeUnificationPhase(),
+            ]
+        self._phases = phases
         self._assembly = AssemblyPhase(compliance_exporter=compliance_exporter)
     
     def execute(

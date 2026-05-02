@@ -99,7 +99,8 @@ class AssemblyPhase:
         """Build comprehensive metadata dict with GOLD cognitive trace."""
         metadata: Dict[str, Any] = {
             "cognitive_diagnostic": ctx.diagnostic.to_dict() if ctx.diagnostic else None,
-            "explanation": ctx.explanation.to_dict() if ctx.explanation else None,
+            "explanation": self._safe_serialize(ctx.explanation),
+            "explanation_summary": getattr(ctx, "explanation_summary", None),
             "pipeline_timing": ctx.timer.to_dict() if ctx.timer else None,
             "cognitive_trace": self._build_cognitive_trace(ctx),
             # IMP-1: always surface sanitization flags (empty list on clean input).

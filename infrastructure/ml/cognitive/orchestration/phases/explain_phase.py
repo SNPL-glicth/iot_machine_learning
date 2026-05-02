@@ -11,6 +11,9 @@ from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from . import PipelineContext
+from .phase_context import PhaseContext
+from .context import PipelineContext
+from application.explainability.explanation_renderer import ExplanationRenderer
 
 from ...analysis.types import MetaDiagnostic
 
@@ -99,7 +102,7 @@ class ExplainPhase:
         return "explain"
     
     def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Execute explanation phase with causal narratives."""
+        """Execute explanation phase."""
         orchestrator = ctx.orchestrator
         
         # Generate causal narratives

@@ -60,12 +60,32 @@ def _engine_series_to_model_id(engine_name: str, series_id: UUID) -> UUID:
 def _safe_float(value: object, default: float = 0.0) -> float:
     """Convierte a float con guard contra None/NaN/Inf."""
     if value is None:
+        logger.warning(json.dumps({
+            "event": "silent_coercion",
+            "component": "_safe_float",
+            "original_value": str(value),
+            "coerced_to": default,
+        }))
         return default
     try:
         import math
         f = float(value)
-        return f if math.isfinite(f) else default
+        if not math.isfinite(f):
+            logger.warning(json.dumps({
+                "event": "silent_coercion",
+                "component": "_safe_float",
+                "original_value": str(value),
+                "coerced_to": default,
+            }))
+            return default
+        return f
     except (TypeError, ValueError):
+        logger.warning(json.dumps({
+            "event": "silent_coercion",
+            "component": "_safe_float",
+            "original_value": str(value),
+            "coerced_to": default,
+        }))
         return default
 
 

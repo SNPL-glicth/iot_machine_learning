@@ -24,12 +24,7 @@ class ActionGuardPhase:
         return "action_guard"
     
     def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Execute action guard if enabled."""
-        flags = ctx.flags
-        
-        if not flags.ML_ACTION_GUARD_ENABLED:
-            return ctx
-        
+        """Execute action guard."""
         try:
             series_state = getattr(ctx.profile, 'series_state', 'UNKNOWN')
             

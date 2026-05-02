@@ -43,6 +43,7 @@ def load_from_env() -> FeatureFlags:
         "ML_COGNITIVE_MEMORY_ASYNC",
         "ML_ENABLE_MEMORY_RECALL",
         "ML_ENABLE_DECISION_ENGINE",
+        "ML_STREAM_PREDICTIONS_ENABLED",
     ):
         env_val = os.environ.get(key)
         if env_val is not None:

@@ -69,12 +69,14 @@ class PredictResponse(BaseModel):
     metacognitive: Optional[MetacognitiveResponse] = Field(None, description="Clasificación metacognitiva")
     audit_trace_id: Optional[str] = Field(None, description="ID de trazabilidad ISO 27001")
     processing_time_ms: Optional[float] = Field(None, description="Tiempo de procesamiento en ms")
+    explanation_summary: Optional[str] = Field(None, description="Resumen humano de la explicación (DOM-4)")
 
 
 class HealthResponse(BaseModel):
     """Response schema for health endpoint."""
     status: str
     broker: dict | None = None
+    poller: dict | None = None
     version: str = "0.1.0"
 
 

@@ -24,12 +24,7 @@ class NarrativeUnificationPhase:
         return "narrative_unification"
     
     def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Execute narrative unification if enabled."""
-        flags = ctx.flags
-        
-        if not flags.ML_NARRATIVE_UNIFICATION_ENABLED:
-            return ctx
-        
+        """Execute narrative unification."""
         try:
             unifier = NarrativeUnifier()
             

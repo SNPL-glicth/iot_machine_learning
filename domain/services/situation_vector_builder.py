@@ -25,36 +25,15 @@ def _circuit_to_numeric(status: str) -> float:
     return {"closed": 0.0, "half_open": 0.5, "open": 1.0}.get(str(status).lower(), 0.0)
 
 
+_SITUATION_VECTOR_DIM = 18  # 13 activas + 5 reservadas MoE (dims 12-16)
+
+
 def build_situation_vector(
     explanation: Optional[Explanation],
     metadata: Optional[Dict[str, Any]] = None,
 ) -> List[float]:
-    """Construye vector de situación 18-dim desde Explanation y metadata.
-
-    Dimensiones:
-        0-5  regime_vector  [slope, curvature, stability, accel_variance,
-                            noise_ratio, trend_strength]
-        6    outcome_confidence
-        7    outcome_anomaly_score
-        8    composite_score (severidad continua [0,1])
-        9    drift_score (normalizado a [0,1])
-        10   circuit_status (closed=0, half_open=0.5, open=1)
-        11   amnesic_flag (0/1)
-        12   moe_top1_prob
-        13   moe_top2_prob
-        14   moe_top3_prob
-        15   moe_entropy
-        16   moe_sparsity_k/10
-        17   n_engines_ratio (active / available)
-
-    Args:
-        explanation: Explanation domain object (puede ser None).
-        metadata: Metadata dict opcional (e.g. PredictionResult.metadata).
-
-    Returns:
-        Lista de 18 floats normalizados [0, 1].
-    """
-    vec: List[float] = [0.0] * 18
+    """Construye un vector de situación de 18 dimensiones."""
+    vec: List[float] = [0.0] * _SITUATION_VECTOR_DIM
 
     if explanation is None:
         return vec
@@ -83,6 +62,14 @@ def build_situation_vector(
     if trace:
         available = max(1, trace.n_engines_available)
         vec[17] = round(min(1.0, trace.n_engines_active / available), 6)
+
+    # DIMS 12-16: Reservadas para MoE (Mixture of Experts)
+    # Infraestructura disponible en infrastructure/ml/moe/
+    # pero no cableada al pipeline de inferencia.
+    # Cuando se active MoE, AssemblyPhase debe inyectar
+    # metadata["moe_vector"] = [top1_prob, top2_prob,
+    #   top3_prob, entropy, sparsity_k/10]
+    # Hasta entonces estas dimensiones retornan 0.0 (no ruido).
 
     # cognitive_trace viene en metadata (AssemblyPhase lo pone allí)
     meta = metadata or {}

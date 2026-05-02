@@ -222,3 +222,28 @@ class TestApiKeyRbac:
         presented = "master-key"
         accepted = bool(master_key) and presented == master_key
         assert accepted
+
+
+# ─── SEC-4: Compliance path traversal ────────────────────────────────────
+
+class TestCompliancePathTraversal:
+    def test_valid_path_inside_base_dir(self, tmp_path):
+        from iot_machine_learning.ml_service.main import validate_compliance_path
+        base = tmp_path / "compliance"
+        sink = base / "exports.jsonl"
+        result = validate_compliance_path(str(sink), str(base))
+        assert result == sink.resolve()
+
+    def test_traversal_escape_raises(self, tmp_path):
+        from iot_machine_learning.ml_service.main import validate_compliance_path
+        base = tmp_path / "compliance"
+        sink = base / ".." / ".." / "etc" / "passwd"
+        with pytest.raises(ValueError, match="compliance_path_traversal"):
+            validate_compliance_path(str(sink), str(base))
+
+    def test_path_outside_base_without_traversal_raises(self, tmp_path):
+        from iot_machine_learning.ml_service.main import validate_compliance_path
+        base = tmp_path / "compliance"
+        sink = tmp_path / "tmp" / "audit.jsonl"
+        with pytest.raises(ValueError, match="compliance_path_traversal"):
+            validate_compliance_path(str(sink), str(base))

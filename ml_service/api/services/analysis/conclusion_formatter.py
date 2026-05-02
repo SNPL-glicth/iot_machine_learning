@@ -20,21 +20,6 @@ def format_conclusion(analysis_result, comparison_result: Optional[object] = Non
     Returns:
         Formatted conclusion string
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    # DEBUG: Log what we're receiving
-    logger.warning(
-        f"[FORMAT_CONCLUSION] Received result type: {type(analysis_result).__name__}",
-        extra={
-            "has_domain": hasattr(analysis_result, 'domain'),
-            "has_confidence": hasattr(analysis_result, 'confidence'),
-            "has_severity": hasattr(analysis_result, 'severity'),
-            "has_analysis": hasattr(analysis_result, 'analysis'),
-            "has_explanation": hasattr(analysis_result, 'explanation'),
-        }
-    )
-    
     parts = []
     
     # Header with domain, severity, risk, confidence
@@ -55,10 +40,6 @@ def format_conclusion(analysis_result, comparison_result: Optional[object] = Non
     # Try decision.confidence (AnalysisResult wrapper)
     elif hasattr(analysis_result, 'decision') and analysis_result.decision:
         confidence = getattr(analysis_result.decision, 'confidence', 0.0)
-    
-    logger.warning(
-        f"[FORMAT_CONCLUSION] Extracted: domain={domain}, confidence={confidence}"
-    )
     
     # Get severity information
     # Handle both UniversalResult and AnalysisResult wrapper

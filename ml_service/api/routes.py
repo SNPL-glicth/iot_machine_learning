@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 
 from .dependencies import DbConnDep, verify_api_key
 from .schemas import (
@@ -29,18 +29,50 @@ router.include_router(query_router)
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health(_: str = Depends(verify_api_key)) -> HealthResponse:
-    """Liveness probe — always returns ok if process is running."""
+async def health(
+    request: Request,
+    _: str = Depends(verify_api_key),
+) -> HealthResponse:
+    """Liveness probe — returns ok if process is running.
+
+    Returns 503 if Zenin Queue Poller is enabled but the daemon
+    thread has died, allowing Docker/K8s to restart the container.
+    """
     broker_health = None
     try:
         from ..broker import get_broker_health
         broker_health = get_broker_health()
     except Exception:
         pass
-    
+
+    poller_status: dict | None = None
+    poller = getattr(request.app.state, "zenin_poller", None)
+    poller_thread = getattr(request.app.state, "zenin_poller_thread", None)
+    if poller is not None and poller_thread is not None:
+        stats = poller.stats
+        alive = poller_thread.is_alive()
+        poller_status = {
+            "enabled": True,
+            "alive": alive,
+            "total_processed": stats.get("total_processed", 0),
+            "total_errors": stats.get("total_errors", 0),
+        }
+        if not alive:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "degraded",
+                    "broker": broker_health,
+                    "poller": poller_status,
+                },
+            )
+    else:
+        poller_status = {"enabled": False}
+
     return HealthResponse(
         status="ok",
         broker=broker_health,
+        poller=poller_status,
     )
 
 
@@ -112,6 +144,7 @@ async def ml_predict(payload: PredictRequest, conn: DbConnDep, _: str = Depends(
             metacognitive=metacognitive,
             audit_trace_id=result.get("audit_trace_id"),
             processing_time_ms=result.get("processing_time_ms"),
+            explanation_summary=result.get("explanation_summary"),
         )
     except ValueError as e:
         logger.warning("[ML-SERVICE] Prediction failed: %s", str(e))

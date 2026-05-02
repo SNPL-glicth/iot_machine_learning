@@ -196,5 +196,5 @@ class SensorWindow(TimeSeriesWindow):
         return TimeSeries.from_values(
             values=self.values,
             timestamps=self.timestamps,
-            series_id=str(self.sensor_id),
+            series_id=str(self.series_id),
         )

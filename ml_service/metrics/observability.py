@@ -5,6 +5,7 @@ Restriction: < 180 lines.
 """
 from __future__ import annotations
 import logging
+import threading
 import time
 from typing import Dict, Optional, Set
 from dataclasses import dataclass, field
@@ -14,45 +15,54 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FallbackMetrics:
-    """Enterprise fallback tracking."""
+    """Enterprise fallback tracking (thread-safe)."""
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, compare=False, repr=False,
+    )
     total: int = 0
     per_sensor: Dict[int, int] = field(default_factory=dict)
     last_reasons: Dict[int, str] = field(default_factory=dict)
-    
+
     def record(self, sensor_id: int, reason: str) -> None:
-        self.total += 1
-        self.per_sensor[sensor_id] = self.per_sensor.get(sensor_id, 0) + 1
-        self.last_reasons[sensor_id] = reason
+        with self._lock:
+            self.total += 1
+            self.per_sensor[sensor_id] = self.per_sensor.get(sensor_id, 0) + 1
+            self.last_reasons[sensor_id] = reason
+            count = self.per_sensor[sensor_id]
         # CRITICAL alert if rate exceeds threshold (check externally)
         logger.warning("ml.enterprise.fallback", extra={
             "sensor_id": sensor_id, "reason": reason[:100],
-            "count": self.per_sensor[sensor_id]
+            "count": count,
         })
 
 
-@dataclass  
+@dataclass
 class EngineUsageMetrics:
-    """Engine usage distribution."""
+    """Engine usage distribution (thread-safe)."""
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, compare=False, repr=False,
+    )
     baseline: int = 0
     taylor: int = 0
     moe: int = 0
     fallback: int = 0
     per_sensor: Dict[int, str] = field(default_factory=dict)
-    
+
     def record(self, engine_name: str, sensor_id: int) -> None:
-        self.per_sensor[sensor_id] = engine_name
-        if "baseline" in engine_name.lower():
-            self.baseline += 1
-            metric_name = "ml.engine.usage.baseline"
-        elif "taylor" in engine_name.lower():
-            self.taylor += 1
-            metric_name = "ml.engine.usage.taylor"
-        elif "moe" in engine_name.lower():
-            self.moe += 1
-            metric_name = "ml.engine.usage.moe"
-        else:
-            self.fallback += 1
-            metric_name = "ml.engine.usage.other"
+        with self._lock:
+            self.per_sensor[sensor_id] = engine_name
+            if "baseline" in engine_name.lower():
+                self.baseline += 1
+                metric_name = "ml.engine.usage.baseline"
+            elif "taylor" in engine_name.lower():
+                self.taylor += 1
+                metric_name = "ml.engine.usage.taylor"
+            elif "moe" in engine_name.lower():
+                self.moe += 1
+                metric_name = "ml.engine.usage.moe"
+            else:
+                self.fallback += 1
+                metric_name = "ml.engine.usage.other"
         logger.info(metric_name, extra={"sensor_id": sensor_id, "engine": engine_name})
 
 
@@ -85,12 +95,17 @@ class SemanticMetrics:
 
 @dataclass
 class SilentFailureMetrics:
-    """Tracks silently caught exceptions."""
+    """Tracks silently caught exceptions (thread-safe)."""
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, compare=False, repr=False,
+    )
     errors_by_location: Dict[str, int] = field(default_factory=dict)
-    
+
     def record(self, location: str, error: str, context: Optional[Dict] = None) -> None:
-        self.errors_by_location[location] = self.errors_by_location.get(location, 0) + 1
-        extra = {"location": location, "error": error[:200], "count": self.errors_by_location[location]}
+        with self._lock:
+            self.errors_by_location[location] = self.errors_by_location.get(location, 0) + 1
+            count = self.errors_by_location[location]
+        extra = {"location": location, "error": error[:200], "count": count}
         if context:
             extra.update(context)
         logger.error("ml.silent.failure.detected", extra=extra)

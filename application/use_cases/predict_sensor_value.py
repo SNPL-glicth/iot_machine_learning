@@ -58,7 +58,7 @@ class PredictSensorValueUseCase:
 
     def execute(
         self,
-        sensor_id: int,
+        series_id: str,
         window_size: Optional[int] = None,
     ) -> PredictionDTO:
         """Ejecuta predicción cargando datos de storage."""
@@ -66,14 +66,14 @@ class PredictSensorValueUseCase:
         effective_window = window_size or self._window_size
 
         # 1. Cargar datos
-        window = self._storage.load_sensor_window(
-            sensor_id=sensor_id,
+        window = self._storage.load_series_window(
+            series_id=series_id,
             limit=effective_window,
         )
 
         if window.is_empty:
             raise ValueError(
-                f"Sensor {sensor_id} no tiene lecturas disponibles"
+                f"Series {series_id} no tiene lecturas disponibles"
             )
 
         # 1.5. Sanitizar datos (boundary de robustez)
@@ -86,7 +86,7 @@ class PredictSensorValueUseCase:
         except ValueError as e:
             # Re-raise con contexto para que routes.py devuelva 422
             raise ValueError(
-                f"Data validation failed for sensor {sensor_id}: {e}"
+                f"Data validation failed for series {series_id}: {e}"
             ) from e
 
         # Log warnings no fatales
@@ -94,7 +94,7 @@ class PredictSensorValueUseCase:
             logger.warning(
                 "input_sanitization_warnings",
                 extra={
-                    "sensor_id": sensor_id,
+                    "series_id": series_id,
                     "warnings": sanitized.warnings,
                 },
             )
@@ -111,7 +111,7 @@ class PredictSensorValueUseCase:
         logger.info(
             "use_case_predict_start",
             extra={
-                "sensor_id": sensor_id,
+                "series_id": series_id,
                 "window_size": sanitized_window.size,
                 "sanitization_warnings": len(sanitized.warnings),
             },
@@ -121,21 +121,21 @@ class PredictSensorValueUseCase:
         prediction = self._prediction_service.predict(sanitized_window)
 
         # 3. Persistir + build DTO
-        self._persist(prediction, sensor_id)
+        self._persist(prediction, series_id)
 
         # 3.5. Memory recall enrichment (optional, fail-safe)
-        memory_context = self._try_recall(prediction, sensor_id)
+        memory_context = self._try_recall(prediction, series_id)
 
         elapsed_ms = (time.monotonic() - t_start) * 1000.0
         dto = self._build_dto(prediction, memory_context)
 
         # 4. MLflow tracking (fail-safe)
-        self._track_prediction(sensor_id, dto, window.size, elapsed_ms)
+        self._track_prediction(series_id, dto, window.size, elapsed_ms)
 
         logger.info(
             "use_case_predict_complete",
             extra={
-                "sensor_id": sensor_id,
+                "series_id": series_id,
                 "predicted_value": prediction.predicted_value,
                 "engine": prediction.engine_name,
                 "elapsed_ms": round(elapsed_ms, 2),
@@ -204,13 +204,13 @@ class PredictSensorValueUseCase:
 
     # -- private helpers --------------------------------------------------
 
-    def _persist(self, prediction, sensor_id) -> None:
+    def _persist(self, prediction, series_id) -> None:
         try:
             self._storage.save_prediction(prediction)
         except Exception as exc:
             logger.error(
                 "prediction_persistence_failed",
-                extra={"sensor_id": sensor_id, "error": str(exc),
+                extra={"series_id": series_id, "error": str(exc),
                        "trace_id": prediction.audit_trace_id},
             )
 
@@ -228,7 +228,7 @@ class PredictSensorValueUseCase:
             memory_context=memory_context,
         )
 
-    def _try_recall(self, prediction, sensor_id):
+    def _try_recall(self, prediction, series_id):
         if not self._should_recall():
             return None
         try:
@@ -238,12 +238,12 @@ class PredictSensorValueUseCase:
         except Exception as exc:
             logger.warning(
                 "memory_recall_failed",
-                extra={"sensor_id": sensor_id, "error": str(exc)},
+                extra={"series_id": series_id, "error": str(exc)},
             )
             # OBSERVABILITY: Track silent failure in memory recall
             from ...ml_service.metrics.observability import get_observability
             get_observability().silent_failures.record(
-                "memory_recall", str(exc), {"sensor_id": sensor_id}
+                "memory_recall", str(exc), {"series_id": series_id}
             )
         return None
 
@@ -257,7 +257,7 @@ class PredictSensorValueUseCase:
 
     def _track_prediction(
         self,
-        sensor_id: int,
+        series_id: str,
         dto: PredictionDTO,
         window_size: int,
         elapsed_ms: float,
@@ -287,7 +287,7 @@ class PredictSensorValueUseCase:
             # Log tags
             self._experiment_tracker.set_tags({
                 "pipeline_version": "0.2.1-GOLD",
-                "sensor_id": str(sensor_id),
+                "series_id": series_id,
             })
 
         except Exception as exc:
@@ -296,5 +296,5 @@ class PredictSensorValueUseCase:
             # OBSERVABILITY: Track silent failure in tracking
             from ...ml_service.metrics.observability import get_observability
             get_observability().silent_failures.record(
-                "prediction_tracking", str(exc), {"sensor_id": sensor_id}
+                "prediction_tracking", str(exc), {"series_id": series_id}
             )
