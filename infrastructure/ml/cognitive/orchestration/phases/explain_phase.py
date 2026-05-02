@@ -161,7 +161,25 @@ class ExplainPhase:
         if ctx.timer.is_over_budget:
             logger.warning("pipeline_over_budget", extra=ctx.timer.to_dict())
         
+        # Generate human-readable summary from explanation dict
+        explanation_summary = None
+        if explanation_dict is not None:
+            parts = []
+            if explanation_dict.get("method"):
+                parts.append(f"Método: {explanation_dict['method']}")
+            if explanation_dict.get("regime"):
+                parts.append(f"Régimen: {explanation_dict['regime']}")
+            if explanation_dict.get("influencing_factors"):
+                factors = explanation_dict["influencing_factors"]
+                parts.append(f"Factores ({len(factors)}): {', '.join(str(f) for f in factors[:3])}")
+            if explanation_dict.get("recommendations_for_inspector"):
+                recs = explanation_dict["recommendations_for_inspector"]
+                parts.append(f"Recomendaciones ({len(recs)})")
+            if parts:
+                explanation_summary = " | ".join(parts)
+
         return ctx.with_field(
             diagnostic=diag,
             explanation=explanation_dict,
+            explanation_summary=explanation_summary,
         )
