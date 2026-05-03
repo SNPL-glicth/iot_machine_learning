@@ -113,3 +113,45 @@ class AnalyzeDocumentResponse(BaseModel):
     conclusion: str = Field(description="Conclusión en texto natural")
     confidence: float = Field(description="Confianza del análisis 0-1")
     processing_time_ms: float = Field(description="Tiempo de procesamiento")
+
+
+class IndexDocumentRequest(BaseModel):
+    """Request schema for cognitive memory document indexing."""
+    text: str = Field(..., description="Texto a indexar")
+    source: str = Field(..., description="Origen del documento")
+    classification: str = Field(..., description="Clasificación del contenido")
+    tenant_id: str = Field(..., description="ID del tenant")
+    analysis_result_id: Optional[str] = Field(None, description="ID del resultado de análisis")
+
+
+class IndexDocumentResponse(BaseModel):
+    """Response schema for cognitive memory document indexing."""
+    indexed: bool = Field(description="Si se indexó correctamente")
+    doc_id: Optional[str] = Field(None, description="ID del documento indexado")
+    chunk_count: int = Field(0, description="Número de chunks indexados")
+    reason: Optional[str] = Field(None, description="Razón si no se indexó")
+
+
+class SemanticSearchResultItem(BaseModel):
+    """Single result item for semantic search."""
+    doc_id: str = Field(description="ID del documento")
+    content: str = Field(description="Contenido del documento")
+    source: str = Field(description="Origen del documento")
+    classification: str = Field(description="Clasificación del contenido")
+    score: float = Field(description="Puntuación de similitud")
+    tenant_id: str = Field(description="ID del tenant")
+    analysis_result_id: Optional[str] = Field(None, description="ID del resultado de análisis")
+
+
+class SemanticSearchRequest(BaseModel):
+    """Request schema for semantic search."""
+    query: str = Field(..., description="Consulta de búsqueda")
+    tenant_id: str = Field(..., description="ID del tenant")
+    limit: int = Field(10, gt=0, le=100, description="Máximo de resultados")
+    domain: Optional[str] = Field(None, description="Dominio opcional para filtrar")
+
+
+class SemanticSearchResponse(BaseModel):
+    """Response schema for semantic search."""
+    results: List[SemanticSearchResultItem] = Field(default_factory=list, description="Resultados de búsqueda")
+    total: int = Field(0, description="Total de resultados")

@@ -15,7 +15,7 @@ from __future__ import annotations
 # FIX: Add project root to PYTHONPATH for proper module resolution
 import sys
 from pathlib import Path
-_project_root = Path(__file__).parent.parent.parent
+_project_root = Path(__file__).parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
@@ -181,8 +181,12 @@ async def lifespan(app: FastAPI):
                 "[ML-SERVICE] Zenin Queue Poller failed to start — continuing without background polling",
                 extra={"degraded_feature": "zenin_queue_poller", "error": str(e)},
             )
+            _zenin_poller = None
+            _poller_thread = None
     else:
         logger.info("[ML-SERVICE] Zenin Queue Poller disabled (ZENIN_QUEUE_POLLER_ENABLED != true)")
+        _zenin_poller = None
+        _poller_thread = None
 
     app.state.zenin_poller = _zenin_poller
     app.state.zenin_poller_thread = _poller_thread

@@ -9,11 +9,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, List, Optional
 
-if TYPE_CHECKING:
-    from . import PipelineContext
-from .phase_context import PhaseContext
 from .context import PipelineContext
-from application.explainability.explanation_renderer import ExplanationRenderer
+from ......application.explainability.explanation_renderer import ExplanationRenderer
 
 from ...analysis.types import MetaDiagnostic
 

@@ -101,4 +101,4 @@ See `docs/configuration.md` for full environment setup.
 
 Built by Sergio Nicolas. Open to collaboration and pilot deployments.
 
-Contact: [LinkedIn](https://linkedin.com) | [GitHub](https://github.com)
+Contact: LinkedIn | [GitHub](https://github.com/SNPL-glicth/ZENIN)

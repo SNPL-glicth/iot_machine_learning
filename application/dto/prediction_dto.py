@@ -7,7 +7,7 @@ No contienen lógica de negocio — solo datos serializables.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -88,9 +88,6 @@ class PredictionDTO:
                 series_id=self.series_id,
                 predicted_value=self.predicted_value,
                 default_confidence=self.confidence_score,
-                audit_trace_id=self.audit_trace_id,
-                explanation_summary=self.metadata.get("explanation_summary") if self.metadata else None,
-                metadata=self.metadata,
             )
 
         # Fallback: construct from DTO fields directly
