@@ -1,6 +1,6 @@
 # ZENIN — Motor de Decisión Cognitiva para Operaciones Industriales
 
-Predicción de anomalías, fusión de motores con pesos bayesianos por régimen, y decisión automatizada con trazabilidad auditável. Diseñado para plantas industriales latinoamericanas con sensores heterogéneos y equipos de mantenimiento limitados.
+Predicción de anomalías en sensores IoT, fusión de motores con pesos bayesianos adaptativos por régimen de señal, y decisión automatizada con trazabilidad auditável. Diseñado para plantas industriales latinoamericanas con sensores heterogéneos, equipos de mantenimiento limitados, y presión regulatoria creciente.
 
 ---
 
@@ -9,28 +9,27 @@ Predicción de anomalías, fusión de motores con pesos bayesianos por régimen,
 Las plantas industriales operan con uno o más de estos dolores:
 
 - **Máquinas que fallan sin aviso** — los sensores generan datos, pero nadie los cruza con el historial de mantenimiento hasta que la falla es costosa.
-- **Sistemas de monitoreo con falsos positivos constantes** — umbrales fijos disparan alarmas en horas pico, en horario nocturno el operador las ignora por costumbre.
+- **Sistemas de monitoreo con falsos positivos constantes** — umbrales fijos disparan alarmas en horas pico; en horario nocturno el operador las ignora por costumbre.
 - **Decisiones de parada por intuición** — el supervisor decide si detener la línea basado en experiencia, no en una puntuación de riesgo trazable.
 - **Auditorías que consumen semanas** — cuando llega el cliente o el regulador, reconstruir qué pasó requiere revisar logs de 3 sistemas distintos.
 
 ## Cómo lo Resuelve ZENIN
 
-1. **Ingesta** — lecturas de sensores vía MQTT o HTTP, o reportes de mantenimiento en texto.
-2. **Sanitización** — NaN/Inf se detectan antes de cualquier cálculo; valores extremos se suavizan con ventana local.
-3. **Percepción** — clasifica la señal en régimen (STABLE, TRENDING, VOLATILE, NOISY, TRANSITIONAL) y mide ruido.
-4. **Predicción concurrente** — múltiples motores (Taylor, estadístico, seasonal, baseline) predicen con timeout por motor.
-5. **Adaptación bayesiana** — pesos por régimen se actualizan con inferencia bayesiana (prior gaussiano, varianza empírica por motor), no con EMA fijo.
+1. **Ingesta** — lecturas de sensores vía MQTT o HTTP.
+2. **Sanitización** — NaN/Inf se detectan antes de cualquier cálculo; valores extremos se suavizan con ventana local ±6σ.
+3. **Percepción** — clasifica la señal en régimen (`STABLE`, `TRENDING`, `VOLATILE`, `NOISY`, `TRANSITIONAL`) y mide ruido.
+4. **Predicción concurrente** — múltiples motores (Taylor, estadístico, seasonal, baseline) predicen con timeout por motor (400ms default).
+5. **Adaptación bayesiana** — pesos por régimen se actualizan con inferencia bayesiana (prior gaussiano, σ²_obs empírica por motor), no con EMA fijo.
 6. **Inhibición** — motores con error reciente alto se suprimen antes de la fusión.
 7. **Fusión** — filtro Hampel (~3σ) descarta percepciones atípicas; consenso ponderado genera valor y confianza.
-8. **Detección de anomalías** — ensemble de 8 sub-detectores (Isolation Forest, Z-score, IQR, LOF, velocity_z, acceleration_z, IF-ND, LOF-ND) con votación ponderada.
-9. **Decisión contextual** — amplificadores/atenuadores ajustan severidad según régimen, tasa de anomalías y drift. Acciones: ESCALATE / INVESTIGATE / MONITOR / LOG_ONLY.
-10. **Explicación y auditoría** — cada predicción lleva reasoning trace por fase. Exporte NDJSON con HMAC-SHA256 para cumplimiento.
+8. **Detección de anomalías** — ensemble de 8 sub-detectores con votación ponderada adaptativa.
+9. **Decisión contextual** — 8 amplificadores + 3 atenuadores ajustan severidad. Acciones: `ESCALATE` / `INVESTIGATE` / `MONITOR` / `LOG_ONLY`.
+10. **Explicación y auditoría** — cada predicción lleva reasoning trace por fase. Exporte NDJSON con HMAC-SHA256.
 
 ```mermaid
 flowchart LR
     subgraph Input
         A1[Sensor MQTT]
-        A2[Documento mantenimiento]
         A3[API HTTP]
     end
 
@@ -60,7 +59,6 @@ flowchart LR
     end
 
     A1 --> B1
-    A2 --> B1
     A3 --> B1
     B1 --> B2 --> B3 --> B4 --> B5 --> B6 --> B7 --> B8 --> B9 --> B10 --> B11 --> B12 --> B13 --> B14 --> B15
     B15 --> C1
@@ -71,20 +69,43 @@ flowchart LR
 
 ---
 
-## Capacidades Técnicas Verificadas
+## Capacidades Técnicas Verificadas en Código
+
+Toda capacidad en esta tabla tiene su implementación verificada en el código fuente del repositorio.
 
 | Capacidad | Detalle técnico | Diferenciador vs mercado |
 |-----------|-----------------|--------------------------|
-| Pipeline cognitivo 15 fases | Orden fijo: Sanitize → BoundaryCheck → SeasonalDecomposition → Perceive → DriftDetection → Predict → Adapt → Inhibit → Fuse → DecisionArbiter → CoherenceCheck → ConfidenceCalibration → Explain → ActionGuard → NarrativeUnification | Fases desacoplables; cada una inyectable por flags |
-| Voting ensemble 8+ detectores | Isolation Forest (30%), Z-score (20%), IQR (10%), LOF (15%), velocity_z (15%), acceleration_z (10%), IF-ND, LOF-ND; pesos adaptativos por precisión histórica | Velocidad y aceleración (derivadas) detectan cambios de régimen invisibles para detectores de magnitud |
-| BayesianWeightTracker por régimen | Prior gaussiano N(μ,σ²), update conjugado normal-normal, σ²_obs empírica por motor con ventana de 20 errores, mínimo 5 muestras, clamp a 0.01 | No asume σ²_obs=1.0 para todos los motores; temperatura y vibración tienen escalas distintas |
-| Drift detection online | Page-Hinkley (δ=0.005, λ=50, α=0.9999) por defecto; ADWIN opcional (δ=0.002, max_window=1000); cooldown 300s | Reset de pesos del régimen afectado, no del sistema completo |
-| Seasonal decomposition | FFT por defecto (periodo 24h); STL opcional (requiere statsmodels); mínimo 48 puntos | Descompone antes de la predicción, no post-hoc |
-| Filtro Hampel | k=3.0 × 1.4826 × MAD; rechaza percepciones atípicas antes del consenso | Aplica sobre predicciones de motores, no sobre datos brutos |
-| Circuit breaker | CLOSED/OPEN/HALF_OPEN; backoff exponencial; thread-safe; decorador para funciones protegidas | Protege Weaviate, SQL Server, Redis ante fallos transitorios |
-| Decision engine contextual | 8 amplificadores + 3 atenuadores; base scores por severidad; umbrales ESCALATE (0.85) / INVESTIGATE (0.65) / MONITOR (0.40) | Ajusta decisión según régimen, tasa de anomalías recientes, y drift |
-| ComplianceExporter | NDJSON line-delimited; campos: schema_version, record_id, created_at, series_id, outcome, sanitization_flags, fusion_flags, engine_failures, hampel, pipeline_timing, explanation_digest; HMAC-SHA256 sobre cuerpo canónico | Verificación independiente con `verify_record()`; comparación constant-time |
-| Explicación por fase | ExplanationRenderer con clasificaciones metacognitivas; causal narrative builder; reasoning trace por fase | Auditable operador-a-operador, no solo científico de datos |
+| Pipeline cognitivo 15 fases | Orden fijo: Sanitize → BoundaryCheck → SeasonalDecomposition → Perceive → DriftDetection → Predict → Adapt → Inhibit → Fuse → DecisionArbiter → CoherenceCheck → ConfidenceCalibration → Explain → ActionGuard → NarrativeUnification | Fases desacoplables; cada una inyectable por flags. Early termination en NaN/Inf, out-of-domain, o budget excedido. |
+| Voting ensemble 8+ detectores | Isolation Forest (30%), Z-score (20%), IQR (10%), LOF (15%), velocity_z (15%), acceleration_z (10%), IF-ND, LOF-ND; pesos adaptativos por precisión histórica (50 outcomes). `RobustScaler` para entrenamiento. | `velocity_z` y `acceleration_z` detectan cambios de régimen invisibles para detectores de magnitud pura. |
+| BayesianWeightTracker por régimen | Prior gaussiano N(μ,σ²), update conjugado normal-normal, σ²_obs empírica por motor con ventana de 20 errores, mínimo 5 muestras, clamp a 0.01. LRU eviction de 10 régimes, TTL 24h. | No asume σ²_obs=1.0 para todos los motores; temperatura y vibración tienen escalas de error distintas. |
+| Drift detection online | Page-Hinkley (δ=0.005, λ=50, α=0.9999) por defecto; ADWIN opcional (δ=0.002, max_window=1000); cooldown 300s por serie. | Reset de pesos del régimen afectado, no del sistema completo. Emite indicador ISO 13374. |
+| Seasonal decomposition | FFT por defecto (periodo 24h); STL opcional (requiere statsmodels); mínimo 48 puntos. | Descompone antes de la predicción, no post-hoc. |
+| Filtro Hampel | k=3.0 × 1.4826 × MAD; rechaza percepciones atípicas antes del consenso. No-op si <3 percepciones o MAD=0. | Aplica sobre predicciones de motores, no sobre datos brutos. Evita que un motor errático contamine la fusión. |
+| Circuit breaker | CLOSED/OPEN/HALF_OPEN; backoff exponencial; thread-safe; decorador `@protected`. | Protege llamadas a Weaviate, SQL Server, Redis ante fallos transitorios. |
+| Decision engine contextual | 8 amplificadores + 3 atenuadores; base scores por severidad; umbrales ESCALATE (0.85) / INVESTIGATE (0.65) / MONITOR (0.40). | Ajusta decisión según régimen, tasa de anomalías recientes, y drift. No hardcodea umbrales. |
+| ComplianceExporter | NDJSON line-delimited; 12 campos estructurados + HMAC-SHA256 sobre cuerpo canónico ordenado lexicográficamente. | Verificación independiente con `verify_record()`; comparación constant-time. Escritura atómica (append + fsync). |
+| Explicación por fase | `ExplanationRenderer` + `CausalNarrativeBuilder`; reasoning trace por fase en `PredictionResult.metadata`. | Auditable operador-a-operador, no solo científico de datos. |
+| AuditPort dual interface | `log_prediction(sensor_id:int)` legacy + `log_series_prediction(series_id:str)` agnóstico con bridge a legacy. | Permite migración gradual de `sensor_id:int` a `series_id:str` sin romper implementaciones existentes. |
+| StoragePort dual interface | `load_sensor_window(sensor_id:int)` legacy + `load_series_window(series_id:str)` agnóstico. | Bridge convierte con `safe_series_id_to_int`; fallback a sensor_id=0 para series no numéricas. |
+| Confidence calibration por régimen | Temperatura configurable: STABLE=1.2, VOLATILE=2.0, NOISY=1.8, TRENDING=1.5. | Evita sobreconfianza en régimen VOLATILE y subconfianza en STABLE. |
+| PredictPhase concurrente | `ThreadPoolExecutor` con max_workers=3, timeout por motor=400ms. Fallback a secuencial si executor falla. | Preserva orden de engines. Surface de fallos (timeout, excepción, cannot_handle) en metadata. |
+| PipelineTimer | `perceive_ms`, `predict_ms`, `adapt_ms`, `inhibit_ms`, `fuse_ms`, `explain_ms`. Budget default 500ms. | Corta a fallback si PERCEIVE+PREDICT excede budget. Evita degradación silenciosa. |
+
+---
+
+## Capacidades en Desarrollo / No Confirmadas en Pipeline Numérico Activo
+
+| Capacidad | Documentado en | Estado | Notas |
+|-----------|---------------|--------|-------|
+| TextCognitiveEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/text/engine.py:41`), **NO usado en pipeline numérico de 15 fases** | Pipeline documental/API separado. Analiza reportes de mantenimiento en texto. |
+| HybridNeuralEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/neural/hybrid_engine.py:27`), **NO usado en pipeline numérico** | Bridge en `neural_bridge.py` para análisis documental. No integrado en `MetaCognitiveOrchestrator`. |
+| MoEGateway | `docs/ENGINES.md` | Infraestructura presente (`infrastructure/ml/moe/gateway/moe_gateway.py`), **NO confirmado en producción** | Rama condicional en `orchestrator.py:239` si `ML_MOE_ENABLED=True`. Flag `ML_MOE_ENABLED` no documentado en config base. Tests de integración son stubs. |
+| SNNLayer with STDP | `docs/ENGINES.md` | No verificado en pipeline numérico | Mencionado en documentación de motores. No encontrado en fases del pipeline. |
+| CognitiveMemory / Weaviate | `cognitive_config.py` | Infraestructura presente, `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto | Stub de integración. No activo en pipeline numérico. |
+| Attention mechanism | `cognitive_config.py` | `ML_ENABLE_ATTENTION=false` por defecto | Documentado como "too slow for CPU". No activo. |
+| SNN full | `cognitive_config.py` | `ML_ENABLE_SNN_FULL=false` por defecto | Deshabilitado en CPU. No activo. |
+
+> ⚠️ **Nota:** Las capacidades de esta sección están documentadas en `docs/ENGINES.md` o configuradas en `ml_service/config/cognitive_config.py`, pero no forman parte del pipeline numérico de 15 fases que procesa lecturas de sensores en tiempo real.
 
 ---
 
@@ -94,7 +115,7 @@ flowchart LR
 
 | Métrica | Estimación conservadora | Capacidad ZENIN que lo genera |
 |---|---|---|
-| Reducción de paradas no planificadas | 20–35% | Drift detection + anomaly voting ensemble (detecta degradación antes de falla catastrófica) |
+| Reducción de paradas no planificadas | 20–35% | Drift detection + anomaly voting ensemble (detecta degradación 24–72h antes de falla catastrófica) |
 | Reducción de falsos positivos | 40–60% | Hampel filter + InhibitionGate + atenuadores de decisión (suprime ruido de motores erráticos) |
 | Tiempo de diagnóstico post-incidente | –70% | ReasoningTrace por fase + ExplanationRenderer + pipeline_timing (reconstrucción en minutos, no días) |
 | Cumplimiento de auditoría técnica | Automatizado | ComplianceExporter HMAC-SHA256 + AuditPort (NDJSON append-only con verificación criptográfica) |
@@ -127,7 +148,7 @@ ZENIN gana en **transparencia arquitectónica**, **decisión contextual con guar
 
 | Capa | Tecnología |
 |------|-----------|
-| API | ![Python](https://img.shields.io/badge/python-3.10+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688) |
+| API | Python 3.10+, FastAPI, Uvicorn |
 | ML / Matemáticas | NumPy, scikit-learn, SciPy |
 | Estado | Redis (streams, cache, sliding windows, plasticity shared state) |
 | Persistencia | SQL Server (predictions, anomalies, config); NDJSON append-only (compliance) |
@@ -195,16 +216,20 @@ iot_machine_learning/
 
 | Tema | Archivo |
 |------|---------|
-| Arquitectura hexagonal + reglas | `DOCS/architecture.md` |
-| Pipeline ML de 15 fases | `DOCS/ml_pipeline.md` |
-| Detección de drift y adaptación | `DOCS/drift_and_adaptation.md` |
-| Detección de anomalías (ensemble) | `DOCS/anomaly_detection.md` |
-| Cumplimiento y auditoría | `DOCS/compliance_and_audit.md` |
-| ROI y casos de uso | `DOCS/roi_and_business_case.md` |
-| Deuda técnica documentada | `DOCS/technical_debt.md` |
+| Arquitectura hexagonal + reglas | `docs/architecture.md` |
+| Pipeline ML de 15 fases | `docs/ml_pipeline.md` |
+| Detección de drift y adaptación | `docs/drift_and_adaptation.md` |
+| Detección de anomalías (ensemble) | `docs/anomaly_detection.md` |
+| Cumplimiento y auditoría | `docs/compliance_and_audit.md` |
+| ROI y casos de uso | `docs/roi_and_business_case.md` |
+| Deuda técnica documentada | `docs/technical_debt.md` |
 | Feature flags y configuración | `docs/configuration.md` (existente) |
 | Referencia de motores | `docs/ENGINES.md` (existente) |
 | Reglas arquitectónicas | `docs/ARCHITECTURE.md` (existente) |
+| Plasticidad y aprendizaje | `docs/plasticity.md` (existente) |
+| Guía de desarrollo | `docs/development.md` (existente) |
+| Operaciones y monitoreo | `docs/operations.md` (existente) |
+| API reference | `docs/api.md` (existente) |
 
 ---
 
