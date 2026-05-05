@@ -32,6 +32,9 @@ from .series.structural_analysis import StructuralAnalysis, RegimeType
 # --- Decision (decision engine) ---
 from .decision import Decision, DecisionContext, SimulatedOutcome
 
+# --- Threshold ---
+from .threshold import Threshold
+
 # --- Severity ---
 from .severity import SeverityResult
 
@@ -61,6 +64,8 @@ __all__ = [
     "Decision",
     "DecisionContext",
     "SimulatedOutcome",
+    # Threshold
+    "Threshold",
     # Severity
     "SeverityResult",
 ]
