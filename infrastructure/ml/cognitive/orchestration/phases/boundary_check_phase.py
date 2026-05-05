@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import PipelineContext
 
-from ......domain.services.domain_boundary_checker import DomainBoundaryChecker
-from ......domain.entities.results.boundary_result import BoundaryResult
-from ....interfaces import PredictionResult
+from iot_machine_learning.domain.services.domain_boundary_checker import DomainBoundaryChecker
+from iot_machine_learning.domain.entities.results.boundary_result import BoundaryResult
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
 logger = logging.getLogger(__name__)
 

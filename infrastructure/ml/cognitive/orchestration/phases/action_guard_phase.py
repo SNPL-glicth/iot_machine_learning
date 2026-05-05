@@ -9,9 +9,9 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from . import PipelineContext
+    from .. import PipelineContext
 
-from ......domain.services.action_guard import ActionGuard
+from iot_machine_learning.domain.services import action_guard
 
 logger = logging.getLogger(__name__)
 

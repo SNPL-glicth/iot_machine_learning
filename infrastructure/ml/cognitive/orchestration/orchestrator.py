@@ -23,7 +23,14 @@ from .error_history_manager import create_error_history_manager
 from .context_state_manager import ContextStateManager
 
 # MoE Gateway integration (optional dependency)
-from ...moe.gateway.moe_gateway import MoEGateway
+from iot_machine_learning.infrastructure.ml.moe.gateway.moe_gateway import MoEGateway
+from iot_machine_learning.infrastructure.security.rate_limiter import (
+    RateLimiter,
+    RateLimitConfig,
+    RateLimitScope,
+    RateLimitExceeded,
+)
+from iot_machine_learning.infrastructure.security.rate_limit_decorator import rate_limit_series
 
 
 class MetaCognitiveOrchestrator(PredictionEngine):
@@ -57,6 +64,8 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
         series_values_store: Optional[SeriesValuesStore] = None,
         compliance_exporter: Optional[Any] = None,
+        rate_limiter: Optional[RateLimiter] = None,
+        enable_rate_limiting: bool = True,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -85,6 +94,10 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._pipeline_executor_factory = PipelineExecutorFactory(
             compliance_exporter=compliance_exporter,
         )
+        
+        # SEC-4: Rate limiter for DoS prevention
+        self._rate_limiter = rate_limiter
+        self._enable_rate_limiting = enable_rate_limiting and rate_limiter is not None
 
         # Core components
         self._engines = engines
@@ -181,12 +194,41 @@ class MetaCognitiveOrchestrator(PredictionEngine):
 
     def predict(
         self,
+        series_id: str,
         values: List[float],
         timestamps: Optional[List[float]] = None,
-        series_id: str = "unknown",
-        flags_snapshot=None,
+        **kwargs,
     ) -> PredictionResult:
-        if flags_snapshot is None:
+        """Predict with rate limiting.
+        
+        Raises:
+            RateLimitExceeded: If rate limit is exceeded
+        """
+        # SEC-4: Check rate limits before processing
+        if self._enable_rate_limiting:
+            # Check series-level rate limit
+            result = self._rate_limiter.check_series_limit(
+                series_id=series_id,
+            )
+            
+            if not result.allowed:
+                raise RateLimitExceeded(
+                    result=result,
+                    scope=RateLimitScope.SERIES,
+                    identifier=series_id,
+                )
+        
+        # Continue with normal prediction
+        return self._predict_internal(series_id, values, timestamps, **kwargs)
+    
+    def _predict_internal(
+        self,
+        series_id: str,
+        values: List[float],
+        timestamps: Optional[List[float]] = None,
+        **kwargs,
+    ) -> PredictionResult:
+        if 'flags_snapshot' not in kwargs:
             raise ValueError(
                 "flags_snapshot is required. Pass feature flags via constructor "
                 "or flags_snapshot parameter to enable testable injection."
@@ -196,7 +238,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         # DIP: Orchestrator delegates to MoEGateway (implements PredictionPort abstraction)
         if self._moe_gateway is not None and getattr(flags_snapshot, 'ML_MOE_ENABLED', False):
             # Use MoE Gateway for prediction
-            from ....domain.entities.iot.sensor_reading import SensorWindow, Reading
+            from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow, Reading
             
             # Create SensorWindow from values/timestamps
             if timestamps is None:
@@ -294,4 +336,5 @@ class MetaCognitiveOrchestrator(PredictionEngine):
     # GOLD: Removed broken backward compatibility properties
     # Phase 3 refactor consolidated weight services into WeightResolutionService
     # Use _weight_resolver directly or the public orchestrator interface
+    # ------------------------------------------------------------------
     # ------------------------------------------------------------------

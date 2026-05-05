@@ -22,7 +22,7 @@ from .config import (
     GENERAL_MAX_CONNECTIONS,
     STREAM_MAX_CONNECTIONS,
 )
-from .utils import _detect_async_context, _get_redis_url
+from .utils import _detect_async_context, _get_redis_url, redis_retry
 from .pools import (
     get_general_pool,
     get_stream_pool,
@@ -66,4 +66,5 @@ __all__ = [
     "get_stream_pool",
     "get_async_pool",
     "_detect_async_context",
+    "redis_retry",
 ]

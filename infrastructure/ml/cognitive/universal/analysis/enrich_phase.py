@@ -73,7 +73,7 @@ class SemanticEnrichmentPhase:
         if not self._enabled or input_type != InputType.TEXT:
             timing["enrich"] = 0.0
             # OBSERVABILITY: Track skip reason
-            from .....ml_service.metrics.observability import get_observability
+            from iot_machine_learning.ml_service.metrics.observability import get_observability
             reason = "disabled" if not self._enabled else "not_text"
             get_observability().semantic.record_skip(reason)
             return metadata, None
@@ -83,7 +83,7 @@ class SemanticEnrichmentPhase:
         if len(text) < self._min_length:
             timing["enrich"] = 0.0
             # OBSERVABILITY: Track skip due to short text
-            from .....ml_service.metrics.observability import get_observability
+            from iot_machine_learning.ml_service.metrics.observability import get_observability
             get_observability().semantic.record_skip(f"short_text_{len(text)}")
             return metadata, None
         
@@ -126,7 +126,7 @@ class SemanticEnrichmentPhase:
             timing["enrich"] = (time.monotonic() - t0) * 1000
             
             # OBSERVABILITY: Track semantic enrichment execution
-            from .....ml_service.metrics.observability import get_observability
+            from iot_machine_learning.ml_service.metrics.observability import get_observability
             has_critical = any(e.is_critical for e in result.entities) if result.entities else False
             get_observability().semantic.record_execution(result.entity_count, has_critical)
             
@@ -138,7 +138,7 @@ class SemanticEnrichmentPhase:
             enriched = dict(metadata)
             enriched["semantic_enrichment_error"] = str(e)
             # OBSERVABILITY: Track semantic enrichment error
-            from .....ml_service.metrics.observability import get_observability
+            from iot_machine_learning.ml_service.metrics.observability import get_observability
             get_observability().semantic.record_error(str(e))
             return enriched, None
     

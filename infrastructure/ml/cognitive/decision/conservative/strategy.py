@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from ......domain.entities.decision import Decision, DecisionContext, SimulatedOutcome
-from ......domain.ports.decision_port import DecisionEnginePort
-from ......domain.services.cognitive_constants import (
+from iot_machine_learning.domain.entities.decision import Decision, DecisionContext, SimulatedOutcome
+from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
+from iot_machine_learning.domain.services.cognitive_constants import (
     get_confidence_ceiling,
     get_confidence_floor,
     get_confidence_reduction_sparse,
@@ -63,7 +63,7 @@ class ConservativeStrategy(DecisionEnginePort):
         if self._confidence_threshold is not None:
             return self._confidence_threshold
         try:
-            from ......ml_service.config.feature_flags import get_feature_flags
+            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
             return get_feature_flags().ML_DECISION_CONSERVATIVE_THRESHOLD
         except Exception:
             return 0.8  # fallback
@@ -73,7 +73,7 @@ class ConservativeStrategy(DecisionEnginePort):
         if self._safety_margin is not None:
             return self._safety_margin
         try:
-            from ......ml_service.config.feature_flags import get_feature_flags
+            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
             return get_feature_flags().ML_DECISION_CONSERVATIVE_SAFETY_MARGIN
         except Exception:
             return 1.2  # fallback

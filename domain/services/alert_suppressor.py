@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from ...infrastructure.redis_keys import RedisKeys
+from ...infrastructure.redis.redis_keys import RedisKeys
 from ..entities.decision import Decision, DecisionContext
 
 logger = logging.getLogger(__name__)

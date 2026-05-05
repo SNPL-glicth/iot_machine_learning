@@ -117,7 +117,8 @@ class AnomalyDomainService:
         else:
             confidence = self._single_detector_confidence
 
-        severity = AnomalySeverity.from_score(avg_score)
+        from ..policies.threshold_policy import ThresholdPolicy
+        severity = ThresholdPolicy.default().classify_score(avg_score)
         explanation = " | ".join(explanations) if explanations else "Valor normal"
 
         anomaly_result = AnomalyResult(

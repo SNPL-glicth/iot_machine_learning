@@ -41,18 +41,23 @@ class CircuitBreaker:
         recovery_timeout: float = 60.0,
         half_open_max_calls: int = 3,
         success_threshold: int = 2,
+        enable_exponential_backoff: bool = True,
+        max_backoff_timeout: float = 300.0,
     ):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.half_open_max_calls = half_open_max_calls
         self.success_threshold = success_threshold
+        self.enable_exponential_backoff = enable_exponential_backoff
+        self.max_backoff_timeout = max_backoff_timeout
         
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
         self._half_open_calls = 0
         self._last_failure_time: Optional[float] = None
+        self._consecutive_failures = 0
         self._lock = threading.RLock()
     
     @property
@@ -62,10 +67,26 @@ class CircuitBreaker:
             return self._state
     
     def _should_attempt_reset(self) -> bool:
-        """Check if enough time has passed to try half-open state."""
+        """Check if enough time has passed to try half-open state.
+        
+        Uses exponential backoff: timeout = base * 2^(consecutive_failures - 1)
+        Capped at max_backoff_timeout.
+        """
         if self._last_failure_time is None:
             return True
-        return (time.time() - self._last_failure_time) >= self.recovery_timeout
+        
+        # Compute effective timeout with exponential backoff
+        if self.enable_exponential_backoff and self._consecutive_failures > 0:
+            # Exponential: 60s → 120s → 240s → capped at max
+            backoff_multiplier = 2 ** (self._consecutive_failures - 1)
+            effective_timeout = min(
+                self.recovery_timeout * backoff_multiplier,
+                self.max_backoff_timeout,
+            )
+        else:
+            effective_timeout = self.recovery_timeout
+        
+        return (time.time() - self._last_failure_time) >= effective_timeout
     
     def _transition_to(self, new_state: CircuitState) -> None:
         """Transition to new state with logging."""
@@ -83,9 +104,11 @@ class CircuitBreaker:
                 self._failure_count = 0
                 self._success_count = 0
                 self._half_open_calls = 0
+                self._consecutive_failures = 0  # Reset backoff
             elif new_state == CircuitState.OPEN:
                 self._half_open_calls = 0
                 self._success_count = 0
+                self._consecutive_failures += 1  # Increment for backoff
             elif new_state == CircuitState.HALF_OPEN:
                 self._half_open_calls = 0
                 self._success_count = 0
@@ -158,6 +181,16 @@ class CircuitBreaker:
     def get_metrics(self) -> dict:
         """Get circuit breaker metrics."""
         with self._lock:
+            # Compute current effective timeout
+            if self.enable_exponential_backoff and self._consecutive_failures > 0:
+                backoff_multiplier = 2 ** (self._consecutive_failures - 1)
+                effective_timeout = min(
+                    self.recovery_timeout * backoff_multiplier,
+                    self.max_backoff_timeout,
+                )
+            else:
+                effective_timeout = self.recovery_timeout
+            
             return {
                 "name": self.name,
                 "state": self._state.name,
@@ -165,6 +198,8 @@ class CircuitBreaker:
                 "success_count": self._success_count,
                 "half_open_calls": self._half_open_calls,
                 "last_failure_time": self._last_failure_time,
+                "consecutive_failures": self._consecutive_failures,
+                "effective_timeout_seconds": effective_timeout,
             }
 
 

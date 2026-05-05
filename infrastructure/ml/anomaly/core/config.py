@@ -67,6 +67,13 @@ class AnomalyDetectorConfig:
     delta_min_history: int = 20
     delta_persistence_score_threshold: float = 0.6
     delta_trend_alignment_threshold: float = 0.8
+    
+    # Multivariate anomaly detection (FASE 3)
+    enable_multivariate: bool = False  # Master switch for multivariate detection
+    multivariate_min_series: int = 3  # Minimum correlated series required
+    multivariate_pca_components: int = 2  # Number of PCA components
+    multivariate_baseline_percentile: float = 95.0  # Adaptive threshold percentile
+    multivariate_warmup_samples: int = 30  # Minimum samples for baseline establishment
 
     def __post_init__(self) -> None:
         # Validate anomaly detection params

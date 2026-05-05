@@ -128,11 +128,14 @@ class TestAnomalyResult:
     """Tests para AnomalyResult entity."""
 
     def test_severity_from_score(self) -> None:
-        assert AnomalySeverity.from_score(0.1) == AnomalySeverity.NONE
-        assert AnomalySeverity.from_score(0.4) == AnomalySeverity.LOW
-        assert AnomalySeverity.from_score(0.6) == AnomalySeverity.MEDIUM
-        assert AnomalySeverity.from_score(0.8) == AnomalySeverity.HIGH
-        assert AnomalySeverity.from_score(0.95) == AnomalySeverity.CRITICAL
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            assert AnomalySeverity.from_score(0.1) == AnomalySeverity.NONE
+            assert AnomalySeverity.from_score(0.4) == AnomalySeverity.LOW
+            assert AnomalySeverity.from_score(0.6) == AnomalySeverity.MEDIUM
+            assert AnomalySeverity.from_score(0.8) == AnomalySeverity.HIGH
+            assert AnomalySeverity.from_score(0.95) == AnomalySeverity.CRITICAL
 
     def test_normal_factory(self) -> None:
         r = AnomalyResult.normal(series_id="42")

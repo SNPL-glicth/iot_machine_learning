@@ -96,6 +96,9 @@ class SlidingWindowStore:
                 "evictions_global": self._evictions_global,
                 "total_entries": self._get_total_entries(),
             }
+    def _get_total_entries(self) -> int:
+        return sum(len(entry.window) for entry in self._entries.values())
+
     def _evict_lru_if_full(self) -> None:
         while len(self._entries) >= self._max_sensors:
             evicted_id, entry = self._entries.popitem(last=False)

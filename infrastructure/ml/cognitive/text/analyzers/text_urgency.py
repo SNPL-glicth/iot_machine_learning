@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Lazy import for severity classification (may not be available)
 _severity_available = True
 try:
-    from .........domain.services.severity_rules import classify_severity_agnostic
+    from iot_machine_learning.domain.services.severity_rules import classify_severity_agnostic
 except Exception:
     _severity_available = False
 

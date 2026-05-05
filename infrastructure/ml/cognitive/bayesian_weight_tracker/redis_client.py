@@ -9,7 +9,11 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from iot_machine_learning.domain.value_objects.plasticity_scope import PlasticityScope
-from iot_machine_learning.infrastructure.redis_keys import RedisKeys
+from iot_machine_learning.infrastructure.redis.redis_keys import RedisKeys
+from iot_machine_learning.infrastructure.security.redis_namespace import (
+    RedisNamespace,
+    get_namespace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +34,39 @@ class WeightTrackerRedisClient:
         redis_client: Optional[Any] = None,
         scope: Optional[PlasticityScope] = None,
         cache_ttl_seconds: float = 60.0,
+        redis_ttl_seconds: float = 86400.0,
+        tenant_id: str = "default",
+        namespace: Optional[RedisNamespace] = None,
     ) -> None:
         self._redis = redis_client
         self._scope = scope
         self._cache_ttl = cache_ttl_seconds
+        self._redis_ttl = int(redis_ttl_seconds)  # TTL for Redis keys (24h default)
         self._local_cache: Dict[str, Tuple[Dict[str, float], float]] = {}
+        
+        # Namespace for tenant isolation (SEC-2 fix)
+        self._namespace = namespace or get_namespace(tenant_id=tenant_id)
+        self._tenant_id = tenant_id
     
     def _get_redis_key(self, regime: str) -> str:
-        """Generate Redis key for this regime, respecting scope if set."""
+        """Generate Redis key for this regime with namespace.
+        
+        Uses RedisNamespace for tenant isolation.
+        Format: {env}:{app}:{tenant}:weights:{regime}
+        """
         if self._scope is not None:
+            # Legacy scope support (deprecated path)
+            logger.debug(
+                "weight_tracker_using_legacy_scope",
+                extra={"regime": regime, "scope": str(self._scope)}
+            )
             return self._scope.with_regime(regime).redis_key
-        return RedisKeys.plasticity(regime)
+        
+        # New namespaced path (SEC-2 compliant)
+        return self._namespace.key(
+            resource_type="weights",
+            resource_id=regime,
+        )
     
     def get_weights(
         self,
@@ -107,15 +133,31 @@ class WeightTrackerRedisClient:
         engine_name: str,
         accuracy: float,
     ) -> None:
-        """Update single engine weight in Redis (fail-safe)."""
+        """Update single engine weight in Redis (fail-safe).
+        
+        Sets TTL to prevent memory leaks.
+        Uses namespaced keys for tenant isolation.
+        """
         if self._redis is None:
             return
         
         try:
             cache_key = self._get_redis_key(regime)
             self._redis.hset(cache_key, engine_name, str(accuracy))
+            # Set TTL to prevent memory leak (SEC-1 fix)
+            self._redis.expire(cache_key, self._redis_ttl)
             # Invalidate local cache to force refresh on next read
             self._local_cache.pop(cache_key, None)
+            
+            logger.debug(
+                "redis_weight_updated",
+                extra={
+                    "regime": regime,
+                    "engine": engine_name,
+                    "key": cache_key,
+                    "ttl": self._redis_ttl,
+                }
+            )
         except Exception as e:
             logger.debug(f"redis_update_failed: {e}")
     
@@ -124,7 +166,11 @@ class WeightTrackerRedisClient:
         regime: str,
         engine_accuracies: Dict[str, float],
     ) -> None:
-        """Batch update multiple engine weights using Redis pipeline."""
+        """Batch update multiple engine weights using Redis pipeline.
+        
+        Sets TTL to prevent memory leaks.
+        Uses namespaced keys for tenant isolation.
+        """
         if self._redis is None:
             return
         
@@ -133,10 +179,21 @@ class WeightTrackerRedisClient:
             pipe = self._redis.pipeline()
             for engine_name, accuracy in engine_accuracies.items():
                 pipe.hset(cache_key, engine_name, str(accuracy))
+            # Set TTL in pipeline (SEC-1 fix)
+            pipe.expire(cache_key, self._redis_ttl)
             pipe.execute()
             # Invalidate local cache
             self._local_cache.pop(cache_key, None)
-            logger.debug(f"redis_pipeline_updated: {len(engine_accuracies)} engines for {regime}")
+            
+            logger.debug(
+                "redis_pipeline_updated",
+                extra={
+                    "regime": regime,
+                    "n_engines": len(engine_accuracies),
+                    "key": cache_key,
+                    "ttl": self._redis_ttl,
+                }
+            )
         except Exception as e:
             logger.warning(f"redis_pipeline_failed: {e}")
     

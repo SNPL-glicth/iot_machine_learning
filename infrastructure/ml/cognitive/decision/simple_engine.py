@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .....domain.entities.decision import Decision, DecisionContext
-from .....domain.ports.decision_port import DecisionEnginePort
+from iot_machine_learning.domain.entities.decision import Decision, DecisionContext
+from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
 
 
 class SimpleDecisionEngine(DecisionEnginePort):

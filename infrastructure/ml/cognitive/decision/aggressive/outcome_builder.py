@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import List
 
-from ......domain.entities.decision import DecisionContext, SimulatedOutcome
+from iot_machine_learning.domain.entities.decision import DecisionContext, SimulatedOutcome
 
 
 def build_simulated_outcomes(

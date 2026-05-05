@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import PipelineContext
 
-from ......domain.services.engine_decision_arbiter import EngineDecisionArbiter
+from iot_machine_learning.domain.services.engine_decision_arbiter import EngineDecisionArbiter
 
 logger = logging.getLogger(__name__)
 

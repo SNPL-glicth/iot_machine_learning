@@ -83,7 +83,7 @@ class RedisWindowStore:
         return f"{self.KEY_PREFIX}{sensor_id}"
     
     def _save_sync(self, sensor_id: int, values: List[float], timestamps: List[float]) -> bool:
-        """Synchronous save implementation."""
+        """Synchronous save implementation with pipeline."""
         window = PersistedWindow(
             sensor_id=sensor_id,
             values=values[-100:],  # Limitar a últimos 100 valores
@@ -92,7 +92,10 @@ class RedisWindowStore:
         )
         
         data = json.dumps(asdict(window))
-        self._redis.setex(self._key(sensor_id), self._ttl, data)
+        pipe = self._redis.pipeline()
+        pipe.set(self._key(sensor_id), data)
+        pipe.expire(self._key(sensor_id), self._ttl)
+        pipe.execute()
         
         logger.debug("Saved window: sensor_id=%d values=%d", sensor_id, len(values))
         return True
@@ -294,17 +297,18 @@ class RedisWindowStore:
             return False
     
     def get_all_sensor_ids(self) -> List[int]:
-        """Obtiene todos los sensor_ids con ventanas persistidas."""
+        """Obtiene todos los sensor_ids con ventanas persistidas.
+
+        Uses SCAN instead of KEYS to avoid blocking Redis on large keyspaces.
+        """
         if not self._enabled or not self._redis:
             return []
         
         try:
             pattern = f"{self.KEY_PREFIX}*"
-            keys = self._redis.keys(pattern)
-            
             sensor_ids = []
             prefix_len = len(self.KEY_PREFIX)
-            for key in keys:
+            for key in self._redis.scan_iter(match=pattern, count=100):
                 key_str = key.decode() if isinstance(key, bytes) else key
                 sensor_id_str = key_str[prefix_len:]
                 try:

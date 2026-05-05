@@ -15,6 +15,7 @@ from .iqr_detector import IQRDetector
 from .isolation_forest_detector import IsolationForestDetector
 from .lof_detector import LOFDetector
 from .temporal_z_detector import VelocityZDetector, AccelerationZDetector
+from .multivariate_detector import MultivariateDetector
 
 __all__ = [
     "ZScoreDetector",
@@ -23,4 +24,5 @@ __all__ = [
     "LOFDetector",
     "VelocityZDetector",
     "AccelerationZDetector",
+    "MultivariateDetector",
 ]

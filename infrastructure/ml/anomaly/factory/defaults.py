@@ -23,12 +23,13 @@ from ..detectors import (
 )
 from ..detectors.isolation_forest_detector import IsolationForestNDDetector
 from ..detectors.lof_detector import LOFNDDetector
+from ..detectors.multivariate_detector import MultivariateDetector
 
 
 def create_default_detectors(
     config: AnomalyDetectorConfig,
 ) -> List[SubDetector]:
-    """Create the default ensemble of 8 sub-detectors.
+    """Create the default ensemble of sub-detectors.
 
     This factory function extracts the hardcoded detector list so it can
     be reused, overridden, or extended.  Pass the result to
@@ -38,9 +39,9 @@ def create_default_detectors(
         config: Anomaly detector configuration.
 
     Returns:
-        List of 8 default sub-detectors.
+        List of sub-detectors (9 if multivariate enabled, else 8).
     """
-    return [
+    detectors = [
         ZScoreDetector(
             lower=config.z_vote_lower,
             upper=config.z_vote_upper,
@@ -75,3 +76,17 @@ def create_default_detectors(
             min_training_points=config.min_training_points,
         ),
     ]
+    
+    # FASE 3: Add multivariate detector if enabled
+    if getattr(config, 'enable_multivariate', False):
+        detectors.append(
+            MultivariateDetector(
+                min_series=getattr(config, 'multivariate_min_series', 3),
+                pca_components=getattr(config, 'multivariate_pca_components', 2),
+                baseline_percentile=getattr(config, 'multivariate_baseline_percentile', 95.0),
+                warmup_samples=getattr(config, 'multivariate_warmup_samples', 30),
+                enabled=True,
+            )
+        )
+    
+    return detectors

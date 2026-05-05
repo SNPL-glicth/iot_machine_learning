@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 if TYPE_CHECKING:
     from . import PipelineContext
 
-from ....interfaces import PredictionResult
-from ...compliance import ComplianceExporter
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
+from iot_machine_learning.infrastructure.ml.cognitive.compliance import ComplianceExporter
 
 logger = logging.getLogger(__name__)
 

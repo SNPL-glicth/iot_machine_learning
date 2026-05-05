@@ -17,7 +17,7 @@ _MIN_POINTS_FOR_STRUCTURAL = 3
 
 _ml_available = True
 try:
-    from .........domain.validators.structural_analysis import compute_structural_analysis
+    from iot_machine_learning.domain.validators.structural_analysis import compute_structural_analysis
 except Exception:
     _ml_available = False
 

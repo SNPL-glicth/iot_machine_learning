@@ -14,6 +14,15 @@ al runner de producción en iot_ingest_services, no aquí.
 
 from __future__ import annotations
 
+import warnings
+warnings.warn(
+    "ml_service.runners.ml_batch_runner is a legacy internal runner "
+    "for development/testing only. Use iot_ingest_services.jobs.ml_batch_runner "
+    "for production batch processing.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 # CRITICAL: Load environment variables BEFORE any imports that use feature flags
 from dotenv import load_dotenv
 import os

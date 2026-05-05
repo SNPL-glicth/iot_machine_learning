@@ -94,8 +94,8 @@ class TemplateExplanationGenerator:
         """Determina la severidad basada en el contexto.
 
         Delegates anomaly-score classification to the domain's
-        ``AnomalySeverity.from_score()`` — single source of truth
-        for severity thresholds (COG-4).
+        ``ThresholdPolicy`` — single source of truth for severity
+        thresholds.
         """
         out_of_range = False
         if context.user_threshold_min is not None:
@@ -106,7 +106,8 @@ class TemplateExplanationGenerator:
         if out_of_range:
             return "CRITICAL"
 
-        domain_severity = AnomalySeverity.from_score(context.anomaly_score)
+        from iot_machine_learning.domain.policies.threshold_policy import ThresholdPolicy
+        domain_severity = ThresholdPolicy.default().classify_score(context.anomaly_score)
 
         if context.is_anomaly and domain_severity in (
             AnomalySeverity.HIGH, AnomalySeverity.CRITICAL,

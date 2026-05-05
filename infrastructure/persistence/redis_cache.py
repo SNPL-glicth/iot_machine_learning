@@ -10,10 +10,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional, Any
-from redis import Redis, ConnectionError as RedisConnectionError
+from typing import Any, Optional
 
+from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 from iot_machine_learning.domain.ports.document_analysis import CachePort, AnalysisOutput
+from iot_machine_learning.infrastructure.security.redis_namespace import (
+    RedisNamespace,
+    get_namespace,
+)
 from iot_machine_learning.infrastructure.persistence.redis import (
     get_redis_circuit_breaker,
 )
@@ -35,20 +39,39 @@ class RedisAnalysisCache(CachePort):
 
     def __init__(
         self,
-        redis_client: Redis,
-        ttl_seconds: int = _DEFAULT_TTL,
-        key_prefix: str = _PREFIX,
-    ) -> None:
+        redis_client: Any,
+        ttl: int = _DEFAULT_TTL,
+        prefix: str = _PREFIX,
+        tenant_id: str = "default",
+        namespace: Optional[RedisNamespace] = None,
+    ):
+        """Initialize Redis cache.
+        
+        Args:
+            redis_client: Redis client instance
+            ttl: Time-to-live in seconds (default 5 minutes)
+            prefix: Key prefix for namespacing (without colon)
+            tenant_id: Tenant ID for namespacing
+            namespace: Optional pre-configured namespace
+        """
         self._redis = redis_client
-        self._ttl = ttl_seconds
-        self._prefix = key_prefix
+        self._ttl = ttl
+        self._prefix = prefix
+        
+        # Namespace for tenant isolation (SEC-2 fix)
+        self._namespace = namespace or get_namespace(tenant_id=tenant_id)
+        self._tenant_id = tenant_id
         
         # Circuit breaker for cache operations
         self._circuit_breaker = get_redis_circuit_breaker("redis_cache")
 
     def _get_sync(self, key: str) -> Optional[AnalysisOutput]:
         """Synchronous get implementation."""
-        raw = self._redis.get(f"{self._prefix}{key}")
+        namespaced_key = self._namespace.key(
+            resource_type=self._prefix,
+            resource_id=key,
+        )
+        raw = self._redis.get(namespaced_key)
         if raw is None:
             return None
         data = json.loads(raw)
@@ -84,8 +107,12 @@ class RedisAnalysisCache(CachePort):
         """Synchronous set implementation."""
         # AnalysisOutput es dataclass — usar __dict__ para serialización
         payload = json.dumps(value.__dict__)
+        namespaced_key = self._namespace.key(
+            resource_type=self._prefix,
+            resource_id=key,
+        )
         self._redis.setex(
-            f"{self._prefix}{key}",
+            namespaced_key,
             ttl or self._ttl,
             payload,
         )
@@ -117,7 +144,11 @@ class RedisAnalysisCache(CachePort):
     def invalidate(self, key: str) -> None:
         """Elimina entrada del cache."""
         try:
-            self._redis.delete(f"{self._prefix}{key}")
+            namespaced_key = self._namespace.key(
+                resource_type=self._prefix,
+                resource_id=key,
+            )
+            self._redis.delete(namespaced_key)
         except RedisConnectionError:
             logger.warning("Redis no disponible en invalidate(%s).", key)
 

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import PipelineContext
 
-from ......domain.services.narrative_unifier import NarrativeUnifier
+from iot_machine_learning.domain.services.narrative_unifier import NarrativeUnifier
 
 logger = logging.getLogger(__name__)
 

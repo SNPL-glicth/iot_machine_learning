@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
-from .....domain.ports.plasticity_repository_port import (
+from iot_machine_learning.domain.ports.plasticity_repository_port import (
     PlasticityRepositoryPort,
     RegimeWeightState,
 )

@@ -23,7 +23,7 @@ from typing import Any, Optional
 from iot_machine_learning.domain.ports.recent_anomaly_tracker_port import (
     RecentAnomalyTrackerPort,
 )
-from iot_machine_learning.infrastructure.redis_keys import RedisKeys
+from iot_machine_learning.infrastructure.redis.redis_keys import RedisKeys
 
 logger = logging.getLogger(__name__)
 

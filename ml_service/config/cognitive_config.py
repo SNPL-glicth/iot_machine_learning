@@ -96,3 +96,25 @@ class CognitiveConfig(BaseModel):
     # --- Zenin Deterministic Mode (Coherence Fix) ---
     ZENIN_DETERMINISTIC_MODE: bool = False
     ZENIN_ANALYSIS_SEED: int = 42
+    
+    # --- Drift Detection (FASE 1) ---
+    ML_ENABLE_DRIFT_DETECTION: bool = True  # Master switch for concept drift detection
+    ML_DRIFT_DELTA: float = 0.005  # Page-Hinkley delta: magnitude of changes to detect
+    ML_DRIFT_LAMBDA: float = 50.0  # Page-Hinkley lambda: detection threshold
+    ML_DRIFT_ALPHA: float = 0.9999  # Page-Hinkley alpha: forgetting factor (0=no forgetting)
+    ML_ENABLE_ADWIN: bool = False  # Use ADWIN instead of Page-Hinkley
+    ML_ADWIN_DELTA: float = 0.002  # ADWIN confidence parameter
+    ML_ADWIN_MAX_WINDOW: int = 1000  # ADWIN maximum window size
+    ML_DRIFT_COOLDOWN_SECONDS: float = 300.0  # Minimum seconds between drift resets per series
+    
+    # --- Seasonality (FASE 2) ---
+    ML_ENABLE_SEASONALITY: bool = False  # Master switch for seasonal decomposition (backward compat)
+    ML_SEASONAL_PERIOD_DEFAULT: int = 24  # Default seasonal period (24 hours for IoT)
+    ML_SEASONAL_USE_STL: bool = False  # Use STL instead of FFT (requires statsmodels)
+    ML_SEASONAL_MIN_POINTS: int = 48  # Minimum points required (2 cycles)
+
+    # --- Bayesian Weight Tracker Variance Estimation ---
+    ML_BAYES_SIGMA2_OBS_DEFAULT: float = 1.0  # fallback sigma2_obs when insufficient error samples
+    ML_BAYES_SIGMA2_OBS_MIN: float = 0.01  # minimum sigma2_obs to prevent zero variance
+    ML_BAYES_VARIANCE_WINDOW: int = 20  # number of recent errors per engine for variance estimation
+    ML_BAYES_VARIANCE_MIN_SAMPLES: int = 5  # minimum error samples to estimate empirical variance

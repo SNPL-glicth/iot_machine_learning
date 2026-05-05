@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from ......domain.entities.decision import DecisionContext, SimulatedOutcome
-from ......domain.entities.decision.priority import Priority
+from iot_machine_learning.domain.entities.decision import DecisionContext, SimulatedOutcome
+from iot_machine_learning.domain.entities.decision.priority import Priority
 
 
 def apply_decision_hierarchy(

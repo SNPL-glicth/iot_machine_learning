@@ -17,9 +17,10 @@ from .batch_config import BatchConfig
 from .cognitive_config import CognitiveConfig
 from .decision_config import DecisionConfig
 from .security_config import SecurityConfig
+from .threshold_config import ThresholdConfig
 
 
-class FeatureFlags(TaylorConfig, BatchConfig, CognitiveConfig, DecisionConfig, SecurityConfig):
+class FeatureFlags(TaylorConfig, BatchConfig, CognitiveConfig, DecisionConfig, SecurityConfig, ThresholdConfig):
     """Composed feature flags from all sub-configs.
     
     Uses multiple inheritance to combine all configuration domains:

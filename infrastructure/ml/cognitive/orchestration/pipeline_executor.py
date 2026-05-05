@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 from .phases import PipelineContext, create_initial_context
 from ..sanitize import SanitizePhase
 from .phases.boundary_check_phase import BoundaryCheckPhase
+from .phases.seasonal_decomposition_phase import SeasonalDecompositionPhase
 from .phases.perceive_phase import PerceivePhase
+from .phases.drift_detection_phase import DriftDetectionPhase
 from .phases.predict_phase import PredictPhase
 from .phases.adapt_phase import AdaptPhase
 from .phases.inhibit_phase import InhibitPhase
@@ -53,25 +55,29 @@ class PipelineExecutor:
         """Inicializa el executor con las fases configuradas.
 
         Phase order (IMP-1: SanitizePhase inserted at index 0):
-            [0]  SanitizePhase      — NaN/Inf hard-stop, 6σ clamp, CUSUM flag
-            [1]  BoundaryCheckPhase — domain boundary validation
-            [2]  PerceivePhase      — engine perceptions
-            [3]  PredictPhase
-            [4]  AdaptPhase
-            [5]  InhibitPhase
-            [6]  FusePhase
-            [7]  DecisionArbiterPhase
-            [8]  CoherenceCheckPhase
-            [9]  ConfidenceCalibrationPhase
-            [10] ExplainPhase
-            [11] ActionGuardPhase
-            [12] NarrativeUnificationPhase
+            [0]  SanitizePhase                — NaN/Inf hard-stop, 6σ clamp, CUSUM flag
+            [1]  BoundaryCheckPhase           — domain boundary validation
+            [2]  SeasonalDecompositionPhase   — seasonal component removal (FASE 2)
+            [3]  PerceivePhase                — signal profile analysis
+            [4]  DriftDetectionPhase          — concept drift detection (FASE 1)
+            [5]  PredictPhase                 — engine perceptions
+            [6]  AdaptPhase                   — plasticity weight resolution
+            [7]  InhibitPhase                 — engine inhibition
+            [8]  FusePhase                    — weighted fusion + Hampel
+            [9]  DecisionArbiterPhase         — decision arbitration
+            [10] CoherenceCheckPhase          — coherence validation
+            [11] ConfidenceCalibrationPhase   — confidence calibration
+            [12] ExplainPhase                 — explanation assembly
+            [13] ActionGuardPhase             — action validation
+            [14] NarrativeUnificationPhase    — narrative unification
         """
         if phases is None:
             phases = [
                 SanitizePhase(),
                 BoundaryCheckPhase(),
+                SeasonalDecompositionPhase(),
                 PerceivePhase(),
+                DriftDetectionPhase(),
                 PredictPhase(),
                 AdaptPhase(),
                 InhibitPhase(),

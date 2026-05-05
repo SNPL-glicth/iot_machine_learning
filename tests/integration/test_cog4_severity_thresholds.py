@@ -122,10 +122,13 @@ class TestUnifiedSeverityThresholds:
 
         gen = TemplateExplanationGenerator()
 
-        ctx = self._make_context(anomaly_score=0.2, is_anomaly=False)
-        assert gen._determine_severity(ctx) == "LOW"
-        assert AnomalySeverity.from_score(0.2) == AnomalySeverity.NONE
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            ctx = self._make_context(anomaly_score=0.2, is_anomaly=False)
+            assert gen._determine_severity(ctx) == "LOW"
+            assert AnomalySeverity.from_score(0.2) == AnomalySeverity.NONE
 
-        ctx = self._make_context(anomaly_score=0.6, is_anomaly=False)
-        assert gen._determine_severity(ctx) == "MEDIUM"
-        assert AnomalySeverity.from_score(0.6) == AnomalySeverity.MEDIUM
+            ctx = self._make_context(anomaly_score=0.6, is_anomaly=False)
+            assert gen._determine_severity(ctx) == "MEDIUM"
+            assert AnomalySeverity.from_score(0.6) == AnomalySeverity.MEDIUM

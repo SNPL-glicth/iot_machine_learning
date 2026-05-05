@@ -41,6 +41,12 @@ _REDIS_CACHE_TTL_SECONDS: float = 60.0
 # Default threshold for immediate persistence (accuracy change > threshold)
 _IMMEDIATE_PERSIST_THRESHOLD: float = 0.15
 
+# Bayesian observation variance defaults
+_SIGMA2_OBS_DEFAULT: float = 1.0
+_SIGMA2_OBS_MIN: float = 0.01
+_VARIANCE_WINDOW: int = 20
+_VARIANCE_MIN_SAMPLES: int = 5
+
 
 class WeightTrackerConfig:
     """Configuration container for Bayesian weight tracking behavior.
@@ -57,12 +63,20 @@ class WeightTrackerConfig:
         max_regimes: int = _MAX_REGIMES,
         regime_ttl_seconds: float = 86400.0,
         immediate_persist_threshold: float = _IMMEDIATE_PERSIST_THRESHOLD,
+        sigma2_obs_default: float = _SIGMA2_OBS_DEFAULT,
+        sigma2_obs_min: float = _SIGMA2_OBS_MIN,
+        variance_window: int = _VARIANCE_WINDOW,
+        variance_min_samples: int = _VARIANCE_MIN_SAMPLES,
     ) -> None:
         self.alpha = alpha
         self.min_weight = min_weight
         self.max_regimes = max(1, max_regimes)
         self.regime_ttl_seconds = regime_ttl_seconds
         self.immediate_persist_threshold = immediate_persist_threshold
+        self.sigma2_obs_default = sigma2_obs_default
+        self.sigma2_obs_min = sigma2_obs_min
+        self.variance_window = variance_window
+        self.variance_min_samples = variance_min_samples
 
     def get_regime_alpha(self, regime: str | RegimeType) -> float:
         """Get alpha for a specific regime.

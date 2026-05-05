@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from typing import Deque, List, Optional
 from datetime import datetime
 
+from iot_machine_learning.infrastructure.security.redis_namespace import (
+    RedisNamespace,
+    get_namespace,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,7 +48,9 @@ class RedisSlidingWindowStore:
         redis_client,
         window_size: int = 20,
         ttl_seconds: int = 3600,
-        key_prefix: str = "sliding_window:",
+        key_prefix: str = "sliding_window",
+        tenant_id: str = "default",
+        namespace: Optional[RedisNamespace] = None,
     ):
         """Initialize Redis sliding window store.
 
@@ -51,15 +58,25 @@ class RedisSlidingWindowStore:
             redis_client: Redis client instance
             window_size: Max readings per window
             ttl_seconds: TTL for inactive windows (default 1 hour)
-            key_prefix: Redis key prefix
+            key_prefix: Redis key prefix (without colon)
+            tenant_id: Tenant ID for namespacing
+            namespace: Optional pre-configured namespace
         """
         self._redis = redis_client
         self._window_size = window_size
         self._ttl_seconds = ttl_seconds
         self._key_prefix = key_prefix
+        
+        # Namespace for tenant isolation (SEC-2 fix)
+        self._namespace = namespace or get_namespace(tenant_id=tenant_id)
+        self._tenant_id = tenant_id
 
     def append(self, reading: Reading) -> None:
         """Append reading to window.
+
+        Uses Redis pipeline to execute RPUSH + LTRIM + EXPIRE atomically
+        in a single round-trip, reducing latency and avoiding partial
+        state if the connection drops mid-operation.
 
         Args:
             reading: Reading to append
@@ -67,21 +84,17 @@ class RedisSlidingWindowStore:
         try:
             key = self._make_key(reading.sensor_id)
 
-            # Serialize reading
             data = json.dumps({
                 "sensor_id": reading.sensor_id,
                 "value": reading.value,
                 "timestamp": reading.timestamp,
             })
 
-            # Push to list (right side = newest)
-            self._redis.rpush(key, data)
-
-            # Trim to window size
-            self._redis.ltrim(key, -self._window_size, -1)
-
-            # Set TTL
-            self._redis.expire(key, self._ttl_seconds)
+            pipe = self._redis.pipeline()
+            pipe.rpush(key, data)
+            pipe.ltrim(key, -self._window_size, -1)
+            pipe.expire(key, self._ttl_seconds)
+            pipe.execute()
 
         except Exception as exc:
             logger.error(
@@ -154,18 +167,21 @@ class RedisSlidingWindowStore:
     def sensor_ids(self) -> List[int]:
         """Get all sensor IDs with windows.
 
+        Uses SCAN instead of KEYS to avoid blocking the Redis server
+        when the keyspace is large (production requirement).
+
         Returns:
             List of sensor IDs
         """
         try:
-            pattern = f"{self._key_prefix}*"
-            keys = self._redis.keys(pattern)
-
+            pattern = self._namespace.pattern(self._key_prefix, "sensor_*")
             sensor_ids = []
-            for key in keys:
+            for key in self._redis.scan_iter(match=pattern, count=100):
                 try:
-                    # Extract sensor_id from key
-                    sensor_id_str = key.decode().replace(self._key_prefix, "")
+                    key_str = key.decode() if isinstance(key, bytes) else key
+                    # Key format: ...:sliding_window:sensor_42
+                    resource_id = key_str.split(":")[-1]
+                    sensor_id_str = resource_id.split("_", 1)[1]
                     sensor_ids.append(int(sensor_id_str))
                 except Exception:
                     continue
@@ -202,12 +218,17 @@ class RedisSlidingWindowStore:
             }
 
     def _make_key(self, sensor_id: int) -> str:
-        """Make Redis key for sensor.
+        """Make Redis key for sensor with namespace.
+        
+        Format: {env}:{app}:{tenant}:sliding_window:sensor_{sensor_id}
 
         Args:
             sensor_id: Sensor ID
 
         Returns:
-            Redis key
+            Namespaced Redis key
         """
-        return f"{self._key_prefix}{sensor_id}"
+        return self._namespace.key(
+            resource_type=self._key_prefix,
+            resource_id=f"sensor_{sensor_id}",
+        )

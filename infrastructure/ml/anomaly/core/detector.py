@@ -326,7 +326,8 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         final_score = self._strategy.combine(votes)
         is_anomaly = self._strategy.is_anomaly(final_score)
         confidence = self._strategy.confidence(votes)
-        severity = AnomalySeverity.from_score(final_score)
+        from iot_machine_learning.domain.policies.threshold_policy import ThresholdPolicy
+        severity = ThresholdPolicy.default().classify_score(final_score)
 
         # Compute z-scores for narrator
         z = compute_z_score(value, self._stats.mean, self._stats.std)

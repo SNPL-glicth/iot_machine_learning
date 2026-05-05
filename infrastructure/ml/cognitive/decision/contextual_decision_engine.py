@@ -15,9 +15,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from .....domain.entities.decision import Decision, DecisionContext
-from .....domain.ports.decision_port import DecisionEnginePort
-from .....ml_service.config.flags import FeatureFlags
+from iot_machine_learning.domain.entities.decision import Decision, DecisionContext
+from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
+from iot_machine_learning.ml_service.config.flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def _get_flags() -> FeatureFlags:
     """Obtener flags actuales (lazy import para evitar circular)."""
     try:
-        from .....ml_service.config.feature_flags import get_feature_flags
+        from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
         return get_feature_flags()
     except Exception:
         # Fallback a defaults si no hay flags configurados

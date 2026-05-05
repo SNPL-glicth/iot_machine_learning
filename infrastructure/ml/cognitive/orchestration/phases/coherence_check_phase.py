@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import PipelineContext
 
-from ......domain.services.signal_coherence_checker import SignalCoherenceChecker
+from iot_machine_learning.domain.services.signal_coherence_checker import SignalCoherenceChecker
 
 logger = logging.getLogger(__name__)
 

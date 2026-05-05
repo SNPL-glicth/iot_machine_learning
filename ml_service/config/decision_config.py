@@ -22,15 +22,36 @@ class DecisionConfig(BaseModel):
     ML_DECISION_ENGINE: str = "simple"  # simple | contextual | conservative | aggressive | cost_optimized
     ML_DECISION_ENGINE_STRATEGY: str = "simple"  # Deprecated
 
-    # --- Bayesian Weight Tracker tuning ---
+    # --- Bayesian Weight Tracking ---
     ML_BAYES_ALPHA: float = 0.15
     ML_BAYES_MIN_WEIGHT: float = 0.05
-    ML_BAYES_MAX_REGIMES: int = 10
+    ML_BAYES_MAX_WEIGHT: float = 0.50
     ML_BAYES_REGIME_TTL_SECONDS: float = 86400.0
-    ML_BAYES_NOISE_THRESHOLD: float = 0.3
-    ML_BAYES_PERSIST_EVERY_N: int = 10
+    ML_BAYES_NOISE_THRESHOLD: float = 0.001
+    ML_BAYES_PERSIST_EVERY_N: int = 20
     ML_BAYES_IMMEDIATE_PERSIST_THRESHOLD: float = 0.15
     ML_BAYES_REDIS_CACHE_TTL_SECONDS: float = 60.0
+
+    # --- Multivariate Anomaly Detection (FASE 3) ---
+    ML_ENABLE_MULTIVARIATE: bool = False  # Master switch for multivariate detection
+    ML_BAYES_MULTIVARIATE_WEIGHT: float = 0.25  # Weight for multivariate detector (25% - high impact)
+    ML_MULTIVARIATE_MIN_SERIES: int = 3  # Minimum correlated series required
+    ML_MULTIVARIATE_PCA_COMPONENTS: int = 2  # Number of PCA components
+    ML_MULTIVARIATE_BASELINE_PERCENTILE: float = 95.0  # Adaptive threshold percentile
+    ML_MULTIVARIATE_WARMUP_SAMPLES: int = 30  # Minimum samples for baseline
+    ML_MULTIVARIATE_CORRELATION_THRESHOLD: float = 0.5  # Minimum correlation for feature selection
+    
+    # --- Confidence Calibration ---
+    ML_ENABLE_CONFIDENCE_CALIBRATION: bool = True  # Master switch for confidence calibration
+    ML_CONFIDENCE_TEMPERATURE: float = 1.5  # Base temperature for sigmoid scaling
+    ML_CONFIDENCE_TEMP_VOLATILE: float = 2.0  # Temperature for VOLATILE regime (more conservative)
+    ML_CONFIDENCE_TEMP_STABLE: float = 1.2  # Temperature for STABLE regime (more confident)
+    ML_CONFIDENCE_TEMP_TRENDING: float = 1.5  # Temperature for TRENDING regime
+    ML_CONFIDENCE_TEMP_NOISY: float = 1.8  # Temperature for NOISY regime
+    
+    # --- Benchmarking ---
+    ML_BENCHMARK_DECISION_THRESHOLD: float = 0.7  # Confidence threshold for anomaly decision
+    ML_BENCHMARK_WINDOW_SIZE: int = 50  # Number of historical samples for benchmark
 
     # JSON strings for dicts
     ML_BAYES_REGIME_ALPHAS: str = '{"STABLE":0.10,"TRENDING":0.20,"VOLATILE":0.25,"NOISY":0.08,"TRANSITIONAL":0.18}'

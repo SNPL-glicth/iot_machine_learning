@@ -1,11 +1,6 @@
 """TextSeverityMapper — 3-axis severity classification.
 
-Combines three independent axes to compute real-world severity:
-
-    **urgency**   × 0.30  — keyword-based urgency score [0, 1]
-    **sentiment** × 0.20  — negative sentiment weight [0, 1]
-    **impact**    × 0.50  — hard impact signals (SLA breach, extreme
-                            metrics, temporal risk, cascade failure)
+Combines three independent axes to compute real-world severity.
 
 Produces the same ``SeverityResult`` dataclass used by the IoT pipeline
 (``domain.services.severity_rules``) but without requiring the
@@ -13,24 +8,20 @@ IoT-specific ``Threshold`` entity.
 
 No imports from ml_service — only domain layer + sibling modules.
 Single entry point: ``classify_text_severity()``.
+
+All thresholds and weights now live in ``ThresholdPolicy`` (single
+source of truth).  This module translates text-specific signals into
+policy inputs.
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
+from iot_machine_learning.domain.policies.threshold_policy import ThresholdPolicy
 from iot_machine_learning.domain.services.severity_rules import SeverityResult
 
 from .impact_detector import ImpactSignalResult, detect_impact_signals
-
-# Axis weights for the composite severity score
-_W_URGENCY = 0.45      # INCREASED: Urgency should have significant weight
-_W_SENTIMENT = 0.20
-_W_IMPACT = 0.35       # REDUCED: Balance with higher urgency weight
-
-# Severity thresholds on composite score [0, 1]
-_THRESHOLD_CRITICAL = 0.55   # REDUCED: Make critical achievable with high urgency
-_THRESHOLD_WARNING = 0.35    # REDUCED: Balance with higher urgency weight
 
 
 def classify_text_severity(
@@ -45,9 +36,8 @@ def classify_text_severity(
 ) -> SeverityResult:
     """Classify text document severity from analysis scores + impact signals.
 
-    Uses a 3-axis formula::
-
-        composite = urgency * 0.30 + sentiment * 0.20 + impact * 0.50
+    Delegates to ``ThresholdPolicy.classify_text()`` for unified
+    severity logic (single source of truth).
 
     Args:
         urgency_score: Urgency level [0, 1].
@@ -77,36 +67,29 @@ def classify_text_severity(
     # ── Sentiment axis ──
     sentiment_weight = _sentiment_to_weight(sentiment_label)
 
-    # ── Composite score ──
-    composite = (
-        _W_URGENCY * urgency_score
-        + _W_SENTIMENT * sentiment_weight
-        + _W_IMPACT * impact_score
+    # ── Unified classification via ThresholdPolicy ──
+    policy = ThresholdPolicy.default()
+    result = policy.classify_text(
+        urgency_score=urgency_score,
+        sentiment_weight=sentiment_weight,
+        impact_score=impact_score,
+        domain=domain,
+        n_categories_hit=impact_result.n_categories_hit if impact_result else 0,
+        urgency_override=(
+            urgency_score >= 0.85 and sentiment_label == "negative"
+        ) or urgency_score >= 0.75,
     )
 
-    # ── Hard overrides (urgency-based) ──
-    # Impact override: 3+ hard signal categories (SLA breach + extreme metrics + cascade)
-    if impact_result is not None and impact_result.n_categories_hit >= 3:
-        composite = max(composite, _THRESHOLD_CRITICAL)
-    
-    # URGENCY OVERRIDE: High urgency should elevate severity regardless of impact
-    # Urgency >= 0.85 alone can reach critical if sentiment is negative
-    if urgency_score >= 0.85 and sentiment_label == "negative":
-        composite = max(composite, _THRESHOLD_CRITICAL)
-    
-    # Urgency >= 0.75 alone can reach warning
-    if urgency_score >= 0.75:
-        composite = max(composite, _THRESHOLD_WARNING)
-
-    # ── Map to severity ──
-    severity, risk_level = _score_to_severity(composite)
-    action_required = severity != "info"
-    recommended_action = _build_action(severity, domain, impact_result)
+    # Append impact summary to action when available
+    recommended_action = result.recommended_action
+    if impact_result is not None and impact_result.summary:
+        if result.severity_label in {"critical", "warning"}:
+            recommended_action += f" {impact_result.summary}"
 
     return SeverityResult(
-        risk_level=risk_level,
-        severity=severity,
-        action_required=action_required,
+        risk_level=result.risk_level,
+        severity=result.severity_label,
+        action_required=result.action_required,
         recommended_action=recommended_action,
     )
 
@@ -118,43 +101,3 @@ def _sentiment_to_weight(label: str) -> float:
     if label == "neutral":
         return 0.3
     return 0.0  # positive
-
-
-def _score_to_severity(composite: float) -> tuple:
-    """Map composite score to (severity, risk_level)."""
-    if composite >= _THRESHOLD_CRITICAL:
-        return "critical", "HIGH"
-    if composite >= _THRESHOLD_WARNING:
-        return "warning", "MEDIUM"
-    if composite >= 0.15:
-        return "info", "LOW"
-    return "info", "NONE"
-
-
-def _build_action(
-    severity: str,
-    domain: str,
-    impact: Optional[ImpactSignalResult],
-) -> str:
-    """Build human-readable recommended action."""
-    domain_label = domain if domain != "general" else "document"
-
-    if severity == "critical":
-        base = (
-            f"Critical issues detected in {domain_label}. "
-            "Immediate review and action required."
-        )
-        if impact is not None and impact.summary:
-            base += f" {impact.summary}"
-        return base
-
-    if severity == "warning":
-        base = (
-            f"Concerns identified in {domain_label}. "
-            "Schedule review and monitor closely."
-        )
-        if impact is not None and impact.summary:
-            base += f" {impact.summary}"
-        return base
-
-    return "No immediate action required. Continue standard monitoring."

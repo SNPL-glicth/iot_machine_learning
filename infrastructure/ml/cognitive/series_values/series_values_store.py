@@ -23,6 +23,11 @@ import logging
 import math
 from typing import Any, List, Optional, Tuple
 
+from iot_machine_learning.infrastructure.security.redis_namespace import (
+    RedisNamespace,
+    get_namespace,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +47,8 @@ class SeriesValuesStore:
         key_prefix: str = _DEFAULT_PREFIX,
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
         max_values: int = _DEFAULT_MAX_VALUES,
+        tenant_id: str = "default",
+        namespace: Optional[RedisNamespace] = None,
     ) -> None:
         if ttl_seconds <= 0:
             raise ValueError(f"ttl_seconds must be > 0, got {ttl_seconds}")
@@ -54,6 +61,10 @@ class SeriesValuesStore:
         self._prefix = key_prefix
         self._ttl = int(ttl_seconds)
         self._max = int(max_values)
+        
+        # Namespace for tenant isolation (SEC-2 fix)
+        self._namespace = namespace or get_namespace(tenant_id=tenant_id)
+        self._tenant_id = tenant_id
 
     # -- public API ---------------------------------------------------
 
@@ -169,10 +180,17 @@ class SeriesValuesStore:
                 extra={"series_id": series_id, "error": str(exc)},
             )
 
-    # -- helpers ------------------------------------------------------
+    # -- private helpers ----------------------------------------------
 
     def _key(self, series_id: str) -> str:
-        return f"{self._prefix}:{series_id}"
+        """Build Redis key for this series with namespace.
+        
+        Format: {env}:{app}:{tenant}:series_values:{series_id}
+        """
+        return self._namespace.key(
+            resource_type=self._prefix,
+            resource_id=series_id,
+        )
 
     @staticmethod
     def _decode(raw: List[Any]) -> List[float]:

@@ -17,7 +17,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
-from .....domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.prediction import Prediction
 
 logger = logging.getLogger(__name__)
 

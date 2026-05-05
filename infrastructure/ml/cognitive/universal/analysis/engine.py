@@ -143,7 +143,7 @@ class UniversalAnalysisEngine:
                 logger.warning(f"pattern_interpretation_failed: {e}")
                 # Graceful-fail - continue without patterns
                 # OBSERVABILITY: Track silent failure
-                from .....ml_service.metrics.observability import get_observability
+                from iot_machine_learning.ml_service.metrics.observability import get_observability
                 get_observability().silent_failures.record(
                     "pattern_interpretation", str(e), {"domain": domain}
                 )
@@ -211,7 +211,7 @@ class UniversalAnalysisEngine:
         except Exception as e:
             logger.error(f"universal_analysis_failed: {e}", exc_info=True)
             # OBSERVABILITY: Track silent failure in main pipeline
-            from .....ml_service.metrics.observability import get_observability
+            from iot_machine_learning.ml_service.metrics.observability import get_observability
             get_observability().silent_failures.record(
                 "universal_analysis", str(e), {"input_type": getattr(input_type, 'value', str(input_type))}
             )

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from ......domain.entities.decision import Decision, DecisionContext
-from ......domain.ports.decision_port import DecisionEnginePort
+from iot_machine_learning.domain.entities.decision import Decision, DecisionContext
+from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
 
 from .decision_rules import apply_decision_hierarchy
 from .outcome_builder import build_simulated_outcomes

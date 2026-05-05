@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
 
 from .prior import Prior, GaussianPrior, BetaPrior, GammaPrior
 
@@ -50,15 +50,17 @@ class BayesianUpdater:
         self,
         prior: Prior,
         observations: np.ndarray,
+        sigma2_obs: Optional[float] = None,
     ) -> Posterior:
         """Update prior with observations → posterior.
-        
+
         Uses conjugate prior formulas for closed-form update.
-        
+
         Args:
             prior: Prior distribution
             observations: New observations
-            
+            sigma2_obs: Known observation variance (default 1.0 for backward compat)
+
         Returns:
             Posterior distribution
         """
@@ -69,48 +71,47 @@ class BayesianUpdater:
                 parameters=prior.parameters.copy(),
                 n_observations=0,
             )
-        
+
         if prior.distribution == "gaussian":
-            return self._update_gaussian(prior, observations)
+            return self._update_gaussian(prior, observations, sigma2_obs)
         elif prior.distribution == "beta":
             return self._update_beta(prior, observations)
         elif prior.distribution == "gamma":
             return self._update_gamma(prior, observations)
         else:
             raise ValueError(f"Unsupported prior: {prior.distribution}")
-    
+
     def _update_gaussian(
         self,
         prior: Prior,
         observations: np.ndarray,
+        sigma2_obs: Optional[float] = None,
     ) -> Posterior:
         """Gaussian-Gaussian conjugate update.
-        
+
         Prior: N(μ_0, σ²_0)
         Likelihood: N(μ, σ²_known)
         Posterior: N(μ_n, σ²_n)
-        
-        Assuming known variance σ² = 1 (simplified):
-        μ_n = (σ²_0 * Σx_i + σ² * μ_0) / (n * σ²_0 + σ²)
-        σ²_n = (σ²_0 * σ²) / (n * σ²_0 + σ²)
+
+        sigma2_obs is no longer hardcoded; callers should provide the per-engine
+        empirical variance for more accurate updates.
         """
         mu_0 = prior.get_param("mu_0", 0.0)
         sigma2_0 = prior.get_param("sigma2_0", 1.0)
-        
+
         n = len(observations)
         sum_x = np.sum(observations)
-        
-        # Known observation variance (assume 1.0)
-        sigma2_obs = 1.0
-        
+
+        effective_sigma2_obs = sigma2_obs if sigma2_obs is not None else 1.0
+
         # Posterior parameters
         precision_0 = 1.0 / sigma2_0
-        precision_obs = n / sigma2_obs
+        precision_obs = n / effective_sigma2_obs
         precision_n = precision_0 + precision_obs
-        
+
         mu_n = (precision_0 * mu_0 + precision_obs * (sum_x / n)) / precision_n
         sigma2_n = 1.0 / precision_n
-        
+
         return Posterior(
             distribution="gaussian",
             parameters={"mu_0": mu_n, "sigma2_0": sigma2_n},

@@ -6,6 +6,7 @@ concretas (IsolationForest, LOF, Z-score, etc.).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional
@@ -32,6 +33,10 @@ class AnomalySeverity(Enum):
     ) -> "AnomalySeverity":
         """Convierte score numérico (0–1) a severidad.
 
+        .. deprecated::
+            Use ``ThresholdPolicy.classify_score()`` instead.
+            This method is kept for backward compatibility only.
+
         Args:
             score: Anomaly score in [0, 1].
             none_max: Scores below this are NONE.
@@ -39,15 +44,18 @@ class AnomalySeverity(Enum):
             medium_max: Scores below this are MEDIUM.
             high_max: Scores below this are HIGH; above is CRITICAL.
         """
-        if score < none_max:
-            return cls.NONE
-        if score < low_max:
-            return cls.LOW
-        if score < medium_max:
-            return cls.MEDIUM
-        if score < high_max:
-            return cls.HIGH
-        return cls.CRITICAL
+        warnings.warn(
+            "AnomalySeverity.from_score() is deprecated. "
+            "Use ThresholdPolicy.classify_score() for unified severity classification.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Lazy import to avoid circular dependency at module level
+        from ...policies.threshold_policy import ThresholdPolicy
+        policy = ThresholdPolicy(
+            score_thresholds=(none_max, low_max, medium_max, high_max)
+        )
+        return policy.classify_score(score)
 
 
 @dataclass(frozen=True)

@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,12 @@ class Outcome:
     trend: str = "stable"
     is_anomaly: bool = False
     anomaly_score: Optional[float] = None
+    drift_detected: bool = False
+    drift_magnitude: Optional[float] = None
+    seasonal_period_detected: Optional[int] = None
+    seasonal_component_removed: bool = False
+    multivariate_anomaly_score: Optional[float] = None
+    correlated_series: List[str] = field(default_factory=list)
     extra: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -89,10 +95,24 @@ class Outcome:
                 "outcome_is_anomaly_without_score",
                 extra={"kind": self.kind, "confidence": self.confidence},
             )
+        if self.drift_magnitude is not None and not (0.0 <= self.drift_magnitude <= 10.0):
+            raise ValueError(
+                f"Outcome.drift_magnitude must be in [0.0, 10.0] or None; got {self.drift_magnitude!r}"
+            )
+        if self.seasonal_period_detected is not None and self.seasonal_period_detected < 2:
+            raise ValueError(
+                f"Outcome.seasonal_period_detected must be >= 2 or None; got {self.seasonal_period_detected!r}"
+            )
+        if self.multivariate_anomaly_score is not None and not (0.0 <= self.multivariate_anomaly_score <= 1.0):
+            raise ValueError(
+                f"Outcome.multivariate_anomaly_score must be in [0.0, 1.0] or None; got {self.multivariate_anomaly_score!r}"
+            )
         # IMP-5: deep-freeze extra via MappingProxyType (read-only view over
         # a defensive copy). Mutating the original dict after construction
         # no longer leaks into the Outcome.
         object.__setattr__(self, "extra", MappingProxyType(dict(self.extra)))
+        # Freeze correlated_series list
+        object.__setattr__(self, "correlated_series", tuple(self.correlated_series))
 
     def with_extra(self, **kwargs: Any) -> "Outcome":
         """Return a new Outcome with ``extra`` merged with ``kwargs``.
@@ -122,6 +142,18 @@ class Outcome:
             d["predicted_value"] = round(self.predicted_value, 6)
         if self.anomaly_score is not None:
             d["anomaly_score"] = round(self.anomaly_score, 6)
+        if self.drift_detected:
+            d["drift_detected"] = True
+            if self.drift_magnitude is not None:
+                d["drift_magnitude"] = round(self.drift_magnitude, 4)
+        if self.seasonal_component_removed:
+            d["seasonal_component_removed"] = True
+            if self.seasonal_period_detected is not None:
+                d["seasonal_period_detected"] = self.seasonal_period_detected
+        if self.multivariate_anomaly_score is not None:
+            d["multivariate_anomaly_score"] = round(self.multivariate_anomaly_score, 4)
+        if self.correlated_series:
+            d["correlated_series"] = list(self.correlated_series)
         if self.extra:
             d["extra"] = dict(self.extra)
         return d
