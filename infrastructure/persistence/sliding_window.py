@@ -61,6 +61,7 @@ class SlidingWindowCache(Generic[T]):
         self._lock = threading.RLock()
         self._evictions_lru: int = 0
         self._evictions_ttl: int = 0
+        self._append_count: int = 0  # CRÍTICO-1: Track append count for cleanup scheduling
     
     def append(
         self,
@@ -73,9 +74,10 @@ class SlidingWindowCache(Generic[T]):
         now = time.monotonic()
         
         with self._lock:
-            # Evict expired first
-            if self._ttl is not None:
-                self._evict_expired(now)
+            # CRÍTICO-1: Cleanup expired every 100 additions (amortized cost)
+            self._append_count += 1
+            if self._ttl is not None and self._append_count % 100 == 0:
+                self._cleanup_expired(now)
             
             # Get or create entry
             if series_id in self._store:
@@ -155,21 +157,43 @@ class SlidingWindowCache(Generic[T]):
             self._evictions_lru += 1
             logger.debug(f"lru_evict: series_id={evicted_id}")
     
-    def _evict_expired(self, now: float) -> None:
-        """Elimina entradas con TTL vencido."""
+    def _cleanup_expired(self, now: float) -> None:
+        """Elimina entradas con TTL vencido usando binary search (CRÍTICO-1).
+        
+        SRP: Cleanup es responsabilidad de método privado, separado de la lógica de add().
+        Thread-safe: caller holds lock.
+        """
         if self._ttl is None:
             return
         
         cutoff = now - self._ttl
-        expired = [
-            sid for sid, entry in self._store.items()
-            if entry.last_access < cutoff
-        ]
+        # CRÍTICO-1: Binary search for first non-expired entry
+        # Since OrderedDict preserves insertion order, we can binary search by last_access
+        items = list(self._store.items())
+        left, right = 0, len(items)
         
-        for sid in expired:
-            del self._store[sid]
-            self._evictions_ttl += 1
-            logger.debug(f"ttl_evict: series_id={sid}")
+        while left < right:
+            mid = (left + right) // 2
+            sid, entry = items[mid]
+            if entry.last_access < cutoff:
+                left = mid + 1
+            else:
+                right = mid
+        
+        # Remove expired slice
+        expired_count = left
+        if expired_count > 0:
+            for sid, _ in items[:expired_count]:
+                del self._store[sid]
+                self._evictions_ttl += 1
+            logger.debug(f"ttl_evict_batch: series_ids={expired_count}")
+    
+    def _evict_expired(self, now: float) -> None:
+        """Elimina entradas con TTL vencido (legacy method, kept for backward compat).
+        
+        Deprecated: Use _cleanup_expired() with binary search instead.
+        """
+        self._cleanup_expired(now)
     
     def append_window(self, window) -> None:
         """Agrega todos los puntos de un TimeWindow a la ventana."""

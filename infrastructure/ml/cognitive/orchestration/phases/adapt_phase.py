@@ -50,12 +50,37 @@ class WeightCache:
             self._cache[key] = (weights, time.time())
 
 
-# Global weight cache instance
-_weight_cache = WeightCache()
+# CRIT-1 FIX: Removed global _weight_cache singleton.
+# WeightCache is now instance-scoped within AdaptPhase.__init__()
+# to eliminate race conditions in concurrent pipeline executions.
 
 
 class AdaptPhase:
-    """Phase 3: Plasticity weight resolution."""
+    """Phase 3: Plasticity weight resolution.
+    
+    CRIT-1 FIX: Instance-scoped weight cache instead of global singleton.
+    Each AdaptPhase instance has its own cache, eliminating race conditions
+    in concurrent pipeline executions.
+    """
+    
+    def __init__(self, max_cache_entries: int = 1000, cache_ttl_seconds: float = 60.0) -> None:
+        """Initialize AdaptPhase with instance-scoped weight cache.
+        
+        Args:
+            max_cache_entries: Maximum number of cached weight entries
+            cache_ttl_seconds: Time-to-live for cache entries
+        """
+        self._weight_cache = WeightCache(
+            max_entries=max_cache_entries,
+            ttl_seconds=cache_ttl_seconds
+        )
+        logger.debug(
+            "adapt_phase_initialized",
+            extra={
+                "max_entries": max_cache_entries,
+                "ttl_seconds": cache_ttl_seconds,
+            },
+        )
     
     @property
     def name(self) -> str:
@@ -71,15 +96,31 @@ class AdaptPhase:
             ctx.series_id, engine_names
         )
         
-        # Resolve plasticity weights
-        plasticity_weights = _weight_cache.get(ctx.series_id, ctx.regime)
+        # Resolve plasticity weights using instance cache
+        plasticity_weights = self._weight_cache.get(ctx.series_id, ctx.regime)
         if plasticity_weights is None:
             plasticity_weights = orchestrator._weight_resolver.resolve(
                 regime=ctx.regime,
                 engine_names=engine_names,
                 series_id=ctx.series_id,
             )
-            _weight_cache.set(ctx.series_id, ctx.regime, plasticity_weights)
+            self._weight_cache.set(ctx.series_id, ctx.regime, plasticity_weights)
+            logger.debug(
+                "adapt_phase_cache_miss",
+                extra={
+                    "series_id": ctx.series_id,
+                    "regime": ctx.regime,
+                    "cache_size": len(self._weight_cache._cache),
+                },
+            )
+        else:
+            logger.debug(
+                "adapt_phase_cache_hit",
+                extra={
+                    "series_id": ctx.series_id,
+                    "regime": ctx.regime,
+                },
+            )
         
         # Track adaptation status
         adapted = (

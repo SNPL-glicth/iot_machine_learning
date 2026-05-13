@@ -132,15 +132,19 @@ class RegimeAwareCalibrator(ConfidenceCalibratorPort):
     def _create(self, engine_name: str, regime: str) -> ConfidenceCalibratorPort:
         """Create appropriate calibrator for regime."""
         r = regime.upper()
+        ece_threshold = getattr(self._cfg, "ML_CALIBRATION_ECE_THRESHOLD", 0.1)
+        
         if r == "STABLE":
             return IsotonicCalibrator(
                 self._window_size_isotonic, self._min_samples_isotonic,
-                f"{engine_name}_STABLE",
+                f"{engine_name}_STABLE", ece_threshold,
             )
         elif r == "VOLATILE":
             return self._null
         else:  # TRENDING, NOISY, etc.
+            # Get update_frequency from config, default to 10
+            update_freq = getattr(self._cfg, "ML_CALIBRATION_UPDATE_FREQUENCY_PLATT", 10)
             return PlattCalibrator(
-                self._window_size_platt, self._min_samples_platt, 10,
-                f"{engine_name}_{r}",
+                self._window_size_platt, self._min_samples_platt, update_freq,
+                f"{engine_name}_{r}", ece_threshold,
             )

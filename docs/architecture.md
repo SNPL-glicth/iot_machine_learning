@@ -1,6 +1,6 @@
 # Arquitectura ZENIN
 
-**Última actualización:** 2026-05-04
+**Última actualización:** 2026-05-12
 **Aplica a:** `iot_machine_learning/` completo
 
 ---

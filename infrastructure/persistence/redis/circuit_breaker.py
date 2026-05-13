@@ -56,6 +56,63 @@ class CircuitOpenError(Exception):
     pass
 
 
+class _CircuitStateTransition:
+    """Handles circuit breaker state transitions (RES-CRIT-1 SRP).
+    
+    Applies SRP: State transition logic is separate concern.
+    """
+    
+    @staticmethod
+    def should_reopen_from_half_open(
+        half_open_failures: int,
+        failure_budget: int,
+    ) -> bool:
+        """Check if circuit should reopen from half-open.
+        
+        Args:
+            half_open_failures: Current failure count in half-open.
+            failure_budget: Maximum failures allowed before reopening.
+        
+        Returns:
+            True if circuit should reopen.
+        
+        Applies RES-CRIT-1: Tolerates failures up to budget.
+        """
+        return half_open_failures >= failure_budget
+    
+    @staticmethod
+    def should_close_from_half_open(
+        half_open_successes: int,
+        required_successes: int,
+    ) -> bool:
+        """Check if circuit should close from half-open.
+        
+        Args:
+            half_open_successes: Current success count in half-open.
+            required_successes: Successes needed to close.
+        
+        Returns:
+            True if circuit should close.
+        """
+        return half_open_successes >= required_successes
+    
+    @staticmethod
+    def should_open_from_closed(
+        failure_count: int,
+        failure_threshold: int,
+    ) -> bool:
+        """Check if circuit should open from closed.
+        
+        Args:
+            failure_count: Current failure count.
+            failure_threshold: Threshold to open.
+        
+        Returns:
+            True if circuit should open.
+        """
+        return failure_count >= failure_threshold
+
+
 class CircuitBreaker:
     """Circuit breaker for Redis operations.
     
@@ -80,17 +137,20 @@ class CircuitBreaker:
         recovery_timeout: int = 30,
         half_open_max_calls: int = 3,
         expected_exception: type = Exception,
+        half_open_failure_budget: int = 2,  # RES-CRIT-1
     ):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.half_open_max_calls = half_open_max_calls
         self.expected_exception = expected_exception
+        self.half_open_failure_budget = half_open_failure_budget  # RES-CRIT-1
         
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._last_failure_time: Optional[float] = None
         self._half_open_successes = 0
+        self._half_open_failures = 0  # RES-CRIT-1
 
         if CIRCUIT_BREAKER_STATE is not None:
             CIRCUIT_BREAKER_STATE.labels(breaker_name=self.name).set(
@@ -124,6 +184,7 @@ class CircuitBreaker:
                 logger.info("circuit_half_open", extra={"circuit_name": self.name})
                 self._state = CircuitState.HALF_OPEN
                 self._half_open_successes = 0
+                self._half_open_failures = 0  # RES-CRIT-1: Reset failure counter
                 self._record_transition(prev, CircuitState.HALF_OPEN)
             else:
                 logger.debug("circuit_open_reject", extra={"circuit_name": self.name})
@@ -182,18 +243,40 @@ class CircuitBreaker:
         self._last_failure_time = time.time()
         
         if self._state == CircuitState.HALF_OPEN:
-            prev = self._state
-            logger.warning(
-                "circuit_reopened",
-                extra={
-                    "circuit_name": self.name,
-                    "failure_count": self._failure_count,
-                }
-            )
-            self._state = CircuitState.OPEN
-            self._record_transition(prev, CircuitState.OPEN)
+            # RES-CRIT-1: Tolerate failures up to budget
+            self._half_open_failures += 1
             
-        elif self._failure_count >= self.failure_threshold:
+            if _CircuitStateTransition.should_reopen_from_half_open(
+                self._half_open_failures,
+                self.half_open_failure_budget,
+            ):
+                prev = self._state
+                logger.warning(
+                    "circuit_reopened",
+                    extra={
+                        "circuit_name": self.name,
+                        "failure_count": self._failure_count,
+                        "half_open_failures": self._half_open_failures,
+                        "failure_budget": self.half_open_failure_budget,
+                    }
+                )
+                self._state = CircuitState.OPEN
+                self._half_open_failures = 0  # Reset for next half-open
+                self._record_transition(prev, CircuitState.OPEN)
+            else:
+                logger.debug(
+                    "circuit_half_open_failure_tolerated",
+                    extra={
+                        "circuit_name": self.name,
+                        "half_open_failures": self._half_open_failures,
+                        "failure_budget": self.half_open_failure_budget,
+                    }
+                )
+            
+        elif _CircuitStateTransition.should_open_from_closed(
+            self._failure_count,
+            self.failure_threshold,
+        ):
             prev = self._state
             logger.error(
                 "circuit_opened",

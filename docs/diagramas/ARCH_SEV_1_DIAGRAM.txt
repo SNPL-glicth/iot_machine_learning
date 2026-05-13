@@ -1,0 +1,156 @@
+================================================================================
+ARCH-SEV-1: Eliminate SignalProfile Duplication
+================================================================================
+
+BEFORE (Duplication):
+---------------------
+
+    ┌────────────────────────────────────────────────────────────┐
+    │                      INFRASTRUCTURE                         │
+    │                                                             │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  analysis/types.py                       │              │
+    │  │                                           │              │
+    │  │  @dataclass                               │              │
+    │  │  class SignalProfile:          ❌        │              │
+    │  │      n_points: int                        │              │
+    │  │      mean: float                          │              │
+    │  │      std: float                           │              │
+    │  │      noise_ratio: float                   │              │
+    │  │      slope: float                         │              │
+    │  │      curvature: float                     │              │
+    │  │      regime: str                          │              │
+    │  │      dt: float                            │              │
+    │  └──────────────────────────────────────────┘              │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+
+    ┌────────────────────────────────────────────────────────────┐
+    │                         DOMAIN                              │
+    │                                                             │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  entities/series/structural_analysis.py  │              │
+    │  │                                           │              │
+    │  │  @dataclass                               │              │
+    │  │  class StructuralAnalysis:     ❌        │              │
+    │  │      n_points: int                        │              │
+    │  │      mean: float                          │              │
+    │  │      std: float                           │              │
+    │  │      noise_ratio: float                   │              │
+    │  │      slope: float                         │              │
+    │  │      curvature: float                     │              │
+    │  │      regime: str                          │              │
+    │  │      dt: float                            │              │
+    │  └──────────────────────────────────────────┘              │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+
+    ❌ PROBLEM: Two classes for the same concept
+    ❌ Ambiguity: Which is source of truth?
+    ❌ Maintenance burden: Changes must be duplicated
+    ❌ Risk of divergence: Fields can get out of sync
+
+
+AFTER (Single Source of Truth):
+--------------------------------
+
+    ┌────────────────────────────────────────────────────────────┐
+    │                      INFRASTRUCTURE                         │
+    │                                                             │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  analysis/types.py                       │              │
+    │  │                                           │              │
+    │  │  # ARCH-SEV-1: Alias for compatibility   │              │
+    │  │  SignalProfile = StructuralAnalysis  ✅  │              │
+    │  │                                           │              │
+    │  │  # Deprecation warning helper             │              │
+    │  │  def _deprecated_signal_profile_warning() │              │
+    │  │      warnings.warn(...)                   │              │
+    │  └──────────────────────────────────────────┘              │
+    │           │                                                 │
+    │           │ imports                                         │
+    │           ▼                                                 │
+    └───────────┼─────────────────────────────────────────────────┘
+                │
+                │
+    ┌───────────┼─────────────────────────────────────────────────┐
+    │           │              DOMAIN                             │
+    │           ▼                                                 │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  entities/series/structural_analysis.py  │              │
+    │  │                                           │              │
+    │  │  @dataclass                               │              │
+    │  │  class StructuralAnalysis:     ✅        │              │
+    │  │      n_points: int                        │              │
+    │  │      mean: float                          │              │
+    │  │      std: float                           │              │
+    │  │      noise_ratio: float                   │              │
+    │  │      slope: float                         │              │
+    │  │      curvature: float                     │              │
+    │  │      regime: str                          │              │
+    │  │      dt: float                            │              │
+    │  │                                           │              │
+    │  │  ← SINGLE SOURCE OF TRUTH                │              │
+    │  └──────────────────────────────────────────┘              │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+
+    ✅ SOLUTION: StructuralAnalysis is the only implementation
+    ✅ SignalProfile is just an alias (backward compatibility)
+    ✅ Deprecation warning guides migration
+    ✅ Applies SRP: One class, one responsibility
+
+
+MIGRATION PATH:
+---------------
+
+Phase 1 (CURRENT):
+  ✅ SignalProfile = StructuralAnalysis (alias)
+  ✅ Deprecation warning infrastructure in place
+  ✅ All existing code continues to work
+
+Phase 2 (NEXT):
+  ⏳ Update all imports: SignalProfile → StructuralAnalysis
+  ⏳ Run tests to verify no breakage
+  ⏳ Enable deprecation warning (uncomment patch)
+
+Phase 3 (FUTURE):
+  ⏳ Remove SignalProfile alias completely
+  ⏳ Remove deprecation warning code
+  ⏳ Clean architecture achieved
+
+
+AFFECTED FILES (38 usages across 12 files):
+--------------------------------------------
+
+High Priority (direct usage):
+  - infrastructure/ml/cognitive/analysis/signal_analyzer.py (4)
+  - infrastructure/ml/cognitive/text/signal_profiler.py (3)
+  - infrastructure/ml/cognitive/universal/analysis/signal_profiler.py (3)
+  - ml_service/api/services/analysis/decision_context_builder.py (2)
+
+Medium Priority (imports):
+  - infrastructure/ml/cognitive/__init__.py (4)
+  - infrastructure/ml/cognitive/analysis/__init__.py (2)
+  - infrastructure/ml/cognitive/text/pipeline/perceive_phase.py (2)
+  - infrastructure/ml/cognitive/universal/analysis/pipeline/perceive_phase.py (2)
+
+Low Priority (tests):
+  - tests/unit/infrastructure/ml/cognitive/test_text_cognitive_engine.py (11)
+
+Domain (already correct):
+  - domain/entities/decision/context.py (1)
+  - domain/entities/explainability/signal_snapshot.py (1)
+
+
+BENEFITS:
+---------
+
+1. ✅ Single Responsibility: StructuralAnalysis is sole owner
+2. ✅ No duplication: One class to maintain
+3. ✅ Clear ownership: Domain is source of truth
+4. ✅ Backward compatible: Existing code works via alias
+5. ✅ Guided migration: Deprecation warnings help developers
+6. ✅ Reduced coupling: Infrastructure imports from domain (correct direction)
+
+================================================================================

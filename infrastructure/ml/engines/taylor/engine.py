@@ -14,6 +14,11 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
+import numpy as np
+
+from core.parameters.numerical_constants import CONFIDENCE
+from core.statistical.statistical_validation import StationarityValidator, StationarityTestResult
+
 from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,
     PredictionResult,
@@ -31,8 +36,8 @@ from .prediction_pipeline import run_taylor_prediction
 logger = logging.getLogger(__name__)
 
 _TREND_THRESHOLD: float = 0.01
-_MIN_CONFIDENCE: float = 0.3
-_MAX_CONFIDENCE: float = 0.95
+_MIN_CONFIDENCE: float = CONFIDENCE.MIN_CONFIDENCE
+_MAX_CONFIDENCE: float = CONFIDENCE.MAX_CONFIDENCE
 _CLAMP_MARGIN_PCT: float = 0.3
 
 
@@ -46,6 +51,26 @@ class TaylorPredictionEngine(PredictionEngine):
     - Coefficient caching (enable_cache=True)
     - Performance tracking for confidence (enable_tracking=True)
     - Gap detection (enable_gap_detection=True)
+    
+    HIDDEN ASSUMPTIONS (FASE-25):
+    1. TIMESTAMPS REGULARES: Taylor asume timestamps equiespaciados
+       para estimación de derivadas via diferencias finitas.
+       Comportamiento con timestamps irregulares: dt variable →
+       derivadas incorrectas. PENDING: Validación de regularidad.
+    2. ESCALA COMPARABLE: Salida de Taylor asume misma escala que
+       otros engines en el ensemble. No hay normalización pre-fusión.
+       PENDING_CALIBRATION: Validar escala relativa vs Baseline/Statistical.
+    3. HORIZONTE 1-STEP: horizon=1 asume predicción 1 paso adelante.
+       Para predicción multi-step, ajustar ML_TAYLOR_HORIZON en
+       taylor_config.py. Ver: ML_SAMPLING_FREQUENCY_HZ en cognitive_config.py.
+    4. MONOTONIC TIME: Asume timestamps monotónicamente crecientes.
+       Out-of-order timestamps producen derivadas negativas incorrectas.
+    5. TREND THRESHOLD SCALE-DEPENDENT: taylor_trend_threshold=0.01
+       es absoluto (no relativo a la escala del sensor).
+       Para sensores con valores en [0,1]: 0.01 es muy sensible.
+       Para sensores con valores en [0,1000]: 0.01 es insensible.
+       PENDING_CALIBRATION: Usar threshold relativo = 0.01 * sigma_sensor.
+       Ver ML_TAYLOR_TREND_THRESHOLD en taylor_config.py.
     """
 
     def __init__(
@@ -66,6 +91,7 @@ class TaylorPredictionEngine(PredictionEngine):
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
         physical_min: Optional[float] = None,
         physical_max: Optional[float] = None,
+        stationarity_validator: Optional[StationarityValidator] = None,
     ) -> None:
         if horizon < 1:
             raise ValueError(f"horizon debe ser >= 1, recibido {horizon}")
@@ -80,6 +106,8 @@ class TaylorPredictionEngine(PredictionEngine):
         self._physical_min = physical_min
         self._physical_max = physical_max
         self._hyperparams = hyperparameter_adaptor
+        self._stationarity_validator = stationarity_validator
+        self._stationarity_result: Optional[StationarityTestResult] = None
 
         self._cache = (
             TaylorCoefficientCache(ttl_seconds=cache_ttl_seconds)
@@ -111,6 +139,42 @@ class TaylorPredictionEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        # Validate stationarity if validator provided
+        if self._stationarity_validator is not None and len(values) >= self._stationarity_validator.min_samples:
+            data_array = np.array(values)
+            self._stationarity_result = self._stationarity_validator.validate(data_array)
+            logger.info(
+                "taylor_stationarity_validation",
+                extra={
+                    "is_stationary": self._stationarity_result.is_stationary,
+                    "stationarity_type": self._stationarity_result.stationarity_type.value,
+                    "recommendation": self._stationarity_result.recommendation,
+                    "adf_p": self._stationarity_result.adf_p_value,
+                },
+            )
+
+            # Apply fallbacks based on stationarity result
+            if not self._stationarity_result.is_stationary:
+                if self._stationarity_result.stationarity_type == StationarityTestResult.stationarity_type.TREND_STATIONARY:
+                    logger.warning(
+                        "taylor_trend_stationary_fallback",
+                        extra={"recommendation": "detrend_first"},
+                    )
+                else:
+                    # Non-stationary: fallback to simple average
+                    logger.warning(
+                        "taylor_non_stationary_fallback",
+                        extra={"recommendation": "use_simple_average"},
+                    )
+                    simple_avg = sum(values) / len(values)
+                    low_conf = self._min_confidence
+                    return PredictionResult(
+                        predicted_value=simple_avg,
+                        confidence=low_conf,
+                        trend="stable",
+                        engine_name=self.name,
+                    )
+
         return run_taylor_prediction(self, values, timestamps)
 
     def supports_uncertainty(self) -> bool:

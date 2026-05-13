@@ -23,6 +23,8 @@ from __future__ import annotations
 import logging
 import math
 from collections import deque
+
+from core.parameters.numerical_constants import EPSILON
 from typing import Deque, Literal, Optional
 
 import numpy as np
@@ -161,7 +163,7 @@ class ErrorDriftDetector:
         Uses z-score normalization against rolling statistics.
         With insufficient history (< 10 samples), returns raw error.
         """
-        if self._n_updates < 10 or self._rolling_std < 1e-12:
+        if self._n_updates < 10 or self._rolling_std < EPSILON.DIVISION:
             return error
 
         z = (error - self._rolling_mae) / self._rolling_std

@@ -24,6 +24,7 @@ from __future__ import annotations
 import math
 from typing import List, Optional
 
+from core.parameters.numerical_constants import EPSILON
 from iot_machine_learning.domain.entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
@@ -105,7 +106,7 @@ def _estimate_dt(timestamps: Optional[List[float]]) -> float:
     diffs.sort()
     mid = len(diffs) // 2
     median = diffs[mid] if len(diffs) % 2 else (diffs[mid - 1] + diffs[mid]) / 2
-    return max(median, 1e-6)
+    return max(median, EPSILON.CONFIDENCE)
 
 
 def _compute_accel_variance(values: List[float], dt: float) -> float:
@@ -126,7 +127,7 @@ def _compute_accel_variance(values: List[float], dt: float) -> float:
 
 def _compute_stability(accel_variance: float, f_t: float) -> float:
     """Normalize accel_variance to [0, 1]."""
-    normalizer = abs(f_t) if abs(f_t) > 1e-6 else 1.0
+    normalizer = abs(f_t) if abs(f_t) > EPSILON.CONFIDENCE else 1.0
     return min(accel_variance / normalizer, 1.0)
 
 
@@ -158,12 +159,12 @@ class SignalAnalyzer:
 
         dt = _estimate_dt(timestamps)
         mu, sigma = _compute_mean_std(values)
-        noise_ratio = sigma / abs(mu) if abs(mu) > 1e-12 else 0.0
+        noise_ratio = sigma / abs(mu) if abs(mu) > EPSILON.DIVISION else 0.0
         slope = _compute_slope(values, dt)
         curvature = _compute_curvature(values, dt)
         accel_variance = _compute_accel_variance(values, dt)
         stability = _compute_stability(accel_variance, values[-1])
-        mean_ref = abs(mu) if abs(mu) > 1e-9 else 1.0
+        mean_ref = abs(mu) if abs(mu) > EPSILON.DIVISION else 1.0
         trend_strength = abs(slope) / mean_ref
         regime = _domain_classify_regime(noise_ratio, slope, sigma, mu)
 

@@ -7,6 +7,7 @@ NOTE: These values will be migrated to FeatureFlags in Phase 2.
 
 from __future__ import annotations
 
+import warnings
 from typing import Dict
 
 from iot_machine_learning.domain.entities.series.structural_analysis import RegimeType
@@ -51,6 +52,10 @@ _VARIANCE_MIN_SAMPLES: int = 5
 class WeightTrackerConfig:
     """Configuration container for Bayesian weight tracking behavior.
 
+    .. deprecated::
+        Use BayesianWeightConfig instead. This class is kept for backward
+        compatibility only.
+
     Allows runtime configuration without modifying constants.
     All parameters injectable for testability (ISO 25010).
     Uses Bayesian inference — NOT RL or neural plasticity.
@@ -68,6 +73,11 @@ class WeightTrackerConfig:
         variance_window: int = _VARIANCE_WINDOW,
         variance_min_samples: int = _VARIANCE_MIN_SAMPLES,
     ) -> None:
+        warnings.warn(
+            "WeightTrackerConfig is deprecated. Use BayesianWeightConfig instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.alpha = alpha
         self.min_weight = min_weight
         self.max_regimes = max(1, max_regimes)

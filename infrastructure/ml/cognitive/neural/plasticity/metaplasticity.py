@@ -12,6 +12,8 @@ from __future__ import annotations
 import numpy as np
 from typing import Dict
 
+from core.parameters.numerical_constants import EPSILON
+
 
 class MetaplasticityController:
     """BCM sliding threshold for adaptive learning.
@@ -129,7 +131,8 @@ class MetaplasticityController:
         
         # Signed distance from threshold
         # Positive → potentiation, Negative → depression
-        factor = (activity - threshold) / (threshold + 1e-9)
+        # FASE-27: Changed from 1e-9 to EPSILON.DIVISION for unification
+        factor = (activity - threshold) / (threshold + EPSILON.DIVISION)
         
         return np.clip(factor, -1.0, 1.0)
     

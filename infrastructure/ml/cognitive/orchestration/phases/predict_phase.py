@@ -34,6 +34,30 @@ class PredictPhase:
         if ctx.profile:
             builder.set_signal(ctx.profile)
         
+        # COG-SEV-1: Check budget BEFORE executing engines
+        if ctx.timer.total_ms > ctx.timer.budget_ms:
+            logger.warning("pipeline_budget_exceeded_before_predict", extra={
+                "phase": "predict",
+                "elapsed_ms": round(ctx.timer.total_ms, 2),
+                "budget_ms": ctx.timer.budget_ms,
+                "reason": "budget_exceeded_before_engine_execution",
+            })
+            result, diag, expl, reg, perc = handle_fallback(
+                ctx.values, ctx.profile, builder, ctx.timer, "budget_exceeded"
+            )
+            return ctx.with_field(
+                is_fallback=True,
+                fallback_reason="budget_exceeded_before_predict",
+                diagnostic=diag,
+                explanation=expl,
+                engine_failures={},  # No engines executed
+                metadata={
+                    "cognitive_diagnostic": diag.to_dict() if diag else None,
+                    "explanation": expl.to_dict() if expl else None,
+                    "engine_failures": {},
+                },
+            )
+        
         # Collect perceptions (IMP-2: runs in parallel when possible)
         perceptions = collect_perceptions(orchestrator._engines, ctx.values, ctx.timestamps)
         engine_failures = consume_engine_failures()
@@ -46,29 +70,6 @@ class PredictPhase:
             return ctx.with_field(
                 is_fallback=True,
                 fallback_reason="no_valid_perceptions",
-                diagnostic=diag,
-                explanation=expl,
-                engine_failures=engine_failures,
-                metadata={
-                    "cognitive_diagnostic": diag.to_dict() if diag else None,
-                    "explanation": expl.to_dict() if expl else None,
-                    "engine_failures": engine_failures,
-                },
-            )
-        
-        # Check budget
-        if ctx.timer.total_ms > ctx.timer.budget_ms:
-            logger.warning("pipeline_budget_exceeded", extra={
-                "phase": "predict",
-                "elapsed_ms": round(ctx.timer.total_ms, 2),
-                "budget_ms": ctx.timer.budget_ms,
-            })
-            result, diag, expl, reg, perc = handle_fallback(
-                ctx.values, ctx.profile, builder, ctx.timer, "budget_exceeded"
-            )
-            return ctx.with_field(
-                is_fallback=True,
-                fallback_reason="budget_exceeded",
                 diagnostic=diag,
                 explanation=expl,
                 engine_failures=engine_failures,

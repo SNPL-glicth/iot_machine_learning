@@ -124,11 +124,12 @@ class FileAuditLogger(AuditPort):
             entry["after_state"] = after_state
 
         # Hash de integridad (sobre el contenido sin el hash)
+        # SEC-CRIT-2: Full SHA-256 (256 bits) to prevent collision attacks
         if self._include_hash:
             content_str = json.dumps(entry, sort_keys=True, default=str)
             entry["integrity_hash"] = hashlib.sha256(
                 content_str.encode("utf-8")
-            ).hexdigest()[:16]
+            ).hexdigest()  # Full 64-character hex (256 bits)
 
         # Escribir y flush (audit trail debe persistir inmediatamente)
         with self._lock:

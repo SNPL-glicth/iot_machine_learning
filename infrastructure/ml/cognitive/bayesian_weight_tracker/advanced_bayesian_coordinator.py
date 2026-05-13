@@ -2,6 +2,14 @@
 
 Coordinates the 4 components of the advanced Bayesian weight tracking system.
 Renamed from 'plasticity' for honest naming.
+
+BAYESIAN-INHIBITION CONFLICT RISK (FASE-26 - Phase 9 audit):
+Bayesian weight tracker y InhibitionGate operan independientemente.
+NO hay conflict resolution cuando ambos ajustan weights simultáneamente.
+SCENARIO: Bayesian aumenta weight de engine X, Inhibition lo suprime.
+RISK: Oscilación de weights, divergencia de ensemble.
+PENDING: Implementar conflict resolution policy cuando se tenga feedback loop.
+Ver: Phase 9 audit Section 3.1 "Bayesian-Inhibition Oscillation Risk".
 """
 
 from __future__ import annotations

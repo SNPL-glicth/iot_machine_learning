@@ -29,6 +29,17 @@ class SeasonalDecompositionPhase:
     Dependency injection:
     - Decomposer (STL or FFT) selected via flags
     - Period configuration from SeriesValuesStore or default
+    
+    HIDDEN ASSUMPTIONS (FASE-25):
+    1. HOURLY DATA: seasonal_period_default=24 asume datos horarios
+       (24h = 1 día). Para datos a 1-min: period=1440. Para datos
+       diarios: period=7 (semanal).
+       PENDING_CALIBRATION: Ajustar ML_SEASONAL_PERIOD_DEFAULT según
+       frecuencia real. Ver ML_SAMPLING_FREQUENCY_HZ en cognitive_config.py.
+    2. PERIODIC DATA: Seasonal decomposition falla silenciosamente
+       en datos no-periódicos. Engine devuelve fallback en ese caso.
+    3. MIN POINTS: seasonal_min_points=48 = 2 × period_default(24).
+       Intencional: mínimo 2 ciclos completos para descomposición válida.
     """
     
     def __init__(

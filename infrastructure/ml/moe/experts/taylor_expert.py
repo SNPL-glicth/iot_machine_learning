@@ -50,6 +50,9 @@ class TaylorExpert(ExpertPort):
             engine: TaylorPredictionEngine instance.
         """
         self._engine = engine
+        # FASE-25: Taylor confidence_range = [0.3, 0.95]
+        # Ver: taylor_config.py ML_TAYLOR_MIN_CONFIDENCE / ML_TAYLOR_MAX_CONFIDENCE
+        # Otros engines: Unknown — ver expert_capability.py docstring
         self._capabilities = ExpertCapability(
             regimes=("volatile", "trending"),
             domains=("iot", "finance", "healthcare"),

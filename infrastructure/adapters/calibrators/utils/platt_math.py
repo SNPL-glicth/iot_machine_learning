@@ -18,7 +18,9 @@ def platt_sigmoid(scores: np.ndarray, A: float, B: float) -> np.ndarray:
         Array of calibrated probabilities.
     """
     logits = A * scores + B
-    logits = np.clip(logits, -500, 500)  # Prevent overflow
+    # Overflow protection: exp(x) overflows when |x| > 700
+    # Expanded range from ±500 to ±700 for consistency with temperature_scaling.py
+    logits = np.clip(logits, -700, 700)
     return 1.0 / (1.0 + np.exp(logits))
 
 
@@ -43,6 +45,8 @@ def fit_platt_params(
     
     for _ in range(max_iterations):
         logits = A * scores + B
+        # Overflow protection: exp(-x) overflows when x < -700
+        logits = np.clip(logits, -700, 700)
         probs = 1.0 / (1.0 + np.exp(-logits))
         probs = np.clip(probs, 1e-15, 1 - 1e-15)
         

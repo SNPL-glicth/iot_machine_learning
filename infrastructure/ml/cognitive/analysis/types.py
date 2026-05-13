@@ -97,44 +97,54 @@ class PipelineTimer:
         }
 
 
-@dataclass(frozen=True)
-class SignalProfile:
-    """Structural features extracted from the raw signal.
+# ARCH-SEV-1: SignalProfile is now an alias to StructuralAnalysis
+# This eliminates duplication and establishes StructuralAnalysis as source of truth
+SignalProfile = StructuralAnalysis
 
-    .. deprecated:: 2.0
-        Use ``StructuralAnalysis`` from
-        ``domain.entities.series.structural_analysis`` instead.
-        ``SignalProfile`` will be removed in a future version.
 
-    Attributes:
-        n_points: Number of data points in the window.
-        mean: Arithmetic mean of the window.
-        std: Standard deviation (population).
-        noise_ratio: σ / |μ| — coefficient of variation (0 = noiseless).
-        slope: Linear trend slope (OLS over last N points).
-        curvature: Second derivative estimate at the last point.
-        regime: Detected regime label (e.g. "idle", "active", "peak").
-        dt: Estimated time step.
-    """
+def _deprecated_signal_profile_warning():
+    """Emit deprecation warning for SignalProfile usage."""
+    warnings.warn(
+        "SignalProfile is deprecated and will be removed in version 3.0. "
+        "Use StructuralAnalysis from domain.entities.series.structural_analysis instead. "
+        "SignalProfile is now just an alias to StructuralAnalysis.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
-    n_points: int
-    mean: float
-    std: float
-    noise_ratio: float
-    slope: float
-    curvature: float
-    regime: str = "unknown"
-    dt: float = 1.0
 
-    def to_dict(self) -> dict:
-        return {
-            "n_points": self.n_points,
-            "mean": round(self.mean, 6),
-            "std": round(self.std, 6),
-            "noise_ratio": round(self.noise_ratio, 6),
-            "slope": round(self.slope, 6),
-            "curvature": round(self.curvature, 6),
-            "regime": self.regime,
+# Monkey-patch __init__ to emit warning on instantiation
+_original_structural_analysis_init = StructuralAnalysis.__init__
+
+
+def _patched_init(self, *args, **kwargs):
+    """Patched init that warns if called via SignalProfile alias."""
+    import inspect
+    frame = inspect.currentframe()
+    if frame and frame.f_back:
+        caller_locals = frame.f_back.f_locals
+        # Check if caller is using the SignalProfile name
+        if 'SignalProfile' in frame.f_back.f_code.co_names:
+            _deprecated_signal_profile_warning()
+    _original_structural_analysis_init(self, *args, **kwargs)
+
+
+# Note: Actual patching commented out to avoid breaking existing code
+# Uncomment when ready to enforce migration:
+# StructuralAnalysis.__init__ = _patched_init
+
+
+# Legacy to_dict method for backward compatibility
+def _signal_profile_to_dict_legacy(self) -> dict:
+    """Legacy to_dict for SignalProfile compatibility."""
+    return {
+        "n_points": self.n_points,
+        "mean": round(self.mean, 6),
+        "std": round(self.std, 6),
+        "noise_ratio": round(self.noise_ratio, 6),
+        "slope": round(self.slope, 6),
+        "curvature": round(self.curvature, 6),
+        "regime": self.regime,
             "dt": self.dt,
         }
 

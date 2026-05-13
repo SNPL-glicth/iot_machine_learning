@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
+from iot_machine_learning.domain.value_objects.time_step import TimeStep
+
 
 class RegimeType(Enum):
     """Régimen dinámico de la serie.
@@ -57,6 +59,7 @@ class StructuralAnalysis:
         std: Desviación estándar de la serie.
         trend_strength: Fuerza de la tendencia (|slope| / max(|mean|, ε)).
         n_points: Número de puntos analizados.
+        time_step: Temporal spacing between data points (ARCH-SEV-3).
     """
 
     slope: float = 0.0
@@ -69,7 +72,17 @@ class StructuralAnalysis:
     std: float = 0.0
     trend_strength: float = 0.0
     n_points: int = 0
-    dt: float = 1.0
+    time_step: Optional[TimeStep] = None
+    
+    @property
+    def dt(self) -> float:
+        """Legacy dt property for backward compatibility (ARCH-SEV-3).
+        
+        Returns time_step in seconds, or 1.0 if not set.
+        """
+        if self.time_step is None:
+            return 1.0
+        return self.time_step.to_seconds()
 
     @property
     def is_stable(self) -> bool:
@@ -104,7 +117,8 @@ class StructuralAnalysis:
             "std": round(self.std, 8),
             "trend_strength": round(self.trend_strength, 6),
             "n_points": self.n_points,
-            "dt": self.dt,
+            "dt": self.dt,  # Legacy field
+            "time_step": str(self.time_step) if self.time_step else None,
         }
 
     def to_feature_vector(self) -> List[float]:

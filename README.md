@@ -75,7 +75,13 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 
 | Capacidad | Detalle técnico | Diferenciador vs mercado |
 |-----------|-----------------|--------------------------|
-| Pipeline cognitivo 15 fases | Orden fijo: Sanitize → BoundaryCheck → SeasonalDecomposition → Perceive → DriftDetection → Predict → Adapt → Inhibit → Fuse → DecisionArbiter → CoherenceCheck → ConfidenceCalibration → Explain → ActionGuard → NarrativeUnification | Fases desacoplables; cada una inyectable por flags. Early termination en NaN/Inf, out-of-domain, o budget excedido. |
+| Pipeline cognitivo 15 fases + Assembly | Orden fijo: Sanitize → BoundaryCheck → SeasonalDecomposition → Perceive → DriftDetection → Predict → Adapt → Inhibit → Fuse → DecisionArbiter → CoherenceCheck → ConfidenceCalibration → Explain → ActionGuard → NarrativeUnification → Assembly | Fases desacoplables; cada una inyectable por flags. Early termination en NaN/Inf, out-of-domain, o budget excedido. Fresh executor per predict() (IMP-3). |
+| StructuralAnalysis unificado | slope, curvature, stability, accel_variance, noise_ratio, regime classification, trend_strength, mean, std, n_points. Bridge desde TaylorDiagnostic sin recomputar. | Single source of truth para análisis estructural. Consumido por Taylor, anomaly, pattern, cognitive. RegimeType enum (STABLE, TRENDING, VOLATILE, NOISY, TRANSITIONAL, UNKNOWN). |
+| Explanation layer domain-pure | Explanation (root aggregate) + Outcome + ReasoningTrace + ContributionBreakdown + SignalSnapshot + FilterSnapshot. Todos frozen dataclasses con to_dict(). | Domain-pure (zero imports from infrastructure). Extensible via `extra: Dict`. Conditional serialization (omite secciones vacías). ExplanationRenderer transforma a humano. |
+| EngineReliabilityTracker (IMP-4b) | Beta-Bernoulli posterior por (engine, series). `is_reliable()` → hard exclusion en InhibitionGate. Reemplaza 3 reglas hardcoded (stability, fit_error, recent_error). | Autoridad única en inhibición. No asume σ²_obs=1.0 para todos los motores. |
+| HyperparameterAdaptor (IMP-4c) | Redis Hash at `engine_hyperparams:{series_id}:{engine_name}`. TTL 7d auto-refresh. Filtra NaN/inf/non-numeric. Inert cuando Redis ausente. | Single source of truth para hiperparámetros por serie. Redis-only para consistencia distribuida. |
+| SeriesValuesStore (IMP-1) | Rolling buffer de valores crudos para SanitizePhase. Redis Stream o Sorted Set (max_values=500). Bounds providers: Redis (primary) → LocalWindow (fallback). | Sanitización con ventana local ±6σ. CUSUM two-sided (k=0.5σ, h=4σ). |
+| EnsembleWatchdog + ForcedRecovery | Observer pattern. Estados: HEALTHY, DEGRADED, CRITICAL, COLLAPSED. ForcedRecoveryManager ejecuta estrategias de recuperación. Post-fusion: re-ejecuta fusión con pesos recuperados. | Auto-recuperación de ensemble collapse. No modifica pesos directamente (observer). |
 | Voting ensemble 8+ detectores | Isolation Forest (30%), Z-score (20%), IQR (10%), LOF (15%), velocity_z (15%), acceleration_z (10%), IF-ND, LOF-ND; pesos adaptativos por precisión histórica (50 outcomes). `RobustScaler` para entrenamiento. | `velocity_z` y `acceleration_z` detectan cambios de régimen invisibles para detectores de magnitud pura. |
 | BayesianWeightTracker por régimen | Prior gaussiano N(μ,σ²), update conjugado normal-normal, σ²_obs empírica por motor con ventana de 20 errores, mínimo 5 muestras, clamp a 0.01. LRU eviction de 10 régimes, TTL 24h. | No asume σ²_obs=1.0 para todos los motores; temperatura y vibración tienen escalas de error distintas. |
 | Drift detection online | Page-Hinkley (δ=0.005, λ=50, α=0.9999) por defecto; ADWIN opcional (δ=0.002, max_window=1000); cooldown 300s por serie. | Reset de pesos del régimen afectado, no del sistema completo. Emite indicador ISO 13374. |
@@ -83,13 +89,16 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 | Filtro Hampel | k=3.0 × 1.4826 × MAD; rechaza percepciones atípicas antes del consenso. No-op si <3 percepciones o MAD=0. | Aplica sobre predicciones de motores, no sobre datos brutos. Evita que un motor errático contamine la fusión. |
 | Circuit breaker | CLOSED/OPEN/HALF_OPEN; backoff exponencial; thread-safe; decorador `@protected`. | Protege llamadas a Weaviate, SQL Server, Redis ante fallos transitorios. |
 | Decision engine contextual | 8 amplificadores + 3 atenuadores; base scores por severidad; umbrales ESCALATE (0.85) / INVESTIGATE (0.65) / MONITOR (0.40). | Ajusta decisión según régimen, tasa de anomalías recientes, y drift. No hardcodea umbrales. |
-| ComplianceExporter | NDJSON line-delimited; 12 campos estructurados + HMAC-SHA256 sobre cuerpo canónico ordenado lexicográficamente. | Verificación independiente con `verify_record()`; comparación constant-time. Escritura atómica (append + fsync). |
-| Explicación por fase | `ExplanationRenderer` + `CausalNarrativeBuilder`; reasoning trace por fase en `PredictionResult.metadata`. | Auditable operador-a-operador, no solo científico de datos. |
+| ComplianceExporter | NDJSON line-delimited; 12 campos estructurados + HMAC-SHA256 sobre cuerpo canónico ordenado lexicográficamente. Path traversal validation en startup. | Verificación independiente con `verify_record()`; comparación constant-time. Escritura atómica (append + fsync). Thread-safe con Lock. |
+| Explicación por fase | `ExplanationRenderer` + `CausalNarrativeBuilder`; reasoning trace por fase en `PredictionResult.metadata`. 5 clasificaciones: certainty, disagreement, cognitive_stability, overfit_risk, engine_conflict. | Auditable operador-a-operador, no solo científico de datos. Renderer solo transforma (no recalcula métricas). |
 | AuditPort dual interface | `log_prediction(sensor_id:int)` legacy + `log_series_prediction(series_id:str)` agnóstico con bridge a legacy. | Permite migración gradual de `sensor_id:int` a `series_id:str` sin romper implementaciones existentes. |
 | StoragePort dual interface | `load_sensor_window(sensor_id:int)` legacy + `load_series_window(series_id:str)` agnóstico. | Bridge convierte con `safe_series_id_to_int`; fallback a sensor_id=0 para series no numéricas. |
 | Confidence calibration por régimen | Temperatura configurable: STABLE=1.2, VOLATILE=2.0, NOISY=1.8, TRENDING=1.5. | Evita sobreconfianza en régimen VOLATILE y subconfianza en STABLE. |
-| PredictPhase concurrente | `ThreadPoolExecutor` con max_workers=3, timeout por motor=400ms. Fallback a secuencial si executor falla. | Preserva orden de engines. Surface de fallos (timeout, excepción, cannot_handle) en metadata. |
+| PredictPhase concurrente | `ThreadPoolExecutor` con max_workers=3, timeout por motor=400ms. Fallback a secuencial si executor falla. Surface de fallos (timeout, excepción, cannot_handle) en metadata. | Preserva orden de engines. Thread-safe con lock-protected `_failures` list. |
 | PipelineTimer | `perceive_ms`, `predict_ms`, `adapt_ms`, `inhibit_ms`, `fuse_ms`, `explain_ms`. Budget default 500ms. | Corta a fallback si PERCEIVE+PREDICT excede budget. Evita degradación silenciosa. |
+| ContextStateManager (R-1) | Aislamiento de estado por serie. LRU eviction (max_series=10000). `get_state(series_id)` retorna estado aislado. | Elimina condiciones de carrera entre series concurrentes. Thread-safe con RLock. |
+| WeightResolutionService consolidado | Base weights → plasticity adaptation → inhibition → final weights. Consolidado de Phase 3 refactor. | Single source of truth para resolución de pesos. Elimina duplicación de lógica. |
+| Governance system | Registry, bounds, tuning, scaling. GovernanceInitializer en startup. | Centraliza configuración dinámica de hiperparámetros por serie. |
 
 ---
 
@@ -189,23 +198,61 @@ Para configuración completa de feature flags, ver `docs/configuration.md`.
 ```
 iot_machine_learning/
 ├── application/          # Casos de uso, DTOs, explainability, servicios de aplicación
+│   ├── use_cases/        # PredictSensorValueUseCase, DetectAnomaliesUseCase, AnalyzePatternsUseCase
+│   ├── dto/              # PredictionDTO, AnomalyDTO, etc.
+│   └── explainability/   # ExplanationRenderer (domain → human transformation)
 ├── domain/               # Entidades, puertos abstractos, políticas, servicios de dominio
-│   ├── entities/         # SensorReading, AnomalyResult, Decision, Prediction (frozen dataclasses)
+│   ├── entities/         # Value objects frozen dataclasses
+│   │   ├── series/       # StructuralAnalysis, TimeSeries, TimePoint, TemporalFeatures
+│   │   ├── patterns/     # PatternResult, ChangePoint, DeltaSpikeResult, OperationalRegime
+│   │   ├── results/      # Prediction, AnomalyResult, MemorySearchResult
+│   │   ├── iot/          # SensorReading, SensorWindow (legacy)
+│   │   ├── decision/     # Decision, DecisionContext, SimulatedOutcome
+│   │   ├── explainability/ # Explanation, Outcome, ReasoningTrace, ContributionBreakdown
+│   │   ├── threshold/    # Threshold, ThresholdSeverity
+│   │   └── severity/     # AnomalySeverity, SeverityClassifier
 │   ├── ports/            # StoragePort, AuditPort, DecisionEnginePort, AnomalyDetectionPort, etc.
 │   ├── policies/         # ThresholdPolicy, DecisionPolicy
-│   └── services/         # AnomalyDomainService, PredictionDomainService
+│   ├── services/         # AnomalyDomainService, PredictionDomainService, MemoryRecallEnricher
+│   └── validators/       # DataSanitizer, temporal validators, input guards
 ├── infrastructure/       # Adaptadores concretos, ML, persistencia, resiliencia
 │   ├── ml/               # Motores, pipeline cognitivo, inferencia bayesiana, detección de anomalías
-│   │   ├── cognitive/    # Orquestador, fases del pipeline, fusión, inhibición, explicación
+│   │   ├── cognitive/    # MetaCognitiveOrchestrator, 15 fases, fusión, inhibición, plasticity
+│   │   │   ├── orchestration/ # orchestrator.py, pipeline_executor.py, phases/
+│   │   │   ├── fusion/   # WeightedFusion, HampelFilter, EnsembleWatchdog
+│   │   │   ├── inhibition/ # InhibitionGate, InhibitionConfig (IMP-4b)
+│   │   │   ├── bayesian_weight_tracker/ # 28 archivos (adaptive LR, contextual, drift)
+│   │   │   ├── analysis/  # SignalAnalyzer, types
+│   │   │   ├── perception/ # collect_perceptions() con timeout (IMP-2)
+│   │   │   └── explanation/ # ExplanationBuilder (infra → domain)
 │   │   ├── engines/      # Taylor, Statistical, Seasonal, Baseline
+│   │   │   ├── taylor/   # 14 archivos (derivatives, least_squares, coefficient_cache)
+│   │   │   ├── statistical/ # EMA/Holt, param_optimizer
+│   │   │   └── baseline/ # Simple baseline
 │   │   ├── anomaly/      # VotingAnomalyDetector + 8 sub-detectores
-│   │   └── inference/    # BayesianUpdater, GaussianPrior, Posterior, ProbabilityCalibrator
+│   │   │   ├── detectors/ # Z-score, IQR, IsolationForest, LOF, velocity_z, acceleration_z
+│   │   │   ├── voting/   # VotingAnomalyDetector
+│   │   │   └── scoring/  # Anomaly scoring
+│   │   ├── filters/      # Kalman, EMA, Median, Hampel, FilterChain
+│   │   ├── interfaces.py # PredictionEngine, PredictionPort, PredictionEnginePortBridge
+│   │   └── moe/          # MoEGateway (optional, OCP integration)
 │   ├── persistence/      # Redis, SQL Server, repositorios
 │   ├── resilience/       # CircuitBreaker (CLOSED/OPEN/HALF_OPEN)
-│   └── security/         # Rate limiting, validación de entrada
+│   ├── security/         # Rate limiting, validación de entrada, SecretRedactor
+│   └── adapters/         # Adaptadores concretos para ports
+├── core/                 # Algoritmos estadísticos y ensemble
+│   ├── ensemble/         # EnsembleWatchdog, ForcedRecoveryManager
+│   ├── statistical/      # Métodos estadísticos
+│   ├── drift/            # Detección de drift
+│   ├── parameters/       # Constantes numéricas
+│   └── tuning/           # Tuning de hiperparámetros
 ├── ml_service/           # FastAPI app, runners, consumers, configuración
-│   ├── config/           # CognitiveConfig, DecisionConfig, FeatureFlags
-│   └── consumers/        # SlidingWindowStore, ReadingsStreamConsumer
+│   ├── main.py           # Punto de entrada FastAPI con lifespan manager
+│   ├── config/           # FeatureFlags, CognitiveConfig, DecisionConfig
+│   ├── api/              # Routes (routes.py, routes_cognitive.py, routes_governance.py)
+│   ├── api/services/     # PredictionService, CognitiveService
+│   ├── governance/       # GovernanceInitializer (registry, bounds, tuning, scaling)
+│   └── metrics/          # Observability, MetricsCollector
 ├── tests/                # Unit, integration, stress, property-based, meta-tests arquitectónicos
 └── docs/                 # Documentación técnica (ver índice abajo)
 ```

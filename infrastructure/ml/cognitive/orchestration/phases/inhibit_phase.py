@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, List
 
+from core.parameters.numerical_constants import EPSILON
+
 if TYPE_CHECKING:
     from . import PipelineContext
 
@@ -24,7 +26,7 @@ def _compute_signal_z_score(values: List[float]) -> float:
     variance = sum((x - mean) ** 2 for x in historical) / len(historical)
     std = variance ** 0.5
     
-    if std < 1e-9:
+    if std < EPSILON.DIVISION:
         return 0.0
     
     return (values[-1] - mean) / std
@@ -53,10 +55,12 @@ class InhibitPhase:
             signal_z_score=signal_z_score,
         )
         
-        # Mediate weights
-        mediated_weights = orchestrator._weight_mediator.mediate(
-            ctx.plasticity_weights, inh_states
-        )
+        # CRIT-2 FIX: Use resolved weights directly instead of non-existent _weight_mediator
+        # Plasticity weights are already resolved by AdaptPhase before InhibitPhase executes.
+        # The inhibition states are computed but we don't re-mediate weights (that was
+        # the old WeightMediator pattern which was replaced by WeightResolutionService).
+        # Instead, we use the plasticity_weights directly as the mediated_weights.
+        mediated_weights = ctx.plasticity_weights
         
         # Update explanation builder
         if ctx.explanation and hasattr(ctx.explanation, 'set_inhibition'):

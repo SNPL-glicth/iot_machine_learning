@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
+
 
 @dataclass(frozen=True)
 class CoherenceResult:
@@ -114,7 +116,7 @@ class SignalCoherenceChecker:
     ) -> bool:
         """Check if value is within normal range of historical values.
 
-        Uses IQR method: normal range = [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
+        Uses IQR method: normal range = [Q1 - k*IQR, Q3 + k*IQR] where k=STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER
         Falls back to min/max if insufficient data.
         """
         if not historical_values or len(historical_values) < 4:
@@ -131,7 +133,7 @@ class SignalCoherenceChecker:
         q3 = sorted_vals[q3_idx]
 
         iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
+        lower_bound = q1 - STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
+        upper_bound = q3 + STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
 
         return lower_bound <= value <= upper_bound

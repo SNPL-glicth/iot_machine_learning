@@ -6,6 +6,24 @@ NO ejecuta expertos, NO toma decisiones de routing.
 Patrones:
 - Registry: Catálogo centralizado de expertos
 - SRP: Una sola responsabilidad (catalogación)
+
+BACKLOG - Cross-Engine Compatibility (Phase 8 audit - FASE-25):
+- Compatibility validation: verificar que engines seleccionados
+  producen outputs en escala comparable antes de fusión
+- Output normalization: z-score pre-fusión para engines con
+  escalas divergentes (requiere datos históricos para calibrar)
+- Conflict detection: detectar cuando engines producen predicciones
+  contradictorias (diferencia > N * sigma)
+- Engine ranking: ordenar engines por performance histórico
+  per-regime (requiere feedback loop de accuracy)
+- Timestamp validation: validar regularidad y monotonía antes
+  de pasar datos a Taylor/Statistical engines
+- Max points spec: agregar max_points a ExpertCapability cuando
+  se tenga justificación empírica (actualmente sin datos)
+- Cross-engine validation tests: tests para escala comparable,
+  confidence calibration, timestamp assumptions por engine
+  (requiere fixture de datos multi-engine)
+Ver: Phase 8 audit para detalles de cada item.
 """
 
 from __future__ import annotations

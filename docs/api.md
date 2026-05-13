@@ -1,5 +1,7 @@
 ## API Reference
 
+**Última actualización:** 2026-05-12
+
 > For complete Pydantic schema definitions, see `ml_service/api/schemas.py`.
 
 ### Prediction

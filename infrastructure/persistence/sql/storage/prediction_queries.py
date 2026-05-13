@@ -85,8 +85,7 @@ class PredictionQueries:
                   engine_name, trend,
                   is_anomaly, anomaly_score,
                   risk_level, severity,
-                  explanation, status,
-                  metadata
+                  explanation, status
                 )
                 OUTPUT INSERTED.id
                 VALUES (
@@ -97,8 +96,7 @@ class PredictionQueries:
                   :engine_name, :trend,
                   :is_anomaly, :anomaly_score,
                   :risk_level, :severity,
-                  :explanation, 'active',
-                  :metadata
+                  :explanation, 'active'
                 )
                 """
             ),
@@ -118,7 +116,6 @@ class PredictionQueries:
                 "risk_level": _risk_level,
                 "severity": _severity,
                 "explanation": _explanation,
-                "metadata": _metadata_json,
             },
         ).fetchone()
 

@@ -190,16 +190,18 @@ class TestAdditivePenalties:
     """Multiple penalties accumulate additively."""
 
     def test_baseline_and_low_sample(self):
-        """-0.25 (baseline) + -0.20 (n_points) = -0.45."""
+        """-0.25 (baseline) + -0.20 (n_points) = -0.45, but capped at 50% = 0.40."""
         calibrator = ConfidenceCalibrator()
         result = calibrator.calibrate(
             raw_confidence=0.80,
             n_points=5,
             only_baseline_active=True,
         )
-        assert result.calibrated == pytest.approx(0.35)  # 0.80 - 0.45
-        assert len(result.reasons) == 2
-        assert result.penalty_applied == pytest.approx(0.45)
+        # Penalty cap: 0.45 > 0.40 (50% of 0.80), so capped to 0.40
+        assert result.calibrated == pytest.approx(0.40)  # 0.80 - 0.40
+        assert len(result.reasons) == 3  # 2 penalties + cap reason
+        assert result.penalty_applied == pytest.approx(0.40)
+        assert "penalty_capped" in result.reasons[-1]
 
     def test_all_penalties_stacked(self):
         """All penalties together, but ceil overrides when raw >= 0.95."""
@@ -212,17 +214,18 @@ class TestAdditivePenalties:
             only_baseline_active=True,
             coherence_conflict=True,
         )
+        # Penalty cap: 0.95 > 0.475 (50% of 0.95), so capped to 0.475
         # Ceil applies because raw >= 0.95 and no consensus, overriding penalties
         assert result.calibrated == pytest.approx(0.85)  # Ceil value
-        assert result.penalty_applied == pytest.approx(0.10)  # 0.95 - 0.85
-        assert len(result.reasons) == 6  # 5 penalties + ceil
+        assert result.penalty_applied == pytest.approx(0.10)  # 0.95 - 0.85 (ceil overrides)
+        assert len(result.reasons) == 7  # 5 penalties + cap + ceil
 
 
 class TestConfidenceFloor:
     """Floor: never returns confidence < 0.05."""
 
     def test_floor_at_005(self):
-        """Even with massive penalties, floor is 0.05."""
+        """Penalty cap prevents hitting floor with low raw_confidence."""
         calibrator = ConfidenceCalibrator()
         result = calibrator.calibrate(
             raw_confidence=0.20,
@@ -232,8 +235,11 @@ class TestConfidenceFloor:
             only_baseline_active=True,
             coherence_conflict=True,
         )
-        assert result.calibrated == 0.05  # Floor
+        # Penalty cap: max penalty = 0.10 (50% of 0.20), so calibrated = 0.10
+        # Floor not reached because 0.10 > 0.05
+        assert result.calibrated == pytest.approx(0.10)  # 0.20 - 0.10 (capped)
         assert result.calibrated >= calibrator.CONFIDENCE_FLOOR
+        assert "penalty_capped" in result.reasons[-1]
 
     def test_floor_with_zero_raw(self):
         """raw=0 → calibrated=0.05 (floor)."""
@@ -388,3 +394,57 @@ class TestEdgeCases:
             raw_confidence=0.80, n_points=20, noise_ratio=0.7
         )
         assert result_07.calibrated < result_06.calibrated
+
+
+class TestPenaltyCap:
+    """Tests for penalty cap to prevent over-penalization."""
+
+    def test_penalty_cap_prevents_over_penalization(self):
+        """When total penalty > 50% of raw_confidence, it is capped."""
+        calibrator = ConfidenceCalibrator()
+        # All penalties triggered: 0.25 + 0.20 + 0.15 + 0.15 + 0.20 = 0.95
+        # Max allowed for raw=0.80 is 0.40 (50%)
+        result = calibrator.calibrate(
+            raw_confidence=0.80,
+            n_points=5,  # < 10
+            noise_ratio=0.7,  # > 0.6
+            engine_disagreement=0.5,  # > 0.3
+            only_baseline_active=True,
+            coherence_conflict=True,
+        )
+        # Total penalty should be capped at 0.40
+        assert result.penalty_applied == 0.40
+        assert result.calibrated == 0.40  # 0.80 - 0.40
+        assert "penalty_capped" in result.reasons[-1]
+
+    def test_penalty_cap_not_triggered_when_below_threshold(self):
+        """When total penalty < 50% of raw_confidence, no cap applied."""
+        calibrator = ConfidenceCalibrator()
+        # Single penalty: 0.25
+        # Max allowed for raw=0.80 is 0.40 (50%)
+        result = calibrator.calibrate(
+            raw_confidence=0.80,
+            n_points=20,  # Required parameter
+            only_baseline_active=True,
+        )
+        # Penalty should be 0.25 (not capped)
+        assert result.penalty_applied == 0.25
+        assert result.calibrated == 0.55  # 0.80 - 0.25
+        assert not any("penalty_capped" in r for r in result.reasons)
+
+    def test_penalty_cap_with_low_raw_confidence(self):
+        """Penalty cap scales with raw_confidence."""
+        calibrator = ConfidenceCalibrator()
+        # raw=0.30, max penalty = 0.15 (50%)
+        # All penalties = 0.95, should be capped to 0.15
+        result = calibrator.calibrate(
+            raw_confidence=0.30,
+            n_points=5,
+            noise_ratio=0.7,
+            engine_disagreement=0.5,
+            only_baseline_active=True,
+            coherence_conflict=True,
+        )
+        assert result.penalty_applied == 0.15
+        assert result.calibrated == 0.15  # 0.30 - 0.15
+        assert "penalty_capped" in result.reasons[-1]

@@ -9,7 +9,13 @@ on error recording and retrieval only.
 
 from __future__ import annotations
 
+import logging
+import math
 from typing import Dict, List, Optional
+
+from core.parameters.numerical_constants import EPSILON
+
+logger = logging.getLogger(__name__)
 
 
 def compute_inverse_mae_weights(
@@ -25,7 +31,7 @@ def compute_inverse_mae_weights(
         epsilon: Small constant to prevent division by zero.
 
     Returns:
-        Normalized weight dict. Falls back to uniform if total < 1e-9.
+        Normalized weight dict. Falls back to uniform if total < EPSILON.DIVISION.
     """
     if not maes:
         return {}
@@ -34,11 +40,21 @@ def compute_inverse_mae_weights(
         name: 1.0 / (mae + epsilon) for name, mae in maes.items()
     }
     total = sum(raw.values())
-    if total < 1e-9:
+    if total < EPSILON.DIVISION:
         uniform = 1.0 / len(maes)
         return {name: uniform for name in maes}
 
-    return {name: w / total for name, w in raw.items()}
+    normalized = {name: w / total for name, w in raw.items()}
+    
+    # Validate normalization: sum should be ≈ 1.0
+    normalized_sum = sum(normalized.values())
+    if not math.isclose(normalized_sum, 1.0, rel_tol=EPSILON.COMPARISON):
+        logger.warning(
+            "contextual_weights_normalization_drift",
+            extra={"sum": normalized_sum, "expected": 1.0, "engines": list(maes.keys())}
+        )
+    
+    return normalized
 
 
 def resolve_contextual_weights(

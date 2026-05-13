@@ -48,6 +48,7 @@ class PipelineContext:
     mediated_weights: Optional[Dict[str, float]] = None
     fused_value: Optional[float] = None
     fused_confidence: Optional[float] = None
+    raw_fused_confidence: Optional[float] = None  # Preserved before calibration
     fused_trend: Optional[str] = None
     final_weights: Optional[Dict[str, float]] = None
     selected_engine: Optional[str] = None
@@ -93,6 +94,7 @@ class PipelineContext:
             'mediated_weights': self.mediated_weights,
             'fused_value': self.fused_value,
             'fused_confidence': self.fused_confidence,
+            'raw_fused_confidence': self.raw_fused_confidence,
             'fused_trend': self.fused_trend,
             'final_weights': self.final_weights,
             'selected_engine': self.selected_engine,

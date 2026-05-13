@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
+
 
 @dataclass(frozen=True)
 class AnomalyDetectorConfig:
@@ -40,14 +42,44 @@ class AnomalyDetectorConfig:
     """
 
     # Anomaly detection ensemble
-    contamination: float = 0.1
+    contamination: float = STAT_THRESHOLDS.CONTAMINATION_DEFAULT
+    
+    # Voting threshold: 0.5 = majority rule (>50% weighted consensus)
+    # Punto de equilibrio entre sensibilidad (recall) y especificidad (precision).
+    # Pendiente calibración empírica sobre datos históricos:
+    # - Para aumentar precision (menos falsos positivos) → subir threshold (0.6-0.7)
+    # - Para aumentar recall (detectar más anomalías) → bajar threshold (0.3-0.4)
+    # Valor actual (0.5) es conservador: requiere consenso mayoritario ponderado.
     voting_threshold: float = 0.5
+    
     min_training_points: int = 50
     n_estimators: int = 100
     random_state: int = 42
     lof_max_neighbors: int = 20
     z_vote_lower: float = 2.0
     z_vote_upper: float = 3.0
+    
+    # Ensemble weights: empirical heuristics pending calibration on historical data
+    # (see Audit Phase 3 recommendation 4)
+    #
+    # Justificación por método:
+    # - isolation_forest=0.30: Mayor peso por ser método ensemble robusto a alta
+    #   dimensionalidad. No asume distribución. Eficaz en datos IoT ruidosos.
+    # - z_score=0.20: Método paramétrico estándar. Asume normalidad. Peso moderado
+    #   porque sensores IoT frecuentemente violan normalidad.
+    # - local_outlier_factor=0.15: Densidad local, complementa IF. Detecta anomalías
+    #   contextuales (outliers en clusters densos). Peso menor por costo computacional.
+    # - velocity_z=0.15: Captura anomalías temporales (rate of change). Crítico para
+    #   detectar cambios bruscos que métodos estáticos pierden.
+    # - iqr=0.10: Robusto pero binario (in/out of fence). Menor peso porque no
+    #   gradúa severidad. Útil como voto de desempate.
+    # - acceleration_z=0.10: Segunda derivada temporal. Señal más ruidosa que velocity.
+    #   Peso mínimo, útil solo para cambios de régimen abruptos.
+    #
+    # NOTA: Estos pesos son heurísticos. Calibración óptima requiere:
+    #   1. Dataset histórico etiquetado (anomalías confirmadas)
+    #   2. Grid search o Bayesian optimization sobre pesos
+    #   3. Métrica objetivo: F1-score o precision@recall_target
     weights: Dict[str, float] = field(default_factory=lambda: {
         "isolation_forest": 0.30,
         "z_score": 0.20,

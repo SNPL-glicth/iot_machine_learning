@@ -1,0 +1,112 @@
+================================================================================
+ARCH-CRIT-1: Dependency Inversion for ContextualDecisionEngine
+================================================================================
+
+BEFORE (Violates DIP):
+----------------------
+
+    ┌─────────────────────────────────────────────────────────┐
+    │                    INFRASTRUCTURE                        │
+    │                                                          │
+    │  ┌────────────────────────────────────────────┐         │
+    │  │  ContextualDecisionEngine                  │         │
+    │  │                                             │         │
+    │  │  - imports domain.entities.decision    ❌  │         │
+    │  │  - imports ml_service.config.flags    ❌  │         │
+    │  └────────────────────────────────────────────┘         │
+    │           │                    │                         │
+    └───────────┼────────────────────┼─────────────────────────┘
+                │                    │
+                ▼                    ▼
+         ┌─────────────┐      ┌─────────────┐
+         │   DOMAIN    │      │   CONFIG    │
+         │             │      │  (ml_service)│
+         │  Decision   │      │             │
+         │  Context    │      │ FeatureFlags│
+         └─────────────┘      └─────────────┘
+
+    ❌ PROBLEM: Infrastructure directly depends on Domain and Config
+    ❌ Violates Dependency Inversion Principle
+    ❌ Creates tight coupling
+
+
+AFTER (Applies DIP):
+--------------------
+
+    ┌─────────────────────────────────────────────────────────┐
+    │                    INFRASTRUCTURE                        │
+    │                                                          │
+    │  ┌────────────────────────────────────────────┐         │
+    │  │  ContextualDecisionEngine                  │         │
+    │  │                                             │         │
+    │  │  - depends on IDecisionService        ✅  │         │
+    │  │  - uses DecisionRequest/Response DTOs ✅  │         │
+    │  └────────────────────────────────────────────┘         │
+    │           │                                              │
+    └───────────┼──────────────────────────────────────────────┘
+                │
+                │ depends on
+                ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │                    APPLICATION                           │
+    │                                                          │
+    │  ┌────────────────────────────────────────────┐         │
+    │  │  IDecisionService (interface)              │         │
+    │  │  - decide(DecisionRequest) → Response      │         │
+    │  └────────────────────────────────────────────┘         │
+    │           ▲                                              │
+    │           │ implements                                   │
+    │           │                                              │
+    │  ┌────────────────────────────────────────────┐         │
+    │  │  DecisionService (implementation)          │         │
+    │  │  - translates DTOs ↔ Domain entities       │         │
+    │  └────────────────────────────────────────────┘         │
+    │           │                                              │
+    └───────────┼──────────────────────────────────────────────┘
+                │ depends on
+                ▼
+         ┌─────────────┐
+         │   DOMAIN    │
+         │             │
+         │  Decision   │
+         │  Context    │
+         │  Port       │
+         └─────────────┘
+
+    ✅ SOLUTION: Clean dependency flow
+    ✅ Infrastructure → Application (interface)
+    ✅ Application → Domain
+    ✅ Applies DIP: High-level modules don't depend on low-level details
+
+
+DEPENDENCY FLOW:
+----------------
+
+Infrastructure Layer:
+  - ContextualDecisionEngine
+  - Depends on: IDecisionService (abstraction)
+  - Uses: DecisionRequest, DecisionResponse (DTOs)
+
+Application Layer:
+  - IDecisionService (interface)
+  - DecisionService (implementation)
+  - Depends on: Domain ports and entities
+  - Translates: DTOs ↔ Domain entities
+
+Domain Layer:
+  - Decision, DecisionContext (entities)
+  - DecisionEnginePort (port)
+  - No dependencies on outer layers
+
+
+BENEFITS:
+---------
+
+1. ✅ Dependency Inversion: Infrastructure depends on abstraction
+2. ✅ Single Responsibility: DecisionService only translates
+3. ✅ Open/Closed: Can add new decision engines without changing infrastructure
+4. ✅ Testability: Can mock IDecisionService in infrastructure tests
+5. ✅ Clean Architecture: Proper layer separation
+6. ✅ Domain isolation: Domain has zero knowledge of infrastructure
+
+================================================================================

@@ -1,6 +1,8 @@
 """Pydantic schemas for ML service API.
 
 Request and response models for API endpoints.
+
+SEC-CRIT-3: All schemas use validated ID types to prevent injection attacks.
 """
 
 from __future__ import annotations
@@ -9,6 +11,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+from iot_machine_learning.domain.value_objects.series_id import (
+    SeriesId,
+    TenantId,
+    DocumentId,
+)
 
 
 class PredictRequest(BaseModel):
@@ -51,6 +59,9 @@ class PredictResponse(BaseModel):
     Campos enriquecidos (nuevos, opcionales):
         trend, engine_used, confidence_level, structural_analysis,
         metacognitive, audit_trace_id, processing_time_ms
+
+    Campos de decisión interpretativa (nuevos, opcionales):
+        decision, verdict, severity, action_required, action
     """
     # --- Base fields (existing) ---
     sensor_id: int
@@ -70,6 +81,12 @@ class PredictResponse(BaseModel):
     audit_trace_id: Optional[str] = Field(None, description="ID de trazabilidad ISO 27001")
     processing_time_ms: Optional[float] = Field(None, description="Tiempo de procesamiento en ms")
     explanation_summary: Optional[str] = Field(None, description="Resumen humano de la explicación (DOM-4)")
+    # --- Decision fields (interpretative analysis) ---
+    decision: Optional[str] = Field(None, description="Decisión: normal, anomaly, out_of_domain, degraded")
+    verdict: Optional[str] = Field(None, description="Veredicto legible por humanos (resumen de una frase)")
+    severity: Optional[str] = Field(None, description="Severidad: critical, warning, info, unknown")
+    action_required: Optional[bool] = Field(None, description="Si se requiere acción")
+    action: Optional[str] = Field(None, description="Acción recomendada o None si no aplica")
 
 
 class HealthResponse(BaseModel):
@@ -90,7 +107,7 @@ class BrokerHealthResponse(BaseModel):
 
 class AnalyzeDocumentRequest(BaseModel):
     """Request schema for document analysis endpoint."""
-    document_id: str = Field(..., description="UUID del documento")
+    document_id: DocumentId = Field(..., description="UUID del documento (SEC-CRIT-3: validated)")
     content_type: str = Field(..., description="Tipo de contenido: tabular, text, image, audio, binary")
     normalized_payload: Dict[str, Any] = Field(..., description="Payload normalizado del parser")
 
@@ -120,8 +137,8 @@ class IndexDocumentRequest(BaseModel):
     text: str = Field(..., description="Texto a indexar")
     source: str = Field(..., description="Origen del documento")
     classification: str = Field(..., description="Clasificación del contenido")
-    tenant_id: str = Field(..., description="ID del tenant")
-    analysis_result_id: Optional[str] = Field(None, description="ID del resultado de análisis")
+    tenant_id: TenantId = Field(..., description="ID del tenant (SEC-CRIT-3: validated)")
+    analysis_result_id: Optional[DocumentId] = Field(None, description="ID del resultado de análisis (SEC-CRIT-3: validated)")
 
 
 class IndexDocumentResponse(BaseModel):
@@ -146,7 +163,7 @@ class SemanticSearchResultItem(BaseModel):
 class SemanticSearchRequest(BaseModel):
     """Request schema for semantic search."""
     query: str = Field(..., description="Consulta de búsqueda")
-    tenant_id: str = Field(..., description="ID del tenant")
+    tenant_id: TenantId = Field(..., description="ID del tenant (SEC-CRIT-3: validated)")
     limit: int = Field(10, gt=0, le=100, description="Máximo de resultados")
     domain: Optional[str] = Field(None, description="Dominio opcional para filtrar")
 

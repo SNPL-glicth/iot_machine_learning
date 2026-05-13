@@ -29,6 +29,15 @@ class StatisticalExpert(ExpertPort):
     - computational_cost: 1.5 — moderate (EMA computation)
     - min_points: 5 — minimum for trend detection
     
+    MIN POINTS INCONSISTENCY (FASE-25):
+    statistical_expert min_points=5 (trend detection)
+    VotingAnomalyDetector min_training_points=20 (anomaly detection)
+    Diferencia intencional:
+    - 5 puntos: suficiente para detectar tendencia lineal
+    - 20 puntos: necesario para distribución estadística confiable
+      (regla empírica: mínimo 20 obs para estimación de media/sigma)
+    PENDING: Unificar nomenclatura, no valores.
+    
     Example:
         >>> from infrastructure.ml.engines.statistical import StatisticalPredictionEngine
         >>> engine = StatisticalPredictionEngine()

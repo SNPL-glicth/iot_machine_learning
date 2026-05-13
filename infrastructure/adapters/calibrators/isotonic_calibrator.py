@@ -30,10 +30,12 @@ class IsotonicCalibrator(ConfidenceCalibratorPort):
         window_size: int = 1000,
         min_samples: int = 200,
         engine_name: str = "unknown",
+        ece_threshold: float = 0.1,
     ) -> None:
         self._window_size = window_size
         self._min_samples = min_samples
         self._engine_name = engine_name
+        self._ece_threshold = ece_threshold
         
         self._scores: Deque[float] = deque(maxlen=window_size)
         self._outcomes: Deque[float] = deque(maxlen=window_size)
@@ -100,6 +102,20 @@ class IsotonicCalibrator(ConfidenceCalibratorPort):
             outcomes_arr = np.array(self._outcomes)
             ece, reliability = compute_ece_numpy(calibrated_arr, outcomes_arr)
             self._last_ece = ece
+            
+            # Log WARNING if ECE exceeds threshold
+            if ece > self._ece_threshold:
+                logger.warning(
+                    "isotonic_calibrator_high_ece",
+                    extra={
+                        "event": "HIGH_ECE_DETECTED",
+                        "engine_name": self._engine_name,
+                        "ece": round(ece, 4),
+                        "threshold": self._ece_threshold,
+                        "n_samples": n,
+                        "action_needed": "consider_recalibration",
+                    },
+                )
             
             return CalibrationStats(
                 n_samples=n, ece=ece, reliability=reliability,

@@ -145,7 +145,17 @@ class DriftResponsePhase:
                 logger.error(f"alert_callback_failed: {e}")
     
     def _adjust_plasticity_alpha(self, ctx: PipelineContext, drift_score: float) -> None:
-        """Adjust plasticity alpha for faster adaptation during drift."""
+        """Adjust plasticity alpha for faster adaptation during drift.
+        
+        FASE-23: Alpha adjustment formula documentation:
+        adjusted = original * 2.0, capped at 0.5
+        
+        Justificación:
+        - Factor 2.0: Duplica velocidad de aprendizaje en drift detectado
+        - Cap en 0.5: Previene alpha > 1 (aprendizaje instantáneo inestable)
+        - Equivale a reducir memoria efectiva de ~6 obs a ~2 obs
+        Pendiente: reset gradual post-drift (ver FASE-23 backlog)
+        """
         if not hasattr(ctx, 'orchestrator') or not ctx.orchestrator:
             return
         

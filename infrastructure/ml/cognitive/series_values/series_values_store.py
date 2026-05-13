@@ -27,6 +27,7 @@ from iot_machine_learning.infrastructure.security.redis_namespace import (
     RedisNamespace,
     get_namespace,
 )
+from .batch_writable_interface import IBatchWritable
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,11 @@ _DEFAULT_MAX_VALUES: int = 500
 _DEFAULT_MIN_SAMPLES: int = 20
 
 
-class SeriesValuesStore:
-    """Redis-backed rolling buffer of raw sensor values."""
+class SeriesValuesStore(IBatchWritable):
+    """Redis-backed rolling buffer of raw sensor values.
+    
+    Implements IBatchWritable for efficient batch operations (PERF-SEV-1).
+    """
 
     def __init__(
         self,
@@ -125,6 +129,71 @@ class SeriesValuesStore:
                 "series_values_redis_write_failed",
                 extra={"series_id": series_id, "error": str(exc)},
             )
+    
+    def append_batch(self, series_id: str, values: List[float]) -> None:
+        """Append multiple values in a single operation (PERF-SEV-1).
+        
+        Alias for append_many to implement IBatchWritable interface.
+        
+        Args:
+            series_id: Series identifier.
+            values: List of values to append.
+        
+        Applies ISP: Implements batch write interface.
+        """
+        self.append_many(series_id, values)
+    
+    def append_batch_multi_series(
+        self,
+        batch: List[tuple[str, List[float]]],
+    ) -> None:
+        """Append values to multiple series in a single pipeline (PERF-SEV-1).
+        
+        Args:
+            batch: List of (series_id, values) tuples.
+        
+        Uses a single Redis pipeline for all series, minimizing round-trips.
+        
+        Applies ISP: Efficient multi-series batch operation.
+        """
+        if self._redis is None or not batch:
+            return
+        
+        try:
+            pipe = self._redis.pipeline()
+            
+            for series_id, values in batch:
+                if not series_id or not values:
+                    continue
+                
+                # Coerce and filter values
+                coerced: List[str] = []
+                for v in values:
+                    try:
+                        fv = float(v)
+                    except (TypeError, ValueError):
+                        continue
+                    if math.isfinite(fv):
+                        coerced.append(repr(fv))
+                
+                if not coerced:
+                    continue
+                
+                # Add to pipeline
+                key = self._key(series_id)
+                pipe.rpush(key, *coerced)
+                pipe.ltrim(key, -self._max, -1)
+                pipe.expire(key, self._ttl)
+            
+            # Execute all operations in one round-trip
+            pipe.execute()
+        
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning(
+                "series_values_batch_multi_series_failed",
+                extra={"batch_size": len(batch), "error": str(exc)},
+            )
+    
 
     def get_recent(self, series_id: str, n: Optional[int] = None) -> List[float]:
         """Return up to ``n`` most recent finite values (chronological)."""

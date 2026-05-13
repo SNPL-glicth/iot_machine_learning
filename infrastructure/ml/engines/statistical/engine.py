@@ -22,6 +22,11 @@ import math
 from collections import deque
 from typing import Deque, List, Optional
 
+import numpy as np
+
+from core.parameters.numerical_constants import EPSILON
+from core.statistical.statistical_validation import StationarityValidator, StationarityTestResult
+
 from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,
     PredictionResult,
@@ -51,6 +56,8 @@ def _holt(
     """Double exponential smoothing (Holt's method).
 
     Returns (level, trend) at the last point.
+    
+    DEPRECATED: Use _holt_stable() to prevent trend explosion.
     """
     if len(values) < 2:
         return (values[0] if values else 0.0), 0.0
@@ -63,6 +70,56 @@ def _holt(
         level = alpha * v + (1.0 - alpha) * (level + trend)
         trend = beta * (level - prev_level) + (1.0 - beta) * trend
 
+    return level, trend
+
+
+# MATH-CRIT-3: Configurable constants (no magic numbers)
+_DEFAULT_MAX_TREND_RATIO: float = 0.5
+_MIN_LEVEL_FOR_DAMPING: float = EPSILON.GRADIENT
+
+
+def _holt_stable(
+    values: List[float],
+    alpha: float,
+    beta: float,
+    max_trend_ratio: float = _DEFAULT_MAX_TREND_RATIO,
+) -> tuple[float, float]:
+    """Double exponential smoothing with trend damping (MATH-CRIT-3).
+    
+    Prevents trend explosion in non-stationary data by applying damping
+    when trend grows too large relative to level.
+    
+    Args:
+        values: Time series values.
+        alpha: Level smoothing factor (0, 1].
+        beta: Trend smoothing factor [0, 1].
+        max_trend_ratio: Maximum allowed |trend/level| before damping.
+    
+    Returns:
+        Tuple of (level, trend) at the last point.
+    
+    Applies SRP: Trend stabilization is independent concern.
+    Applies OCP: Can be used as drop-in replacement for _holt().
+    """
+    if len(values) < 2:
+        return (values[0] if values else 0.0), 0.0
+    
+    level = values[0]
+    trend = values[1] - values[0]
+    
+    for v in values[1:]:
+        prev_level = level
+        level = alpha * v + (1.0 - alpha) * (level + trend)
+        trend = beta * (level - prev_level) + (1.0 - beta) * trend
+        
+        # MATH-CRIT-3: Stability check - damp trend if too large
+        if abs(level) > _MIN_LEVEL_FOR_DAMPING:
+            trend_ratio = abs(trend / level)
+            if trend_ratio > max_trend_ratio:
+                # Apply damping: scale trend to max_trend_ratio
+                damping_factor = max_trend_ratio / trend_ratio
+                trend = trend * damping_factor
+    
     return level, trend
 
 
@@ -101,6 +158,8 @@ class StatisticalPredictionEngine(PredictionEngine):
         series_id: Optional[str] = None,
         enable_optimization: bool = True,
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
+        max_trend_ratio: float = _DEFAULT_MAX_TREND_RATIO,
+        stationarity_validator: Optional[StationarityValidator] = None,
     ) -> None:
         if not 0.0 < alpha <= 1.0:
             raise ValueError(f"alpha must be in (0, 1], got {alpha}")
@@ -108,6 +167,8 @@ class StatisticalPredictionEngine(PredictionEngine):
             raise ValueError(f"beta must be in [0, 1], got {beta}")
         if horizon < 1:
             raise ValueError(f"horizon must be >= 1, got {horizon}")
+        if max_trend_ratio <= 0.0:
+            raise ValueError(f"max_trend_ratio must be > 0, got {max_trend_ratio}")
 
         self._series_id = series_id
         self._enable_optimization = enable_optimization
@@ -115,6 +176,8 @@ class StatisticalPredictionEngine(PredictionEngine):
         self._prediction_count = 0
         self._needs_reoptimization = False
         self._current_mae = 999.0
+        self._stationarity_validator = stationarity_validator
+        self._stationarity_result: Optional[StationarityTestResult] = None
 
         # IMP-4c: HyperparameterAdaptor is the sole source of truth.
         # StatisticalParamsRepository coexistence was dropped.
@@ -123,6 +186,7 @@ class StatisticalPredictionEngine(PredictionEngine):
         self._alpha = alpha
         self._beta = beta
         self._horizon = horizon
+        self._max_trend_ratio = max_trend_ratio  # MATH-CRIT-3
 
     @property
     def name(self) -> str:
@@ -146,8 +210,58 @@ class StatisticalPredictionEngine(PredictionEngine):
         if not self.can_handle(n):
             return self._fallback(values)
 
-        # Holt's double exponential smoothing
-        level, trend = _holt(values, self._alpha, self._beta)
+        # Validate stationarity if validator provided
+        if self._stationarity_validator is not None and len(values) >= self._stationarity_validator.min_samples:
+            data_array = np.array(values)
+            self._stationarity_result = self._stationarity_validator.validate(data_array)
+            logger.info(
+                "statistical_stationarity_validation",
+                extra={
+                    "is_stationary": self._stationarity_result.is_stationary,
+                    "stationarity_type": self._stationarity_result.stationarity_type.value,
+                    "recommendation": self._stationarity_result.recommendation,
+                    "adf_p": self._stationarity_result.adf_p_value,
+                },
+            )
+
+            # Fallback to EMA if non-stationary
+            if not self._stationarity_result.is_stationary:
+                logger.warning(
+                    "statistical_non_stationary_fallback",
+                    extra={"recommendation": "use_ema"},
+                )
+                # Use EMA instead of Holt's method
+                ema_series = _ema(values, self._alpha)
+                predicted = ema_series[-1]
+                residual_std = _compute_residual_std(values, ema_series)
+                mean_abs = abs(sum(values) / n) if n > 0 else 1.0
+                noise_ratio = residual_std / (mean_abs + EPSILON.DIVISION)
+                confidence = max(0.2, min(0.95, 1.0 - noise_ratio))
+                trend_dir = "stable"
+                stability = min(1.0, noise_ratio)
+                metadata = {
+                    "level": predicted,
+                    "trend_component": 0.0,
+                    "alpha": self._alpha,
+                    "beta": 0.0,
+                    "residual_std": round(residual_std, 6),
+                    "horizon_steps": self._horizon,
+                    "fallback": "ema_instead_of_holt",
+                    "diagnostic": {
+                        "stability_indicator": round(stability, 4),
+                        "local_fit_error": round(residual_std, 6),
+                        "method": "ema_only",
+                    },
+                }
+                return PredictionResult(
+                    predicted_value=predicted,
+                    confidence=confidence,
+                    trend=trend_dir,
+                    metadata=metadata,
+                )
+
+        # Holt's double exponential smoothing with stability (MATH-CRIT-3)
+        level, trend = _holt_stable(values, self._alpha, self._beta, self._max_trend_ratio)
         predicted = level + trend * self._horizon
 
         # EMA for residual analysis
@@ -156,11 +270,11 @@ class StatisticalPredictionEngine(PredictionEngine):
 
         # Confidence from residual stability
         mean_abs = abs(sum(values) / n) if n > 0 else 1.0
-        noise_ratio = residual_std / (mean_abs + 1e-9)
+        noise_ratio = residual_std / (mean_abs + EPSILON.DIVISION)
         confidence = max(0.2, min(0.95, 1.0 - noise_ratio))
 
         # Trend classification
-        if abs(trend) < max(residual_std * 0.1, 1e-9):
+        if abs(trend) < max(residual_std * 0.1, EPSILON.COMPARISON):
             trend_dir = "stable"
         elif trend > 0:
             trend_dir = "up"

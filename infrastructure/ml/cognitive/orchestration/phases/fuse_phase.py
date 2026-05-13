@@ -7,9 +7,16 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+from core.parameters.numerical_constants import EPSILON
 
 from ...fusion import hampel_filter
+from .fuse_phase_config import FusePhaseConfig
+from .hampel_fallback_strategy import (
+    HampelFallbackStrategy,
+    MedianClosestFallbackStrategy,
+)
 
 if TYPE_CHECKING:
     from . import PipelineContext
@@ -36,9 +43,17 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-# IMP-2 kill switches.
-ML_HAMPEL_ENABLED: bool = _env_bool("ML_HAMPEL_ENABLED", True)
-ML_HAMPEL_K: float = _env_float("ML_HAMPEL_K", 3.0)
+# Factory helper to build config from env vars
+def _build_fuse_phase_config_from_env() -> FusePhaseConfig:
+    """Build FusePhaseConfig from environment variables.
+    
+    Separates env var reading from phase logic (DIP).
+    """
+    return FusePhaseConfig(
+        hampel_k=_env_float("ML_HAMPEL_K", 3.0),
+        hampel_enabled=_env_bool("ML_HAMPEL_ENABLED", True),
+        # Other parameters use dataclass defaults
+    )
 
 
 def _compute_robust_gradient(values: list) -> float:
@@ -50,27 +65,79 @@ def _compute_robust_gradient(values: list) -> float:
     y_mean = sum(values) / n
     num = sum((i - x_mean) * (y - y_mean) for i, y in enumerate(values))
     den = sum((i - x_mean) ** 2 for i in range(n))
-    return num / den if abs(den) > 1e-9 else 0.0
+    return num / den if abs(den) > EPSILON.DIVISION else 0.0
+
+
+def _validate_correlation_quality(
+    correlation: float,
+    n_samples: int,
+    config: FusePhaseConfig,
+) -> bool:
+    """Validate correlation is statistically significant (COG-SEV-2).
+    
+    Args:
+        correlation: Correlation coefficient.
+        n_samples: Number of samples used to compute correlation.
+        config: FusePhaseConfig with min_samples and p_value threshold.
+    
+    Returns:
+        True if correlation is statistically significant.
+    
+    Applies COG-SEV-2: Filters out spurious correlations using t-test.
+    Uses Student's t-distribution table for accurate critical values.
+    """
+    if n_samples < config.min_samples_for_significance:
+        return False
+    
+    # Compute t-statistic for correlation
+    # t = r * sqrt(n-2) / sqrt(1 - r^2)
+    r = abs(correlation)
+    if r >= 0.9999:  # Perfect correlation
+        return True
+    
+    t_stat = r * ((n_samples - 2) ** 0.5) / ((1 - r * r) ** 0.5)
+    
+    # Get critical t-value from config (uses accurate t-distribution table)
+    df = n_samples - 2
+    t_critical = config.get_t_critical(df)
+    
+    return t_stat > t_critical
 
 
 def _apply_spatial_correction(
     base_prediction: float,
     neighbors: list,
     neighbor_values: dict,
-    max_correction_pct: float = 0.15,
-    min_gradient_samples: int = 3,
+    config: FusePhaseConfig,
 ) -> float:
-    """Apply spatial gradient correction from correlated neighbors."""
+    """Apply spatial gradient correction from correlated neighbors.
+    
+    Args:
+        base_prediction: Base prediction value.
+        neighbors: List of (neighbor_id, correlation) tuples.
+        neighbor_values: Dict of neighbor_id -> historical values.
+        config: FusePhaseConfig with spatial correction parameters.
+    
+    Returns:
+        Corrected prediction value.
+    
+    COG-SEV-2: Filters neighbors to only those with:
+    - abs(correlation) > config.min_correlation
+    - Statistically significant correlation (p < config.p_value_threshold)
+    """
     if not neighbors:
         return base_prediction
     
     valid_neighbors = []
     for neighbor_id, correlation in neighbors:
-        if abs(correlation) > 0.5 and neighbor_id in neighbor_values:
+        # Filter by correlation threshold
+        if abs(correlation) > config.min_correlation and neighbor_id in neighbor_values:
             values = neighbor_values[neighbor_id]
-            if len(values) >= min_gradient_samples:
-                gradient = _compute_robust_gradient(values)
-                valid_neighbors.append((neighbor_id, correlation, gradient))
+            if len(values) >= config.min_gradient_samples:
+                # Validate correlation quality
+                if _validate_correlation_quality(correlation, len(values), config):
+                    gradient = _compute_robust_gradient(values)
+                    valid_neighbors.append((neighbor_id, correlation, gradient))
     
     if not valid_neighbors:
         return base_prediction
@@ -82,20 +149,45 @@ def _apply_spatial_correction(
         weighted_gradient += correlation * gradient
         total_abs_correlation += abs(correlation)
     
-    if total_abs_correlation < 1e-9:
+    if total_abs_correlation < EPSILON.CORRELATION:
         return base_prediction
     
     gradient = weighted_gradient / total_abs_correlation
     correction = gradient * (total_abs_correlation / len(valid_neighbors))
     
-    max_correction = abs(base_prediction) * max_correction_pct
+    max_correction = abs(base_prediction) * config.max_correction_pct
     correction = max(-max_correction, min(max_correction, correction))
     
     return base_prediction + correction
 
 
 class FusePhase:
-    """Phase 5: Weighted fusion and spatial correction."""
+    """Phase 5: Weighted fusion and spatial correction.
+    
+    Applies DIP: Depends on FusePhaseConfig abstraction, not env vars.
+    Applies SRP: Configuration is injected, not read internally.
+    Applies OCP: New parameters only require extending FusePhaseConfig.
+    """
+    
+    def __init__(
+        self,
+        config: FusePhaseConfig = None,
+        hampel_fallback_strategy: HampelFallbackStrategy = None,
+    ) -> None:
+        """Initialize fuse phase with injectable configuration.
+        
+        Args:
+            config: FusePhaseConfig with all parameters. Defaults to standard config.
+            hampel_fallback_strategy: Strategy for Hampel all-rejected case.
+                Defaults to MedianClosestFallbackStrategy.
+        
+        Applies DIP: Dependencies are injected, not constructed internally.
+        """
+        self._config = config or FusePhaseConfig()
+        self._hampel_fallback_strategy = (
+            hampel_fallback_strategy or MedianClosestFallbackStrategy()
+        )
+        self._temperature_scaler = temperature_scaler  # FASE-9: Optional temperature scaling
     
     @property
     def name(self) -> str:
@@ -120,9 +212,24 @@ class FusePhase:
         
         fused_val, fused_conf, fused_trend, final_weights, selected, reason = fused_result
         
+        # FASE-9: Apply temperature scaling to confidence if scaler available
+        if self._temperature_scaler and ctx.profile:
+            regime = ctx.profile.regime.value if hasattr(ctx.profile.regime, 'value') else str(ctx.profile.regime)
+            scaling_result = self._temperature_scaler.scale(fused_conf, regime=regime)
+            fused_conf = scaling_result.scaled_confidence
+            logger.debug(
+                "temperature_scaling_applied",
+                extra={
+                    "original_conf": round(fused_conf, 4),
+                    "scaled_conf": round(scaling_result.scaled_confidence, 4),
+                    "regime": regime,
+                    "temperature": round(scaling_result.temperature, 4),
+                },
+            )
+        
         # Apply spatial correction
         fused_val = _apply_spatial_correction(
-            fused_val, ctx.neighbors, ctx.neighbor_values
+            fused_val, ctx.neighbors, ctx.neighbor_values, self._config
         )
         
         # Field smoothing via correlation port
@@ -151,36 +258,45 @@ class FusePhase:
             hampel_diagnostic=hampel_diag,
         )
     
-    def _apply_hampel(
+    def _apply_hampel_filter(
         self,
         perceptions: List["EnginePerception"],
         inhibition_states: List["InhibitionState"],
-    ) -> Tuple[
-        List["EnginePerception"],
-        List["InhibitionState"],
-        List[str],
-        dict,
-    ]:
-        """Apply Hampel filter before weighted fusion.
+    ) -> Tuple[List["EnginePerception"], List["InhibitionState"], List[str], dict]:
+        """Apply Hampel filter to reject outlier predictions.
         
-        Returns (filtered_perceptions, filtered_states, fusion_flags, diagnostic_dict).
-        Falls back to raw perceptions when:
-            * kill switch disabled (ML_HAMPEL_ENABLED=0);
-            * fewer than 3 perceptions (Hampel no-ops by design);
-            * all perceptions would be rejected (defensive).
+        Returns:
+            * filtered perceptions
+            * filtered inhibition states
+            * flags (e.g. "hampel_all_rejected_using_median")
+            * diagnostic dict
+        
+        COG-CRIT-2: When all rejected, uses fallback strategy (default: median-closest)
+        instead of bypassing filter.
         """
         flags: List[str] = []
-        if not ML_HAMPEL_ENABLED or not perceptions:
+        if not self._config.hampel_enabled or not perceptions:
             return list(perceptions), list(inhibition_states), flags, {}
         
-        result = hampel_filter(perceptions, k=ML_HAMPEL_K)
+        result = hampel_filter(perceptions, k=self._config.hampel_k)
         if not result.kept:
-            flags.append("hampel_all_rejected_bypassed")
-            logger.warning(
-                "hampel_all_rejected",
-                extra={"n_perceptions": len(perceptions), "median": result.median},
+            # COG-CRIT-2: Use fallback strategy instead of bypass
+            selected_perceptions, selected_states, reason = (
+                self._hampel_fallback_strategy.select_fallback(
+                    perceptions, inhibition_states, result.median
+                )
             )
-            return list(perceptions), list(inhibition_states), flags, result.to_dict()
+            flags.append(reason)
+            logger.warning(
+                "hampel_all_rejected_fallback",
+                extra={
+                    "n_perceptions": len(perceptions),
+                    "median": result.median,
+                    "fallback_strategy": self._hampel_fallback_strategy.__class__.__name__,
+                    "selected_engine": selected_perceptions[0].engine_name if selected_perceptions else "none",
+                },
+            )
+            return selected_perceptions, selected_states, flags, result.to_dict()
         
         if result.rejected:
             flags.append(f"hampel_rejected:{len(result.rejected)}")
@@ -204,7 +320,7 @@ class FusePhase:
         
         high_corr_neighbors = [
             (nid, corr) for nid, corr in ctx.neighbors 
-            if abs(corr) > 0.7
+            if abs(corr) > self._config.min_correlation
         ]
         
         if not high_corr_neighbors:
@@ -221,10 +337,10 @@ class FusePhase:
                     if neighbor_pred and hasattr(neighbor_pred, 'predicted_value'):
                         predictions_to_smooth[neighbor_id] = neighbor_pred.predicted_value
             
-            if len(predictions_to_smooth) >= 2:
+            if len(predictions_to_smooth) >= self._config.field_smoothing_min_neighbors:
                 smoothed = orchestrator._correlation_port.smooth_with_field(
                     predictions_to_smooth,
-                    smoothing_factor=0.2,
+                    smoothing_factor=self._config.smoothing_factor,
                 )
                 if smoothed and ctx.series_id in smoothed:
                     original_val = fused_val

@@ -3,6 +3,22 @@
 Simplified implementation of Adaptive Windowing (ADWIN) algorithm.
 Maintains adaptive window that shrinks when drift is detected.
 
+CUÁNDO USAR ADWIN vs Page-Hinkley (FASE-23):
+- **ADWIN:** Drift abrupto o heteroscedástico (varianza cambiante).
+  Mejor para: cambios de régimen bruscos, datos no estacionarios.
+  Limitación: mayor costo computacional (O(log n) vs O(1)).
+- **Page-Hinkley:** Drift gradual y unidireccional (mean shift).
+  Mejor para: tendencias, degradación lenta de sensores.
+  Limitación: asume cambios monotónicos, lento en drift abrupto.
+Default: Page-Hinkley (más eficiente, cubre mayoría de casos IoT).
+Ver también: infrastructure/ml/cognitive/drift/page_hinkley.py
+
+BACKLOG (Low Priority - FASE-24):
+- Hybrid drift detection: combinar ADWIN + Page-Hinkley con voting
+- Gradual window reset post-drift (actualmente shrink_factor=0.5 abrupto)
+- Automatic detector selection por características de datos
+Ver: page_hinkley.py para backlog simétrico
+
 Reference:
     Bifet & Gavaldà (2007). "Learning from Time-Changing Data with
     Adaptive Windowing". SIAM International Conference on Data Mining.
@@ -43,7 +59,18 @@ class ADWINDetector:
         
         Args:
             delta: Confidence parameter (0 < delta < 1).
+                PENDING_CALIBRATION: Equivale a confidence = 1 - delta = 99.8%.
+                delta=0.1 para menos sensibilidad, delta=0.001 para más sensibilidad.
+                Ackermann et al. recomiendan 0.002 como default robusto.
+            
             max_window_size: Maximum window size.
+                A 1Hz = 1000 segundos (~16 min) de memoria máxima.
+                A 10Hz = 100 segundos de memoria máxima.
+                PENDING_CALIBRATION: Ajustar como frecuencia_hz * segundos_deseados.
+                
+            shrink_factor: (hardcoded=0.5) Reduce ventana 50% al detectar drift.
+                PENDING_CALIBRATION: Considerar 0.75 para reset más gradual.
+                Ver backlog: gradual reset post-drift.
         """
         if not 0 < delta < 1:
             raise ValueError(f"delta must be in (0, 1), got {delta}")

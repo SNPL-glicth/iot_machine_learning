@@ -4,6 +4,30 @@ Dataclass inmutable que describe qué puede hacer un experto.
 Usado por ExpertRegistry para matching de contexto.
 
 SRP: Solo describe capacidades, no implementa lógica de matching.
+
+CONFIDENCE RANGE DOCUMENTATION (FASE-25):
+Los engines tienen rangos de confidence característicos:
+- Taylor: [0.3, 0.95] (configurado en taylor_config.py)
+- Baseline: Unknown — usa default confidence pipeline
+- Statistical: Unknown — usa default confidence pipeline
+- Kalman: Unknown — usa default confidence pipeline
+PENDING_CALIBRATION: Medir rangos reales en datos históricos.
+Este metadata NO está como campo en ExpertCapability para evitar
+romper las 50+ instancias de construcción existentes.
+Ver implementación específica de cada engine para valores exactos.
+
+MIN POINTS RATIONALE (FASE-25):
+Min points por engine (intencional, NO inconsistencia):
+- Baseline=3: Moving average necesita mínimo 3 puntos. Diseñado
+  para operar con datos escasos (fallback engine).
+- Statistical=5: Trend detection requiere mínimo 5 para pendiente
+  confiable. Sin 5 puntos, pendiente es ruido.
+- Taylor=5: Estimación de derivadas requiere mínimo 5 para
+  polinomio de orden 2 estable.
+- Seasonal=48: Descomposición estacional requiere mínimo 2×período.
+  Con período default=24h, mínimo=48 observaciones.
+DISEÑO: Baseline actúa como fallback cuando otros engines no
+tienen suficientes datos. Diferencia intencional, no bug.
 """
 
 from __future__ import annotations

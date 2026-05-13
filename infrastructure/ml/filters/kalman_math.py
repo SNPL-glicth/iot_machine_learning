@@ -14,22 +14,32 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List
 
+from core.parameters.numerical_constants import EPSILON
+
 # Mínimo valor de R para evitar división por cero en Kalman gain
-MIN_R: float = 1e-6
+MIN_R: float = EPSILON.KALMAN_R
 
 # Mínimo valor de P para evitar que el filtro se "congele"
-MIN_P: float = 1e-10
+MIN_P: float = EPSILON.KALMAN_P
 
 
 # Tamaño por defecto de la ventana de innovación para Q adaptativo
 DEFAULT_INNOVATION_WINDOW: int = 20
+# A 1Hz = 20 segundos de historia.
+# PENDING_CALIBRATION: Ajustar como frecuencia_hz * segundos_deseados.
 
 # Factor de escala para convertir varianza de innovación a Q
 ADAPTIVE_Q_SCALE: float = 0.1
+# FASE-24: Justificación (Mehra 1972):
+# Q = 0.1 * Var(innovación) significa que el modelo asume que ~10% de la
+# varianza observada es ruido de proceso. Heurístico estándar en literatura
+# Kalman adaptativo (Mehra, "Approaches to Adaptive Filtering", 1972).
+# PENDING_CALIBRATION: Calibrar via EM (Expectation-Maximization) o maximum
+# likelihood sobre datos históricos. Rango típico industrial: [0.05, 0.3].
 
 # Límites de Q adaptativo para evitar inestabilidad
-MIN_Q: float = 1e-8
-MAX_Q: float = 1.0
+MIN_Q: float = 1e-8  # Floor para evitar Q=0 (Kalman degenerado)
+MAX_Q: float = 1.0   # Ceiling para evitar Q extremo (pérdida de tracking)
 
 
 @dataclass

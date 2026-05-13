@@ -60,8 +60,24 @@ class UpdateMixin:
         sigma2_obs = self._variance_estimator.get_sigma2_obs(engine_name)
 
         previous_accuracy = self._accuracy[namespaced_regime].get(engine_name, 0.0)
+        
+        # MATH-CRIT-2: Scale prior variance to data variance
         if engine_name not in self._priors[namespaced_regime]:
-            self._priors[namespaced_regime][engine_name] = GaussianPrior(mu_0=accuracy, sigma2_0=1.0)
+            # Estimate data variance from recent errors
+            data_var = self._estimate_data_variance(engine_name, min_samples=5)
+            
+            if data_var is not None:
+                # Scale prior variance to data scale
+                scaled_prior_var = self._prior_variance_scale * data_var
+            else:
+                # Fallback to default (1.0)
+                scaled_prior_var = 1.0
+            
+            self._priors[namespaced_regime][engine_name] = GaussianPrior(
+                mu_0=accuracy,
+                sigma2_0=scaled_prior_var,
+            )
+        
         observation = np.array([accuracy])
         posterior = self._bayesian.update(
             self._priors[namespaced_regime][engine_name],
@@ -95,6 +111,46 @@ class UpdateMixin:
         else:
             final_accuracy = 0.0
         self._accuracy[namespaced_regime][engine_name] = final_accuracy
+        
+        # SEVERO-3: Track weight history and check convergence
+        weight_key = f"{namespaced_regime}:{engine_name}"
+        self._weight_history[weight_key].append(final_accuracy)
+        
+        if self._check_convergence(weight_key):
+            # FASE-9: Use DynamicTuner if available for adaptive alpha tuning
+            if self._dynamic_tuner:
+                convergence_report = self._dynamic_tuner._convergence_detector.get_report("ML_BAYES_ALPHA")
+                tuned_alpha = self._dynamic_tuner.tune_learning_rate(
+                    name="ML_BAYES_ALPHA",
+                    current_value=self._alpha,
+                    performance_metric=final_accuracy,
+                    convergence_report=convergence_report,
+                )
+                if tuned_alpha != self._alpha:
+                    self._alpha = tuned_alpha
+                    logger.info(
+                        "bayesian_tracker_dynamic_tuning_applied",
+                        extra={
+                            "regime": namespaced_regime,
+                            "engine_name": engine_name,
+                            "old_alpha": round(self._alpha, 4),
+                            "new_alpha": round(tuned_alpha, 4),
+                            "weight": round(final_accuracy, 4),
+                        },
+                    )
+            else:
+                # Legacy: simple decay on convergence
+                self._alpha *= 0.99
+                logger.info(
+                    "bayesian_tracker_convergence_detected",
+                    extra={
+                        "regime": namespaced_regime,
+                        "engine_name": engine_name,
+                        "new_alpha": round(self._alpha, 4),
+                        "weight": round(final_accuracy, 4),
+                    },
+                )
+        
         if abs(new_accuracy - previous_accuracy) > self._config.immediate_persist_threshold:
             self.persist_immediately(engine_name, namespaced_regime)
         self._update_counter += 1

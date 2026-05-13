@@ -29,7 +29,7 @@ class TestSchemaVersion:
     """Schema version compatibility for stored posteriors."""
 
     def test_load_wrong_schema_returns_prior(self) -> None:
-        """Stored hash with schema_version='0' → return alpha=1.0, beta=1.0."""
+        """Stored hash with schema_version='0' → return alpha=2.0, beta=2.0 (FASE-21)."""
         store = _FakeErrorStore()
         tracker = EngineReliabilityTracker(error_store=store)
 
@@ -37,8 +37,8 @@ class TestSchemaVersion:
         tracker._memory[("s1", "e1")] = (5.0, 2.0, "0")
 
         alpha, beta = tracker._load("s1", "e1")
-        assert alpha == 1.0
-        assert beta == 1.0
+        assert alpha == 2.0  # FASE-21: Changed from 1.0 to 2.0 (Beta(2,2) prior)
+        assert beta == 2.0   # FASE-21: Changed from 1.0 to 2.0 (Beta(2,2) prior)
 
     def test_load_correct_schema_returns_stored(self) -> None:
         """Stored hash with matching schema_version → return stored values."""
@@ -69,10 +69,10 @@ class TestSchemaVersion:
 
         tracker.record_outcome("s1", "e1", 2.0)  # error > threshold(1.0) → beta += 1
         alpha, beta = tracker._load("s1", "e1")
-        assert alpha == 1.0
-        assert beta == 2.0
+        assert alpha == 2.0  # FASE-21: Starts at 2.0 (prior), not 1.0
+        assert beta == 3.0   # FASE-21: 2.0 (prior) + 1 (failure) = 3.0
 
         tracker.record_outcome("s1", "e1", 0.5)  # error < threshold(1.0) → alpha += 1
         alpha, beta = tracker._load("s1", "e1")
-        assert alpha == 2.0
-        assert beta == 2.0
+        assert alpha == 3.0  # FASE-21: 2.0 + 1 (success) = 3.0
+        assert beta == 3.0   # FASE-21: Unchanged from previous

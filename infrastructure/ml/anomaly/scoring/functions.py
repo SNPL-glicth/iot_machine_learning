@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 from typing import Dict, Tuple
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
+
 
 def compute_z_score(value: float, mean: float, std: float) -> float:
     """Calcula Z-score absoluto.
@@ -67,7 +69,7 @@ def compute_iqr_bounds(
     Returns:
         Tupla ``(lower_bound, upper_bound)``.
     """
-    return (q1 - 1.5 * iqr, q3 + 1.5 * iqr)
+    return (q1 - STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr, q3 + STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr)
 
 
 def compute_iqr_vote(
@@ -84,7 +86,7 @@ def compute_iqr_vote(
     Returns:
         1.0 si fuera de rango IQR, 0.0 si dentro.
     """
-    if iqr < 1e-9:
+    if iqr < EPSILON.DIVISION:
         return 0.0
     lower, upper = compute_iqr_bounds(q1, q3, iqr)
     return 1.0 if (value < lower or value > upper) else 0.0

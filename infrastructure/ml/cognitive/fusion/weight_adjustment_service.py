@@ -5,9 +5,11 @@ Extracted from MetaCognitiveOrchestrator to reduce complexity.
 """
 
 from __future__ import annotations
-
 import logging
+import math
 from typing import Dict, List, Optional
+
+from core.parameters.numerical_constants import EPSILON
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ class WeightAdjustmentService:
         base_weights: Dict[str, float],
         storage_adapter=None,
         plasticity_tracker=None,
-        epsilon: float = 0.01,
+        epsilon: float = EPSILON.DIVISION,
     ):
         """Initialize weight adjustment service.
         
@@ -37,6 +39,8 @@ class WeightAdjustmentService:
             plasticity_tracker: PlasticityPort, PlasticityTracker, or any object
                 with has_history(regime) and get_weights(regime, names) methods.
             epsilon: Small value to prevent division by zero
+                FASE-27: Changed from 0.01 to EPSILON.DIVISION (1e-12) for
+                numerical stability unification across all components.
         """
         self._base_weights = base_weights
         self._storage = storage_adapter
@@ -110,10 +114,18 @@ class WeightAdjustmentService:
         
         # Normalize to sum to 1
         total = sum(raw_weights.values())
-        if total < 1e-9:
+        if total < EPSILON.DIVISION:
             return None
         
         normalized = {k: v / total for k, v in raw_weights.items()}
+        
+        # Validate normalization: sum should be ≈ 1.0
+        normalized_sum = sum(normalized.values())
+        if not math.isclose(normalized_sum, 1.0, rel_tol=EPSILON.COMPARISON):
+            logger.warning(
+                "adaptive_weights_normalization_drift",
+                extra={"series_id": series_id, "sum": normalized_sum, "expected": 1.0}
+            )
         
         logger.debug(
             "adaptive_weights_computed",

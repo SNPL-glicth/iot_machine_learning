@@ -24,6 +24,12 @@ from ..ports.audit_port import AuditPort
 logger = logging.getLogger(__name__)
 
 # Umbral de voting para declarar anomalía (score promedio > threshold)
+# 0.5 = majority rule (>50% weighted consensus)
+# Punto de equilibrio entre sensibilidad (recall) y especificidad (precision).
+# Pendiente calibración empírica sobre datos históricos:
+# - Para aumentar precision (menos falsos positivos) → subir threshold (0.6-0.7)
+# - Para aumentar recall (detectar más anomalías) → bajar threshold (0.3-0.4)
+# Valor actual (0.5) es conservador: requiere consenso mayoritario ponderado.
 _DEFAULT_VOTING_THRESHOLD: float = 0.5
 
 

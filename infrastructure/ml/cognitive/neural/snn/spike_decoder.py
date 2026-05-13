@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
+from core.parameters.numerical_constants import EPSILON
 from ..types import SpikePattern
 
 
@@ -114,11 +115,12 @@ class SpikeDecoder:
         runner_up = rates[1] if len(rates) > 1 else 0.0
         
         # Compute separation
-        if winner < 1e-9:
+        if winner < EPSILON.DIVISION:
             # No spikes - low confidence
             return 0.3
         
-        separation = (winner - runner_up) / (winner + 1e-9)
+        # FASE-27: Changed from 1e-9 to EPSILON.DIVISION for unification
+        separation = (winner - runner_up) / (winner + EPSILON.DIVISION)
         
         # Map separation to confidence
         # separation in [0, 1], higher is better

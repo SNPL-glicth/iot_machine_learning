@@ -5,7 +5,8 @@ Extracted from flags.py as part of refactoring Paso 5.
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from typing import Dict
+from pydantic import BaseModel, Field
 
 
 class CognitiveConfig(BaseModel):
@@ -66,8 +67,10 @@ class CognitiveConfig(BaseModel):
     ML_CALIBRATION_MIN_SAMPLES_ISOTONIC: int = 200
     ML_CALIBRATION_WINDOW_SIZE_PLATT: int = 500
     ML_CALIBRATION_WINDOW_SIZE_ISOTONIC: int = 1000
+    ML_CALIBRATION_UPDATE_FREQUENCY_PLATT: int = 10  # How often to refit Platt params
     ML_CALIBRATION_SPARSE_UPDATE_THRESHOLD: int = 100
     ML_CALIBRATION_LOG_ECE_EVERY_N: int = 100
+    ML_CALIBRATION_ECE_THRESHOLD: float = 0.1  # ECE > 0.1 triggers WARNING
 
     # --- Anomaly tracking (Redis/memory) ---
     ML_ANOMALY_TTL_SECONDS: float = 7200.0
@@ -98,6 +101,18 @@ class CognitiveConfig(BaseModel):
     ZENIN_ANALYSIS_SEED: int = 42
     
     # --- Drift Detection (FASE 1) ---
+    # WINDOW SIZE GUIDANCE (FASE-24):
+    # Los siguientes parámetros asumen frecuencia de muestreo ~1Hz.
+    # Para otras frecuencias, escalar proporcionalmente:
+    #   window_size = valor_base * (frecuencia_hz / 1.0)
+    # Ejemplo: ML_ADWIN_MAX_WINDOW=1000 a 10Hz → ajustar a 10000
+    # PENDING_CALIBRATION: Hacer configurable por serie en Fase futura.
+    
+    ML_SAMPLING_FREQUENCY_HZ: float = 1.0
+    # Frecuencia de muestreo asumida. Usada como referencia para calibración
+    # manual de window sizes. No conectado a lógica aún (PENDING: Fase futura
+    # automatizará ajuste proporcional).
+    
     ML_ENABLE_DRIFT_DETECTION: bool = True  # Master switch for concept drift detection
     ML_DRIFT_DELTA: float = 0.005  # Page-Hinkley delta: magnitude of changes to detect
     ML_DRIFT_LAMBDA: float = 50.0  # Page-Hinkley lambda: detection threshold
@@ -114,7 +129,36 @@ class CognitiveConfig(BaseModel):
     ML_SEASONAL_MIN_POINTS: int = 48  # Minimum points required (2 cycles)
 
     # --- Bayesian Weight Tracker Variance Estimation ---
+    # WINDOW SIZE MISMATCH RATIONALE (FASE-25):
+    # Los siguientes window sizes son INTENCIONALMENTE diferentes:
+    # - Baseline window=20: contexto local inmediato (moving average)
+    # - ErrorDriftDetector window=100: detección de tendencias largas
+    # - AdaptiveScaler volatility_history=20: respuesta rápida a cambios
+    # - Kalman innovation_window=20: estimación de ruido local
+    # Diferencia Baseline(20) vs ErrorDrift(100) es intencional:
+    #   20 obs = respuesta rápida al valor actual
+    #   100 obs = detección de drift sistemático de largo plazo
+    # PENDING_CALIBRATION: Ajustar proporcionalmente a ML_SAMPLING_FREQUENCY_HZ
+    
     ML_BAYES_SIGMA2_OBS_DEFAULT: float = 1.0  # fallback sigma2_obs when insufficient error samples
     ML_BAYES_SIGMA2_OBS_MIN: float = 0.01  # minimum sigma2_obs to prevent zero variance
     ML_BAYES_VARIANCE_WINDOW: int = 20  # number of recent errors per engine for variance estimation
     ML_BAYES_VARIANCE_MIN_SAMPLES: int = 5  # minimum error samples to estimate empirical variance
+    
+    # --- Inhibition Suppression Decay (FASE-22) ---
+    ML_INHIBITION_SUPPRESSION_HALF_LIFE_S: float = 300.0
+    # 5 minutos = balance entre respuesta rápida y estabilidad.
+    # Para datos de alta frecuencia (>1Hz) considerar reducir a 60s.
+    # Pendiente calibración empírica por tipo de sensor.
+    
+    # --- Plasticity Regime-Specific Alphas (FASE-23) ---
+    ML_PLASTICITY_REGIME_ALPHAS: Dict[str, float] = Field(default_factory=lambda: {
+        "STABLE": 0.08,      # Memoria ~12 obs, baja varianza
+        "TRENDING": 0.18,    # Memoria ~6 obs, adaptación moderada
+        "VOLATILE": 0.30,    # Memoria ~3 obs, respuesta rápida
+        "NOISY": 0.05,       # Memoria ~20 obs, filtro agresivo
+        "DEFAULT": 0.15,     # Punto medio: memoria ~6 obs
+    })
+    # Regime-specific EMA learning rates. Higher alpha = faster adaptation.
+    # Calibration pending on historical data.
+    # Source: moved from docs/configuration.md to code (FASE-23)

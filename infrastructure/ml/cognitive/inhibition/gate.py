@@ -10,6 +10,31 @@ recent error) is kept **only for backward compatibility** with callers
 that do not yet inject a reliability tracker. It will be deleted in a
 subsequent cleanup once all call sites are wired.
 
+FASE-21: Interacción Inhibition vs Bayesian Weight Tracking
+------------------------------------------------------------
+Inhibition opera DESPUÉS de Bayesian weight tracking en el pipeline.
+Inhibition puede suprimir engines que Bayesian está promoviendo.
+
+Resolución de conflictos:
+- **Inhibition tiene precedencia** cuando detecta señales hard:
+  * stability > threshold (señal inestable)
+  * fit_error > threshold (error de ajuste alto)
+  * recent_error > threshold (errores recientes altos)
+  → Supresión inmediata con exponential decay
+
+- **Bayesian tiene precedencia** en ajuste gradual (señales soft):
+  * Actualización incremental de pesos basada en historial
+  * EMA con alpha=0.15 (convergencia suave)
+  * No hay oscilación porque ambos sistemas son convergentes
+
+La combinación es estable porque:
+1. Inhibition usa exponential decay (no oscila)
+2. Bayesian usa EMA con alpha bajo (convergencia lenta)
+3. Inhibition actúa como circuit breaker para casos extremos
+4. Bayesian ajusta finamente en condiciones normales
+
+Ver también: `infrastructure/ml/cognitive/bayesian_weight_tracker/base.py`
+
 Pure logic — no I/O, no persistence.
 """
 
@@ -22,6 +47,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from core.parameters.numerical_constants import EPSILON, INHIBITION_THRESHOLDS
 from ..analysis.types import EnginePerception, InhibitionState
 from ..reliability import EngineReliabilityTracker
 
@@ -35,22 +61,42 @@ class InhibitionConfig:
     Attributes:
         stability_threshold: Stability above this triggers suppression.
         fit_error_threshold: Local fit error above this triggers suppression.
+            FASE-21: SCALE-DEPENDENT threshold (MSE units).
+            Válido para sensores con valores en rango típico [0, 100].
+            Para otros rangos, ajustar proporcionalmente o usar use_relative_error.
         recent_error_threshold: Mean recent |error| above this triggers suppression.
+            FASE-21: SCALE-DEPENDENT threshold (MSE units).
+            Válido para sensores con valores en rango típico [0, 100].
+            Para otros rangos, ajustar proporcionalmente o usar use_relative_error.
         min_weight: Floor — never suppress below this.
+            FASE-21: min_weight=0.02 para inhibition (post-supresión).
+            Bayesian usa min_weight=0.05 (tracking histórico).
+            Ver: infrastructure/ml/cognitive/bayesian_weight_tracker/bayesian_weight_config.py
         max_suppression: Maximum suppression factor (0.95 = reduce to 5%).
         suppression_smoothing: EMA alpha for smoothing suppression (0.3 = moderate smoothing).
+            FASE-22: Inhibition usa alpha más alto (0.3) que Bayesian (0.15) porque
+            necesita respuesta rápida a degradación de engines. Bayesian usa alpha
+            bajo (0.15) porque ajusta gradualmente confianza histórica basada en
+            accuracy. Diferencia intencional: Inhibition = circuit breaker rápido,
+            Bayesian = aprendizaje gradual.
         anomaly_z_score_threshold: Z-score above which signal is considered anomalous (CRIT-2).
         anomaly_override_enabled: If True, ignore error-based inhibition when signal is anomalous.
+        use_relative_error: If True, use relative_error = fit_error / signal_mean
+            for scale-invariant thresholds. NOT IMPLEMENTED YET (reserved for future).
     """
 
-    stability_threshold: float = 0.6
-    fit_error_threshold: float = 5.0
-    recent_error_threshold: float = 10.0
+    stability_threshold: float = INHIBITION_THRESHOLDS.STABILITY
+    fit_error_threshold: float = INHIBITION_THRESHOLDS.FIT_ERROR
+    recent_error_threshold: float = INHIBITION_THRESHOLDS.RECENT_ERROR
     min_weight: float = 0.02
     max_suppression: float = 0.95
+    suppression_half_life_seconds: float = 300.0  # FASE-22: See ML_INHIBITION_SUPPRESSION_HALF_LIFE_S
+    # 5 minutos = balance entre respuesta rápida y estabilidad.
+    # Para datos de alta frecuencia (>1Hz) considerar reducir a 60s.
     suppression_smoothing: float = 0.3
     anomaly_z_score_threshold: float = 3.0  # CRIT-2: 3-sigma rule
     anomaly_override_enabled: bool = True   # CRIT-2: Enable by default
+    use_relative_error: bool = False  # FASE-21: Reserved for future scale-invariant implementation
 
 
 class InhibitionGate:
@@ -134,7 +180,7 @@ class InhibitionGate:
             if p.stability > self._cfg.stability_threshold:
                 s = min(
                     (p.stability - self._cfg.stability_threshold)
-                    / (1.0 - self._cfg.stability_threshold + 1e-9),
+                    / (1.0 - self._cfg.stability_threshold + EPSILON.DIVISION),
                     self._cfg.max_suppression,
                 )
                 if s > instant_suppression:
@@ -145,7 +191,7 @@ class InhibitionGate:
             if p.local_fit_error > self._cfg.fit_error_threshold:
                 s = min(
                     (p.local_fit_error - self._cfg.fit_error_threshold)
-                    / (self._cfg.fit_error_threshold + 1e-9),
+                    / (self._cfg.fit_error_threshold + EPSILON.DIVISION),
                     self._cfg.max_suppression,
                 )
                 if s > instant_suppression:
@@ -159,7 +205,7 @@ class InhibitionGate:
                 if mean_err > self._cfg.recent_error_threshold:
                     s = min(
                         (mean_err - self._cfg.recent_error_threshold)
-                        / (self._cfg.recent_error_threshold + 1e-9),
+                        / (self._cfg.recent_error_threshold + EPSILON.DIVISION),
                         self._cfg.max_suppression,
                     )
                     if s > instant_suppression:
@@ -177,13 +223,11 @@ class InhibitionGate:
                     },
                 )
 
-            # Apply exponential decay to previous suppression
+            # Apply exponential decay to previous suppression (MATH-SEV-4)
             key = (sid, p.engine_name)
             if key in self._prev_suppression and not self._is_expired(key, now):
                 elapsed = now - self._last_update.get(key, now)
-                decay_rate = 0.1
-                decay_factor = math.exp(-decay_rate * elapsed)
-                prev = self._prev_suppression[key] * decay_factor
+                prev = self._apply_decay(self._prev_suppression[key], elapsed)
             else:
                 prev = 0.0
             
@@ -222,6 +266,28 @@ class InhibitionGate:
 
         return states
 
+    def _apply_decay(
+        self,
+        previous_suppression: float,
+        elapsed_seconds: float,
+    ) -> float:
+        """Apply exponential decay to suppression (MATH-SEV-4).
+        
+        Uses half-life formula: decay_rate = ln(2) / half_life
+        
+        Args:
+            previous_suppression: Previous suppression value.
+            elapsed_seconds: Time elapsed since last update.
+        
+        Returns:
+            Decayed suppression value.
+        
+        Applies SRP: Decay logic is separate from inhibition decision.
+        """
+        decay_rate = math.log(2) / self._cfg.suppression_half_life_seconds
+        decay_factor = math.exp(-decay_rate * elapsed_seconds)
+        return previous_suppression * decay_factor
+    
     def _is_expired(
         self, key: Tuple[str, str], now: Optional[float] = None
     ) -> bool:

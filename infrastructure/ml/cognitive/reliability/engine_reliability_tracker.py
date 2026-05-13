@@ -29,13 +29,37 @@ _DEFAULT_TTL_SECONDS: int = 7 * 24 * 3600  # 7 days
 _SCHEMA_VERSION: str = "1"
 _DEFAULT_PERCENTILE: float = 75.0
 _DEFAULT_UNRELIABLE_THRESHOLD: float = 0.95
-_DEFAULT_ALPHA_PRIOR: float = 1.0
-_DEFAULT_BETA_PRIOR: float = 1.0
+# FASE-21: Conservative weakly informative prior
+# Beta(2,2): Prior uniforme con igual peso a éxito/fallo
+# E[reliability] = 2/(2+2) = 0.5 (neutral, no asume confiabilidad)
+# Cambio desde Beta(10,1) que era demasiado optimista y podía
+# enmascarar engines poco confiables durante early learning.
+# Beta(2,2) requiere evidencia real antes de confiar o desconfiar.
+_DEFAULT_ALPHA_PRIOR: float = 2.0
+_DEFAULT_BETA_PRIOR: float = 2.0
 _DEFAULT_MAX_PAIRS: int = 10_000
 
 
 class EngineReliabilityTracker:
-    """Beta-Bernoulli reliability estimator with Redis + in-memory fallback."""
+    """Beta-Bernoulli reliability estimator with Redis + in-memory fallback.
+    
+    FASE-21: Uses conservative weakly informative prior Beta(2,2) to avoid
+    masking unreliable engines during early learning.
+    
+    Prior Interpretation:
+        α (alpha_prior): Pseudo-successes (reliable predictions)
+        β (beta_prior): Pseudo-failures (unreliable predictions)
+        E[reliability] = α / (α + β)
+        
+    Default prior Beta(2,2):
+        - Expected reliability: 2/4 = 0.5 (neutral, no assumption)
+        - Equal weight to success/failure (weakly informative)
+        - Requires real evidence before trusting or distrusting
+        - Previous Beta(10,1) was too optimistic (E[p]=0.91)
+          and could mask unreliable engines in early learning
+    
+    Applies OCP: Prior is configurable in constructor.
+    """
 
     def __init__(
         self,

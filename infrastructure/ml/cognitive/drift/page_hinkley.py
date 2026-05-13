@@ -3,6 +3,22 @@
 Detects abrupt changes in the mean of a time series using cumulative sum
 of deviations. Lightweight, no external dependencies, thread-safe.
 
+CUÁNDO USAR Page-Hinkley vs ADWIN (FASE-23):
+- **Page-Hinkley:** Drift gradual y unidireccional (mean shift).
+  Mejor para: tendencias, degradación lenta de sensores.
+  Limitación: asume cambios monotónicos, lento en drift abrupto.
+- **ADWIN:** Drift abrupto o heteroscedástico (varianza cambiante).
+  Mejor para: cambios de régimen bruscos, datos no estacionarios.
+  Limitación: mayor costo computacional (O(log n) vs O(1)).
+Default: Page-Hinkley (más eficiente, cubre mayoría de casos IoT).
+Ver también: infrastructure/ml/cognitive/drift/adwin.py
+
+BACKLOG (Low Priority - FASE-24):
+- Hybrid drift detection: combinar Page-Hinkley + ADWIN con voting
+- Gradual alpha reset post-drift (actualmente abrupto)
+- Automatic detector selection por características de datos
+Ver: adwin.py para backlog simétrico
+
 Reference:
     E. S. Page (1954). "Continuous Inspection Schemes".
     Biometrika 41 (1/2): 100–115.
@@ -14,6 +30,8 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+from core.drift.drift_coupling import DriftNotifier, DriftEvent
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,8 +41,19 @@ class PageHinkleyConfig:
     
     Attributes:
         delta: Magnitude of changes to detect (smaller = more sensitive).
+            PENDING_CALIBRATION: Calibrar como 0.1 * sigma_histórico del sensor.
+            Valor actual (0.005) es heurístico conservador.
+        
         lambda_: Detection threshold (larger = fewer false positives).
+            PENDING_CALIBRATION: Calibrar via ARL (Average Run Length).
+            ARL_0 ≈ exp(2 * lambda_ * delta) para distribución normal.
+            Con delta=0.005, lambda_=50: ARL_0 ≈ exp(0.5) ≈ 1.6 (muy sensible).
+            Para ARL_0=500 (standard industrial): lambda_ ≈ 620 / delta.
+        
         alpha: Forgetting factor for mean estimation (0 = no forgetting).
+            Equivale a ventana efectiva de 1/(1-alpha) = 10,000 observaciones.
+            Para datos industriales a 1Hz: ~2.7 horas de memoria.
+            PENDING_CALIBRATION: Reducir a 0.999 para alta volatilidad.
     """
     delta: float
     lambda_: float
@@ -56,6 +85,7 @@ class PageHinkleyDetector:
         self._sum = 0.0
         self._mean = 0.0
         self._n = 0
+        self._drift_notifier = DriftNotifier()  # Singleton
     
     def update(self, value: float) -> bool:
         """Process new observation and check for drift.
@@ -100,6 +130,14 @@ class PageHinkleyDetector:
                     "n_observations": self._n,
                 },
             )
+            
+            # NUEVO: Notificar drift a listeners
+            magnitude = min(1.0, self._sum / self._config.lambda_)
+            event = DriftEvent.create_now(
+                magnitude=magnitude,
+                detector='page_hinkley'
+            )
+            self._drift_notifier.notify(event)
         
         return drift_detected
     

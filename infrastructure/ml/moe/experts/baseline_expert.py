@@ -33,6 +33,19 @@ class BaselineExpert(ExpertPort):
     - computational_cost: 1.0 — baseline reference
     - min_points: 3 — minimum for meaningful average
     
+    HIDDEN ASSUMPTIONS (FASE-25):
+    1. WINDOW SIZE FREQUENCY: window=20 asume ~1Hz.
+       A 1Hz = 20 segundos de moving average.
+       A 10Hz = 2 segundos (posiblemente insuficiente).
+       A 0.1Hz = 200 segundos (~3 min).
+       PENDING_CALIBRATION: Ajustar como
+       frecuencia_hz * segundos_deseados. Ver ML_SAMPLING_FREQUENCY_HZ.
+    2. FALLBACK ENGINE: min_points=3 es intencional. Baseline opera
+       cuando Statistical/Taylor/Seasonal no tienen datos suficientes.
+       NO unificar a min_points=5 — rompería el rol de fallback.
+    3. ESCALA COMPARABLE: Moving average asume misma escala que sensor.
+       Salida comparable con otros engines sin normalización.
+    
     Example:
         >>> from infrastructure.ml.engines.baseline.engine import BaselineMovingAverageEngine
         >>> engine = BaselineMovingAverageEngine()

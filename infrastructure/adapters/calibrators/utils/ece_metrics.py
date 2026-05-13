@@ -16,7 +16,11 @@ def compute_ece_numpy(
     Args:
         calibrated: Array of calibrated scores [0, 1].
         outcomes: Array of actual outcomes (0.0 or 1.0).
-        n_bins: Number of bins for ECE computation.
+        n_bins: Number of bins for ECE computation. Default 10 is standard choice.
+            Justification: Balance between resolution and samples per bin.
+            - Too few bins (e.g., 5): Low resolution, may miss calibration issues
+            - Too many bins (e.g., 20): Sparse bins, high variance in estimates
+            - 10 bins: Industry standard for production datasets (100-1000 samples)
         
     Returns:
         Tuple of (ece_value, reliability_dict).
@@ -57,7 +61,7 @@ def compute_ece(
     Args:
         scores: List of calibrated confidence scores.
         outcomes: List of actual outcomes (0.0 or 1.0).
-        n_bins: Number of bins for ECE computation.
+        n_bins: Number of bins for ECE computation. Default 10 (see compute_ece_numpy).
         
     Returns:
         Tuple of (ece_value, reliability_dict).

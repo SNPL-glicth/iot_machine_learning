@@ -14,12 +14,14 @@ class TestWeightAdjustmentServiceInitialization:
     
     def test_default_initialization(self):
         """Test service with default parameters."""
+        from core.parameters.numerical_constants import EPSILON
         service = WeightAdjustmentService(
             base_weights={"engine1": 0.5, "engine2": 0.5},
             storage_adapter=None,
             plasticity_tracker=None,
         )
-        assert service._epsilon == 0.01
+        # FASE-27: Changed from 0.01 to EPSILON.DIVISION
+        assert service._epsilon == EPSILON.DIVISION
         assert service._base_weights == {"engine1": 0.5, "engine2": 0.5}
     
     def test_custom_epsilon(self):

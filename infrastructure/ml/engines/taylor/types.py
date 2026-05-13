@@ -23,11 +23,15 @@ class DerivativeMethod(Enum):
       Fits a polynomial of degree ``order`` to the last
       ``2*order + 1`` points (or all available) and reads
       derivatives from the fitted coefficients.
+    - SAVITZKY_GOLAY (MATH-CRIT-1): Savitzky-Golay smoothed derivatives.
+      Uses scipy.signal.savgol_filter with adaptive window.
+      Reduces noise amplification. Falls back to BACKWARD if scipy unavailable.
     """
 
     BACKWARD = "backward"
     CENTRAL = "central"
     LEAST_SQUARES = "least_squares"
+    SAVITZKY_GOLAY = "savitzky_golay"
 
 
 @dataclass(frozen=True)

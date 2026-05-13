@@ -122,6 +122,96 @@ def _collect_perceptions_parallel(
     return [results[i] for i in sorted(results)]
 
 
+def _collect_perceptions_hybrid(
+    engines: List,
+    values: List[float],
+    timestamps: Optional[List[float]],
+    *,
+    max_workers: int,
+    per_engine_timeout_ms: float,
+) -> List[EnginePerception]:
+    """Hybrid parallel execution with individual engine timeouts (PERF-CRIT-1).
+    
+    Unlike _collect_perceptions_parallel, this does NOT fall back to sequential
+    on ANY failure. Each engine failure is isolated.
+    
+    Args:
+        engines: List of engines to execute.
+        values: Time series values.
+        timestamps: Optional timestamps.
+        max_workers: Maximum parallel workers.
+        per_engine_timeout_ms: Timeout per engine (not global).
+    
+    Returns:
+        List of successful perceptions. Failed engines are skipped.
+    
+    Applies OCP: Complements existing logic without modifying it.
+    Applies SRP: Uses EngineFailureHandler for failure tracking.
+    """
+    import time
+    from concurrent.futures import TimeoutError as FutureTimeoutError
+    
+    results: Dict[int, EnginePerception] = {}
+    
+    with ThreadPoolExecutor(
+        max_workers=max_workers,
+        thread_name_prefix="engine_hybrid"
+    ) as pool:
+        # Submit all engines with individual timeouts
+        future_to_meta = {}
+        for idx, eng in enumerate(engines):
+            if not eng.can_handle(len(values)):
+                _record_failure(eng.name, "cannot_handle")
+                continue
+            
+            future = pool.submit(
+                _run_engine_with_timeout,
+                eng, values, timestamps,
+                per_engine_timeout_ms,
+            )
+            future_to_meta[future] = (idx, eng.name, time.monotonic())
+        
+        # Collect results with per-engine timeout
+        for future, (idx, name, submit_time) in future_to_meta.items():
+            try:
+                # Wait for this specific engine with timeout
+                perception = future.result(timeout=per_engine_timeout_ms / 1000.0)
+                
+                if perception is not None:
+                    results[idx] = perception
+                else:
+                    # Engine returned None (internal failure)
+                    _record_failure(name, "returned_none")
+            
+            except FutureTimeoutError:
+                # This specific engine timed out
+                logger.warning(
+                    "engine_timeout_hybrid",
+                    extra={
+                        "engine": name,
+                        "timeout_ms": per_engine_timeout_ms,
+                    }
+                )
+                _record_failure(name, "timeout")
+                # Continue with other engines (no cascade)
+            
+            except Exception as exc:
+                # This specific engine failed
+                logger.warning(
+                    "engine_exception_hybrid",
+                    extra={
+                        "engine": name,
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                    }
+                )
+                _record_failure(name, "exception", str(exc))
+                # Continue with other engines (no cascade)
+    
+    # Return successful results in order
+    return [results[i] for i in sorted(results)]
+
+
 __all__ = [
     "ML_PREDICT_MAX_WORKERS",
     "ML_PREDICT_ENGINE_TIMEOUT_MS",
@@ -130,4 +220,5 @@ __all__ = [
     "create_fallback_result",
     "_collect_perceptions_parallel",
     "_collect_perceptions_sequential",
+    "_collect_perceptions_hybrid",  # PERF-CRIT-1
 ]

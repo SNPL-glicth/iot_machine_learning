@@ -1,7 +1,7 @@
 # Detección de Anomalías — Ensemble Voting
 
-**Última actualización:** 2026-05-04
-**Archivo fuente:** `infrastructure/ml/anomaly/core/detector.py`, `infrastructure/ml/anomaly/factory/defaults.py`
+**Última actualización:** 2026-05-12
+**Archivo fuente:** `infrastructure/ml/anomaly/detectors/`, `infrastructure/ml/anomaly/voting/voting_anomaly_detector.py`
 
 ---
 
@@ -180,3 +180,30 @@ Los pesos se normalizan para sumar 1.0.
 **Impacto:** Un operador que ajusta `ThresholdPolicy` para ser más permisivo puede ver que `ContextualDecisionEngine` sigue escalando porque los amplificadores (consecutive_anomalies, drift) no dependen de los umbrales de `ThresholdPolicy`.
 
 **Workaround actual:** Ajustar ambos sistemas manualmente. **Deuda técnica:** unificar en un solo sistema de umbrales configurables.
+
+---
+
+## Mejas Recientes (IMP-2)
+
+### Ejecución Concurrente de Motores
+
+- **PredictPhase** ahora ejecuta motores concurrentemente con `ThreadPoolExecutor`
+- `ML_PREDICT_MAX_WORKERS` (default 3) controla el número de workers
+- `ML_PREDICT_ENGINE_TIMEOUT_MS` (default 400ms) timeout por motor
+- Fallback a secuencial si el executor falla
+- Surface de fallos (timeout, excepción, cannot_handle) en `ctx.engine_failures`
+
+### Hampel Filter en FusePhase
+
+- Filtro Hampel (k=3.0 × 1.4826 × MAD) rechaza percepciones atípicas antes de la fusión ponderada
+- Filtra `predicted_value` de percepciones AND inhibition_states en lockstep
+- Kill switches: `ML_HAMPEL_ENABLED` (default True), `ML_HAMPEL_K` (default 3.0)
+- No-op si <3 percepciones o MAD=0
+- Diagnóstico en `ctx.hampel_diagnostic`
+
+### Ensemble Recovery
+
+- **EnsembleWatchdog** observa salud del ensemble (HEALTHY, DEGRADED, CRITICAL, COLLAPSED)
+- **ForcedRecoveryManager** ejecuta estrategias de recuperación cuando watchdog indica COLLAPSED
+- Post-fusion: re-ejecuta fusión con pesos recuperados
+- Re-normalización de pesos después de recovery

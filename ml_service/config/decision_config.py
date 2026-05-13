@@ -5,6 +5,7 @@ Extracted from flags.py as part of refactoring Paso 5.
 
 from __future__ import annotations
 
+from core.parameters.numerical_constants import CONFIDENCE
 from pydantic import BaseModel, field_validator
 
 
@@ -60,7 +61,7 @@ class DecisionConfig(BaseModel):
     # --- Decision engine tuning ---
     ML_DECISION_CONSERVATIVE_THRESHOLD: float = 0.8
     ML_DECISION_CONSERVATIVE_SAFETY_MARGIN: float = 1.2
-    ML_DECISION_CONFIDENCE_FLOOR: float = 0.6
+    ML_DECISION_CONFIDENCE_FLOOR: float = CONFIDENCE.MIN_CONFIDENCE
     ML_DECISION_CONFIDENCE_CEILING: float = 0.95
     ML_DECISION_ESCALATION_THRESHOLD: int = 5
     ML_DECISION_ATT_STABLE_DRIFT_THRESHOLD: float = 0.10

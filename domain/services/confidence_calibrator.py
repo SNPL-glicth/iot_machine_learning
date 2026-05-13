@@ -1,18 +1,15 @@
-"""Confidence calibrator — adjusts raw confidence to reflect real uncertainty.
+"""Domain service for confidence calibration.
 
-Transforms optimistically-reported engine confidences into calibrated
-estimates that account for:
-- Data quality (sample size, noise)
-- Engine diversity (disagreement between engines)
-- System state (inhibition, coherence conflicts)
-
-Pure domain logic — no I/O, no external dependencies.
+Applies additive penalties based on signal quality indicators.
+Stateless service — no internal state, pure function behavior.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Optional
+
+from core.parameters.numerical_constants import PENALTY_THRESHOLDS
 
 
 @dataclass(frozen=True)
@@ -33,10 +30,37 @@ class CalibratedConfidence:
 
 
 class ConfidenceCalibrator:
-    """Calibrates raw confidence scores to reflect true uncertainty.
+    """
+    Penalty-Based Confidence Calibrator.
 
-    Stateless domain service — applies additive penalties based on
-    signal quality indicators. Never goes below confidence floor.
+    FÓRMULA: calibrated = raw_confidence - sum(penalties)
+             calibrated = max(CONFIDENCE_FLOOR, calibrated)
+
+    CUÁNDO USAR ESTE MÉTODO:
+    - Pre-decisión: ajustar confidence por calidad de datos ANTES de tomar decisiones
+    - Contextual penalties: cuando hay información sobre sample size, noise, disagreement
+    - Engine fusion: después de fusionar múltiples engines, antes de decisión final
+    - NO usar para: anomaly scores (usar infrastructure/ml/calibration/confidence_calibrator.py)
+    - NO usar para: post-fusión probabilística (usar core/tuning/temperature_scaling.py)
+
+    DIFERENCIA con core/tuning/temperature_scaling.py:
+    - Este módulo: penalidades aditivas basadas en calidad de datos
+    - TemperatureScaler: sigmoid centrado para calibración probabilística
+    - Son métodos COMPLEMENTARIOS usados en distintas fases del pipeline:
+      * PenaltyCalibrator: ajuste pre-decisión por calidad contextual
+      * TemperatureScaler: calibración post-fusión por régimen
+
+    NOTA sobre CONFIDENCE_FLOOR=0.05:
+      Intencionalmente menor que CONFIDENCE.MIN_CONFIDENCE=0.3.
+      El floor global aplica a engine outputs, no a confidence
+      post-penalización donde múltiples señales negativas pueden
+      justificar valores bajos.
+      
+    CONFIDENCE FLOOR INCONSISTENCY (FASE-26 - Phase 9 audit):
+      CONFIDENCE_FLOOR=0.05 (este calibrador) vs CONFIDENCE.MIN_CONFIDENCE=0.3
+      RISK: Inconsistencia puede causar divergencia en confidence bounds.
+      PENDING: Decidir valor unificado con datos históricos de accuracy.
+      Ver: Phase 9 audit Section 2.2 "Confidence Divergence Risks".
     """
 
     # Penalty constants
@@ -46,8 +70,23 @@ class ConfidenceCalibrator:
     PENALTY_ENGINE_DISAGREEMENT: float = 0.15
     PENALTY_COHERENCE_CONFLICT: float = 0.20
 
+    # Penalty cap to prevent over-penalization
+    MAX_PENALTY_RATIO: float = 0.5  # Cap total penalty at 50% of raw_confidence
+
     # Bounds
+    # Floor intencional en 0.05 (no 0.3 del global MIN_CONFIDENCE).
+    # Justificación: este calibrador aplica PENALIDADES ADITIVAS que pueden
+    # reducir legitimamente la confianza por debajo de 0.3 cuando hay
+    # múltiples señales negativas (solo baseline + alto ruido + desacuerdo).
+    # 0.05 = mínimo absoluto para evitar confidence=0 que bloquearía decisiones.
+    # CONFIDENCE.MIN_CONFIDENCE=0.3 aplica a OUTPUTS de engines, no post-penalización.
     CONFIDENCE_FLOOR: float = 0.05
+    
+    # Ceiling intencional en 0.85 (no 0.95 del global MAX_CONFIDENCE).
+    # Justificación: 0.85 es 10pp por debajo del máximo global como margen
+    # conservador cuando NO hay consenso entre engines (raw >= 0.95 sin evidencia fuerte).
+    # Previene over-confidence cuando solo un engine reporta alta confianza.
+    # CONFIDENCE.MAX_CONFIDENCE=0.95 aplica cuando HAY consenso entre múltiples engines.
     CONFIDENCE_CEIL_NO_CONSENSUS: float = 0.85
 
     def calibrate(
@@ -86,21 +125,21 @@ class ConfidenceCalibrator:
             )
 
         # Penalty 2: Low sample size
-        if n_points < 10:
+        if n_points < PENALTY_THRESHOLDS.MIN_POINTS:
             penalties.append(
-                (self.PENALTY_LOW_SAMPLE_SIZE, f"n_points={n_points} < 10")
+                (self.PENALTY_LOW_SAMPLE_SIZE, f"n_points={n_points} < {PENALTY_THRESHOLDS.MIN_POINTS}")
             )
 
         # Penalty 3: High noise
-        if noise_ratio > 0.6:
+        if noise_ratio > PENALTY_THRESHOLDS.MAX_NOISE_RATIO:
             penalties.append(
-                (self.PENALTY_HIGH_NOISE, f"noise_ratio={noise_ratio:.3f} > 0.6")
+                (self.PENALTY_HIGH_NOISE, f"noise_ratio={noise_ratio:.3f} > {PENALTY_THRESHOLDS.MAX_NOISE_RATIO}")
             )
 
         # Penalty 4: Engine disagreement
-        if engine_disagreement > 0.3:
+        if engine_disagreement > PENALTY_THRESHOLDS.MAX_ENGINE_DISAGREEMENT:
             penalties.append(
-                (self.PENALTY_ENGINE_DISAGREEMENT, f"engine_disagreement={engine_disagreement:.3f} > 0.3")
+                (self.PENALTY_ENGINE_DISAGREEMENT, f"engine_disagreement={engine_disagreement:.3f} > {PENALTY_THRESHOLDS.MAX_ENGINE_DISAGREEMENT}")
             )
 
         # Penalty 5: Coherence conflict
@@ -112,6 +151,12 @@ class ConfidenceCalibrator:
         # Calculate total penalty
         total_penalty = sum(p[0] for p in penalties)
         reasons = [p[1] for p in penalties]
+
+        # Apply penalty cap to prevent over-penalization
+        max_penalty = raw_confidence * self.MAX_PENALTY_RATIO
+        if total_penalty > max_penalty:
+            total_penalty = max_penalty
+            reasons.append(f"penalty_capped: {max_penalty:.3f} (50% of raw={raw_confidence:.3f})")
 
         # Apply penalties
         calibrated = raw_confidence - total_penalty

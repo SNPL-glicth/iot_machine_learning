@@ -6,6 +6,10 @@ REFACTORIZADO 2026-01-29:
 - Logs estructurados
 - Métricas de performance
 
+FASE-9 (2026-02-13):
+- Integración GovernanceInitializer en startup
+- Sistema de governance completo (registry, bounds, tuning, scaling)
+
 Este archivo ahora es solo el punto de entrada de la aplicación.
 La lógica de negocio está en api/services/.
 """
@@ -30,6 +34,8 @@ import threading
 from pathlib import Path
 
 from fastapi import FastAPI
+
+from iot_machine_learning.infrastructure.security.secret_redactor import SecretRedactor
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -37,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 _zenin_poller = None      # Keep reference for stats/health
 _poller_thread = None     # Keep reference for healthcheck
+_governance_initializer = None  # FASE-9: Governance components
 
 
 def _validate_prediction_paths() -> None:
@@ -96,15 +103,40 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager.
     
     Handles startup and shutdown events.
+    FASE-9: Integrates GovernanceInitializer.
     """
-    global _zenin_poller
+    global _zenin_poller, _governance_initializer
 
     # Startup
     logger.info("[ML-SERVICE] Starting up...")
 
+    # FASE-9: Initialize governance system
+    try:
+        from .governance_initializer import GovernanceInitializer
+        _governance_initializer = GovernanceInitializer(logger=logger)
+        governance_components = _governance_initializer.initialize()
+        app.state.governance = governance_components
+        logger.info("[ML-SERVICE] Governance system initialized")
+    except Exception as e:
+        logger.error(
+            "[ML-SERVICE] Governance initialization failed",
+            extra={"error": str(e)},
+        )
+        app.state.governance = None
+
     # IMP-5: Resolve compliance exporter once at startup (PIPE-2 fix).
     # Path traversal validation: sink must live under ALLOWED_BASE_DIR.
     _compliance_export_path = os.environ.get("ML_COMPLIANCE_EXPORT_PATH")
+    # SEC-CRIT-4: Log environment variables with secret redaction
+    logger.info(
+        "startup_config_loaded",
+        extra=SecretRedactor.redact({
+            "ML_COMPLIANCE_EXPORT_PATH": _compliance_export_path,
+            "ML_COMPLIANCE_BASE_DIR": os.environ.get("ML_COMPLIANCE_BASE_DIR", "/var/lib/zenin/compliance"),
+            "ZENIN_QUEUE_POLLER_ENABLED": os.environ.get("ZENIN_QUEUE_POLLER_ENABLED", "false"),
+            "ML_ENV": os.environ.get("ML_ENV", "production"),
+        })
+    )
     if _compliance_export_path:
         try:
             _resolved_sink = validate_compliance_path(
@@ -195,6 +227,17 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("[ML-SERVICE] Shutting down...")
+    
+    # FASE-9: Shutdown governance system
+    if _governance_initializer:
+        try:
+            _governance_initializer.shutdown()
+        except Exception as e:
+            logger.warning(
+                "[ML-SERVICE] Governance shutdown failed",
+                extra={"error": str(e)},
+            )
+    
     try:
         from .broker import reset_broker
         reset_broker()
@@ -241,6 +284,14 @@ from .api.routes_cognitive import router as cognitive_router
 
 app.include_router(router)
 app.include_router(cognitive_router)
+
+# FASE-9: Include governance routes
+try:
+    from .api.routes_governance import router as governance_router
+    app.include_router(governance_router)
+    logger.info("[ML-SERVICE] Governance routes included")
+except ImportError:
+    logger.warning("[ML-SERVICE] Governance routes not available (optional)")
 
 # Health endpoint at root level for backwards compatibility
 @app.get("/")

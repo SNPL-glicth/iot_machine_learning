@@ -4,6 +4,25 @@ Median + k · 1.4826 · MAD (Median Absolute Deviation) rule. The
 1.4826 scale factor (= 1/Φ⁻¹(0.75)) converts MAD to a σ estimate
 under a Gaussian assumption, so ``k=3`` is a ≈3σ threshold.
 
+Hampel Filter — opera sobre ENGINE PREDICTIONS (post-predicción, pre-fusión).
+
+Fórmula: median ± k × 1.4826 × MAD donde k=ML_HAMPEL_K=3.0
+
+Diferencia con IQR Detector:
+- Hampel opera en PREDICCIONES de motores (no datos crudos)
+- Hampel usa MAD (robusto a outliers): apropiado para predicciones
+  donde errores extremos son esperables en motores erróneos
+- k=3.0 × 1.4826 ≈ 4.45σ efectivos bajo normalidad
+  (más permisivo que Z_SCORE_UPPER=3.0σ intencionalmente)
+
+¿Por qué más permisivo que Z-score?
+- Predicciones tienen mayor varianza inherente que datos crudos
+- Hampel filtra solo predicciones EXTREMADAMENTE atípicas
+- Filtrado agresivo reduciría diversidad del ensemble (ver ENS-3)
+
+Bajo normalidad: MAD ≈ 0.6745σ → 3.0×MAD ≈ 2.0σ via MAD scaling
+Con factor 1.4826: 3.0×1.4826×MAD ≈ 3.0σ (equivalente a Z_SCORE_UPPER)
+
 Pure function — no state, no I/O. Only looks at ``predicted_value``;
 confidence is handled upstream by ``InhibitionGate``.
 

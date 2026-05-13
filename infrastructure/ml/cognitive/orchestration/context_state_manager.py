@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional
 
@@ -51,11 +52,13 @@ class ContextStateManager:
     ) -> None:
         self._max_series = max_series
         self._persistence = persistence
-        self._state: Dict[str, SeriesState] = {}
+        self._state: OrderedDict[str, SeriesState] = OrderedDict()  # SEVERO-5: OrderedDict for LRU
         self._lock = threading.RLock()
     
     def get_state(self, series_id: str) -> SeriesState:
         """Get or create isolated state for a series (thread-safe).
+        
+        SEVERO-5: LRU update on access via move_to_end().
         
         If persistence enabled, attempts to load from storage first.
         """
@@ -66,11 +69,15 @@ class ContextStateManager:
                     loaded = self._load_from_persistence_sync(series_id)
                     if loaded:
                         self._state[series_id] = loaded
+                        # SEVERO-5: Move to end after loading (most recently used)
+                        self._state.move_to_end(series_id)
                         return loaded
                 
-                if len(self._state) >= self._max_series:
-                    self._evict_oldest()
+                self._evict_if_needed()  # SEVERO-5: Proactive eviction before creating new
                 self._state[series_id] = SeriesState()
+            
+            # SEVERO-5: Move to end on access (LRU update)
+            self._state.move_to_end(series_id)
             
             # Update timestamp on access
             self._state[series_id].last_prediction_timestamp = time.time()
@@ -136,14 +143,25 @@ class ContextStateManager:
             self._persist_async(series_id, state)
             return state.prediction_count
     
+    def _evict_if_needed(self) -> None:
+        """Evict least recently used entry when at capacity (SEVERO-5).
+        
+        Thread-safe: caller holds lock.
+        Uses OrderedDict LRU: removes first item (oldest) while len > max_series.
+        """
+        while len(self._state) >= self._max_series:
+            # SEVERO-5: Remove first item (least recently used)
+            evicted_id = next(iter(self._state))
+            del self._state[evicted_id]
+            logger.debug(f"lru_evict: series_id={evicted_id}")
+    
     def _evict_oldest(self) -> None:
-        """Evict oldest series when at capacity (caller holds lock)."""
-        if self._state:
-            oldest = min(
-                self._state.items(), 
-                key=lambda x: x[1].last_prediction_timestamp or 0
-            )
-            del self._state[oldest[0]]
+        """Evict oldest series when at capacity (caller holds lock).
+        
+        SEVERO-5: Deprecated - use _evict_if_needed() for true LRU.
+        Kept for backward compatibility.
+        """
+        self._evict_if_needed()
     
     def clear(self, series_id: Optional[str] = None) -> None:
         """Clear state for specific series or all."""

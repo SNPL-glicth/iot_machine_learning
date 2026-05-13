@@ -1,5 +1,7 @@
 # ZENIN Engines — Deep Architecture Reference
 
+**Última actualización:** 2026-05-12
+
 This document describes **every engine** in ZENIN: how it works, what it predicts, where it plugs into the pipeline, and how it complements other engines. If you are extending ZENIN or debugging predictions, start here.
 
 ---

@@ -1,6 +1,6 @@
 # Pipeline Cognitivo ML — Referencia Técnica
 
-**Última actualización:** 2026-05-04
+**Última actualización:** 2026-05-12
 **Archivo fuente:** `infrastructure/ml/cognitive/orchestration/pipeline_executor.py`
 **Fases:** 15 (índices 0–14) + AssemblyPhase final
 

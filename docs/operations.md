@@ -1,5 +1,7 @@
 ## Monitoring & Observability
 
+**Última actualización:** 2026-05-12
+
 ### Prometheus Metrics
 
 ZENIN exports metrics at `/metrics`:

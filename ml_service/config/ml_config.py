@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Literal
 
+from core.parameters.numerical_constants import CONFIDENCE, STAT_THRESHOLDS
+
 #tiene que haber una configuracion de regresion 
 @dataclass(frozen=True)
 class RegressionConfig:
@@ -12,7 +14,7 @@ class RegressionConfig:
     window_points: int = 500
     min_points: int = 20
     horizon_minutes: int = 10
-    min_confidence: float = 0.2
+    min_confidence: float = CONFIDENCE.MIN_CONFIDENCE
     max_confidence: float = 0.95
 
 
@@ -20,7 +22,7 @@ class RegressionConfig:
 class AnomalyConfig:
     """Configuración de detección de anomalías (IF, LOF, Z-score, IQR)."""
 
-    contamination: float = 0.05
+    contamination: float = STAT_THRESHOLDS.CONTAMINATION_DEFAULT
     n_estimators: int = 100
     random_state: int = 42
 
@@ -64,7 +66,7 @@ class OnlineBehaviorConfig:
     microvariation_min_delta: float = 0.01
 
     # Z-score para marcar anomalías transitorias (salida de rango clara)
-    transient_z_score: float = 2.5
+    transient_z_score: float = STAT_THRESHOLDS.Z_SCORE_UPPER  # 3.0
 
     # Errores de predicción
     prediction_error_relative: float = 0.2  # 20% por defecto

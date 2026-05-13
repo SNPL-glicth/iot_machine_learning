@@ -10,7 +10,10 @@ weight-related concerns into this cohesive service.
 from __future__ import annotations
 
 import logging
+import math
 from typing import Dict, List, Optional
+
+from core.parameters.numerical_constants import EPSILON
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +33,24 @@ class WeightResolutionService:
     - Stateless: no internal mutable state
     - Fail-safe: returns base weights on any error
     - Testable: pure logic, dependencies injected
+    
+    CRIT-3 FIX: EPSILON value restored to 0.01 for numerical stability.
+    Previous change to EPSILON.DIVISION (1e-12) introduced risk of weight divergence
+    when MAE values are very small. The 0.01 value provides a safer floor while still
+    being small enough to not significantly impact weight calculations.
     """
+
+    # CRIT-3 FIX: Safe default epsilon for numerical stability
+    # 0.01 provides a stable floor for division operations while being small enough
+    # to not significantly impact weight calculations in normal scenarios.
+    _DEFAULT_EPSILON: float = 0.01
 
     def __init__(
         self,
         base_weights: Dict[str, float],
         plasticity_tracker=None,
         storage_adapter=None,
-        epsilon: float = 0.01,
+        epsilon: Optional[float] = None,
     ) -> None:
         """Initialize weight resolution service.
         
@@ -45,12 +58,48 @@ class WeightResolutionService:
             base_weights: Default weights (fallback when no learning data)
             plasticity_tracker: Optional plasticity for learned weights
             storage_adapter: Optional storage for rolling MAE data
-            epsilon: Small value to prevent division by zero
+            epsilon: Small value to prevent division by zero. If None, uses 0.01.
+                CRIT-3 FIX: Default restored to 0.01 from 1e-12 for numerical stability.
+                Values < 1e-6 trigger a warning due to potential numerical instability.
         """
+        # CRIT-3 FIX: Use safe default epsilon if not provided
+        if epsilon is None:
+            epsilon = self._DEFAULT_EPSILON
+        
+        # CRIT-3 FIX: Warn if epsilon is too small (potential numerical instability)
+        if epsilon < 1e-6:
+            logger.warning(
+                "weight_resolution_epsilon_too_small",
+                extra={
+                    "epsilon": epsilon,
+                    "recommended_min": 1e-6,
+                    "risk": "numerical_instability_division_near_zero",
+                },
+            )
+        
+        # CRIT-3 FIX: Validate epsilon is positive
+        if epsilon <= 0:
+            raise ValueError(
+                f"epsilon must be positive, received {epsilon}"
+            )
         self._base_weights = base_weights
         self._plasticity = plasticity_tracker
         self._storage = storage_adapter
         self._epsilon = epsilon
+        
+        # FASE-22: Validate base_weights sum ≈ 1.0 (warn if misconfigured)
+        if base_weights:
+            weights_sum = sum(base_weights.values())
+            if not math.isclose(weights_sum, 1.0, rel_tol=EPSILON.COMPARISON):
+                logger.warning(
+                    "base_weights_sum_drift",
+                    extra={
+                        "sum": weights_sum,
+                        "expected": 1.0,
+                        "engines": list(base_weights.keys()),
+                        "note": "base_weights will be normalized automatically"
+                    }
+                )
 
     def resolve(
         self,
@@ -139,8 +188,18 @@ class WeightResolutionService:
         
         if total < self._epsilon:
             return None
-            
-        return {name: w / total for name, w in inv_mae.items()}
+        
+        normalized = {name: w / total for name, w in inv_mae.items()}
+        
+        # Validate normalization: sum should be ≈ 1.0
+        normalized_sum = sum(normalized.values())
+        if not math.isclose(normalized_sum, 1.0, rel_tol=EPSILON.COMPARISON):
+            logger.warning(
+                "adaptive_mae_weights_normalization_drift",
+                extra={"sum": normalized_sum, "expected": 1.0}
+            )
+        
+        return normalized
 
     def _get_base_weights(self, engine_names: List[str]) -> Dict[str, float]:
         """Get base weights for engines.
@@ -178,4 +237,14 @@ class WeightResolutionService:
             uniform = 1.0 / len(engine_names)
             return {name: uniform for name in engine_names}
 
-        return {name: w / total for name, w in complete.items()}
+        normalized = {name: w / total for name, w in complete.items()}
+        
+        # Validate normalization: sum should be ≈ 1.0
+        normalized_sum = sum(normalized.values())
+        if not math.isclose(normalized_sum, 1.0, rel_tol=EPSILON.COMPARISON):
+            logger.warning(
+                "weight_normalization_drift",
+                extra={"sum": normalized_sum, "expected": 1.0, "engines": engine_names}
+            )
+        
+        return normalized

@@ -3,247 +3,417 @@
 Calcula score [0.0, 1.0] basado en severity + amplificadores/atenuadores.
 Mapea score final a acción con prioridad.
 
-Configuración vía feature flags (leídos en cada llamada para hot-reload):
-  ML_DECISION_AMP_*: Amplificadores multiplicativos
-  ML_DECISION_ATT_*: Atenuadores multiplicativos
-  ML_DECISION_THRESHOLD_*: Umbrales de mapeo
+Configuración vía ContextualDecisionConfig (inyectable):
+  - Scores base por severidad
+  - Amplificadores aditivos
+  - Atenuadores sustractivos
+  - Umbrales de decisión
+
+Applies DIP: Engine depende de config abstraction, no de env vars.
+Applies SRP: Configuración separada de lógica de decisión.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 from iot_machine_learning.domain.entities.decision import Decision, DecisionContext
 from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
-from iot_machine_learning.ml_service.config.flags import FeatureFlags
+from .contextual_decision_config import ContextualDecisionConfig
 
 logger = logging.getLogger(__name__)
 
 
-def _get_flags() -> FeatureFlags:
-    """Obtener flags actuales (lazy import para evitar circular)."""
-    try:
-        from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
-        return get_feature_flags()
-    except Exception:
-        # Fallback a defaults si no hay flags configurados
-        return FeatureFlags()
+@dataclass
+class Amplifier:
+    """Amplifier rule for contextual scoring.
+    
+    Attributes:
+        name: Descriptive name for logging.
+        condition: Callable that evaluates context and returns bool.
+        value: Amplification value to add if condition is True.
+        priority: Evaluation order (lower = evaluated first).
+        exclusive: If True, stops evaluation chain when applied.
+    
+    Applies SRP: Each amplifier is a self-contained rule.
+    """
+    name: str
+    condition: Callable[[DecisionContext], bool]
+    value: float
+    priority: int
+    exclusive: bool = False
+
+
+@dataclass
+class Attenuator:
+    """Attenuator rule for contextual scoring.
+    
+    Attributes:
+        name: Descriptive name for logging.
+        condition: Callable that evaluates context and returns bool.
+        value: Attenuation value to subtract if condition is True.
+        priority: Evaluation order (lower = evaluated first).
+        exclusive: If True, stops evaluation chain when applied.
+    
+    Applies SRP: Each attenuator is a self-contained rule.
+    """
+    name: str
+    condition: Callable[[DecisionContext], bool]
+    value: float
+    priority: int
+    exclusive: bool = False
 
 
 class ContextualDecisionEngine(DecisionEnginePort):
     """Engine de decisión con scoring contextual.
     
-    Score base según severity:
-      CRITICAL → 0.90
-      HIGH     → 0.70
-      MEDIUM   → 0.45
-      LOW      → 0.25
-      NONE     → 0.05
+    Usa ContextualDecisionConfig como única fuente de verdad para:
+    - Scores base por severidad (CRITICAL, HIGH, MEDIUM, LOW, NONE, WARNING)
+    - Amplificadores aditivos (consecutive, rate, regime, drift)
+    - Atenuadores sustractivos (stable, low_criticality, no_context)
+    - Umbrales de decisión (escalate, investigate, monitor)
     
-    Amplificadores (acumulativos, techo en 1.0) - valores desde flags:
-      consecutive_anomalies >= 5 → ×flags.ML_DECISION_AMP_CONSECUTIVE_5
-      consecutive_anomalies >= 3 → ×flags.ML_DECISION_AMP_CONSECUTIVE_3
-      recent_anomaly_rate > 0.60  → ×flags.ML_DECISION_AMP_RATE_HIGH
-      recent_anomaly_rate > 0.30  → ×flags.ML_DECISION_AMP_RATE_MED
-      current_regime == "VOLATILE" → ×flags.ML_DECISION_AMP_VOLATILE
-      current_regime == "NOISY"    → ×flags.ML_DECISION_AMP_NOISY
-      drift_score > 0.70            → ×flags.ML_DECISION_AMP_DRIFT_HIGH
-      drift_score > 0.40            → ×flags.ML_DECISION_AMP_DRIFT_MED
-    
-    Atenuadores (aplicados después) - valores desde flags:
-      current_regime == "STABLE" and drift < 0.10 → ×flags.ML_DECISION_ATT_STABLE
-      series_criticality == "LOW"  → ×flags.ML_DECISION_ATT_LOW_CRITICALITY
-      recent_anomaly_count == 0  → ×flags.ML_DECISION_ATT_NO_CONTEXT
-    
-    Mapeo score → acción - umbrales desde flags:
-      >= flags.ML_DECISION_THRESHOLD_ESCALATE   → ESCALATE,   priority=1
-      >= flags.ML_DECISION_THRESHOLD_INVESTIGATE → INVESTIGATE, priority=2
-      >= flags.ML_DECISION_THRESHOLD_MONITOR     → MONITOR,     priority=3
-      < flags.ML_DECISION_THRESHOLD_MONITOR      → LOG_ONLY,    priority=5
+    Applies DIP: Depende de config abstraction inyectable.
+    Applies OCP: Agregar amplificador solo requiere extender config.
     """
     
-    def __init__(self, version: str = "1.0.0") -> None:
-        """Initialize contextual engine.
+    def __init__(
+        self,
+        config: Optional[ContextualDecisionConfig] = None,
+    ) -> None:
+        """Initialize contextual engine with injectable configuration.
         
         Args:
-            version: Version string for audit
+            config: ContextualDecisionConfig with all parameters.
+                   Defaults to standard config if not provided.
+        
+        Raises:
+            ValueError: If config validation fails.
+        
+        Applies DIP: Configuration is injected, not read from env vars.
+        Applies OCP: Adding amplifier/attenuator only requires extending tables.
         """
-        self._version = version
+        self._config = config or ContextualDecisionConfig()
+        self._config.validate()  # Fail fast on invalid config
+        
+        # Build amplifier and attenuator tables (OCP: extend here)
+        self._amplifiers = self._build_amplifiers()
+        self._attenuators = self._build_attenuators()
     
     @property
     def strategy_name(self) -> str:
-        return "contextual"
+        return self._config.engine_name
     
     @property
     def version(self) -> str:
-        return self._version
+        return self._config.engine_version
     
     def can_decide(self, context: DecisionContext) -> bool:
         """Siempre puede decidir con severity (tiene default)."""
         return context.severity is not None
     
-    def _get_base_scores(self, flags: FeatureFlags) -> Dict[str, float]:
-        """Leer base_scores desde flags JSON (hot-reload)."""
-        try:
-            return json.loads(flags.ML_DECISION_BASE_SCORES)
-        except json.JSONDecodeError:
-            # Fallback seguro
-            return {
-                "critical": 0.90,
-                "high": 0.70,
-                "medium": 0.45,
-                "low": 0.25,
-                "info": 0.05,
-                "warning": 0.45,
-            }
-
-    def _get_amp_thresholds(self, flags: FeatureFlags) -> Dict[str, float]:
-        """Leer amplifier thresholds desde flags JSON (hot-reload)."""
-        try:
-            return json.loads(flags.ML_DECISION_AMP_THRESHOLDS)
-        except json.JSONDecodeError:
-            # Fallback seguro
-            return {
-                "count_high": 5,
-                "count_medium": 3,
-                "ratio_high": 0.60,
-                "ratio_low": 0.30,
-                "drift_high": 0.70,
-                "drift_low": 0.40,
-            }
-
-    def _get_stable_drift_threshold(self, flags: FeatureFlags) -> float:
-        """Leer umbral de drift para atenuador STABLE desde flags."""
-        try:
-            return float(flags.ML_DECISION_ATT_STABLE_DRIFT_THRESHOLD)
-        except Exception:
-            return 0.10  # fallback
-
-    def _compute_base_score(self, context: DecisionContext, flags: FeatureFlags) -> float:
-        """Score base según severity."""
-        severity = context.severity.severity if context.severity else "info"
-        base_scores = self._get_base_scores(flags)
-        return base_scores.get(severity.lower(), 0.05)
+    def _build_amplifiers(self) -> List[Amplifier]:
+        """Build amplifier table from config.
+        
+        Returns:
+            List of amplifiers sorted by priority.
+        
+        Applies OCP: To add new amplifier, add entry here.
+        Priorities are consecutive (1-8) without gaps.
+        
+        NOTE: Priorities were renumbered from original (which had gaps).
+        Original gap (1,2,3,5) was unintentional per audit.
+        """
+        cfg = self._config
+        
+        amplifiers = [
+            # Priority 1-2: Consecutive anomalies (mutually exclusive via elif logic)
+            Amplifier(
+                name="consecutive_5",
+                condition=lambda ctx: ctx.consecutive_anomalies >= cfg.amp_consecutive_high_count,
+                value=cfg.amp_consecutive_5,
+                priority=1,
+                exclusive=True,  # If >=5, don't check >=3
+            ),
+            Amplifier(
+                name="consecutive_3",
+                condition=lambda ctx: ctx.consecutive_anomalies >= cfg.amp_consecutive_med_count,
+                value=cfg.amp_consecutive_3,
+                priority=2,
+                exclusive=False,
+            ),
+            
+            # Priority 3-4: Anomaly rate (mutually exclusive via elif logic)
+            Amplifier(
+                name="rate_high",
+                condition=lambda ctx: ctx.recent_anomaly_rate > cfg.amp_rate_high_threshold,
+                value=cfg.amp_rate_high,
+                priority=3,
+                exclusive=True,  # If >60%, don't check >30%
+            ),
+            Amplifier(
+                name="rate_med",
+                condition=lambda ctx: ctx.recent_anomaly_rate > cfg.amp_rate_med_threshold,
+                value=cfg.amp_rate_med,
+                priority=4,
+                exclusive=False,
+            ),
+            
+            # Priority 5-6: Regime (mutually exclusive - series has one regime)
+            Amplifier(
+                name="volatile",
+                condition=lambda ctx: ctx.current_regime.upper() == "VOLATILE",
+                value=cfg.amp_volatile,
+                priority=5,
+                exclusive=True,  # Only one regime applies
+            ),
+            Amplifier(
+                name="noisy",
+                condition=lambda ctx: ctx.current_regime.upper() == "NOISY",
+                value=cfg.amp_noisy,
+                priority=6,
+                exclusive=False,
+            ),
+            
+            # Priority 7-8: Drift score (mutually exclusive via elif logic)
+            Amplifier(
+                name="drift_high",
+                condition=lambda ctx: ctx.drift_score > cfg.amp_drift_high_threshold,
+                value=cfg.amp_drift_high,
+                priority=7,
+                exclusive=True,  # If >70%, don't check >40%
+            ),
+            Amplifier(
+                name="drift_med",
+                condition=lambda ctx: ctx.drift_score > cfg.amp_drift_med_threshold,
+                value=cfg.amp_drift_med,
+                priority=8,
+                exclusive=False,
+            ),
+        ]
+        
+        # Sort by priority (defensive - already in order)
+        return sorted(amplifiers, key=lambda a: a.priority)
+    
+    def _build_attenuators(self) -> List[Attenuator]:
+        """Build attenuator table from config.
+        
+        Returns:
+            List of attenuators sorted by priority.
+        
+        Applies OCP: To add new attenuator, add entry here.
+        Priorities are consecutive (1-3) without gaps.
+        
+        NOTE: All attenuators are independent (can stack).
+        """
+        cfg = self._config
+        
+        attenuators = [
+            # Priority 1: Stable regime with low drift
+            Attenuator(
+                name="stable",
+                condition=lambda ctx: (
+                    ctx.current_regime.upper() == "STABLE" and
+                    ctx.drift_score < cfg.att_stable_drift_max
+                ),
+                value=cfg.att_stable,
+                priority=1,
+                exclusive=False,
+            ),
+            
+            # Priority 2: Low criticality series
+            Attenuator(
+                name="low_criticality",
+                condition=lambda ctx: ctx.series_criticality.upper() == "LOW",
+                value=cfg.att_low_criticality,
+                priority=2,
+                exclusive=False,
+            ),
+            
+            # Priority 3: No recent context (first anomaly)
+            Attenuator(
+                name="no_context",
+                condition=lambda ctx: ctx.recent_anomaly_count == 0,
+                value=cfg.att_no_context,
+                priority=3,
+                exclusive=False,
+            ),
+        ]
+        
+        # Sort by priority (defensive - already in order)
+        return sorted(attenuators, key=lambda a: a.priority)
+    
+    def _compute_base_score(self, context: DecisionContext) -> float:
+        """Score base según severity.
+        
+        Args:
+            context: Decision context with severity.
+        
+        Returns:
+            Base score from config based on severity level.
+        
+        Uses ContextualDecisionConfig as single source of truth.
+        """
+        if not context.severity:
+            return self._config.score_none
+        
+        severity = context.severity.severity.lower()
+        
+        # Map severity to config score
+        severity_map = {
+            "critical": self._config.score_critical,
+            "high": self._config.score_high,
+            "medium": self._config.score_medium,
+            "low": self._config.score_low,
+            "info": self._config.score_none,
+            "none": self._config.score_none,
+            "warning": self._config.score_warning,
+        }
+        
+        return severity_map.get(severity, self._config.score_none)
     
     def _apply_amplifiers(
         self,
         score: float,
         context: DecisionContext,
-        flags: FeatureFlags,
     ) -> tuple[float, List[str]]:
-        """Aplicar amplificadores desde flags, retornar score y lista aplicada."""
-        amplifiers: List[str] = []
-        thresholds = self._get_amp_thresholds(flags)
+        """Aplicar amplificadores aditivos desde tabla.
+        
+        Args:
+            score: Base score to amplify.
+            context: Decision context with anomaly metrics.
+        
+        Returns:
+            Tuple of (amplified_score, list_of_applied_amplifiers).
+        
+        Applies OCP: Evaluation logic is generic, rules are in table.
+        Exclusive amplifiers stop evaluation of lower-priority rules in same category.
+        
+        NOTE: Amplifiers are ADDITIVE (not multiplicative) per PASO 1 spec.
+        """
+        applied: List[str] = []
+        total_amplification = 0.0
+        
+        # Track which exclusive categories have been satisfied
+        exclusive_triggered = set()
 
-        # Consecutive anomalies
-        if context.consecutive_anomalies >= thresholds.get("count_high", 5):
-            multiplier = flags.ML_DECISION_AMP_CONSECUTIVE_5
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"consecutive_5×{multiplier}")
-        elif context.consecutive_anomalies >= thresholds.get("count_medium", 3):
-            multiplier = flags.ML_DECISION_AMP_CONSECUTIVE_3
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"consecutive_3×{multiplier}")
+        for amp in self._amplifiers:
+            # Skip if exclusive rule in same category already triggered
+            # Categories: consecutive (1-2), rate (3-4), regime (5-6), drift (7-8)
+            category = (amp.priority - 1) // 2  # 0,0,1,1,2,2,3,3
+            if category in exclusive_triggered:
+                continue
+            
+            # Evaluate condition
+            if amp.condition(context):
+                total_amplification += amp.value
+                applied.append(f"{amp.name}+{amp.value}")
+                
+                # Mark category as satisfied if exclusive
+                if amp.exclusive:
+                    exclusive_triggered.add(category)
 
-        # Anomaly rate
-        if context.recent_anomaly_rate > thresholds.get("ratio_high", 0.60):
-            multiplier = flags.ML_DECISION_AMP_RATE_HIGH
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"rate_high×{multiplier}")
-        elif context.recent_anomaly_rate > thresholds.get("ratio_low", 0.30):
-            multiplier = flags.ML_DECISION_AMP_RATE_MED
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"rate_med×{multiplier}")
-
-        # Regime
-        regime = context.current_regime.upper()
-        if regime == "VOLATILE":
-            multiplier = flags.ML_DECISION_AMP_VOLATILE
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"volatile×{multiplier}")
-        elif regime == "NOISY":
-            multiplier = flags.ML_DECISION_AMP_NOISY
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"noisy×{multiplier}")
-
-        # Drift score
-        if context.drift_score > thresholds.get("drift_high", 0.70):
-            multiplier = flags.ML_DECISION_AMP_DRIFT_HIGH
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"drift_high×{multiplier}")
-        elif context.drift_score > thresholds.get("drift_low", 0.40):
-            multiplier = flags.ML_DECISION_AMP_DRIFT_MED
-            score = min(1.0, score * multiplier)
-            amplifiers.append(f"drift_med×{multiplier}")
-
-        return score, amplifiers
+        # Apply total amplification with clamp to [0, 1]
+        amplified_score = min(1.0, score + total_amplification)
+        
+        return amplified_score, applied
     
     def _apply_attenuators(
         self,
         score: float,
         context: DecisionContext,
-        flags: FeatureFlags,
     ) -> tuple[float, List[str]]:
-        """Aplicar atenuadores desde flags, retornar score y lista aplicada."""
-        attenuators: List[str] = []
+        """Aplicar atenuadores sustractivos desde tabla.
+        
+        Args:
+            score: Amplified score to attenuate.
+            context: Decision context with stability metrics.
+        
+        Returns:
+            Tuple of (attenuated_score, list_of_applied_attenuators).
+        
+        Applies OCP: Evaluation logic is generic, rules are in table.
+        All attenuators are independent (can stack).
+        
+        NOTE: Attenuators are SUBTRACTIVE (not multiplicative) per PASO 1 spec.
+        Includes floor clamp to prevent negative scores (BUG FIX from audit).
+        """
+        # PASO 4 FIX: Clamp score before attenuation to prevent negative
+        score = max(0.0, score)
+        
+        applied: List[str] = []
+        total_attenuation = 0.0
 
-        # Stable regime with low drift
-        drift_threshold = self._get_stable_drift_threshold(flags)
-        if context.current_regime.upper() == "STABLE" and context.drift_score < drift_threshold:
-            multiplier = flags.ML_DECISION_ATT_STABLE
-            score *= multiplier
-            attenuators.append(f"stable×{multiplier}")
+        for att in self._attenuators:
+            # Evaluate condition
+            if att.condition(context):
+                total_attenuation += att.value
+                applied.append(f"{att.name}-{att.value}")
+                
+                # Stop if exclusive (currently none are exclusive)
+                if att.exclusive:
+                    break
         
-        # Low criticality
-        if context.series_criticality.upper() == "LOW":
-            multiplier = flags.ML_DECISION_ATT_LOW_CRITICALITY
-            score *= multiplier
-            attenuators.append(f"low_criticality×{multiplier}")
+        # Apply total attenuation with floor clamp (PASO 4 FIX)
+        attenuated_score = max(0.0, score - total_attenuation)
         
-        # No recent context (primera anomalía)
-        if context.recent_anomaly_count == 0:
-            multiplier = flags.ML_DECISION_ATT_NO_CONTEXT
-            score *= multiplier
-            attenuators.append(f"no_context×{multiplier}")
-        
-        return score, attenuators
+        return attenuated_score, applied
     
     def _score_to_action(self, score: float) -> tuple[str, int, str]:
-        """Mapear score a (action, priority, reason) usando umbrales de flags."""
-        flags = _get_flags()
+        """Mapear score a (action, priority, reason) usando umbrales de config.
         
-        if score >= flags.ML_DECISION_THRESHOLD_ESCALATE:
-            return ("ESCALATE", 1, "patrón persistente detectado")
-        elif score >= flags.ML_DECISION_THRESHOLD_INVESTIGATE:
-            return ("INVESTIGATE", 2, "anomalía contextual confirmada")
-        elif score >= flags.ML_DECISION_THRESHOLD_MONITOR:
-            return ("MONITOR", 3, "anomalía moderada")
+        Args:
+            score: Final score after amplifiers and attenuators.
+        
+        Returns:
+            Tuple of (action, priority, reason).
+        
+        Uses config thresholds as single source of truth.
+        Priorities are consecutive (1,2,3,4) per PASO 1 fix.
+        """
+        if score >= self._config.threshold_escalate:
+            return ("ESCALATE", self._config.priority_escalate, "patrón persistente detectado")
+        elif score >= self._config.threshold_investigate:
+            return ("INVESTIGATE", self._config.priority_investigate, "anomalía contextual confirmada")
+        elif score >= self._config.threshold_monitor:
+            return ("MONITOR", self._config.priority_monitor, "anomalía moderada")
         else:
-            return ("LOG_ONLY", 5, "señal débil o aislada")
+            return ("LOG_ONLY", self._config.priority_log_only, "señal débil o aislada")
     
     def decide(self, context: DecisionContext) -> Decision:
-        """Calcular decisión con scoring contextual."""
-        # Snapshot de flags para logging auditable
-        flags = _get_flags()
+        """Calcular decisión con scoring contextual.
         
+        Args:
+            context: Decision context with severity and metrics.
+        
+        Returns:
+            Decision with action, priority, and confidence.
+        
+        Pipeline:
+            1. Compute base score from severity
+            2. Apply amplifiers (additive)
+            3. Apply attenuators (subtractive)
+            4. Clamp to [0, 1]
+            5. Map to action via thresholds
+        """
         # Score base
-        score_base = self._compute_base_score(context, flags)
+        score_base = self._compute_base_score(context)
 
-        # Amplificadores
-        score_after_amp, amplifiers = self._apply_amplifiers(score_base, context, flags)
+        # Amplificadores (additive)
+        score_after_amp, amplifiers = self._apply_amplifiers(score_base, context)
 
-        # Atenuadores
-        score_final, attenuators = self._apply_attenuators(score_after_amp, context, flags)
+        # Atenuadores (subtractive with floor clamp)
+        score_final, attenuators = self._apply_attenuators(score_after_amp, context)
         
-        # Asegurar rango [0, 1]
+        # Asegurar rango [0, 1] (redundant but defensive)
         score_final = max(0.0, min(1.0, score_final))
         
         # Mapear a acción
         action, priority, reason = self._score_to_action(score_final)
         
-        # Logging estructurado con snapshot de flags para auditabilidad
+        # Logging estructurado con snapshot de config para auditabilidad
         logger.info(
             "contextual_decision",
             extra={
@@ -256,21 +426,10 @@ class ContextualDecisionEngine(DecisionEnginePort):
                 "action": action,
                 "priority": priority,
                 "reason": reason,
-                "flags_snapshot": {
-                    "amp_consecutive_5": flags.ML_DECISION_AMP_CONSECUTIVE_5,
-                    "amp_consecutive_3": flags.ML_DECISION_AMP_CONSECUTIVE_3,
-                    "amp_rate_high": flags.ML_DECISION_AMP_RATE_HIGH,
-                    "amp_rate_med": flags.ML_DECISION_AMP_RATE_MED,
-                    "amp_volatile": flags.ML_DECISION_AMP_VOLATILE,
-                    "amp_noisy": flags.ML_DECISION_AMP_NOISY,
-                    "amp_drift_high": flags.ML_DECISION_AMP_DRIFT_HIGH,
-                    "amp_drift_med": flags.ML_DECISION_AMP_DRIFT_MED,
-                    "att_stable": flags.ML_DECISION_ATT_STABLE,
-                    "att_low_criticality": flags.ML_DECISION_ATT_LOW_CRITICALITY,
-                    "att_no_context": flags.ML_DECISION_ATT_NO_CONTEXT,
-                    "threshold_escalate": flags.ML_DECISION_THRESHOLD_ESCALATE,
-                    "threshold_investigate": flags.ML_DECISION_THRESHOLD_INVESTIGATE,
-                    "threshold_monitor": flags.ML_DECISION_THRESHOLD_MONITOR,
+                "config_snapshot": {
+                    "threshold_escalate": self._config.threshold_escalate,
+                    "threshold_investigate": self._config.threshold_investigate,
+                    "threshold_monitor": self._config.threshold_monitor,
                 },
             },
         )

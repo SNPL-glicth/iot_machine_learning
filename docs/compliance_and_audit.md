@@ -1,6 +1,6 @@
 # Cumplimiento y Auditoría
 
-**Última actualización:** 2026-05-04
+**Última actualización:** 2026-05-12
 **Archivo fuente:** `infrastructure/ml/cognitive/compliance/compliance_exporter.py`, `domain/ports/audit_port.py`
 
 ---

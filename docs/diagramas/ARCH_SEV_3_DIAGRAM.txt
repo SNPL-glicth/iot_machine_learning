@@ -1,0 +1,186 @@
+================================================================================
+ARCH-SEV-3: Decouple Domain from Infrastructure Temporal Details
+================================================================================
+
+BEFORE (Domain coupled to infrastructure):
+-------------------------------------------
+
+    ┌────────────────────────────────────────────────────────────┐
+    │                         DOMAIN                              │
+    │                                                             │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  entities/series/structural_analysis.py  │              │
+    │  │                                           │              │
+    │  │  @dataclass                               │              │
+    │  │  class StructuralAnalysis:                │              │
+    │  │      slope: float                         │              │
+    │  │      curvature: float                     │              │
+    │  │      ...                                  │              │
+    │  │      dt: float = 1.0          ❌         │              │
+    │  │      ^^^                                  │              │
+    │  │      Infrastructure detail!               │              │
+    │  └──────────────────────────────────────────┘              │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+                │
+                │ dt is just a float
+                │ No semantic meaning
+                │ No unit information
+                ▼
+         ┌─────────────┐
+         │ dt = 1.0    │  ← What unit? Seconds? Milliseconds?
+         │ dt = 0.001  │  ← Is this 1ms or 0.001s?
+         │ dt = 3600   │  ← Is this 1 hour or 3600 seconds?
+         └─────────────┘
+
+    ❌ PROBLEM: Domain entity contains infrastructure detail
+    ❌ No semantic meaning: dt is just a number
+    ❌ No unit information: Ambiguous interpretation
+    ❌ Violates OCP: Adding new units requires modifying StructuralAnalysis
+    ❌ Coupling: Domain knows about temporal implementation details
+
+
+AFTER (Domain decoupled via value object):
+-------------------------------------------
+
+    ┌────────────────────────────────────────────────────────────┐
+    │                         DOMAIN                              │
+    │                                                             │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  value_objects/time_step.py              │              │
+    │  │                                           │              │
+    │  │  class TimeUnit(Enum):         ✅        │              │
+    │  │      SECONDS = "seconds"                  │              │
+    │  │      MILLISECONDS = "milliseconds"        │              │
+    │  │      MINUTES = "minutes"                  │              │
+    │  │      HOURS = "hours"                      │              │
+    │  │      DAYS = "days"                        │              │
+    │  │      UNKNOWN = "unknown"                  │              │
+    │  │                                           │              │
+    │  │  @dataclass(frozen=True)                  │              │
+    │  │  class TimeStep:                          │              │
+    │  │      value: float                         │              │
+    │  │      unit: TimeUnit                       │              │
+    │  │                                           │              │
+    │  │      def to_seconds() → float             │              │
+    │  │      def to_milliseconds() → float        │              │
+    │  │      @classmethod                         │              │
+    │  │      def from_string(s: str) → TimeStep   │              │
+    │  └──────────────────────────────────────────┘              │
+    │           ▲                                                 │
+    │           │ uses                                            │
+    │           │                                                 │
+    │  ┌──────────────────────────────────────────┐              │
+    │  │  entities/series/structural_analysis.py  │              │
+    │  │                                           │              │
+    │  │  @dataclass                               │              │
+    │  │  class StructuralAnalysis:                │              │
+    │  │      slope: float                         │              │
+    │  │      curvature: float                     │              │
+    │  │      ...                                  │              │
+    │  │      time_step: Optional[TimeStep] ✅    │              │
+    │  │                                           │              │
+    │  │      @property                            │              │
+    │  │      def dt(self) → float:                │              │
+    │  │          # Backward compatibility         │              │
+    │  │          return time_step.to_seconds()    │              │
+    │  └──────────────────────────────────────────┘              │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+
+    ✅ SOLUTION: TimeStep value object encapsulates temporal details
+    ✅ Semantic meaning: TimeStep(5, SECONDS) is clear
+    ✅ Unit information: Explicit TimeUnit enum
+    ✅ Applies OCP: New units added to enum, not StructuralAnalysis
+    ✅ Decoupling: Domain entity doesn't know about unit conversions
+
+
+EXAMPLES:
+---------
+
+Before:
+    analysis = StructuralAnalysis(
+        slope=0.5,
+        dt=1.0,  # ← What unit?
+    )
+
+After:
+    from domain.value_objects.time_step import TimeStep, TimeUnit
+    
+    analysis = StructuralAnalysis(
+        slope=0.5,
+        time_step=TimeStep(value=1.0, unit=TimeUnit.SECONDS),  # ← Clear!
+    )
+    
+    # Or use convenience methods:
+    time_step = TimeStep.from_seconds(1.0)
+    time_step = TimeStep.from_string("5s")
+    time_step = TimeStep.from_string("100ms")
+    time_step = TimeStep.from_string("1h")
+    
+    # Convert between units:
+    seconds = time_step.to_seconds()
+    ms = time_step.to_milliseconds()
+    
+    # Backward compatibility:
+    dt_value = analysis.dt  # Returns time_step.to_seconds()
+
+
+OCP DEMONSTRATION:
+------------------
+
+Adding a new time unit (e.g., WEEKS):
+
+Before (violates OCP):
+    ❌ Must modify StructuralAnalysis
+    ❌ Must add conversion logic to entity
+    ❌ Domain entity changes for infrastructure concern
+
+After (applies OCP):
+    ✅ Only extend TimeUnit enum:
+        class TimeUnit(Enum):
+            ...
+            WEEKS = "weeks"
+    
+    ✅ Add conversion in TimeUnit.to_seconds():
+        conversions = {
+            ...
+            TimeUnit.WEEKS: 604800.0,
+        }
+    
+    ✅ StructuralAnalysis unchanged!
+    ✅ Domain entity stable
+
+
+MIGRATION PATH:
+---------------
+
+Phase 1 (CURRENT):
+  ✅ TimeStep value object created
+  ✅ StructuralAnalysis.time_step: Optional[TimeStep] added
+  ✅ StructuralAnalysis.dt property for backward compatibility
+  ✅ All existing code continues to work via dt property
+
+Phase 2 (NEXT):
+  ⏳ Update infrastructure to create TimeStep instances
+  ⏳ Pass time_step instead of dt when constructing StructuralAnalysis
+  ⏳ Gradually migrate from dt to time_step
+
+Phase 3 (FUTURE):
+  ⏳ Deprecate dt property
+  ⏳ Make time_step required (not Optional)
+  ⏳ Remove dt property completely
+
+
+BENEFITS:
+---------
+
+1. ✅ Open/Closed Principle: New units via enum extension
+2. ✅ Single Responsibility: TimeStep owns temporal representation
+3. ✅ Domain isolation: No infrastructure details in entity
+4. ✅ Type safety: TimeUnit enum prevents invalid units
+5. ✅ Clarity: TimeStep(5, SECONDS) is self-documenting
+6. ✅ Testability: Easy to mock TimeStep in tests
+7. ✅ Backward compatible: dt property preserves existing behavior
+
+================================================================================

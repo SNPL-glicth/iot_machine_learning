@@ -18,6 +18,7 @@ from .bounds_provider import (
     SeriesValuesBoundsProvider,
 )
 from .cusum import detect_ramp
+from .imputer import MedianImputer  # COG-CRIT-1
 from ..series_values import SeriesValuesStore
 
 logger = logging.getLogger(__name__)
@@ -50,9 +51,11 @@ class SanitizePhase:
         series_values_store: Optional[SeriesValuesStore] = None,
         primary_provider: Optional[BoundsProvider] = None,
         fallback_provider: Optional[BoundsProvider] = None,
+        imputer: Optional[MedianImputer] = None,  # COG-CRIT-1
     ) -> None:
         self._cfg = config or SanitizeConfig()
         self._store = series_values_store
+        self._imputer = imputer or MedianImputer(min_history=3)  # COG-CRIT-1
         self._primary = primary_provider or (
             SeriesValuesBoundsProvider(
                 series_values_store, min_samples=self._cfg.redis_min_samples
@@ -89,27 +92,62 @@ class SanitizePhase:
         if not values:
             return ctx.with_field(sanitized_values=None, sanitization_flags=flags)
 
-        # 1. Hard-stop on NaN / Inf.
-        if any(not math.isfinite(v) for v in values):
-            flags.append("nan_or_inf_rejected")
+        # 1. COG-CRIT-1: Impute NaN/Inf values instead of rejecting entire window
+        imputed_count = 0
+        sanitized = []
+        for v in values:
+            if math.isfinite(v):
+                sanitized.append(v)
+            else:
+                # Try to impute using historical data from store
+                history = store.get_values(series_id) if store else None
+                if history and len(history) >= 3:
+                    try:
+                        imputed = self._imputer.impute(v, history)
+                        sanitized.append(imputed)
+                        imputed_count += 1
+                        flags.append(f"value_imputed:{imputed_count}")
+                    except ValueError:
+                        # Cannot impute - reject this value only
+                        flags.append(f"value_rejected:insufficient_history")
+                else:
+                    # No history available - reject this value only
+                    flags.append(f"value_rejected:no_history")
+        
+        # If all values were rejected, fallback
+        if not sanitized:
+            flags.append("all_values_rejected")
             logger.warning(
-                "sanitize_nan_or_inf_rejected",
+                "sanitize_all_values_rejected",
                 extra={"series_id": series_id, "n_values": len(values)},
             )
             return ctx.with_field(
                 sanitized_values=[],
                 sanitization_flags=flags,
                 is_fallback=True,
-                fallback_reason="nan_or_inf_rejected",
+                fallback_reason="all_values_rejected",
+            )
+        
+        # COG-CRIT-1: Apply penalty for imputed values
+        if imputed_count > 0:
+            penalty = imputed_count * 0.1
+            confidence_multiplier = max(0.5, 1.0 - penalty)
+            ctx = ctx.with_field(confidence_multiplier=confidence_multiplier)
+            logger.info(
+                "sanitize_values_imputed",
+                extra={
+                    "series_id": series_id,
+                    "imputed_count": imputed_count,
+                    "confidence_multiplier": round(confidence_multiplier, 3),
+                },
             )
 
         # 2. Resolve clamping bounds (primary Redis → local window fallback).
-        bounds = self._bounds(values, series_id, primary)
+        bounds = self._bounds(sanitized, series_id, primary)
         if bounds is None:
             flags.append("bounds_unavailable_skipped")
-            sanitized = list(values)
         else:
-            sanitized, flags = self._clamp(values, bounds, flags, series_id)
+            sanitized, flags = self._clamp(sanitized, bounds, flags, series_id)
 
         # 3. CUSUM ramp detection (does not block).
         if detect_ramp(

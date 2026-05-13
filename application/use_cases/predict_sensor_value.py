@@ -209,9 +209,8 @@ class PredictSensorValueUseCase:
             self._storage.save_prediction(prediction)
         except Exception as exc:
             logger.error(
-                "prediction_persistence_failed",
-                extra={"series_id": series_id, "error": str(exc),
-                       "trace_id": prediction.audit_trace_id},
+                f"prediction_persistence_failed: series_id={series_id} error={str(exc)} trace_id={prediction.audit_trace_id}",
+                exc_info=True,
             )
 
     def _build_dto(self, prediction, memory_context=None) -> PredictionDTO:
@@ -225,7 +224,7 @@ class PredictSensorValueUseCase:
             confidence_interval=prediction.confidence_interval,
             feature_contributions=prediction.feature_contributions,
             audit_trace_id=prediction.audit_trace_id,
-            memory_context=memory_context,
+            explanation_summary=None,
         )
 
     def _try_recall(self, prediction, series_id):

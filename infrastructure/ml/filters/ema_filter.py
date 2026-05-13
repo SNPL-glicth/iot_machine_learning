@@ -120,10 +120,21 @@ class AdaptiveEMASignalFilter(SignalFilter):
         α(t) = clamp(smooth_innovation / scale, α_min, α_max)
 
     Args:
-        alpha_min: Mínimo α (máximo suavizado).
-        alpha_max: Máximo α (mínimo suavizado).
+        alpha_min: Mínimo α (máximo suavizado). Default=0.05.
+            FASE-24: Equivale a memoria efectiva de 1/alpha = 20 observaciones.
+            Usado en régimen STABLE o NOISY para suavizado agresivo.
+        
+        alpha_max: Máximo α (mínimo suavizado). Default=0.5.
+            FASE-24: Equivale a memoria efectiva de 1/alpha = 2 observaciones.
+            Usado en régimen VOLATILE para respuesta rápida.
+        
         beta: Factor de suavizado para la innovación (0 < β ≤ 1).
-        scale: Escala de normalización de la innovación.
+        
+        scale: Escala de normalización de la innovación. Default=1.0.
+            FASE-24: Asume que innovación típica está en rango [0, scale].
+            PENDING_CALIBRATION: Calibrar como percentil 95 de
+            abs(value - prediction) en datos históricos.
+            Para sensores con rango [0,100]: scale típico = 2-10.
     """
 
     def __init__(

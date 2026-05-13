@@ -132,26 +132,23 @@ class PredictionService:
         # 2. El use case ya persistió la predicción vía StoragePort.
         #    Obtener IDs para compatibilidad con respuesta legacy.
         device_id = self._storage.get_device_id_for_sensor(sensor_id)
-        model_id = self._storage._get_or_create_model_id(
+        model_id = self._storage._predictions._get_or_create_model_id(
             sensor_id, dto.engine_name
         )
         target_ts = datetime.now(timezone.utc) + timedelta(minutes=horizon_minutes)
 
         # Obtener prediction_id (última predicción insertada)
-        latest = self._storage.get_latest_prediction(sensor_id)
-        prediction_id = 0  # fallback
-        if latest and abs(latest.predicted_value - dto.predicted_value) < 1e-9:
-            # Buscar ID real de la predicción recién insertada
-            prediction_id = self._prediction_repo.get_latest_prediction_id(sensor_id)
+        prediction_id = self._prediction_repo.get_latest_prediction_id(sensor_id)
 
-        # 3. Evaluar thresholds (delegado a use case)
-        self._evaluate_thresholds_use_case.execute(
-            sensor_id=sensor_id,
-            device_id=device_id,
-            prediction_id=prediction_id,
-            predicted_value=dto.predicted_value,
-            dedupe_minutes=dedupe_minutes,
-        )
+        # 3. Evaluar thresholds (delegado a use case) solo si prediction_id es válido
+        if prediction_id > 0:
+            self._evaluate_thresholds_use_case.execute(
+                sensor_id=sensor_id,
+                device_id=device_id,
+                prediction_id=prediction_id,
+                predicted_value=dto.predicted_value,
+                dedupe_minutes=dedupe_minutes,
+            )
 
         # 4. Enriquecimiento cognitivo (delegado a use case)
         enrichment = self._enrich_prediction_use_case.execute(

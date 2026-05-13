@@ -43,6 +43,8 @@ import warnings
 from collections import deque
 from typing import Deque, Dict, List, Optional
 
+from core.parameters.numerical_constants import EPSILON
+
 from iot_machine_learning.domain.entities.prediction import Prediction
 from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
@@ -249,7 +251,7 @@ class EnsembleWeightedPredictor(PredictionPort):
 
         # Renormalizar pesos
         total_w = sum(valid_weights)
-        if total_w < 1e-12:
+        if total_w < EPSILON.DIVISION:
             valid_weights = [1.0 / len(valid_weights)] * len(valid_weights)
         else:
             valid_weights = [w / total_w for w in valid_weights]
@@ -340,7 +342,7 @@ class EnsembleWeightedPredictor(PredictionPort):
                 avg_errors.append(1.0)  # Default si no hay data
 
         # Inverse weighting
-        inverse = [1.0 / (err + 1e-9) for err in avg_errors]
+        inverse = [1.0 / (err + EPSILON.DIVISION) for err in avg_errors]
         total = sum(inverse)
 
         new_weights = [max(_MIN_WEIGHT, inv / total) for inv in inverse]

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from statistics import mean, stdev
 from typing import Tuple, Optional, Dict
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
 from ..models.ml_features import MLFeatures
 
 logger = logging.getLogger(__name__)
@@ -182,7 +183,7 @@ class FeatureComputer:
     
     def _detect_pattern(self, trend_slope: float, stability_score: float, z_score: float) -> str:
         """Detect behavior pattern."""
-        if abs(z_score) > 3.0:
+        if abs(z_score) > STAT_THRESHOLDS.Z_SCORE_UPPER:
             return "ANOMALY"
         elif abs(trend_slope) > 0.1:
             return "TREND_" + ("UP" if trend_slope > 0 else "DOWN")

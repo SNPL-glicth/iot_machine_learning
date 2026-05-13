@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, Optional
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
 from iot_machine_learning.ml_service.config.ml_config import OnlineBehaviorConfig
 from iot_machine_learning.ml_service.sliding_window_buffer import WindowStats
 from ..models.online_analysis import OnlineAnalysis
@@ -150,7 +151,7 @@ class WindowAnalyzer:
             return "DRIFTING"
 
         # Spike: z_score muy alto
-        if abs(z_score_last) >= 3.0:
+        if abs(z_score_last) >= STAT_THRESHOLDS.Z_SCORE_UPPER:
             return "SPIKE"
 
         # Micro-variación

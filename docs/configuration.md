@@ -1,5 +1,7 @@
 ## Configuration
 
+**Última actualización:** 2026-05-12
+
 ### Feature Flags Reference
 
 Flags are loaded via `get_feature_flags()` on every call (hot-reload).

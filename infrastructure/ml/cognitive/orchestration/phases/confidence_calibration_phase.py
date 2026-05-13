@@ -101,8 +101,11 @@ class ConfidenceCalibrationPhase:
                 },
             )
             
-            # Update context with calibrated confidence
-            return ctx.with_field(fused_confidence=calibrated_confidence)
+            # Update context with calibrated confidence AND preserve raw
+            return ctx.with_field(
+                raw_fused_confidence=raw_confidence,
+                fused_confidence=calibrated_confidence
+            )
         
         except Exception as e:
             logger.error(

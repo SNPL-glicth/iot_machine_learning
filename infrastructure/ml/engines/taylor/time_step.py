@@ -8,12 +8,15 @@ against occasional outlier gaps (e.g., sensor downtime).
 Assumptions:
 - If timestamps is None or has < 2 elements, Δt = 1.0 (index-based).
 - Only positive diffs are considered (filters out-of-order points).
-- Minimum returned value is 1e-6 to prevent division by zero.
+- Minimum returned value is EPSILON.CONFIDENCE to prevent division by zero
+  in velocity/acceleration calculations (dt appears in denominators).
 """
 
 from __future__ import annotations
 
 from typing import List, Optional
+
+from core.parameters.numerical_constants import EPSILON
 
 
 def compute_dt(timestamps: Optional[List[float]]) -> float:
@@ -23,7 +26,7 @@ def compute_dt(timestamps: Optional[List[float]]) -> float:
         timestamps: Unix timestamps (optional).
 
     Returns:
-        Δt > 0. Minimum 1e-6.
+        Δt > 0. Minimum EPSILON.CONFIDENCE (1e-6) to prevent division by zero.
     """
     if timestamps is None or len(timestamps) < 2:
         return 1.0
@@ -44,4 +47,5 @@ def compute_dt(timestamps: Optional[List[float]]) -> float:
     else:
         dt = diffs_sorted[mid]
 
-    return max(dt, 1e-6)
+    # Prevent division by zero in derivative calculations (velocity = Δvalue/Δt)
+    return max(dt, EPSILON.CONFIDENCE)

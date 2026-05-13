@@ -23,6 +23,7 @@ import logging
 from collections import deque
 from typing import Deque, Dict, List, Optional
 
+from core.parameters.numerical_constants import STAT_THRESHOLDS
 from iot_machine_learning.domain.entities.anomaly import AnomalyResult, AnomalySeverity
 from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 from iot_machine_learning.domain.ports.anomaly_detection_port import AnomalyDetectionPort
@@ -185,10 +186,13 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
             # Use IQR method to estimate outlier rate
             q1, q3 = np.percentile(historical_values, [25, 75])
             iqr = q3 - q1
-            lower_bound = q1 - 1.5 * iqr
-            upper_bound = q3 + 1.5 * iqr
+            lower_bound = q1 - STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
+            upper_bound = q3 + STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
             outlier_count = sum(1 for v in historical_values if v < lower_bound or v > upper_bound)
-            dynamic_contamination = max(0.01, min(0.2, outlier_count / len(historical_values)))
+            dynamic_contamination = max(
+                STAT_THRESHOLDS.CONTAMINATION_MIN,
+                min(STAT_THRESHOLDS.CONTAMINATION_MAX, outlier_count / len(historical_values))
+            )
             
             # Update config contamination for IsolationForest and LOF
             self._config.contamination = dynamic_contamination

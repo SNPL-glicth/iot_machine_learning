@@ -1,20 +1,34 @@
 """Derivative estimation methods for the Taylor engine.
 
-Three methods with different accuracy/noise tradeoffs:
+Four methods with different accuracy/noise tradeoffs:
 
 1. **Backward differences** — O(Δt), uses only past data, amplifies noise.
 2. **Central differences** — O(Δt²), more accurate, symmetric stencil.
 3. **Least-squares fit** — noise-resistant, local polynomial fit.
+4. **Savitzky-Golay smoothed** (MATH-CRIT-1) — noise-resistant, adaptive window.
 
 All functions are pure (no I/O, no state, no logging).
 """
 
 from __future__ import annotations
 
-from typing import List
+import math
+from typing import List, Optional
+
+try:
+    from scipy.signal import savgol_filter
+    _SCIPY_AVAILABLE = True
+except ImportError:
+    _SCIPY_AVAILABLE = False
 
 from .least_squares import least_squares_fit as _ls_fit
 from .types import DerivativeMethod, TaylorCoefficients
+
+
+# MATH-CRIT-1: Configurable constants (no magic numbers)
+_MIN_WINDOW_SIZE: int = 5
+_DEFAULT_WINDOW_SIZE: int = 11
+_POLYORDER: int = 3
 
 
 def backward_differences(
@@ -111,10 +125,101 @@ def least_squares_fit(
     return result
 
 
+def savitzky_golay_smoothed(
+    values: List[float],
+    dt: float,
+    order: int,
+    window_size: Optional[int] = None,
+) -> TaylorCoefficients:
+    """Savitzky-Golay smoothed derivatives (MATH-CRIT-1).
+    
+    Uses scipy.signal.savgol_filter to compute smoothed derivatives,
+    reducing noise amplification from finite differences.
+    
+    Args:
+        values: Time series values.
+        dt: Time step between consecutive values.
+        order: Taylor expansion order (1-3).
+        window_size: Window size for filter (must be odd). If None, uses adaptive.
+    
+    Returns:
+        TaylorCoefficients with smoothed derivatives.
+    
+    Fallback:
+        If scipy not available or window too small, falls back to backward differences.
+    
+    Applies SRP: Smoothing is independent concern.
+    Applies LSP: Can be used as drop-in replacement for backward_differences.
+    """
+    n = len(values)
+    
+    # Fallback if scipy not available
+    if not _SCIPY_AVAILABLE:
+        return backward_differences(values, dt, order)
+    
+    # Determine adaptive window size
+    if window_size is None:
+        window_size = min(_DEFAULT_WINDOW_SIZE, n)
+    
+    # Ensure window is odd and >= minimum
+    if window_size % 2 == 0:
+        window_size -= 1
+    
+    if window_size < _MIN_WINDOW_SIZE or n < _MIN_WINDOW_SIZE:
+        # Fallback to backward differences
+        return backward_differences(values, dt, order)
+    
+    try:
+        # Smooth the signal (0th derivative)
+        smoothed = savgol_filter(values, window_size, _POLYORDER, deriv=0)
+        f_t = float(smoothed[-1])
+        
+        eff_order = min(order, 3)
+        
+        # First derivative
+        f1 = 0.0
+        if eff_order >= 1:
+            first_deriv = savgol_filter(values, window_size, _POLYORDER, deriv=1, delta=dt)
+            f1 = float(first_deriv[-1])
+        
+        # Second derivative
+        f2 = 0.0
+        if eff_order >= 2:
+            second_deriv = savgol_filter(values, window_size, _POLYORDER, deriv=2, delta=dt)
+            f2 = float(second_deriv[-1])
+        
+        # Third derivative (if requested)
+        f3 = 0.0
+        if eff_order >= 3:
+            # Third derivative can be noisy even with smoothing
+            # Use finite differences on smoothed second derivative
+            if n >= 2:
+                second_deriv = savgol_filter(values, window_size, _POLYORDER, deriv=2, delta=dt)
+                f3 = (second_deriv[-1] - second_deriv[-2]) / dt
+        
+        # Validate results are finite
+        if not all(math.isfinite(x) for x in [f_t, f1, f2, f3]):
+            return backward_differences(values, dt, order)
+        
+        return TaylorCoefficients(
+            f_t=f_t,
+            f_prime=f1,
+            f_double_prime=f2,
+            f_triple_prime=f3,
+            estimated_order=eff_order,
+            method="savitzky_golay",
+        )
+    
+    except Exception:
+        # Any scipy error: fallback to backward differences
+        return backward_differences(values, dt, order)
+
+
 _METHODS = {
     DerivativeMethod.BACKWARD: backward_differences,
     DerivativeMethod.CENTRAL: central_differences,
     DerivativeMethod.LEAST_SQUARES: least_squares_fit,
+    DerivativeMethod.SAVITZKY_GOLAY: savitzky_golay_smoothed,  # MATH-CRIT-1
 }
 
 

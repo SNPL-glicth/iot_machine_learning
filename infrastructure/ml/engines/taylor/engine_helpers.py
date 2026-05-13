@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, List, Optional
 
+from core.parameters.numerical_constants import EPSILON
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
 from .types import DerivativeMethod
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_VARIANCE_EPSILON: float = 1e-9
+_VARIANCE_EPSILON: float = EPSILON.DIVISION
 
 
 def sanitize_inputs(
