@@ -14,7 +14,7 @@ If you discover a security vulnerability in this project, please report it priva
 
 ### How to Report
 
-Send an email to the security team at: **security@zenin.io**
+Send an email to the security team at: **zeninenterprise8@gmail.com**
 
 Include the following information:
 - Description of the vulnerability

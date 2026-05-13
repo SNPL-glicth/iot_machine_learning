@@ -167,7 +167,20 @@ We aim for high test coverage. New features should include:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+This project is proprietary software with All Rights Reserved. The Zenin Team remains the sole owner of this codebase.
+
+**Important:**
+- Contributions are accepted only by explicit permission from the Zenin Team
+- By contributing, you agree that your contributions become exclusive property of Zenin Team
+- Contributors will be recognized for their contributions but will NOT gain ownership or rights to the code
+- Contributors will NOT become co-owners or partners in the project
+- Contributors have NO claim to the intellectual property
+- Contributors have NO rights to use their contributed code outside this project
+
+**Cloning this repository:**
+Cloning does NOT grant you any rights to use, modify, or distribute the code. The code remains proprietary property of Zenin Team regardless of cloning.
+
+For permission to use this software, contact: zeninenterprise8@gmail.com
 
 ## Recognition
 

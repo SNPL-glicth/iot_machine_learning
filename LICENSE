@@ -1,21 +1,37 @@
-MIT License
-
 Copyright (c) 2026 Zenin Team
+All Rights Reserved
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and its source code are the exclusive proprietary property of Zenin Team.
+The Zenin Team remains the sole owner of this codebase.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may NOT:
+- Use this software or its source code in your own projects
+- Modify, adapt, or create derivative works
+- Distribute, publish, or share copies of this software
+- Use this software for commercial purposes
+- Remove or alter this copyright notice
+- Claim ownership or rights to this code, even if you contribute
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You MAY:
+- Review the source code for educational and inspirational purposes
+- Learn from the architectural patterns and implementation approaches
+- Reference the design concepts in your own original implementations
+
+CLONING THIS REPOSITORY:
+Cloning this repository does NOT grant you any rights to use, modify, or distribute the code.
+The code remains proprietary property of Zenin Team regardless of cloning.
+By cloning, you agree to review the code for educational/inspirational purposes only.
+
+CONTRIBUTIONS:
+Contributors will be recognized for their contributions but will NOT:
+- Gain ownership or rights to the code
+- Become co-owners or partners in the project
+- Have any claim to the intellectual property
+- Have rights to use the contributed code outside this project
+
+All contributions become exclusive property of Zenin Team under the same restrictive terms.
+
+Any unauthorized use, copying, modification, or distribution of this software
+is strictly prohibited and may result in legal action.
+
+For permission to use this software, contact: zeninenterprise8@gmail.com
