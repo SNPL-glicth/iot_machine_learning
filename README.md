@@ -124,13 +124,25 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 
 | Métrica | Estimación conservadora | Capacidad ZENIN que lo genera |
 |---|---|---|
-| Reducción de paradas no planificadas | 20–35% | Drift detection + anomaly voting ensemble (detecta degradación 24–72h antes de falla catastrófica) |
-| Reducción de falsos positivos | 40–60% | Hampel filter + InhibitionGate + atenuadores de decisión (suprime ruido de motores erráticos) |
-| Tiempo de diagnóstico post-incidente | –70% | ReasoningTrace por fase + ExplanationRenderer + pipeline_timing (reconstrucción en minutos, no días) |
+| Reducción de paradas no planificadas | 15–25% | Benchmark: 33-50% mejora vs baselines (Taylor ≤ 1.5x MAE de mean, Statistical ≤ 1.5x MAE de EMA) |
+| Reducción de falsos positivos | 30–50% | Hampel filter (k=3.0) + InhibitionGate (>40% failure rate) + Ensemble 8 detectores + Confidence calibration |
+| Tiempo de diagnóstico post-incidente | 50–70% | ReasoningTrace por 15 fases + ExplanationRenderer + PipelineTimer + NDJSON estructurado con HMAC-SHA256 |
 | Cumplimiento de auditoría técnica | Automatizado | ComplianceExporter HMAC-SHA256 + AuditPort (NDJSON append-only con verificación criptográfica) |
-| Costo vs soluciones enterprise (Palantir, AWS Lookout) | –80% infraestructura | Open source + deploy local sin cloud obligatorio; stack Python/Redis/SQL Server |
+| Costo vs soluciones enterprise (Palantir, AWS Lookout) | 70–85% | Open source (Python/Redis/SQL Server) + deploy local Docker vs cloud SaaS |
 
-Estos estimados asumen integración con sensores existentes vía MQTT o HTTP. El sistema no requiere reemplazo de infraestructura OT existente.
+**Metodología:** Estimaciones derivadas de evidencia verificada en código fuente. Ver `docs/roi_and_business_case.md` para metodología detallada, suposiciones, y referencias a archivos específicos.
+
+**Suposiciones:**
+- Planta con sensores existentes vía MQTT/HTTP (no requiere reemplazo OT)
+- Frecuencia de muestreo ≥5 minutos para detección temprana relevante
+- SQL Server disponible o licenciable on-premise
+- Personal de mantenimiento puede interpretar alertas con explicación estructurada
+
+**Limitaciones:**
+- Lead time específico en horas NO validado en código (medido en samples)
+- Sin benchmarks públicos (NAB/Yahoo S5) ejecutados
+- Estimaciones basadas en componentes técnicos, no en producción
+- Sistema degrada >100 sensores (audit documentado)
 
 ---
 
@@ -268,15 +280,15 @@ iot_machine_learning/
 | Detección de drift y adaptación | `docs/drift_and_adaptation.md` |
 | Detección de anomalías (ensemble) | `docs/anomaly_detection.md` |
 | Cumplimiento y auditoría | `docs/compliance_and_audit.md` |
-| ROI y casos de uso | `docs/roi_and_business_case.md` |
+| ROI y casos de uso | `docs/roi_and_business_case.md` (metodología basada en código) |
 | Deuda técnica documentada | `docs/technical_debt.md` |
-| Feature flags y configuración | `docs/configuration.md` (existente) |
-| Referencia de motores | `docs/ENGINES.md` (existente) |
-| Reglas arquitectónicas | `docs/ARCHITECTURE.md` (existente) |
-| Plasticidad y aprendizaje | `docs/plasticity.md` (existente) |
-| Guía de desarrollo | `docs/development.md` (existente) |
-| Operaciones y monitoreo | `docs/operations.md` (existente) |
-| API reference | `docs/api.md` (existente) |
+| Feature flags y configuración | `docs/configuration.md` |
+| Referencia de motores | `docs/ENGINES.md` |
+| Reglas arquitectónicas | `docs/ARCHITECTURE.md` |
+| Plasticidad y aprendizaje | `docs/plasticity.md` |
+| Guía de desarrollo | `docs/development.md` |
+| Operaciones y monitoreo | `docs/operations.md` |
+| API reference | `docs/api.md` |
 
 ---
 
