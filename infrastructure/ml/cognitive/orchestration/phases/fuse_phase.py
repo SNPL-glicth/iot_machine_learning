@@ -173,14 +173,15 @@ class FusePhase:
         self,
         config: FusePhaseConfig = None,
         hampel_fallback_strategy: HampelFallbackStrategy = None,
+        temperature_scaler = None,
     ) -> None:
         """Initialize fuse phase with injectable configuration.
-        
+
         Args:
             config: FusePhaseConfig with all parameters. Defaults to standard config.
             hampel_fallback_strategy: Strategy for Hampel all-rejected case.
                 Defaults to MedianClosestFallbackStrategy.
-        
+
         Applies DIP: Dependencies are injected, not constructed internally.
         """
         self._config = config or FusePhaseConfig()

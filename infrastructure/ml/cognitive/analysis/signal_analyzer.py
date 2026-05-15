@@ -179,5 +179,4 @@ class SignalAnalyzer:
             accel_variance=accel_variance,
             trend_strength=trend_strength,
             regime=regime,
-            dt=dt,
         )

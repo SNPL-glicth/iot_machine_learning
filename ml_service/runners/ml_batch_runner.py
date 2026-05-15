@@ -107,8 +107,12 @@ class MLBatchRunner:
                 )
                 return None
         try:
-            adapter = self._enterprise_container.get_prediction_adapter()
-            logger.info("[ML_BATCH] Enterprise adapter obtained successfully")
+            if self._flags.ML_USE_COGNITIVE_ORCHESTRATOR:
+                adapter = self._enterprise_container.get_cognitive_adapter()
+                logger.info("[ML_BATCH] Cognitive orchestrator adapter obtained")
+            else:
+                adapter = self._enterprise_container.get_prediction_adapter()
+                logger.info("[ML_BATCH] Enterprise adapter obtained successfully")
             return adapter
         except Exception as exc:
             logger.exception("[ML_BATCH] Failed to get prediction adapter: %s", exc)

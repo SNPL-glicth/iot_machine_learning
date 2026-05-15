@@ -98,6 +98,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         # SEC-4: Rate limiter for DoS prevention
         self._rate_limiter = rate_limiter
         self._enable_rate_limiting = enable_rate_limiting and rate_limiter is not None
+        self._correlation_port = correlation_port
 
         # Core components
         self._engines = engines
@@ -233,7 +234,9 @@ class MetaCognitiveOrchestrator(PredictionEngine):
                 "flags_snapshot is required. Pass feature flags via constructor "
                 "or flags_snapshot parameter to enable testable injection."
             )
-        
+
+        flags_snapshot = kwargs['flags_snapshot']
+
         # OCP: Conditional branch for MoE architecture (does not modify existing logic)
         # DIP: Orchestrator delegates to MoEGateway (implements PredictionPort abstraction)
         if self._moe_gateway is not None and getattr(flags_snapshot, 'ML_MOE_ENABLED', False):

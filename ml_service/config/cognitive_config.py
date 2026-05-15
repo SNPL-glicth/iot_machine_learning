@@ -78,6 +78,9 @@ class CognitiveConfig(BaseModel):
     ML_ANOMALY_KEY_TTL_SECONDS: int = 3600
     ML_ANOMALY_TRACKER_BACKEND: str = "memory"  # memory | redis
 
+    # --- Orchestrator Integration (batch runner) ---
+    ML_USE_COGNITIVE_ORCHESTRATOR: bool = False  # Safe rollout: False until validated
+
     # --- Domain Boundary Check (EJE 4 fix) ---
     ML_DOMAIN_BOUNDARY_ENABLED: bool = False
 
@@ -95,6 +98,10 @@ class CognitiveConfig(BaseModel):
 
     # --- Narrative Unification (EJE 7 fix) ---
     ML_NARRATIVE_UNIFICATION_ENABLED: bool = False
+
+    # --- Pipeline optional phases (used by PipelineExecutorFactory) ---
+    ML_EXPLAINABILITY_ENABLED: bool = False
+    ML_NARRATIVE_ENABLED: bool = False
     
     # --- Zenin Deterministic Mode (Coherence Fix) ---
     ZENIN_DETERMINISTIC_MODE: bool = False

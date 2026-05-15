@@ -45,6 +45,7 @@ from iot_machine_learning.infrastructure.config.moe_factory import (
 from iot_machine_learning.infrastructure.ml.moe import MoEGateway
 
 from ..adapters.enterprise_prediction import EnterprisePredictionAdapter
+from ..adapters.orchestrator_prediction import OrchestratorPredictionAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class BatchEnterpriseContainer:
         # Lazy singletons (thread-safe container-level)
         self._audit: Optional[AuditPort] = None
         self._prediction_adapter: Optional[EnterprisePredictionAdapter] = None
+        self._cognitive_adapter: Optional[OrchestratorPredictionAdapter] = None
         self._moe_gateway: Optional[object] = None  # MoE gateway (lazy, solo si ML_MOE_ENABLED)
 
     @property
@@ -150,69 +152,70 @@ class BatchEnterpriseContainer:
                 logger.debug("MoE deshabilitado")
         return self._moe_gateway
 
+    def _build_prediction_engines(self):
+        """Build the canonical list of PredictionEngine instances.
+
+        Returns:
+            Tuple[List[PredictionEngine], Optional[MoEGateway]]:
+                Engines (PredictionEngine) and optional MoE gateway.
+        """
+        from iot_machine_learning.infrastructure.ml.engines.core import (
+            EngineFactory,
+        )
+
+        moe_gateway = self._get_or_create_moe_gateway()
+        if moe_gateway:
+            logger.info(
+                "prediction_adapter_moe_mode",
+                extra={"mode": "moe", "sparsity_k": 2},
+            )
+            return [moe_gateway], moe_gateway
+
+        logger.info(
+            "prediction_adapter_standard_mode",
+            extra={"mode": "standard"},
+        )
+        engines = []
+
+        # Baseline as fallback
+        baseline_engine = EngineFactory.create("baseline_moving_average")
+        engines.append(baseline_engine)
+
+        # Kalman
+        try:
+            kalman_engine = EngineFactory.create("kalman")
+            engines.insert(0, kalman_engine)
+        except Exception as exc:
+            logger.warning(
+                "container_kalman_init_failed",
+                extra={"error": str(exc)},
+            )
+
+        # Taylor if enabled
+        if self._flags.ML_USE_TAYLOR_PREDICTOR:
+            try:
+                taylor_engine = EngineFactory.create("taylor")
+                engines.insert(0, taylor_engine)
+            except Exception as exc:
+                logger.warning(
+                    "container_taylor_init_failed",
+                    extra={"error": str(exc)},
+                )
+
+        return engines, None
+
     def get_prediction_adapter(self) -> EnterprisePredictionAdapter:
         """Enterprise prediction adapter (singleton por container)."""
         if self._prediction_adapter is None:
             storage = self.get_storage()
             audit = self.get_audit()
 
-            # INTENTAR MODO MOE PRIMERO (si feature flag está activo)
-            moe_gateway = self._get_or_create_moe_gateway()
-            
-            if moe_gateway:
-                # MODO MOE: Usar gateway como único engine (internamente hace fusión)
-                logger.info(
-                    "prediction_adapter_moe_mode",
-                    extra={"mode": "moe", "sparsity_k": 2},
-                )
-                engines = [moe_gateway]  # MoEGateway implementa PredictionPort
-            else:
-                # MODO ESTÁNDAR: Fallback a selección tradicional de engines
-                logger.info(
-                    "prediction_adapter_standard_mode",
-                    extra={"mode": "standard"},
-                )
-                # Build engine list: baseline as fallback
-                from iot_machine_learning.infrastructure.ml.engines.core import (
-                    EngineFactory,
-                )
-
-                baseline_engine = EngineFactory.create("baseline_moving_average")
-                engines = [baseline_engine.as_port()]
-
-                # Add Kalman (robust to noise, covariance-based confidence)
-                try:
-                    from iot_machine_learning.infrastructure.ml.engines.core import (
-                        EngineFactory,
-                    )
-
-                    kalman_engine = EngineFactory.create("kalman")
-                    kalman_port = kalman_engine.as_port()
-                    engines.insert(0, kalman_port)
-                except Exception as exc:
-                    logger.warning(
-                        "container_kalman_init_failed",
-                        extra={"error": str(exc)},
-                    )
-
-                # Add Taylor if enabled
-                if self._flags.ML_USE_TAYLOR_PREDICTOR:
-                    try:
-                        from iot_machine_learning.infrastructure.ml.engines.core import (
-                            EngineFactory,
-                        )
-
-                        taylor_engine = EngineFactory.create("taylor")
-                        taylor_port = taylor_engine.as_port()
-                        engines.insert(0, taylor_port)
-                    except Exception as exc:
-                        logger.warning(
-                            "container_taylor_init_failed",
-                            extra={"error": str(exc)},
-                        )
+            engines, moe_gateway = self._build_prediction_engines()
+            # Convert PredictionEngine -> PredictionPort for PredictionDomainService
+            ports = [e.as_port() for e in engines]
 
             domain_service = PredictionDomainService(
-                engines=engines,
+                engines=ports,
                 audit=audit,
             )
 
@@ -246,9 +249,46 @@ class BatchEnterpriseContainer:
             from ...metrics.observability import get_observability
             obs = get_observability()
             for e in engines:
-                obs.engine_usage.record(e.name, -1)  # -1 = generic sensor (per-prediction tracking happens in adapter)
+                obs.engine_usage.record(e.name, -1)
 
         return self._prediction_adapter
+
+    def get_cognitive_adapter(self) -> OrchestratorPredictionAdapter:
+        """Cognitive orchestrator adapter (singleton por container)."""
+        if self._cognitive_adapter is None:
+            storage = self.get_storage()
+            audit = self.get_audit()
+
+            engines, _ = self._build_prediction_engines()
+
+            from iot_machine_learning.infrastructure.ml.cognitive.orchestration.orchestrator import (
+                MetaCognitiveOrchestrator,
+            )
+
+            orchestrator = MetaCognitiveOrchestrator(
+                engines=engines,
+                budget_ms=500.0,
+                enable_plasticity=True,
+                enable_advanced_plasticity=False,
+                enable_iterative=False,
+            )
+
+            self._cognitive_adapter = OrchestratorPredictionAdapter(
+                orchestrator=orchestrator,
+                storage=storage,
+                audit=audit,
+                flags=self._flags,
+            )
+
+            logger.info(
+                "container_cognitive_adapter_created",
+                extra={
+                    "engines": [e.name for e in engines],
+                    "plasticity": True,
+                },
+            )
+
+        return self._cognitive_adapter
 
     def close(self) -> None:
         """Cierra recursos abiertos."""
@@ -261,3 +301,4 @@ class BatchEnterpriseContainer:
             self._thread_local.connection = None
         self._thread_local.storage = None
         self._prediction_adapter = None
+        self._cognitive_adapter = None

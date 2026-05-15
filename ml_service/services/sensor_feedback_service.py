@@ -29,7 +29,7 @@ class SensorFeedbackService:
 
     def __init__(
         self,
-        orchestrator: "PredictionEngine",
+        orchestrator: Optional["PredictionEngine"],
         verification_repo: "PredictionVerificationRepository",
         pending_cache: "PendingPredictionCache",
         horizon_seconds: int,
@@ -103,11 +103,12 @@ class SensorFeedbackService:
         # 4. Remove from Redis cache
         self._cache.remove(series_id, match_id)
 
-        # 5. Feed back to orchestrator (and individual engines)
-        self._orchestrator.record_actual(
-            actual_value=reading_value,
-            series_id=series_id,
-        )
+        # 5. Feed back to orchestrator if available (cognitive mode)
+        if self._orchestrator is not None:
+            self._orchestrator.record_actual(
+                actual_value=reading_value,
+                series_id=series_id,
+            )
 
         logger.debug(
             "prediction_verified",
@@ -142,7 +143,12 @@ class SensorFeedbackService:
             )
             return None
 
-        # 2. Predict
+        # 2. Predict (requires orchestrator)
+        if self._orchestrator is None:
+            raise RuntimeError(
+                "predict_and_register requires an orchestrator. "
+                "Pass orchestrator=... to SensorFeedbackService."
+            )
         result = self._orchestrator.predict(
             series_id=series_id,
             values=values,
