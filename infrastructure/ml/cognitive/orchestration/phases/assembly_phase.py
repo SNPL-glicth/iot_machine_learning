@@ -172,6 +172,16 @@ class AssemblyPhase:
         
         return metadata
     
+    def _safe_serialize(self, obj: Any) -> Any:
+        """Serialize object to dict if possible, otherwise return None."""
+        if obj is None:
+            return None
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        if hasattr(obj, "__dict__"):
+            return obj.__dict__
+        return str(obj)
+
     def _build_cognitive_trace(self, ctx: PipelineContext) -> Dict[str, Any]:
         """GOLD: Build unified cognitive trace from all phase outputs."""
         trace = CognitiveTrace(assembly_timestamp=time.time())

@@ -200,7 +200,7 @@ class FusePhase:
         
         # IMP-2: pre-fusion Hampel outlier filter.
         filtered_perceptions, filtered_states, fusion_flags, hampel_diag = (
-            self._apply_hampel(ctx.perceptions, ctx.inhibition_states)
+            self._apply_hampel_filter(ctx.perceptions, ctx.inhibition_states)
         )
         
         # Perform fusion
@@ -277,14 +277,15 @@ class FusePhase:
         """
         flags: List[str] = []
         if not self._config.hampel_enabled or not perceptions:
-            return list(perceptions), list(inhibition_states), flags, {}
+            return list(perceptions), list(inhibition_states or []), flags, {}
         
         result = hampel_filter(perceptions, k=self._config.hampel_k)
         if not result.kept:
             # COG-CRIT-2: Use fallback strategy instead of bypass
+            states = inhibition_states or []
             selected_perceptions, selected_states, reason = (
                 self._hampel_fallback_strategy.select_fallback(
-                    perceptions, inhibition_states, result.median
+                    perceptions, states, result.median
                 )
             )
             flags.append(reason)
@@ -312,7 +313,8 @@ class FusePhase:
             )
         
         kept_names = {p.engine_name for p in result.kept}
-        filtered_states = [s for s in inhibition_states if s.engine_name in kept_names]
+        states = inhibition_states or []
+        filtered_states = [s for s in states if s.engine_name in kept_names]
         return result.kept, filtered_states, flags, result.to_dict()
     
     def _apply_field_smoothing(self, ctx: PipelineContext, fused_val: float) -> float:

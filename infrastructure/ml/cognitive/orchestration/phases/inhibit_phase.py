@@ -47,9 +47,11 @@ class InhibitPhase:
         signal_z_score = _compute_signal_z_score(ctx.values) if ctx.values else 0.0
         
         # Compute inhibition states
+        # Fallback to equal weights if plasticity_weights not available yet
+        weights = ctx.plasticity_weights or {p.engine_name: 1.0 / len(ctx.perceptions) for p in (ctx.perceptions or [])}
         inh_states = orchestrator._inhibition.compute(
             ctx.perceptions,
-            ctx.plasticity_weights,
+            weights,
             ctx.error_dict,
             series_id=ctx.series_id,
             signal_z_score=signal_z_score,
