@@ -22,6 +22,7 @@ import random
 import pytest
 
 from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 from iot_machine_learning.domain.validators.numeric import ValidationError
 
 
@@ -201,33 +202,47 @@ class TestTaylorColdStart:
         assert result.metadata["fallback"] == "insufficient_data"
 
 
-class TestTaylorNaNHandling:
-    """Manejo de datos corruptos."""
+class TestTaylorCorruptInputHandling:
+    """Manejo de datos corruptos: sanitize_inputs filtra silenciosamente."""
 
-    def test_nan_in_values_raises(self) -> None:
-        """NaN en la serie debe lanzar ValueError."""
+    def test_nan_in_values_returns_graceful_fallback(self) -> None:
+        """NaN en la serie → sanitize_inputs lo quita, posible fallback."""
         values = [1.0, 2.0, float("nan"), 4.0]
 
         engine = TaylorPredictionEngine(order=2, horizon=1)
+        result = engine.predict(values)
 
-        with pytest.raises(ValidationError, match="NaN"):
-            engine.predict(values)
+        assert isinstance(result, PredictionResult)
+        # Si quedan datos válidos tras filtrar, predice; si no, graceful fallback
+        if result.predicted_value is None:
+            assert result.confidence == 0.0
+            assert result.metadata.get("reason") in ("all_inputs_invalid", "insufficient_data")
+        else:
+            assert math.isfinite(result.predicted_value)
 
-    def test_inf_in_values_raises(self) -> None:
-        """Infinity en la serie debe lanzar ValueError."""
+    def test_inf_in_values_returns_graceful_fallback(self) -> None:
+        """Infinity en la serie → sanitize_inputs lo quita, posible fallback."""
         values = [1.0, 2.0, float("inf"), 4.0]
 
         engine = TaylorPredictionEngine(order=2, horizon=1)
+        result = engine.predict(values)
 
-        with pytest.raises(ValidationError, match="infinito"):
-            engine.predict(values)
+        assert isinstance(result, PredictionResult)
+        if result.predicted_value is None:
+            assert result.confidence == 0.0
+            assert result.metadata.get("reason") in ("all_inputs_invalid", "insufficient_data")
+        else:
+            assert math.isfinite(result.predicted_value)
 
-    def test_empty_values_raises(self) -> None:
-        """Serie vacía debe lanzar ValueError."""
+    def test_empty_values_returns_graceful_fallback(self) -> None:
+        """Serie vacía → sanitize_inputs retorna [], graceful fallback."""
         engine = TaylorPredictionEngine(order=2, horizon=1)
+        result = engine.predict([])
 
-        with pytest.raises(ValidationError, match="al menos"):
-            engine.predict([])
+        assert isinstance(result, PredictionResult)
+        assert result.predicted_value is None
+        assert result.confidence == 0.0
+        assert result.metadata.get("reason") == "all_inputs_invalid"
 
 
 class TestTaylorConstructor:

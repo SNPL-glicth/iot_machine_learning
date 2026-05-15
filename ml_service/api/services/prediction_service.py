@@ -86,8 +86,12 @@ class PredictionService:
 
         # Initialize use cases
         baseline_engine = EngineFactory.create("baseline_moving_average")
+        kalman_engine = EngineFactory.create("kalman")
         prediction_domain_service = PredictionDomainService(
-            engines=[baseline_engine.as_port()],
+            engines=[
+                kalman_engine.as_port(),
+                baseline_engine.as_port(),
+            ],
         )
 
         self._predict_use_case = PredictSensorValueUseCase(

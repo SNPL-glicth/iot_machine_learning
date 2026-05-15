@@ -200,6 +200,21 @@ class StatisticalPredictionEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        """Predict next value using EMA or Holt's method.
+
+        P4: Online alpha micro-adjustment happens in ``record_actual()``.
+        When data is non-stationary, falls back to EMA-only.
+
+        Args:
+            values: Time-series window.
+            timestamps: Ignored for this engine (kept for interface parity).
+
+        Returns:
+            PredictionResult with level, trend_component, alpha, beta metadata.
+
+        Raises:
+            ValueError: If values is empty.
+        """
         if not values:
             raise ValueError("values cannot be empty")
 
@@ -310,10 +325,11 @@ class StatisticalPredictionEngine(PredictionEngine):
         return False
     
     def record_actual(self, predicted: float, actual: float) -> None:
-        """Record actual value for re-optimization.
+        """Record actual value for online alpha adjustment + re-optimization.
 
-        Does NOT trigger re-optimization — caller must invoke
-        ``optimize()`` at a safe moment (e.g., between requests).
+        P4: Two-phase learning:
+        1. Online alpha micro-adjustment every call (fast, cheap).
+        2. Deferred full re-optimization via ``optimize()`` every 20 calls.
 
         Args:
             predicted: Predicted value
@@ -322,12 +338,39 @@ class StatisticalPredictionEngine(PredictionEngine):
         if not self._enable_optimization:
             return
 
+        error = abs(predicted - actual)
         self._prediction_history.append(actual)
         self._prediction_count += 1
 
-        # Defer re-optimization to external optimize() call
-        if self._prediction_count >= 50 and len(self._prediction_history) >= 20:
+        # P4: Online alpha micro-adjustment
+        self._online_adjust_alpha(error, actual)
+
+        # P4: Deferred full re-optimization threshold lowered from 50 → 20
+        if self._prediction_count >= 20 and len(self._prediction_history) >= 20:
             self._needs_reoptimization = True
+
+    def _online_adjust_alpha(self, error: float, actual: float) -> None:
+        """Micro-adjust alpha based on recent prediction error (P4).
+
+        Logic:
+        - Large error → increase alpha (more reactive to new data).
+        - Small error → decrease alpha (more smoothing, stable).
+        - Learning rate = 0.01, clamped to [0.05, 0.95].
+        """
+        scale = max(abs(actual), 1.0)
+        normalized_error = error / scale
+        lr = 0.01
+        # If error > 10% of scale, nudge alpha up; if < 10%, nudge down
+        delta = lr * (normalized_error - 0.1)
+        self._alpha = max(0.05, min(0.95, self._alpha + delta))
+        logger.debug(
+            "statistical_alpha_adjusted",
+            extra={
+                "alpha": round(self._alpha, 4),
+                "delta": round(delta, 6),
+                "normalized_error": round(normalized_error, 4),
+            },
+        )
 
     def optimize(self) -> None:
         """Trigger deferred re-optimization if threshold was reached.

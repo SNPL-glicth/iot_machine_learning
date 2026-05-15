@@ -51,7 +51,11 @@ class TaylorPredictionEngine(PredictionEngine):
     - Coefficient caching (enable_cache=True)
     - Performance tracking for confidence (enable_tracking=True)
     - Gap detection (enable_gap_detection=True)
-    
+
+    P2 features:
+    - Scale-relative trend threshold (threshold * std(values))
+    - Optional Savitzky-Golay pre-smoothing (smooth_window >= 3)
+
     HIDDEN ASSUMPTIONS (FASE-25):
     1. TIMESTAMPS REGULARES: Taylor asume timestamps equiespaciados
        para estimación de derivadas via diferencias finitas.
@@ -65,12 +69,6 @@ class TaylorPredictionEngine(PredictionEngine):
        taylor_config.py. Ver: ML_SAMPLING_FREQUENCY_HZ en cognitive_config.py.
     4. MONOTONIC TIME: Asume timestamps monotónicamente crecientes.
        Out-of-order timestamps producen derivadas negativas incorrectas.
-    5. TREND THRESHOLD SCALE-DEPENDENT: taylor_trend_threshold=0.01
-       es absoluto (no relativo a la escala del sensor).
-       Para sensores con valores en [0,1]: 0.01 es muy sensible.
-       Para sensores con valores en [0,1000]: 0.01 es insensible.
-       PENDING_CALIBRATION: Usar threshold relativo = 0.01 * sigma_sensor.
-       Ver ML_TAYLOR_TREND_THRESHOLD en taylor_config.py.
     """
 
     def __init__(
@@ -87,6 +85,7 @@ class TaylorPredictionEngine(PredictionEngine):
         cache_ttl_seconds: int = 300,
         enable_tracking: bool = True,
         enable_gap_detection: bool = True,
+        smooth_window: int = 0,
         series_id: Optional[str] = None,
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
         physical_min: Optional[float] = None,
@@ -102,6 +101,7 @@ class TaylorPredictionEngine(PredictionEngine):
         self._min_confidence = min_confidence
         self._max_confidence = max_confidence
         self._clamp_margin_pct = clamp_margin_pct
+        self._smooth_window = smooth_window
         self._series_id = series_id
         self._physical_min = physical_min
         self._physical_max = physical_max
@@ -139,6 +139,18 @@ class TaylorPredictionEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        """Run Taylor prediction with optional stationarity fallback.
+
+        Args:
+            values: Time-series window.
+            timestamps: Optional monotonic timestamps.
+
+        Returns:
+            PredictionResult with derivatives metadata.
+
+        Raises:
+            ValueError: If values is empty (after sanitize).
+        """
         # Validate stationarity if validator provided
         if self._stationarity_validator is not None and len(values) >= self._stationarity_validator.min_samples:
             data_array = np.array(values)
@@ -173,6 +185,11 @@ class TaylorPredictionEngine(PredictionEngine):
                         confidence=low_conf,
                         trend="stable",
                         engine_name=self.name,
+                        metadata={
+                            "fallback": "non_stationary",
+                            "engine": self.name,
+                            "recommendation": "use_simple_average",
+                        },
                     )
 
         return run_taylor_prediction(self, values, timestamps)

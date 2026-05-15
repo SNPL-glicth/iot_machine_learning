@@ -205,10 +205,10 @@ def create_statistical_expert(engine: PredictionPort) -> EngineExpertAdapter:
 
 def create_taylor_expert(engine: PredictionPort) -> EngineExpertAdapter:
     """Factory para experto taylor.
-    
+
     Args:
         engine: TaylorPredictionEngine.
-        
+
     Returns:
         Expert adaptado con capacidades apropiadas.
     """
@@ -223,4 +223,27 @@ def create_taylor_expert(engine: PredictionPort) -> EngineExpertAdapter:
             computational_cost=2.0,  # Más costoso
         ),
         name_override="taylor",
+    )
+
+
+def create_kalman_expert(engine: PredictionPort) -> EngineExpertAdapter:
+    """Factory para experto kalman.
+
+    Args:
+        engine: KalmanPredictionEngine.
+
+    Returns:
+        Expert adaptado con capacidades apropiadas.
+    """
+    return EngineExpertAdapter(
+        engine=engine,
+        capabilities=ExpertCapability(
+            regimes=("noisy", "volatile", "trending"),
+            domains=("iot",),
+            min_points=5,
+            max_points=500,
+            specialties=("noise_filtering", "confidence_intervals"),
+            computational_cost=1.5,
+        ),
+        name_override="kalman",
     )

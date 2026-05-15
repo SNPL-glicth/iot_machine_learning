@@ -180,6 +180,21 @@ class BatchEnterpriseContainer:
                 baseline_engine = EngineFactory.create("baseline_moving_average")
                 engines = [baseline_engine.as_port()]
 
+                # Add Kalman (robust to noise, covariance-based confidence)
+                try:
+                    from iot_machine_learning.infrastructure.ml.engines.core import (
+                        EngineFactory,
+                    )
+
+                    kalman_engine = EngineFactory.create("kalman")
+                    kalman_port = kalman_engine.as_port()
+                    engines.insert(0, kalman_port)
+                except Exception as exc:
+                    logger.warning(
+                        "container_kalman_init_failed",
+                        extra={"error": str(exc)},
+                    )
+
                 # Add Taylor if enabled
                 if self._flags.ML_USE_TAYLOR_PREDICTOR:
                     try:

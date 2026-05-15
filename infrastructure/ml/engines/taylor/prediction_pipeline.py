@@ -18,6 +18,7 @@ from .time_step import compute_dt
 from .polynomial import project
 from .coefficient_cache import TaylorCoefficientCache
 from .engine_helpers import (
+    apply_savgol_smoothing,
     sanitize_inputs,
     load_hyperparams,
     compute_taylor_coefficients,
@@ -74,6 +75,10 @@ def run_taylor_prediction(
     if not engine.can_handle(n):
         return taylor_fallback(values, engine._min_confidence, engine._horizon)
 
+    # P2: Optional Savitzky-Golay pre-smoothing before derivative estimation
+    if engine._smooth_window >= 3:
+        values = apply_savgol_smoothing(values, engine._smooth_window)
+
     # FASE 2: Check cache first
     window_hash = None
     if engine._cache and engine._series_id:
@@ -113,7 +118,7 @@ def run_taylor_prediction(
         physical_clamp_applied = True
         physical_clamp_direction = "max"
 
-    trend = classify_trend(coeffs.local_slope, engine._trend_threshold)
+    trend = classify_trend(coeffs.local_slope, engine._trend_threshold, values)
     diag = compute_diagnostic(coeffs, values, dt)
     base_confidence = confidence_from_stability(
         diag.stability_indicator,
@@ -144,6 +149,8 @@ def run_taylor_prediction(
         "diagnostic": diag.to_dict(),
         "structural_analysis": structural.to_dict(),
         "cache_hit": window_hash is not None and engine._cache is not None,
+        "smooth_window": engine._smooth_window,
+        "smoothing_applied": engine._smooth_window >= 3,
     }
 
     # FASE 2: Add performance metrics to metadata

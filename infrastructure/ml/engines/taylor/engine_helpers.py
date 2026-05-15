@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, List, Optional
 
+import numpy as np
+
 from core.parameters.numerical_constants import EPSILON
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
@@ -87,12 +89,59 @@ def compute_taylor_coefficients(
     return estimate_derivatives(values, dt, effective_order, method)
 
 
-def classify_trend(slope: float, threshold: float) -> str:
-    if slope > threshold:
+def classify_trend(
+    slope: float, threshold: float, values: Optional[List[float]] = None
+) -> str:
+    """Classify trend with scale-relative threshold (P2).
+
+    Args:
+        slope: Estimated local slope.
+        threshold: Base threshold (absolute) or relative multiplier.
+        values: Signal window used to compute relative scale. When provided,
+            effective_threshold = threshold * max(std(values), epsilon).
+            When None, uses threshold as absolute (legacy behaviour).
+    """
+    if values is not None and len(values) > 1:
+        sigma = float(np.std(values))
+        effective_threshold = threshold * max(sigma, EPSILON.COMPARISON)
+    else:
+        effective_threshold = threshold
+    if slope > effective_threshold:
         return "up"
-    if slope < -threshold:
+    if slope < -effective_threshold:
         return "down"
     return "stable"
+
+
+def apply_savgol_smoothing(values: List[float], window: int) -> List[float]:
+    """Apply Savitzky-Golay smoothing if scipy is available (P2).
+
+    Args:
+        values: Raw signal window.
+        window: Window length (must be >= 3 and odd; even values are bumped
+            to the next odd number). If window > len(values), no smoothing.
+
+    Returns:
+        Smoothed values if scipy is available and window is valid;
+        otherwise the original values unchanged.
+    """
+    n = len(values)
+    if n < 3 or window < 3:
+        return list(values)
+
+    # Ensure odd window and cap to data length
+    effective_window = min(window if window % 2 == 1 else window + 1, n)
+    if effective_window < 3:
+        return list(values)
+
+    try:
+        from scipy.signal import savgol_filter
+
+        smoothed = savgol_filter(values, window_length=effective_window, polyorder=2)
+        return [float(v) for v in smoothed]
+    except Exception:
+        # scipy unavailable or any numerical issue — graceful fallback
+        return list(values)
 
 
 def confidence_from_stability(

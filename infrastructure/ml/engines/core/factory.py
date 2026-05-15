@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections import deque
 from typing import Dict, List, Optional, Type
 
 from iot_machine_learning.infrastructure.ml.interfaces import (
@@ -32,6 +33,7 @@ class BaselineMovingAverageEngine(PredictionEngine):
 
     def __init__(self, *, window: Optional[int] = None) -> None:
         self._window = window
+        self._error_history: deque = deque(maxlen=50)
 
     @property
     def name(self) -> str:
@@ -64,6 +66,18 @@ class BaselineMovingAverageEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
+        """Predict via moving average with adaptive window (P3).
+
+        - Base window defaults to ``min(20, len(values))``.
+        - Effective window shrinks when noise_ratio is high.
+
+        Args:
+            values: Time-series window.
+            timestamps: Optional timestamps (ignored by baseline).
+
+        Returns:
+            PredictionResult with window, effective_window, noise_ratio metadata.
+        """
         values, timestamps = self._sanitize_inputs(values, timestamps)
         if not values:
             return PredictionResult(
@@ -78,22 +92,81 @@ class BaselineMovingAverageEngine(PredictionEngine):
             predict_moving_average,
         )
 
-        effective_window = self._window if self._window is not None else min(20, len(values))
-        if effective_window < 1:
-            effective_window = 1
+        base_window = self._window if self._window is not None else min(20, len(values))
+        if base_window < 1:
+            base_window = 1
+
+        # P3: adaptive window inversely proportional to noise_ratio
+        noise_ratio = self._compute_noise_ratio(values)
+        effective_window = max(
+            5, min(50, int(base_window / (noise_ratio + 0.1)))
+        )
+
         cfg = BaselineConfig(window=effective_window)
         predicted, confidence = predict_moving_average(values, cfg)
+
+        logger.debug(
+            "baseline_predict",
+            extra={
+                "window": base_window,
+                "effective_window": effective_window,
+                "noise_ratio": round(noise_ratio, 6),
+                "predicted": round(predicted, 4),
+            },
+        )
 
         return PredictionResult(
             predicted_value=predicted,
             confidence=confidence,
             trend="stable",
             metadata={
-                "window": effective_window,
+                "window": base_window,
+                "effective_window": effective_window,
+                "noise_ratio": round(noise_ratio, 6),
                 "fallback": None,
                 "clamped": False,
             },
         )
+
+    def _compute_noise_ratio(self, values: List[float]) -> float:
+        """Return std(values) / (mean_abs(values) + epsilon)."""
+        import statistics
+
+        n = len(values)
+        if n < 2:
+            return 0.0
+        try:
+            std = statistics.stdev(values)
+        except statistics.StatisticsError:
+            return 0.0
+        mean_abs = sum(abs(v) for v in values) / n
+        eps = 1e-12
+        return std / (mean_abs + eps)
+
+    def record_actual(self, predicted: float, actual: float) -> None:
+        """Record actual value for error tracking (P1).
+
+        Stores absolute error in a bounded deque so the cognitive
+        orchestrator can feed BayesianWeightTracker with per-engine
+        accuracy evidence.
+        """
+        error = abs(predicted - actual)
+        self._error_history.append(error)
+        logger.debug(
+            "baseline_actual_recorded",
+            extra={
+                "predicted": round(predicted, 4),
+                "actual": round(actual, 4),
+                "error": round(error, 4),
+                "history_size": len(self._error_history),
+            },
+        )
+
+    def recent_mae(self) -> Optional[float]:
+        """Return mean absolute error over recorded history."""
+        if not self._error_history:
+            return None
+        return sum(self._error_history) / len(self._error_history)
 
 
 class EngineFactory:

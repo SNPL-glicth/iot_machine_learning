@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from iot_machine_learning.infrastructure.ml.engines.core.factory import (
     BaselineMovingAverageEngine,
 )
@@ -21,13 +23,19 @@ class TestBaselineWindowFix:
         assert result.predicted_value == 20.0  # last 5 are all 20.0
 
     def test_factory_default_window_is_20_not_len_values(self) -> None:
-        """100 values, no window kwarg → engine uses last 20."""
+        """P3: window is adaptive. High noise_ratio extends effective_window.
+
+        With [10.0]*80 + [20.0]*20, noise_ratio ≈ 0.335, so
+        effective_window = 20 / (0.335 + 0.1) ≈ 45 (clamped to 50 max).
+        The last 45 values include 25×10.0 + 20×20.0 → avg ≈ 14.44.
+        """
         engine = BaselineMovingAverageEngine()
         values = [10.0] * 80 + [20.0] * 20
         result = engine.predict(values)
 
-        assert result.metadata["window"] == 20
-        assert result.predicted_value == 20.0
+        assert result.metadata["window"] == 20  # base window preserved
+        assert result.metadata["effective_window"] > 20  # adaptive extension
+        assert result.predicted_value == pytest.approx(14.44, abs=0.01)
 
     def test_window_larger_than_data_uses_all_data(self) -> None:
         """Graceful when window > len(values)."""

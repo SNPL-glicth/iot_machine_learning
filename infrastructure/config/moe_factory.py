@@ -22,6 +22,7 @@ from iot_machine_learning.infrastructure.ml.moe import (
 )
 from iot_machine_learning.infrastructure.ml.moe.expert_wrappers.engine_adapter import (
     create_baseline_expert,
+    create_kalman_expert,
     create_taylor_expert,
 )
 from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
@@ -86,6 +87,17 @@ def create_moe_gateway(
             logger.info("moe_expert_registered", extra={"expert": "taylor"})
     except Exception as exc:
         logger.warning("moe_taylor_expert_failed", extra={"error": str(exc)})
+
+    # Kalman expert (para señales ruidosas con tendencia)
+    try:
+        kalman_engine = EngineFactory.create("kalman")
+        kalman_expert = create_kalman_expert(kalman_engine.as_port())
+        registry.register("kalman", kalman_expert, kalman_expert.capabilities)
+        expert_count += 1
+        if enable_logging:
+            logger.info("moe_expert_registered", extra={"expert": "kalman"})
+    except Exception as exc:
+        logger.warning("moe_kalman_expert_failed", extra={"error": str(exc)})
     
     # Validar que al menos tenemos un experto
     if expert_count == 0:

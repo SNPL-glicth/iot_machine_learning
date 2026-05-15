@@ -25,11 +25,24 @@ from iot_machine_learning.infrastructure.ml.engines.core import (
 )
 from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
 from iot_machine_learning.infrastructure.ml.engines.statistical import StatisticalPredictionEngine
+# LightGBM movido a _experimental/ — ver docs/ENGINES.md
+# from iot_machine_learning.infrastructure.ml.engines.lightgbm import LightGBMPredictionEngine
+from iot_machine_learning.infrastructure.ml.engines.adaptive_ensemble import (
+    AdaptiveEnsembleEngine,
+)
+from iot_machine_learning.infrastructure.ml.engines.kalman import (
+    KalmanPredictionEngine,
+)
 # from iot_machine_learning.infrastructure.ml.engines.deprecated.ensemble_predictor import EnsembleWeightedPredictor
 
 # BaselineMovingAverageEngine ya se registra en core/factory.py
 EngineFactory.register("taylor", TaylorPredictionEngine)
 EngineFactory.register("statistical", StatisticalPredictionEngine)
+# LightGBM movido a _experimental/ — ver docs/ENGINES.md
+# EngineFactory.register("lightgbm", LightGBMPredictionEngine)
+# AdaptiveEnsembleEngine auto-registers via @register_engine
+EngineFactory.register("adaptive_ensemble", AdaptiveEnsembleEngine)
+EngineFactory.register("kalman", KalmanPredictionEngine)
 
 __all__ = [
     "EngineFactory",
@@ -38,5 +51,8 @@ __all__ = [
     "BaselineMovingAverageEngine",
     "TaylorPredictionEngine",
     "StatisticalPredictionEngine",
+    # "LightGBMPredictionEngine",  # movido a _experimental/
+    "AdaptiveEnsembleEngine",
+    "KalmanPredictionEngine",
     # "EnsembleWeightedPredictor",
 ]

@@ -11,25 +11,37 @@ Factory + registry + auto-discovery (2 files)
 - `factory.py` (212 lines) — `EngineFactory` central registry + `@register_engine` decorator + `discover_engines()` plugin discovery + `BaselineMovingAverageEngine` embedded fallback
 
 ### 📁 baseline/
-Simple moving average engine (2 files)
+Simple moving average engine with adaptive window (2 files)
 - `engine.py` (62 lines) — `predict_moving_average()` pure function + `BaselineConfig` + `BaselineMetadata`
+- `factory.py` (embedded) — `BaselineMovingAverageEngine` with adaptive window (P3) + `record_actual()` error tracking (P1)
 - `adapter.py` (82 lines) — **DEPRECATED** `BaselinePredictionAdapter` (PredictionPort wrapper)
 
 ### 📁 taylor/
-Taylor series prediction engine (9 files)
-- `engine.py` (172 lines) — `TaylorPredictionEngine` orchestrator
-- `adapter.py` (142 lines) — **DEPRECATED** `TaylorPredictionAdapter` + `KalmanFilterAdapter`
-- `math.py` (60 lines) — Backward-compat facade re-exporting all math functions
-- `types.py` (117 lines) — `TaylorCoefficients`, `TaylorDiagnostic`, `DerivativeMethod`
-- `derivatives.py` (103 lines) — `estimate_derivatives()` (backward, central, least_squares)
-- `polynomial.py` (65 lines) — `project()`, `compute_local_fit_error()`
-- `diagnostics.py` (75 lines) — `compute_diagnostic()`, stability analysis
-- `time_step.py` (34 lines) — `compute_dt()` robust Δt estimation
-- `least_squares.py` (83 lines) — Least-squares derivative estimation
+Taylor series prediction engine with scale-relative threshold and Savitzky-Golay smoothing (9 files)
+- `engine.py` (195 lines) — `TaylorPredictionEngine` orchestrator with optional `smooth_window` (P2)
+- `engine_helpers.py` (189 lines) — `sanitize_inputs()`, `classify_trend()` with scale-relative threshold (P2)
+- `prediction_pipeline.py` (188 lines) — Pipeline with Savitzky-Golay pre-smoothing when `smooth_window >= 3` (P2)
+- `types.py` (132 lines) — `TaylorCoefficients`, `TaylorDiagnostic`, `DerivativeMethod`
+- `derivatives.py` (129 lines) — backward_differences, central_differences, least_squares_fit
+- `polynomial.py` (86 lines) — `project()`, `compute_local_fit_error()`
+- `diagnostics.py` (95 lines) — `compute_accel_variance`, `compute_stability_indicator`
+- `time_step.py` (47 lines) — `compute_dt()` robust Δt estimation
+- `least_squares.py` (105 lines) — Least-squares derivative estimation
 
 ### 📁 statistical/
-EMA/Holt-based forecasting (1 file)
-- `engine.py` (179 lines) — `StatisticalPredictionEngine` double exponential smoothing
+EMA/Holt-based forecasting with online alpha adjustment (1 file)
+- `engine.py` (481 lines) — `StatisticalPredictionEngine` double exponential smoothing + online alpha micro-adjustment (P4)
+
+### 📁 lightgbm/
+Gradient-boosting regressor for non-linear patterns (3 files)
+- `engine.py` (226 lines) — `LightGBMPredictionEngine` with lazy lightgbm import + graceful fallback (P5)
+- `feature_builder.py` (141 lines) — Stateless feature extraction (delta, rolling mean, lag features)
+- `__init__.py` (5 lines) — Public exports
+
+### 📁 adaptive_ensemble/
+Regime-based meta-engine with fallback chain (2 files)
+- `engine.py` (170 lines) — `AdaptiveEnsembleEngine` routes noisy→Statistical, trending→Taylor, stable→Baseline (P6)
+- `__init__.py` (5 lines) — Public exports
 
 ### 📁 ensemble/
 Weighted combination of multiple engines (1 file)
@@ -63,7 +75,14 @@ engines/
 │   └── least_squares.py           ← Least-squares derivative estimation
 ├── statistical/                   ← Statistical engine
 │   ├── __init__.py
-│   └── engine.py                  ← StatisticalPredictionEngine (EMA/Holt)
+│   └── engine.py                  ← StatisticalPredictionEngine (EMA/Holt + online alpha)
+├── lightgbm/                      ← LightGBM regressor (optional dependency)
+│   ├── __init__.py
+│   ├── engine.py                  ← LightGBMPredictionEngine
+│   └── feature_builder.py       ← Stateless feature extraction
+├── adaptive_ensemble/             ← Regime-based meta-engine
+│   ├── __init__.py
+│   └── engine.py                  ← AdaptiveEnsembleEngine
 └── ensemble/                      ← Ensemble predictor
     ├── __init__.py
     └── predictor.py               ← EnsembleWeightedPredictor (PredictionPort, not PredictionEngine)
@@ -84,6 +103,8 @@ from infrastructure.ml.engines import (
     BaselineMovingAverageEngine,  # Embedded in factory
     TaylorPredictionEngine,
     StatisticalPredictionEngine,
+    LightGBMPredictionEngine,      # P5 (optional dependency)
+    AdaptiveEnsembleEngine,        # P6 (lightweight regime router)
     EnsembleWeightedPredictor,
 )
 
@@ -97,6 +118,8 @@ from infrastructure.ml.engines.taylor import (
     project,
 )
 from infrastructure.ml.engines.statistical import StatisticalPredictionEngine
+from infrastructure.ml.engines.lightgbm import LightGBMPredictionEngine
+from infrastructure.ml.engines.adaptive_ensemble import AdaptiveEnsembleEngine
 from infrastructure.ml.engines.ensemble import EnsembleWeightedPredictor
 ```
 
