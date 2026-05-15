@@ -302,6 +302,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             series_id=series_id,
             series_context=series_context,
             reliability_tracker=self._reliability_tracker,
+            engines=self._engines,
         )
 
     @property

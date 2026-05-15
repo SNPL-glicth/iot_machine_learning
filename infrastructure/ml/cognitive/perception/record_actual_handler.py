@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,7 @@ def record_actual_legacy(
     storage,
     series_id: Optional[str],
     reliability_tracker=None,
+    engines: Optional[List["PredictionEngine"]] = None,
 ) -> None:
     """Direct error tracking path.
 
@@ -64,6 +68,20 @@ def record_actual_legacy(
                 actual_value=actual_value,
             )
 
+    # Propagate actual value to individual engines for online learning
+    if engines:
+        engine_map = {e.name: e for e in engines}
+        for p in perceptions:
+            engine = engine_map.get(p.engine_name)
+            if engine is not None and hasattr(engine, "record_actual"):
+                try:
+                    engine.record_actual(p.predicted_value, actual_value)
+                except Exception as exc:
+                    logger.debug(
+                        "engine_record_actual_failed",
+                        extra={"engine": p.engine_name, "error": str(exc)},
+                    )
+
 
 def record_actual_dispatch(
     actual_value: float,
@@ -78,6 +96,7 @@ def record_actual_dispatch(
     series_id: Optional[str],
     series_context,
     reliability_tracker=None,
+    engines: Optional[List["PredictionEngine"]] = None,
 ) -> None:
     """Dispatch record_actual to the appropriate plasticity path.
 
@@ -125,4 +144,5 @@ def record_actual_dispatch(
             storage=storage,
             series_id=series_id,
             reliability_tracker=reliability_tracker,
+            engines=engines,
         )
