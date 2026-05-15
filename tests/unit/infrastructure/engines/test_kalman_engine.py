@@ -157,3 +157,64 @@ class TestKalmanEngine:
         engine.record_actual(predicted=10.0, actual=float("inf"))
 
         assert engine.recent_mae() == 0.0
+
+    def test_confidence_stable_on_constant_zero_signal(self) -> None:
+        """Constant zero signal does not collapse confidence."""
+        engine = KalmanPredictionEngine(warmup_size=5)
+        values = [0.0] * 20
+        result = engine.predict(values)
+
+        assert result.confidence > 0.0
+        assert result.confidence < 1.0
+        assert math.isfinite(result.confidence)
+
+    def test_repeated_predict_uses_cached_F(self) -> None:
+        """F matrix is cached by dt to avoid repeated allocation."""
+        from iot_machine_learning.infrastructure.ml.engines.kalman.kalman_cv_math import (
+            _F_CACHE, _get_F, initialize_cv_state, predict_cv,
+        )
+
+        # Clear cache for determinism
+        _F_CACHE.clear()
+        state = initialize_cv_state([1.0, 2.0, 3.0, 4.0, 5.0], dt=1.0)
+
+        for _ in range(50):
+            state = predict_cv(state, dt=1.0)
+
+        assert len(_F_CACHE) == 1
+        assert _get_F(1.0) is _get_F(1.0)
+
+    def test_multistep_process_noise_grows_cubically(self) -> None:
+        """Multi-step horizon uses Q(total_dt), not h*Q(dt)."""
+        values = [float(i) for i in range(20)]
+
+        engine1 = KalmanPredictionEngine(warmup_size=5, horizon=1)
+        engine2 = KalmanPredictionEngine(warmup_size=5, horizon=2)
+        engine3 = KalmanPredictionEngine(warmup_size=5, horizon=3)
+
+        r1 = engine1.predict(values)
+        r2 = engine2.predict(values)
+        r3 = engine3.predict(values)
+
+        p1 = r1.metadata["P_pos"]
+        p2 = r2.metadata["P_pos"]
+        p3 = r3.metadata["P_pos"]
+
+        assert p3 > p2 > p1
+        # With Q(total_dt) the growth accelerates (cubic in dt),
+        # so the gap h=2→3 should exceed the gap h=1→2.
+        gap_1_2 = p2 - p1
+        gap_2_3 = p3 - p2
+        assert gap_2_3 > gap_1_2
+
+    def test_adaptive_q_activates_after_3_innovations(self) -> None:
+        """Adaptive Q turns on once at least 3 innovations are collected."""
+        engine = KalmanPredictionEngine(warmup_size=5)
+        # Noisy signal to force Q adaptation
+        random.seed(42)
+        values = [10.0 + random.gauss(0, 5.0) for _ in range(25)]
+
+        result = engine.predict(values)
+
+        assert result.metadata["Q_adaptive"] is True
+        assert result.metadata["innovation_window"] >= 3
