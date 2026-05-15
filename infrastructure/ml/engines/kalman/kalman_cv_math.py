@@ -27,6 +27,20 @@ _MAX_Q_SCALE: float = 1.0
 # Default innovation window size for adaptive Q
 _DEFAULT_INNOVATION_WINDOW: int = 20
 
+# Constant matrices (avoid re-allocation per call)
+_H = np.array([[1.0, 0.0]], dtype=float)
+_I2 = np.eye(2, dtype=float)
+
+# F cache by dt value (avoid re-allocation per predict call)
+_F_CACHE: dict = {}
+
+
+def _get_F(dt: float) -> np.ndarray:
+    """Return cached state-transition matrix F for given dt."""
+    if dt not in _F_CACHE:
+        _F_CACHE[dt] = np.array([[1.0, dt], [0.0, 1.0]], dtype=float)
+    return _F_CACHE[dt]
+
 
 @dataclass
 class KalmanCVState:
@@ -182,7 +196,7 @@ def predict_cv(state: KalmanCVState, dt: float) -> KalmanCVState:
     Returns:
         New state after prediction (position/velocity updated, P grown).
     """
-    F = np.array([[1.0, dt], [0.0, 1.0]], dtype=float)
+    F = _get_F(dt)
 
     x_vec = np.array([state.x, state.v], dtype=float)
     x_pred = F @ x_vec
@@ -221,8 +235,8 @@ def update_cv(state: KalmanCVState, measurement: float) -> KalmanCVState:
     Returns:
         Updated state after correction.
     """
-    H = np.array([[1.0, 0.0]], dtype=float)
-    I2 = np.eye(2)
+    H = _H
+    I2 = _I2
 
     x_vec = np.array([state.x, state.v], dtype=float)
     y = measurement - float(np.dot(H[0], x_vec))

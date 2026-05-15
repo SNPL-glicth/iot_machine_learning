@@ -12,7 +12,6 @@ import math
 from collections import deque
 from typing import List, Optional
 
-from core.parameters.numerical_constants import CONFIDENCE, EPSILON
 
 from iot_machine_learning.infrastructure.ml.engines.core.factory import (
     register_engine,
@@ -22,7 +21,17 @@ from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionResult,
 )
 
-from .kalman_cv_math import initialize_cv_state, predict_cv, update_cv
+from .kalman_cv_math import initialize_cv_state, adaptive_cv_update
+from .engine_helpers import (
+    _fallback,
+    _predict_horizon,
+    build_metadata,
+    classify_trend,
+    compute_confidence,
+    detect_gap,
+    estimate_dt,
+    sanitize_inputs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,166 +87,53 @@ class KalmanPredictionEngine(PredictionEngine):
         values: List[float],
         timestamps: Optional[List[float]] = None,
     ) -> PredictionResult:
-        """Predict next value using 2D CV Kalman filter.
-
-        Flow:
-        1. Sanitize inputs (drop NaN/inf silently).
-        2. Check minimum points.
-        3. Estimate dt from timestamps.
-        4. Detect temporal gaps.
-        5. Initialize Kalman state from warmup.
-        6. Run sequential predict+update over remaining points.
-        7. Predict horizon steps ahead.
-        8. Compute scale-normalized confidence from P[0,0].
-        9. Degrade confidence during extended warmup.
-        10. Classify trend from velocity estimate.
-        11. Build metadata with confidence interval.
-        """
-        # a) Sanitize
-        clean_values, clean_timestamps = self._sanitize_inputs(
-            values, timestamps
-        )
+        """Predict next value using 2D CV Kalman filter."""
+        clean_values, clean_timestamps = sanitize_inputs(values, timestamps)
         n = len(clean_values)
 
-        # b) Check can_handle
         if not self.can_handle(n):
-            logger.warning(
-                "kalman_insufficient_data",
-                extra={
-                    "engine": "kalman",
-                    "n_points": n,
-                    "required": self._warmup_size,
-                },
-            )
-            fallback_value = (
-                sum(clean_values) / max(n, 1) if clean_values else 0.0
-            )
-            return PredictionResult(
-                predicted_value=fallback_value,
-                confidence=0.0,
-                trend="stable",
-                metadata={
-                    "reason": "insufficient_data",
-                    "engine": "kalman",
-                },
-            )
+            return _fallback(clean_values, n, self._warmup_size)
 
-        # c) Estimate dt
-        dt = self._estimate_dt(clean_timestamps, n)
+        dt = estimate_dt(clean_timestamps, n)
+        gap_detected = detect_gap(clean_timestamps, dt)
 
-        # d) Gap detection
-        gap_detected = False
-        if clean_timestamps is not None and len(clean_timestamps) >= 2:
-            gaps = [
-                clean_timestamps[i] - clean_timestamps[i - 1]
-                for i in range(1, len(clean_timestamps))
-            ]
-            if gaps and max(gaps) > 5.0 * dt:
-                gap_detected = True
-                logger.warning(
-                    "kalman_gap_detected",
-                    extra={
-                        "engine": "kalman",
-                        "max_gap": max(gaps),
-                        "threshold": 5.0 * dt,
-                        "dt": dt,
-                    },
-                )
-
-        # e) Initialize state from warmup
         warmup = clean_values[: self._warmup_size]
         state = initialize_cv_state(
-            warmup_values=warmup,
-            dt=dt,
-            Q_scale=self._q_scale,
+            warmup_values=warmup, dt=dt, Q_scale=self._q_scale,
         )
 
-        # f) Sequential update over all points post-warmup
         for measurement in clean_values[self._warmup_size :]:
-            state = predict_cv(state, dt)
-            state = update_cv(state, measurement)
+            state = adaptive_cv_update(state, measurement)
 
-        # g) Predict horizon h
-        for _ in range(self._horizon):
-            state = predict_cv(state, dt)
-
+        state = _predict_horizon(state, dt, self._horizon)
         predicted = state.x
-
-        # h) Confidence with scale correction
-        mean_val = sum(clean_values) / n
-        mean_abs = abs(mean_val)
-        std_val = math.sqrt(
-            sum((v - mean_val) ** 2 for v in clean_values) / n
-        )
-        scale = max(mean_abs, std_val, float(EPSILON.DIVISION))
-        k = 0.5 / scale
-
         P_pos = float(state.P[0, 0])
-        confidence = CONFIDENCE.MAX_CONFIDENCE / (
-            1.0 + k * math.sqrt(P_pos)
+
+        confidence, scale = compute_confidence(
+            P_pos, clean_values, n, self._warmup_size,
         )
-        confidence = max(
-            CONFIDENCE.MIN_CONFIDENCE,
-            min(CONFIDENCE.MAX_CONFIDENCE, confidence),
-        )
+        trend_dir = classify_trend(state.v, scale)
 
-        # i) Warmup degradation if n < warmup_size * 2
-        if n < self._warmup_size * 2:
-            progress = n / (self._warmup_size * 2)
-            confidence *= progress ** 2
-            confidence = max(CONFIDENCE.MIN_CONFIDENCE, confidence)
-
-        # j) Trend classification (scale-relative)
-        threshold_rel = 0.01 * scale
-        v_hat = state.v
-        if v_hat > threshold_rel:
-            trend_dir = "up"
-        elif v_hat < -threshold_rel:
-            trend_dir = "down"
-        else:
-            trend_dir = "stable"
-
-        # k) Metadata
         sigma_pos = math.sqrt(P_pos)
-        confidence_interval = (
-            predicted - 2.0 * sigma_pos,
-            predicted + 2.0 * sigma_pos,
-        )
+        confidence_interval = (predicted - 2.0 * sigma_pos,
+                               predicted + 2.0 * sigma_pos)
 
-        metadata: dict = {
-            "x_hat": round(state.x, 6),
-            "v_hat": round(state.v, 6),
-            "P_pos": round(P_pos, 6),
-            "P_vel": round(float(state.P[1, 1]), 6),
-            "R": round(state.R, 6),
-            "Q_vel": round(float(state.Q[1, 1]), 6),
-            "warmup_complete": state.initialized,
-            "horizon": self._horizon,
-            "dt": dt,
-            "gap_detected": gap_detected,
-            "confidence_interval": (
-                round(confidence_interval[0], 6),
-                round(confidence_interval[1], 6),
-            ),
-            "diagnostic": {
-                "stability_indicator": round(sigma_pos / scale, 4),
-                "local_fit_error": round(sigma_pos, 6),
-            },
-        }
+        metadata = build_metadata(
+            state, predicted, scale, gap_detected,
+            self._horizon, dt, confidence_interval,
+        )
 
         logger.debug(
             "kalman_predict",
             extra={
-                "engine": "kalman",
-                "n_points": n,
+                "engine": "kalman", "n_points": n,
                 "confidence": round(confidence, 4),
-                "v_hat": round(v_hat, 6),
+                "v_hat": round(state.v, 6),
                 "P_pos": round(P_pos, 6),
                 "warmup_complete": state.initialized,
                 "gap_detected": gap_detected,
             },
         )
-
         return PredictionResult(
             predicted_value=predicted,
             confidence=confidence,
@@ -278,46 +174,3 @@ class KalmanPredictionEngine(PredictionEngine):
             return 0.0
         return sum(self._error_history) / len(self._error_history)
 
-    # -- private helpers --------------------------------------------------
-
-    @staticmethod
-    def _sanitize_inputs(
-        values: List[float],
-        timestamps: Optional[List[float]],
-    ) -> tuple[List[float], Optional[List[float]]]:
-        """Filter NaN and inf silently."""
-        ts_iter = timestamps if timestamps is not None else [None] * len(values)
-        clean = [
-            (v, t)
-            for v, t in zip(values, ts_iter)
-            if v is not None
-            and not (v != v)  # NaN check
-            and abs(v) != float("inf")
-        ]
-        if not clean:
-            return [], None
-        c_values, c_timestamps_raw = zip(*clean)
-        c_timestamps = (
-            list(c_timestamps_raw) if timestamps is not None else None
-        )
-        return list(c_values), c_timestamps
-
-    @staticmethod
-    def _estimate_dt(
-        timestamps: Optional[List[float]],
-        n_points: int,
-    ) -> float:
-        """Estimate uniform time step from median of diffs."""
-        if timestamps is None or len(timestamps) < 2:
-            return 1.0
-        diffs = [
-            timestamps[i] - timestamps[i - 1]
-            for i in range(1, len(timestamps))
-        ]
-        if not diffs:
-            return 1.0
-        sorted_diffs = sorted(diffs)
-        mid = len(sorted_diffs) // 2
-        if len(sorted_diffs) % 2 == 1:
-            return float(sorted_diffs[mid])
-        return float((sorted_diffs[mid - 1] + sorted_diffs[mid]) / 2.0)
