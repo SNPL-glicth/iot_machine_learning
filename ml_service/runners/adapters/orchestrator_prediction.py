@@ -5,6 +5,7 @@ Mismo contrato que EnterprisePredictionAdapter para drop-in replacement.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import time
 from typing import TYPE_CHECKING, Optional
@@ -43,6 +44,9 @@ class OrchestratorPredictionAdapter:
         self._storage = storage
         self._audit = audit
         self._flags = flags
+        self._timeout_seconds = getattr(
+            flags, "ML_ORCHESTRATOR_TIMEOUT_S", 5.0
+        )
 
     def predict(
         self,
@@ -72,6 +76,35 @@ class OrchestratorPredictionAdapter:
                 exc, t0, sensor_window.sensor_id, sensor_window.size,
             )
 
+    def _run_with_timeout(self, fn, timeout_seconds: float = 5.0):
+        """Execute fn in a separate thread with a hard timeout.
+
+        Raises TimeoutError if fn does not complete within timeout_seconds.
+        Uses shutdown(wait=False) so a hung thread does not block the caller.
+        """
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(fn)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            executor.shutdown(wait=False)
+            logger.error(
+                "orchestrator_timeout",
+                extra={
+                    "timeout_seconds": timeout_seconds,
+                    "engine": "cognitive_orchestrator",
+                },
+            )
+            raise TimeoutError(
+                f"Orchestrator exceeded {timeout_seconds}s budget"
+            )
+        except Exception:
+            executor.shutdown(wait=False)
+            raise
+        else:
+            executor.shutdown(wait=False)
+
     def _predict_window(
         self,
         window: "SensorWindow",
@@ -81,11 +114,16 @@ class OrchestratorPredictionAdapter:
         values = [r.value for r in window.readings]
         timestamps = [r.timestamp for r in window.readings]
 
-        result = self._orchestrator.predict(
-            series_id=str(sensor_id),
-            values=values,
-            timestamps=timestamps,
-            flags_snapshot=self._flags,
+        def _do_predict():
+            return self._orchestrator.predict(
+                series_id=str(sensor_id),
+                values=values,
+                timestamps=timestamps,
+                flags_snapshot=self._flags,
+            )
+
+        result = self._run_with_timeout(
+            _do_predict, timeout_seconds=self._timeout_seconds
         )
 
         elapsed = (time.monotonic() - t0) * 1000.0

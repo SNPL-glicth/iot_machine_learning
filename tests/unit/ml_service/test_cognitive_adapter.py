@@ -134,3 +134,57 @@ class TestCognitiveAdapter:
             engine=MagicMock(), flags=flags,
         )
         assert hasattr(container2, "get_cognitive_adapter")
+
+    def test_predict_times_out_and_falls_back(self):
+        import time
+        from iot_machine_learning.ml_service.runners.adapters.orchestrator_prediction import (
+            OrchestratorPredictionAdapter,
+        )
+
+        # Mock orchestrator that sleeps longer than timeout
+        slow_orchestrator = MagicMock()
+
+        def slow_predict(*args, **kwargs):
+            time.sleep(10)
+            return MagicMock(
+                predicted_value=99.0,
+                confidence=0.5,
+                trend="stable",
+                metadata={},
+            )
+
+        slow_orchestrator.predict.side_effect = slow_predict
+
+        storage = MagicMock()
+        audit = MagicMock()
+
+        # Mock flags with timeout attribute (FeatureFlags is frozen dataclass)
+        flags = MagicMock()
+        flags.ML_ORCHESTRATOR_TIMEOUT_S = 0.5  # 500ms timeout for test
+        flags.ML_ENABLE_AUDIT_LOGGING = False
+
+        adapter = OrchestratorPredictionAdapter(
+            orchestrator=slow_orchestrator,
+            storage=storage,
+            audit=audit,
+            flags=flags,
+        )
+
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
+            Reading, SensorWindow,
+        )
+        readings = [
+            Reading(series_id="1", value=10.0, timestamp=0.0)
+            for _ in range(5)
+        ]
+        window = SensorWindow(series_id="1", readings=readings)
+
+        t0 = time.monotonic()
+        result = adapter.predict_with_window(window)
+        elapsed = time.monotonic() - t0
+
+        # Must return quickly (< 6 seconds, but ideally < 2s with 0.5s timeout + overhead)
+        assert elapsed < 3.0, f"Took {elapsed:.1f}s, expected < 3s"
+        # Must return a BatchPredictionResult (fallback), not raise
+        assert result is not None
+        assert result.predicted_value is not None
