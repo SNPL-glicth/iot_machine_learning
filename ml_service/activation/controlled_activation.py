@@ -44,7 +44,7 @@ class FeatureActivator:
     def _refresh_from_env(self) -> None:
         """Load configuration from environment (read-only after startup)."""
         # MoE configuration
-        self._state.moe_enabled_globally = os.environ.get("ML_MOE_ENABLED", "").lower() == "true"
+        self._state.moe_enabled_globally = os.environ.get("ML_MOE_AS_ENGINE", "").lower() == "true"
         whitelist_str = os.environ.get("ML_BATCH_ENTERPRISE_SENSORS", "")
         if whitelist_str:
             try:

@@ -41,6 +41,7 @@ class PipelineContext:
     neighbors: Optional[List] = None
     neighbor_values: Optional[Dict] = None
     plasticity_context: Optional[Any] = None
+    feature_context: Optional[Any] = None
     perceptions: Optional[List] = None
     error_dict: Optional[Dict[str, List[float]]] = None
     plasticity_weights: Optional[Dict[str, float]] = None
@@ -87,6 +88,7 @@ class PipelineContext:
             'neighbors': self.neighbors,
             'neighbor_values': self.neighbor_values,
             'plasticity_context': self.plasticity_context,
+            'feature_context': self.feature_context,
             'perceptions': self.perceptions,
             'error_dict': self.error_dict,
             'plasticity_weights': self.plasticity_weights,

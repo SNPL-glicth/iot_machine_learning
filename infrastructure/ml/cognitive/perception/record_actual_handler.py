@@ -30,6 +30,7 @@ def record_actual_legacy(
     series_id: Optional[str],
     reliability_tracker=None,
     engines: Optional[List["PredictionEngine"]] = None,
+    orchestrator_ref=None,
 ) -> None:
     """Direct error tracking path.
 
@@ -56,6 +57,25 @@ def record_actual_legacy(
             plasticity_tracker.update(
                 regime, p.engine_name, error, series_id=series_id
             )
+
+        # Fase 4: detección de drift por sensor
+        if orchestrator_ref is not None and series_id:
+            drift_detector = getattr(orchestrator_ref, "_drift_detector", None)
+            if drift_detector is not None:
+                equipment_class = "GENERIC"
+                profile_repo = getattr(orchestrator_ref, "_sensor_profile_repository", None)
+                if profile_repo is not None:
+                    try:
+                        sp = profile_repo.get_by_series_id(series_id)
+                        if sp is not None:
+                            equipment_class = sp.equipment_class.value
+                    except Exception:
+                        pass
+                alert = drift_detector.record_error(
+                    series_id=series_id, error=error, equipment_class=equipment_class
+                )
+                if alert is not None:
+                    logger.warning("prediction_drift_detected", extra={"series_id": alert.series_id, "current_mae": round(alert.current_mae, 4), "baseline_mae": round(alert.baseline_mae, 4), "sigma_distance": round(alert.sigma_distance, 2), "equipment_class": alert.equipment_class})
 
         if reliability_tracker is not None and series_id is not None:
             reliability_tracker.record_outcome(series_id, p.engine_name, error)
@@ -97,6 +117,7 @@ def record_actual_dispatch(
     series_context,
     reliability_tracker=None,
     engines: Optional[List["PredictionEngine"]] = None,
+    orchestrator_ref=None,
 ) -> None:
     """Dispatch record_actual to the appropriate plasticity path.
 
@@ -145,4 +166,5 @@ def record_actual_dispatch(
             series_id=series_id,
             reliability_tracker=reliability_tracker,
             engines=engines,
+            orchestrator_ref=orchestrator_ref,
         )

@@ -42,10 +42,21 @@ class InhibitPhase:
     def execute(self, ctx: PipelineContext) -> PipelineContext:
         """Execute inhibition phase."""
         orchestrator = ctx.orchestrator
-        
+
         # Compute signal z-score for anomaly override (CRIT-2)
         signal_z_score = _compute_signal_z_score(ctx.values) if ctx.values else 0.0
-        
+
+        # Fase 3: período de gracia post-evento (suprimir inhibición agresiva)
+        feature_ctx = getattr(ctx, "feature_context", None)
+        event_ctx = getattr(feature_ctx, "event_context", None) if feature_ctx else None
+
+        in_stabilization = event_ctx is not None and event_ctx.is_active
+        if in_stabilization:
+            logger.debug(
+                f"inhibit_stabilization_gate_active series={ctx.series_id} "
+                f"event={event_ctx.detected_event.value}"
+            )
+
         # Compute inhibition states
         # Fallback to equal weights if plasticity_weights not available yet
         weights = ctx.plasticity_weights or {p.engine_name: 1.0 / len(ctx.perceptions) for p in (ctx.perceptions or [])}
@@ -56,18 +67,28 @@ class InhibitPhase:
             series_id=ctx.series_id,
             signal_z_score=signal_z_score,
         )
-        
+
+        # Durante estabilización: reducir supresión al 50%
+        if in_stabilization:
+            from ...analysis.types import InhibitionState
+            inh_states = [
+                InhibitionState(
+                    engine_name=s.engine_name,
+                    base_weight=s.base_weight,
+                    inhibited_weight=s.base_weight * 0.5 + s.inhibited_weight * 0.5,
+                    inhibition_reason=f"stabilization_gate:{s.inhibition_reason}",
+                    suppression_factor=s.suppression_factor * 0.5,
+                )
+                for s in inh_states
+            ]
+
         # CRIT-2 FIX: Use resolved weights directly instead of non-existent _weight_mediator
-        # Plasticity weights are already resolved by AdaptPhase before InhibitPhase executes.
-        # The inhibition states are computed but we don't re-mediate weights (that was
-        # the old WeightMediator pattern which was replaced by WeightResolutionService).
-        # Instead, we use the plasticity_weights directly as the mediated_weights.
         mediated_weights = ctx.plasticity_weights
-        
+
         # Update explanation builder
-        if ctx.explanation and hasattr(ctx.explanation, 'set_inhibition'):
+        if ctx.explanation and hasattr(ctx.explanation, "set_inhibition"):
             ctx.explanation.set_inhibition(inh_states, mediated_weights)
-        
+
         return ctx.with_field(
             inhibition_states=inh_states,
             mediated_weights=mediated_weights,

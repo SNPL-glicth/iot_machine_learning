@@ -22,7 +22,7 @@ async def observability_metrics(_: str = Depends(verify_api_key)) -> Dict[str, A
     return {
         "observability": obs.to_dict(),
         "feature_flags_active": {
-            "ML_MOE_ENABLED": getattr(get_feature_flags(), 'ML_MOE_ENABLED', False),
+            "ML_MOE_AS_ENGINE": getattr(get_feature_flags(), 'ML_MOE_AS_ENGINE', False),
             "ML_USE_TAYLOR_PREDICTOR": getattr(get_feature_flags(), 'ML_USE_TAYLOR_PREDICTOR', False),
             "ML_BATCH_USE_ENTERPRISE": getattr(get_feature_flags(), 'ML_BATCH_USE_ENTERPRISE', False),
             "ML_COHERENCE_CHECK_ENABLED": getattr(get_feature_flags(), 'ML_COHERENCE_CHECK_ENABLED', False),

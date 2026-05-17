@@ -66,6 +66,12 @@ class PrometheusExporter:
         self._inhibition_events: int = 0
         self._drift_detectors: Dict[str, DataDriftDetector] = {}
         self._drift_alerts: int = 0
+        # MoE metrics
+        self._moe_expert_latency: Dict[str, List[MetricValue]] = defaultdict(list)
+        self._moe_regime_counter: Dict[str, int] = defaultdict(int)
+        self._moe_discrepancy_gauge: Dict[str, float] = {}
+        self._moe_fallback_counter: int = 0
+
     def record_latency(self, engine_name: str, latency_ms: float, series_id: Optional[str] = None) -> None:
         labels = {"engine_name": engine_name}
         if series_id:
@@ -90,6 +96,47 @@ class PrometheusExporter:
         with self._lock:
             detector = self._drift_detectors.get(series_id)
             return detector.is_drift_detected() if detector else False
+    def record_moe_expert_latency(self, expert_id: str, latency_ms: float, series_id: Optional[str] = None) -> None:
+        labels = {"expert_id": expert_id}
+        if series_id:
+            labels["series_id"] = series_id
+        with self._lock:
+            self._moe_expert_latency[expert_id].append(MetricValue(value=latency_ms, timestamp=time.time(), labels=labels))
+            if len(self._moe_expert_latency[expert_id]) > self._max_history:
+                self._moe_expert_latency[expert_id] = self._moe_expert_latency[expert_id][-self._max_history:]
+
+    def record_moe_regime(self, regime: str) -> None:
+        with self._lock:
+            self._moe_regime_counter[regime] += 1
+
+    def record_moe_discrepancy(self, series_id: str, score: float) -> None:
+        with self._lock:
+            self._moe_discrepancy_gauge[series_id] = score
+
+    def increment_moe_fallback(self) -> None:
+        with self._lock:
+            self._moe_fallback_counter += 1
+
+    def get_moe_expert_latency_stats(self, expert_id: str) -> Dict[str, float]:
+        with self._lock:
+            values = self._moe_expert_latency.get(expert_id, [])
+            if not values:
+                return {"p50": 0.0, "p95": 0.0, "avg": 0.0, "count": 0}
+            latencies = sorted([v.value for v in values])
+            n = len(latencies)
+            return {
+                "p50": latencies[int(n * 0.50)],
+                "p95": latencies[int(n * 0.95)] if n >= 20 else latencies[-1],
+                "avg": sum(latencies) / n,
+                "count": n,
+            }
+
+    def get_moe_fallback_rate(self, total_predictions: int) -> float:
+        with self._lock:
+            if total_predictions == 0:
+                return 0.0
+            return self._moe_fallback_counter / total_predictions
+
     def increment_anomaly_override(self, reason: str = "smart_inhibition") -> None:
         with self._lock:
             self._anomaly_counter += 1
@@ -144,6 +191,18 @@ class PrometheusExporter:
             lines.extend(["# HELP zenin_predictions_total Total predictions", "# TYPE zenin_predictions_total counter", f'zenin_predictions_total {self._prediction_counter}'])
             lines.extend(["# HELP zenin_errors_total Total errors", "# TYPE zenin_errors_total counter", f'zenin_errors_total {self._error_counter}'])
             lines.extend(["# HELP zenin_inhibition_events_total Engine inhibition events", "# TYPE zenin_inhibition_events_total counter", f'zenin_inhibition_events_total {self._inhibition_events}'])
+            # MoE metrics
+            lines.extend(["# HELP zenin_moe_expert_latency_ms MoE expert latency", "# TYPE zenin_moe_expert_latency_ms gauge"])
+            for expert_id, values in self._moe_expert_latency.items():
+                if values:
+                    lines.append(f'zenin_moe_expert_latency_ms{{expert_id="{expert_id}"}} {values[-1].value}')
+            lines.extend(["# HELP zenin_moe_regime_total MoE regime distribution", "# TYPE zenin_moe_regime_total counter"])
+            for regime, count in self._moe_regime_counter.items():
+                lines.append(f'zenin_moe_regime_total{{regime="{regime}"}} {count}')
+            lines.extend(["# HELP zenin_moe_discrepancy_score MoE fusion discrepancy", "# TYPE zenin_moe_discrepancy_score gauge"])
+            for series_id, score in self._moe_discrepancy_gauge.items():
+                lines.append(f'zenin_moe_discrepancy_score{{series_id="{series_id}"}} {score:.4f}')
+            lines.extend(["# HELP zenin_moe_fallback_total MoE fallback events", "# TYPE zenin_moe_fallback_total counter", f'zenin_moe_fallback_total {self._moe_fallback_counter}'])
         return "\n".join(lines)
     def get_metrics_summary(self) -> Dict:
         with self._lock:

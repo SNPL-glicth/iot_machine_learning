@@ -22,8 +22,10 @@ from .iterative_controller import CognitiveLoopController, IterationConfig
 from .error_history_manager import create_error_history_manager
 from .context_state_manager import ContextStateManager
 
-# MoE Gateway integration (optional dependency)
-from iot_machine_learning.infrastructure.ml.moe.gateway.moe_gateway import MoEGateway
+from iot_machine_learning.infrastructure.ml.moe.engine_weight_initializer import (
+    EquipmentTypeWeightInitializer,
+    StructuralEngineFilter,
+)
 from iot_machine_learning.infrastructure.security.rate_limiter import (
     RateLimiter,
     RateLimitConfig,
@@ -59,13 +61,15 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         enable_advanced_plasticity: bool = False,
         correlation_port=None,
         enable_iterative: bool = False,
-        moe_gateway: Optional[MoEGateway] = None,
         redis_client: Optional[Any] = None,
         hyperparameter_adaptor: Optional[HyperparameterAdaptor] = None,
         series_values_store: Optional[SeriesValuesStore] = None,
         compliance_exporter: Optional[Any] = None,
         rate_limiter: Optional[RateLimiter] = None,
         enable_rate_limiting: bool = True,
+        sensor_profile_repository: Optional[Any] = None,
+        weight_initializer: Optional[Any] = None,
+        engine_filter: Optional[Any] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -99,6 +103,11 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._rate_limiter = rate_limiter
         self._enable_rate_limiting = enable_rate_limiting and rate_limiter is not None
         self._correlation_port = correlation_port
+        self._sensor_profile_repository = sensor_profile_repository
+        self._weight_initializer = weight_initializer or EquipmentTypeWeightInitializer()
+        self._engine_filter = engine_filter or StructuralEngineFilter()
+        from iot_machine_learning.infrastructure.ml.moe.events.prediction_drift_detector import PredictionDriftDetector
+        self._drift_detector = PredictionDriftDetector()
 
         # Core components
         self._engines = engines
@@ -182,10 +191,6 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         else:
             self._loop_controller = None
         
-        # MoE Gateway (optional, for MoE architecture integration)
-        # DIP: Orchestrator depends on abstraction (PredictionPort), not concrete implementation
-        self._moe_gateway = moe_gateway
-
     @property
     def name(self) -> str:
         return "meta_cognitive_orchestrator"
@@ -237,33 +242,6 @@ class MetaCognitiveOrchestrator(PredictionEngine):
 
         flags_snapshot = kwargs['flags_snapshot']
 
-        # OCP: Conditional branch for MoE architecture (does not modify existing logic)
-        # DIP: Orchestrator delegates to MoEGateway (implements PredictionPort abstraction)
-        if self._moe_gateway is not None and getattr(flags_snapshot, 'ML_MOE_ENABLED', False):
-            # Use MoE Gateway for prediction
-            from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow, Reading
-            
-            # Create SensorWindow from values/timestamps
-            if timestamps is None:
-                timestamps = list(range(len(values)))
-            
-            readings = [
-                Reading(series_id=series_id, value=v, timestamp=float(ts))
-                for v, ts in zip(values, timestamps)
-            ]
-            window = SensorWindow(series_id=series_id, readings=readings)
-            
-            # Delegate to MoE Gateway (DIP: depends on PredictionPort abstraction)
-            moe_prediction = self._moe_gateway.predict(window)
-            
-            # Convert domain Prediction back to PredictionResult for compatibility
-            return PredictionResult(
-                predicted_value=moe_prediction.predicted_value,
-                confidence=moe_prediction.confidence,
-                trend=moe_prediction.trend,
-                metadata=moe_prediction.metadata,
-            )
-        
         # Track prediction count for this specific series
         self._state_manager.increment_prediction_count(series_id)
         
@@ -306,6 +284,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             series_context=series_context,
             reliability_tracker=self._reliability_tracker,
             engines=self._engines,
+            orchestrator_ref=self,
         )
 
     @property

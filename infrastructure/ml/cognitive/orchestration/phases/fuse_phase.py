@@ -200,7 +200,9 @@ class FusePhase:
         
         # IMP-2: pre-fusion Hampel outlier filter.
         filtered_perceptions, filtered_states, fusion_flags, hampel_diag = (
-            self._apply_hampel_filter(ctx.perceptions, ctx.inhibition_states)
+            self._apply_hampel_filter(
+                ctx.perceptions, ctx.inhibition_states, ctx.feature_context
+            )
         )
         
         # Perform fusion
@@ -263,23 +265,33 @@ class FusePhase:
         self,
         perceptions: List["EnginePerception"],
         inhibition_states: List["InhibitionState"],
+        feature_ctx: Optional[object] = None,
     ) -> Tuple[List["EnginePerception"], List["InhibitionState"], List[str], dict]:
         """Apply Hampel filter to reject outlier predictions.
-        
+
         Returns:
             * filtered perceptions
             * filtered inhibition states
             * flags (e.g. "hampel_all_rejected_using_median")
             * diagnostic dict
-        
+
         COG-CRIT-2: When all rejected, uses fallback strategy (default: median-closest)
         instead of bypassing filter.
         """
         flags: List[str] = []
         if not self._config.hampel_enabled or not perceptions:
             return list(perceptions), list(inhibition_states or []), flags, {}
-        
-        result = hampel_filter(perceptions, k=self._config.hampel_k)
+
+        # Fase 3: usar k adaptativo si hay SensorProfile o EventContext activo
+        sp = getattr(feature_ctx, "sensor_profile", None) if feature_ctx else None
+        ec = getattr(feature_ctx, "event_context", None) if feature_ctx else None
+        if sp is not None or (ec is not None and ec.is_active):
+            from ...fusion.hampel_filter import hampel_filter_with_profile
+            result = hampel_filter_with_profile(perceptions, sensor_profile=sp, event_context=ec)
+            if ec and ec.is_active:
+                logger.debug("hampel_adaptive_k", extra={"event": ec.detected_event, "profile": sp.equipment_class.value if sp else "none"})
+        else:
+            result = hampel_filter(perceptions, k=self._config.hampel_k)
         if not result.kept:
             # COG-CRIT-2: Use fallback strategy instead of bypass
             states = inhibition_states or []

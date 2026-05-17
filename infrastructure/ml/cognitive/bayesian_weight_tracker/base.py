@@ -183,25 +183,16 @@ class BayesianWeightTracker(
         # Converged if CV < threshold
         return cv < self._config.convergence_cv_threshold
     
-    def _estimate_data_variance(self, engine_name: str, min_samples: int = 5) -> Optional[float]:
-        """Estimate data variance from recent errors (MATH-CRIT-2).
-        
-        Args:
-            engine_name: Engine to estimate variance for.
-            min_samples: Minimum samples required for estimation.
-        
-        Returns:
-            Estimated variance or None if insufficient data.
-        
-        Applies DIP: Abstract method for variance estimation, mockeable in tests.
-        """
+    def _estimate_data_variance(
+        self, engine_name: str, min_samples: int = 5, series_id: Optional[str] = None
+    ) -> Optional[float]:
+        """Estimate data variance from recent errors (MATH-CRIT-2)."""
         if self._error_store is None:
             return None
-        
         try:
-            # Get recent errors from error store
+            effective_sid = series_id if series_id and series_id != "unknown" else "*"
             recent_errors = self._error_store.get_recent(
-                series_id="*",  # Aggregate across series for engine-level variance
+                series_id=effective_sid,
                 engine_name=engine_name,
                 n=self._config.variance_window,
             )

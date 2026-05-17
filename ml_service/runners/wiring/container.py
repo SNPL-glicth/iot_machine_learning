@@ -39,10 +39,6 @@ from iot_machine_learning.infrastructure.security.audit_logger import (
     NullAuditLogger,
 )
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
-from iot_machine_learning.infrastructure.config.moe_factory import (
-    create_moe_gateway_safe,
-)
-from iot_machine_learning.infrastructure.ml.moe import MoEGateway
 
 from ..adapters.enterprise_prediction import EnterprisePredictionAdapter
 from ..adapters.orchestrator_prediction import OrchestratorPredictionAdapter
@@ -79,7 +75,6 @@ class BatchEnterpriseContainer:
         self._audit: Optional[AuditPort] = None
         self._prediction_adapter: Optional[EnterprisePredictionAdapter] = None
         self._cognitive_adapter: Optional[OrchestratorPredictionAdapter] = None
-        self._moe_gateway: Optional[object] = None  # MoE gateway (lazy, solo si ML_MOE_ENABLED)
 
     @property
     def flags(self) -> FeatureFlags:
@@ -126,55 +121,16 @@ class BatchEnterpriseContainer:
                 self._audit = NullAuditLogger()
         return self._audit
 
-    def _get_or_create_moe_gateway(self) -> Optional[MoEGateway]:
-        """Lazy initialization de MoE gateway (solo si ML_MOE_ENABLED)."""
-        if self._moe_gateway is None:
-            # Verificar si MoE está habilitado (string "true" o boolean True)
-            moe_enabled = getattr(self._flags, 'ML_MOE_ENABLED', False)
-            if isinstance(moe_enabled, str):
-                moe_enabled = moe_enabled.lower() == 'true'
-            
-            if moe_enabled:
-                # CONTROLLED ACTIVATION: Log whitelist status for safety audit
-                whitelist_str = getattr(self._flags, 'ML_BATCH_ENTERPRISE_SENSORS', None)
-                mode = "whitelist" if whitelist_str else "global"
-                logger.info("MoE feature flag activo", extra={"flag": "ML_MOE_ENABLED", "mode": mode})
-                try:
-                    self._moe_gateway = create_moe_gateway_safe(sparsity_k=2)
-                    if self._moe_gateway:
-                        logger.info("MoE gateway activo con k=2")
-                    else:
-                        logger.warning("MoE gateway falló, usando fallback estándar")
-                except Exception as exc:
-                    logger.error(f"Error inicializando MoE: {exc}")
-                    self._moe_gateway = None
-            else:
-                logger.debug("MoE deshabilitado")
-        return self._moe_gateway
-
     def _build_prediction_engines(self):
         """Build the canonical list of PredictionEngine instances.
 
         Returns:
-            Tuple[List[PredictionEngine], Optional[MoEGateway]]:
-                Engines (PredictionEngine) and optional MoE gateway.
+            List[PredictionEngine]: Canonical engine list.
         """
         from iot_machine_learning.infrastructure.ml.engines.core import (
             EngineFactory,
         )
 
-        moe_gateway = self._get_or_create_moe_gateway()
-        if moe_gateway:
-            logger.info(
-                "prediction_adapter_moe_mode",
-                extra={"mode": "moe", "sparsity_k": 2},
-            )
-            return [moe_gateway], moe_gateway
-
-        logger.info(
-            "prediction_adapter_standard_mode",
-            extra={"mode": "standard"},
-        )
         engines = []
 
         # Baseline as fallback
@@ -202,7 +158,36 @@ class BatchEnterpriseContainer:
                     extra={"error": str(exc)},
                 )
 
-        return engines, None
+        # MoE as engine within pipeline (no reemplaza, agrega)
+        moe_as_engine = getattr(self._flags, 'ML_MOE_AS_ENGINE', False)
+        if isinstance(moe_as_engine, str):
+            moe_as_engine = moe_as_engine.lower() == 'true'
+        if moe_as_engine:
+            try:
+                moe_engine = self._create_moe_prediction_engine(baseline_engine)
+                if moe_engine:
+                    engines.insert(0, moe_engine)
+                    logger.info(
+                        "moe_as_engine_enabled",
+                        extra={"engine": "moe_engine", "fallback": "baseline"},
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "moe_as_engine_init_failed",
+                    extra={"error": str(exc)},
+                )
+
+        return engines
+
+    def _create_moe_prediction_engine(self, fallback_engine):
+        """Crea MoEPredictionEngine con expertos registrados."""
+        from iot_machine_learning.infrastructure.config.moe_factory import create_moe_engine
+        return create_moe_engine(
+            fallback_engine=fallback_engine.as_port(),
+            sparsity_k=2,
+            enable_shadow_gating=True,
+            ab_cell="B",
+        )
 
     def get_prediction_adapter(self) -> EnterprisePredictionAdapter:
         """Enterprise prediction adapter (singleton por container)."""
@@ -210,9 +195,45 @@ class BatchEnterpriseContainer:
             storage = self.get_storage()
             audit = self.get_audit()
 
-            engines, moe_gateway = self._build_prediction_engines()
+            engines = self._build_prediction_engines()
             # Convert PredictionEngine -> PredictionPort for PredictionDomainService
             ports = [e.as_port() for e in engines]
+
+            # Rollout gradual: envolver port MoE con RolloutPredictionPortBridge
+            moe_rollout = getattr(self._flags, 'ML_MOE_AS_ENGINE', False)
+            if isinstance(moe_rollout, str):
+                moe_rollout = moe_rollout.lower() == 'true'
+            if moe_rollout:
+                try:
+                    from iot_machine_learning.infrastructure.ml.moe.rollout.rollout_bridge import (
+                        RolloutPredictionPortBridge,
+                    )
+                    from iot_machine_learning.infrastructure.ml.moe.rollout.rollout_decider import (
+                        RolloutDecider,
+                    )
+                    # Encontrar port MoE y fallback (baseline)
+                    moe_port = None
+                    fallback_port = None
+                    for p in ports:
+                        if p.name == "moe_engine":
+                            moe_port = p
+                        if "baseline" in p.name.lower():
+                            fallback_port = p
+                    if moe_port and fallback_port:
+                        decider = RolloutDecider()
+                        bridge = RolloutPredictionPortBridge(
+                            engine=moe_port,
+                            fallback=fallback_port,
+                            decider=decider,
+                        )
+                        # Reemplazar port MoE con bridge
+                        ports = [bridge if p is moe_port else p for p in ports]
+                        logger.info(
+                            "moe_rollout_applied",
+                            extra={"percent": decider.percent},
+                        )
+                except Exception as exc:
+                    logger.warning("moe_rollout_failed", extra={"error": str(exc)})
 
             domain_service = PredictionDomainService(
                 engines=ports,
@@ -242,7 +263,7 @@ class BatchEnterpriseContainer:
                 extra={
                     "engines": [e.name for e in engines],
                     "audit_enabled": self._flags.ML_ENABLE_AUDIT_LOGGING,
-                    "moe_enabled": moe_gateway is not None,
+                    "moe_as_engine": getattr(self._flags, 'ML_MOE_AS_ENGINE', False),
                 },
             )
             # OBSERVABILITY: Track engine usage distribution
@@ -259,11 +280,26 @@ class BatchEnterpriseContainer:
             storage = self.get_storage()
             audit = self.get_audit()
 
-            engines, _ = self._build_prediction_engines()
+            engines = self._build_prediction_engines()
 
+            from iot_machine_learning.domain.repositories.sensor_profile_repository import (
+                SensorProfileRepository,
+            )
+            from iot_machine_learning.infrastructure.repositories.sql_sensor_profile_repository import (
+                SqlSensorProfileRepository,
+            )
+            from iot_machine_learning.infrastructure.ml.moe.engine_weight_initializer import (
+                EquipmentTypeWeightInitializer,
+                StructuralEngineFilter,
+            )
             from iot_machine_learning.infrastructure.ml.cognitive.orchestration.orchestrator import (
                 MetaCognitiveOrchestrator,
             )
+
+            # Fase 2: inyectar SensorProfileRepository al orchestrator
+            profile_repo = SqlSensorProfileRepository(self.get_connection())
+            weight_initializer = EquipmentTypeWeightInitializer()
+            engine_filter = StructuralEngineFilter()
 
             orchestrator = MetaCognitiveOrchestrator(
                 engines=engines,
@@ -271,6 +307,9 @@ class BatchEnterpriseContainer:
                 enable_plasticity=True,
                 enable_advanced_plasticity=False,
                 enable_iterative=False,
+                sensor_profile_repository=profile_repo,
+                weight_initializer=weight_initializer,
+                engine_filter=engine_filter,
             )
 
             self._cognitive_adapter = OrchestratorPredictionAdapter(

@@ -1,6 +1,6 @@
-"""Tests de integración para MoEGateway.
+"""Tests de integración para MoEGateway (legacy).
 
-Verifica flujo completo y feature flag ML_MOE_ENABLED.
+Verifica flujo completo básico.
 """
 
 import pytest
@@ -102,42 +102,25 @@ class TestMoEGatewayBasic:
         assert result.predicted_value == 14.0  # 10*0.6 + 20*0.4
 
 
-class TestFeatureFlag:
-    """Tests de feature flag."""
-    
-    def test_moe_disabled_uses_fallback(self):
-        """Si moe_enabled=false, usa fallback."""
-        gateway = MoEGateway(
-            registry=ExpertRegistry(),
-            gating=MockGatingNetwork({"baseline": 1.0}),
-            fusion=SparseFusionLayer(),
-            fallback_engine=MockFallbackEngine(),
-            moe_enabled=False,
-        )
-        
-        result = gateway.predict(create_test_window())
-        
-        assert result.predicted_value == 50.0  # Valor del fallback
-        assert result.metadata.get("source") == "fallback"
-    
-    def test_moe_enabled_executes_moe(self):
-        """Si moe_enabled=true, ejecuta MoE."""
+class TestMoEBasic:
+    """Tests de flujo básico MoE."""
+
+    def test_moe_executes(self):
+        """MoE ejecuta y retorna predicción."""
         registry = ExpertRegistry()
         baseline = MockExpert("baseline", _prediction=10.0)
         registry.register("baseline", baseline, baseline.capabilities)
-        
+
         gateway = MoEGateway(
             registry=registry,
             gating=MockGatingNetwork({"baseline": 1.0}),
             fusion=SparseFusionLayer(),
             fallback_engine=MockFallbackEngine(),
-            moe_enabled=True,
         )
-        
+
         result = gateway.predict(create_test_window())
-        
+
         assert "moe" in result.metadata
-        assert result.metadata["moe"]["enabled"] is True
 
 
 class TestSparsityK:
@@ -170,14 +153,16 @@ class TestGatewayName:
         gateway = MoEGateway(ExpertRegistry(), MockGatingNetwork({}), SparseFusionLayer(), MockFallbackEngine())
         assert gateway.name == "moe_gateway"
     
-    def test_can_handle_delegates_when_disabled(self):
-        """can_handle delega a fallback cuando MoE deshabilitado."""
+    def test_can_handle_with_empty_registry(self):
+        """can_handle retorna False con registry vacío y fallback que no puede."""
+        fallback = MockFallbackEngine()
+        # Cambiar can_handle para que falle
+        fallback.can_handle = lambda n: False
         gateway = MoEGateway(
             ExpertRegistry(),
             MockGatingNetwork({}),
             SparseFusionLayer(),
-            MockFallbackEngine(),
-            moe_enabled=False,
+            fallback,
         )
-        
-        assert gateway.can_handle(5) is True  # Fallback acepta >=1
+
+        assert gateway.can_handle(5) is False

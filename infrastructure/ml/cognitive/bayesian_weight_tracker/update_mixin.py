@@ -41,7 +41,9 @@ class UpdateMixin:
         series_id: Optional[str] = None,
         drift_score: Optional[float] = None,
     ) -> None:
-        namespaced_regime = f"{self._domain_namespace}:{regime}"
+        from .per_sensor_key import build_regime_key, build_fallback_key
+        namespaced_regime = build_regime_key(self._domain_namespace, regime, series_id)
+        global_key = build_fallback_key(self._domain_namespace, regime)
         if namespaced_regime not in self._accuracy and len(self._accuracy) >= self._config.max_regimes:
             coldest = min(self._regime_last_access, key=self._regime_last_access.get)
             del self._accuracy[coldest]
@@ -64,7 +66,7 @@ class UpdateMixin:
         # MATH-CRIT-2: Scale prior variance to data variance
         if engine_name not in self._priors[namespaced_regime]:
             # Estimate data variance from recent errors
-            data_var = self._estimate_data_variance(engine_name, min_samples=5)
+            data_var = self._estimate_data_variance(engine_name, min_samples=5, series_id=series_id)
             
             if data_var is not None:
                 # Scale prior variance to data scale

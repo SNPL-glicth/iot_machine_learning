@@ -12,7 +12,7 @@ Componentes principales:
 - GatingNetwork: Estrategias de routing (Strategy pattern)
 - SparseFusionLayer: Fusión de k expertos (no todos)
 - FusionWeights: Pesos normalizados de fusión
-- CapacityScheduler: Adaptación dinámica de carga
+- RolloutDecider: Rollout gradual por sensor_id hash
 
 Ejemplo de uso:
     >>> from infrastructure.ml.moe import MoEGateway, ExpertRegistry
@@ -33,7 +33,15 @@ Ejemplo de uso:
 from .registry import ExpertRegistry, ExpertEntry
 from .gateway.moe_gateway import MoEGateway, MoEMetadata
 from .fusion.sparse_fusion import SparseFusionLayer, FusionWeights
-from .scheduler import CapacityScheduler, SystemLoadMetrics, create_default_scheduler
+from .rollout.rollout_decider import RolloutDecider
+from .rollout.rollout_bridge import RolloutPredictionPortBridge
+from .metrics.moe_alert_service import MoEAlertService
+from .feature_context import FeatureContext
+from .gating.strategy import GatingStrategy
+from .gating.contextual_regime import ContextualRegimeGating
+from .fusion.discrepancy_aware import DiscrepancyAwareFusion
+from .engine.moe_prediction_engine import MoEPredictionEngine
+from .ab.moe_ab_logger import MoEABLogger, ABLogEntry
 
 # Gating strategies
 from .gating import (
@@ -61,15 +69,27 @@ __all__ = [
     "ExpertEntry",
     "SparseFusionLayer",
     "FusionWeights",
-    "CapacityScheduler",
-    "SystemLoadMetrics",
-    "create_default_scheduler",
+    "FeatureContext",
+    # Rollout
+    "RolloutDecider",
+    "RolloutPredictionPortBridge",
+    # Metrics
+    "MoEAlertService",
     # Gating
     "GatingNetwork",
     "GatingProbs",
     "RegimeBasedGating",
     "RegimeRoutingRule",
     "TreeGatingNetwork",
+    "GatingStrategy",
+    "ContextualRegimeGating",
+    # Fusion
+    "DiscrepancyAwareFusion",
+    # Engine
+    "MoEPredictionEngine",
+    # A/B
+    "MoEABLogger",
+    "ABLogEntry",
     # Adapters
     "EngineExpertAdapter",
     "EnsembleExpertAdapter",

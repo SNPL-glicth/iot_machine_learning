@@ -89,49 +89,56 @@ class AdaptPhase:
     def execute(self, ctx: PipelineContext) -> PipelineContext:
         """Execute adaptation phase."""
         orchestrator = ctx.orchestrator
-        
+
         # Get error dict scoped to series_id (CRIT-1)
         engine_names = [p.engine_name for p in ctx.perceptions]
         error_dict = orchestrator._error_history.get_error_dict_for_inhibition(
             ctx.series_id, engine_names
         )
-        
-        # Resolve plasticity weights using instance cache
-        plasticity_weights = self._weight_cache.get(ctx.series_id, ctx.regime)
-        if plasticity_weights is None:
-            plasticity_weights = orchestrator._weight_resolver.resolve(
-                regime=ctx.regime,
-                engine_names=engine_names,
-                series_id=ctx.series_id,
-            )
-            self._weight_cache.set(ctx.series_id, ctx.regime, plasticity_weights)
+
+        # Fase 2: use pre-calculated cold-start weights if available
+        if ctx.plasticity_weights is not None:
+            plasticity_weights = ctx.plasticity_weights
             logger.debug(
-                "adapt_phase_cache_miss",
-                extra={
-                    "series_id": ctx.series_id,
-                    "regime": ctx.regime,
-                    "cache_size": len(self._weight_cache._cache),
-                },
+                "adapt_phase_using_precalculated_weights",
+                extra={"series_id": ctx.series_id, "regime": ctx.regime, "source": "predict_phase_cold_start"},
             )
         else:
-            logger.debug(
-                "adapt_phase_cache_hit",
-                extra={
-                    "series_id": ctx.series_id,
-                    "regime": ctx.regime,
-                },
-            )
-        
+            plasticity_weights = self._weight_cache.get(ctx.series_id, ctx.regime)
+            if plasticity_weights is None:
+                plasticity_weights = orchestrator._weight_resolver.resolve(
+                    regime=ctx.regime,
+                    engine_names=engine_names,
+                    series_id=ctx.series_id,
+                )
+                self._weight_cache.set(ctx.series_id, ctx.regime, plasticity_weights)
+                logger.debug(
+                    "adapt_phase_cache_miss",
+                    extra={
+                        "series_id": ctx.series_id,
+                        "regime": ctx.regime,
+                        "cache_size": len(self._weight_cache._cache),
+                    },
+                )
+            else:
+                logger.debug(
+                    "adapt_phase_cache_hit",
+                    extra={
+                        "series_id": ctx.series_id,
+                        "regime": ctx.regime,
+                    },
+                )
+
         # Track adaptation status
         adapted = (
-            orchestrator._plasticity is not None and 
-            orchestrator._plasticity.has_history(ctx.regime)
+            orchestrator._plasticity is not None and
+            orchestrator._plasticity.has_history(ctx.regime, series_id=ctx.series_id)
         )
-        
+
         # Update explanation builder if available
         if ctx.explanation and hasattr(ctx.explanation, 'set_adaptation'):
             ctx.explanation.set_adaptation(adapted=adapted, regime=ctx.regime)
-        
+
         return ctx.with_field(
             error_dict=error_dict,
             plasticity_weights=plasticity_weights,

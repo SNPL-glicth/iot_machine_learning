@@ -70,7 +70,9 @@ class PredictionEnricher:
         }
         
         return Prediction(
-            series_id=str(window.sensor_id) if hasattr(window, 'sensor_id') else "unknown",
+            series_id=str(
+                getattr(window, 'series_id', getattr(window, 'sensor_id', 'unknown'))
+            ),
             predicted_value=prediction.predicted_value,
             confidence_score=prediction.confidence_score,
             trend=prediction.trend,

@@ -35,7 +35,7 @@ Edge cases:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Sequence, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 
 from ..analysis.types import EnginePerception
 
@@ -122,4 +122,24 @@ def hampel_filter(
     return HampelResult(kept=kept, rejected=rejected, median=median, mad=mad)
 
 
-__all__ = ["HampelResult", "hampel_filter", "MAD_GAUSSIAN_SCALE"]
+def hampel_filter_with_profile(
+    perceptions: List[Any],
+    *,
+    sensor_profile: Optional[object] = None,
+    event_context: Optional[object] = None,
+    min_perceptions: int = 3,
+) -> HampelResult:
+    """Wrapper de hampel_filter() que selecciona k y ventana desde SensorProfile."""
+    k = 3.0
+    if sensor_profile is not None:
+        k = getattr(sensor_profile, "hampel_k", 3.0)
+    if event_context is not None:
+        detected = getattr(event_context, "detected_event", None)
+        if detected is not None:
+            k *= 1.5
+    window = getattr(sensor_profile, "hampel_window", min_perceptions) if sensor_profile else min_perceptions
+    effective_min = max(min_perceptions, min(window, len(perceptions)))
+    return hampel_filter(perceptions, k=k, min_perceptions=effective_min)
+
+
+__all__ = ["HampelResult", "hampel_filter", "hampel_filter_with_profile", "MAD_GAUSSIAN_SCALE"]

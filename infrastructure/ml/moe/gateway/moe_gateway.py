@@ -1,11 +1,10 @@
-"""MoEGateway — Gateway principal de arquitectura Mixture of Experts.
+"""MoEGateway — Gateway principal de arquitectura Mixture of Experts (legacy).
 
 Implementa PredictionPort del dominio usando MoE internamente.
-Coordina: encoding → gating → dispatch → fusion → metadata.
-
-Feature flag ML_MOE_ENABLED: si false, delega a engine original.
+Coordena: gating → dispatch → fusion → metadata.
 
 Refactorizado: SRP - solo orquestación, lógica delegada a servicios.
+DEPRECATED: Usar MoEPredictionEngine como engine dentro del pipeline.
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ from ..registry.expert_registry import ExpertRegistry
 from ..gating.base import GatingNetwork
 from ..fusion.sparse_fusion import SparseFusionLayer
 
-from .context_encoder import ContextEncoderService
 from .expert_dispatcher import ExpertDispatcher
 from .prediction_enricher import PredictionEnricher, MoEMetadata
 
@@ -36,18 +34,12 @@ class MoEGateway(PredictionPort):
     4. ExpertDispatcher.dispatch() → ejecutar expertos
     5. SparseFusionLayer.fuse() → Prediction
     6. PredictionEnricher.enrich() → Prediction con metadata MoE
-    
-    Feature flag ML_MOE_ENABLED:
-    - true: Usa arquitectura MoE completa
-    - false: Delega a fallback_engine (modo compatibilidad)
-    
     Args:
         registry: Catálogo de expertos.
         gating: Estrategia de routing.
         fusion: Capa de fusión.
-        fallback_engine: Engine original para modo compatibilidad.
+        fallback_engine: Engine original para fallback.
         sparsity_k: Número de expertos a ejecutar (default 2).
-        moe_enabled: Feature flag para activar/desactivar MoE.
     """
     
     def __init__(
@@ -57,17 +49,14 @@ class MoEGateway(PredictionPort):
         fusion: SparseFusionLayer,
         fallback_engine: PredictionPort,
         sparsity_k: int = 2,
-        moe_enabled: bool = True,
     ):
         self._registry = registry
         self._gating = gating
         self._fusion = fusion
         self._fallback = fallback_engine
         self._sparsity_k = sparsity_k
-        self._moe_enabled = moe_enabled
-        
+
         # Servicios extraídos (SRP)
-        self._context_encoder = ContextEncoderService()
         self._dispatcher = ExpertDispatcher(registry)
         self._enricher = PredictionEnricher()
     
@@ -77,20 +66,16 @@ class MoEGateway(PredictionPort):
         return "moe_gateway"
     
     def predict(self, window: SensorWindow) -> Prediction:
-        """Genera predicción usando MoE o fallback según feature flag.
-        
+        """Genera predicción usando MoE.
+
         Args:
             window: Ventana temporal de lecturas.
-            
+
         Returns:
             Prediction del dominio.
         """
-        if not self._moe_enabled:
-            # Feature flag desactivado: delegar a engine original
-            return self._fallback.predict(window)
-        
         return self._predict_moe(window)
-    
+
     def _predict_moe(self, window: SensorWindow) -> Prediction:
         """Flujo completo de predicción MoE.
         
@@ -101,11 +86,16 @@ class MoEGateway(PredictionPort):
             Prediction con metadata MoE.
         """
         start_time = time.perf_counter()
-        
-        # 1. Encode context
-        context = self._context_encoder.encode(window)
-        
-        # 2. Gating: distribución sobre expertos
+
+        # 1. Gating: distribución sobre expertos
+        from iot_machine_learning.domain.model.context_vector import ContextVector
+        values = [r.value for r in window.readings]
+        context = ContextVector(
+            regime="stable",
+            domain="iot",
+            n_points=len(values),
+            signal_features={"mean": sum(values) / max(len(values), 1)},
+        )
         gating_result = self._gating.route(context)
         
         # 3. Select top-k expertos
@@ -149,11 +139,17 @@ class MoEGateway(PredictionPort):
         Returns:
             True si puede generar predicción.
         """
-        if not self._moe_enabled:
-            return self._fallback.can_handle(n_points)
-        
-        # Delegar al dispatcher para verificar capacidad
-        return self._dispatcher.can_any_expert_handle(n_points)
+        # Verificar capacidad directamente via registry (dispatcher no expone esto)
+        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow, SensorReading
+        dummy_window = SensorWindow(
+            series_id="_can_handle_check",
+            readings=[SensorReading(value=0.0, timestamp=float(i)) for i in range(n_points)],
+        )
+        for expert_id in self._registry.list_all():
+            expert = self._registry.get(expert_id)
+            if expert and expert.can_handle(dummy_window):
+                return True
+        return False
     
     def get_stats(self) -> Dict[str, Any]:
         """Estadísticas del gateway.
@@ -162,7 +158,6 @@ class MoEGateway(PredictionPort):
             Dict con métricas de operación.
         """
         return self._enricher.get_stats(
-            moe_enabled=self._moe_enabled,
             sparsity_k=self._sparsity_k,
             registry_size=len(self._registry),
             gating_type=self._gating.__class__.__name__,
