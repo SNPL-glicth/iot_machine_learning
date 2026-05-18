@@ -99,6 +99,10 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 | ContextStateManager (R-1) | Aislamiento de estado por serie. LRU eviction (max_series=10000). `get_state(series_id)` retorna estado aislado. | Elimina condiciones de carrera entre series concurrentes. Thread-safe con RLock. |
 | WeightResolutionService consolidado | Base weights → plasticity adaptation → inhibition → final weights. Consolidado de Phase 3 refactor. | Single source of truth para resolución de pesos. Elimina duplicación de lógica. |
 | Governance system | Registry, bounds, tuning, scaling. GovernanceInitializer en startup. | Centraliza configuración dinámica de hiperparámetros por serie. |
+| Equipment Awareness (Fase 1) | `SensorProfile` + `EquipmentClass` (PASTEURIZER, CIP, FILLER, PET_BLOWER, CONVEYOR, SILO, GENERIC). Defaults por equipo: noise_floor, setpoint_tolerance, hampel_k, hampel_window, operational_range. `SqlSensorProfileRepository` carga desde dbo.sensors + dbo.devices. | Clasificación de régimen ajustada por perfil de equipo. Pasteurizador acepta std=0.4 como estable; FILLER usa hampel_k=4.0. |
+| MoE Infrastructure | `MoERegistry` + `ContextualRegimeGating` + `FeatureContext` + expert wrappers. Routing por régimen + equipment_class. Tests: `test_moe_engine.py`, `test_moe_foundation.py`. | Gating contextual: PASTEURIZER/stable → Taylor domina; FILLER/stable → Statistical domina; FILLER/volatile → Taylor excluido. |
+| Controlled Activation | `FeatureActivator` singleton. Flags progresivos: `ML_MOE_AS_ENGINE`, `ML_BATCH_ENTERPRISE_SENSORS` (whitelist), `ML_COHERENCE_CHECK_ENABLED`, `ML_DECISION_ARBITER_ENABLED`. Safe default: False. | Rollout progresivo sin riesgo. Whitelist de sensores enterprise para MoE. Recomendaciones automáticas de seguridad. |
+| ImpactSignalDetector (texto) | `detect_impact_signals()` → `ImpactSignalResult`. 5 categorías: critical_markers, sla_breach, extreme_metrics, temporal_risk, cascade_risk. Multi-category bonus (2× → 1.15×, 3× → 1.3×). | Fórmula 3 ejes: urgency×0.30 + sentiment×0.20 + impact×0.50. Hard override si 3+ categorías. |
 
 ---
 
@@ -108,7 +112,7 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 |-----------|---------------|--------|-------|
 | TextCognitiveEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/text/engine.py:41`), **NO usado en pipeline numérico de 15 fases** | Pipeline documental/API separado. Analiza reportes de mantenimiento en texto. |
 | HybridNeuralEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/neural/hybrid_engine.py:27`), **NO usado en pipeline numérico** | Bridge en `neural_bridge.py` para análisis documental. No integrado en `MetaCognitiveOrchestrator`. |
-| MoEGateway | `docs/ENGINES.md` | Infraestructura presente (`infrastructure/ml/moe/gateway/moe_gateway.py`), **NO confirmado en producción** | Rama condicional en `orchestrator.py:239` si `ML_MOE_ENABLED=True`. Flag `ML_MOE_ENABLED` no documentado en config base. Tests de integración son stubs. |
+| MoEGateway | `docs/ENGINES.md` | Infraestructura completa (`infrastructure/ml/moe/`), **activable progresivamente** | `FeatureActivator` con whitelist (`ML_BATCH_ENTERPRISE_SENSORS`) y flag `ML_MOE_AS_ENGINE`. Tests reales: `test_moe_engine.py`, `test_moe_foundation.py`. Controlled activation evita riesgo en producción. |
 | SNNLayer with STDP | `docs/ENGINES.md` | No verificado en pipeline numérico | Mencionado en documentación de motores. No encontrado en fases del pipeline. |
 | CognitiveMemory / Weaviate | `cognitive_config.py` | Infraestructura presente, `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto | Stub de integración. No activo en pipeline numérico. |
 | Attention mechanism | `cognitive_config.py` | `ML_ENABLE_ATTENTION=false` por defecto | Documentado como "too slow for CPU". No activo. |
@@ -160,8 +164,12 @@ Toda capacidad en esta tabla tiene su implementación verificada en el código f
 | Escalabilidad >1000 sensores | ⚠️ Degrada >100 (estimado) | ✅ Alta | ✅ Alta | ✅ Alta |
 | Benchmark público NAB/Yahoo S5 | ❌ Pendiente | ✅ Validado | ✅ Validado | ✅ Validado |
 | Equipo de ciencia de datos requerido | ⚠️ 1 ingeniero ML para tuning | ❌ No (managed) | ❌ No (managed) | ✅ Sí (especialista) |
+| Equipment awareness (perfiles por tipo de equipo) | ✅ SensorProfile + EquipmentClass + defaults por equipo | ❌ No nativo | ❌ No nativo | ❌ Requiere desarrollo |
+| MoE routing contextual por régimen + equipo | ✅ ContextualRegimeGating + expert wrappers | ❌ No nativo | ❌ No nativo | ❌ Requiere desarrollo |
+| Análisis de impacto en texto (reportes de mantenimiento) | ✅ TextCognitiveEngine + ImpactSignalDetector (5 categorías) | ❌ No nativo | ❌ No nativo | ⚠️ Con NLP externo |
+| Rollout progresivo con whitelist | ✅ FeatureActivator + ML_BATCH_ENTERPRISE_SENSORS | ❌ No nativo | ❌ No nativo | ❌ No nativo |
 
-ZENIN gana en **transparencia arquitectónica**, **decisión contextual con guardrails**, y **costo de infraestructura**. Pierde en **escalabilidad masiva out-of-the-box** y **benchmarks públicos validados**.
+ZENIN gana en **transparencia arquitectónica**, **decisión contextual con guardrails**, **equipment awareness**, y **costo de infraestructura**. Pierde en **escalabilidad masiva out-of-the-box** y **benchmarks públicos validados**.
 
 ---
 
@@ -222,7 +230,8 @@ iot_machine_learning/
 │   │   ├── decision/     # Decision, DecisionContext, SimulatedOutcome
 │   │   ├── explainability/ # Explanation, Outcome, ReasoningTrace, ContributionBreakdown
 │   │   ├── threshold/    # Threshold, ThresholdSeverity
-│   │   └── severity/     # AnomalySeverity, SeverityClassifier
+│   │   ├── severity/     # AnomalySeverity, SeverityClassifier
+│   │   └── sensor_profile/ # SensorProfile, EquipmentClass (PASTEURIZER, CIP, FILLER, etc.)
 │   ├── ports/            # StoragePort, AuditPort, DecisionEnginePort, AnomalyDetectionPort, etc.
 │   ├── policies/         # ThresholdPolicy, DecisionPolicy
 │   ├── services/         # AnomalyDomainService, PredictionDomainService, MemoryRecallEnricher
@@ -236,7 +245,9 @@ iot_machine_learning/
 │   │   │   ├── bayesian_weight_tracker/ # 28 archivos (adaptive LR, contextual, drift)
 │   │   │   ├── analysis/  # SignalAnalyzer, types
 │   │   │   ├── perception/ # collect_perceptions() con timeout (IMP-2)
-│   │   │   └── explanation/ # ExplanationBuilder (infra → domain)
+│   │   │   ├── explanation/ # ExplanationBuilder (infra → domain)
+│   │   │   ├── text/      # TextCognitiveEngine, ImpactSignalDetector, severity_mapper
+│   │   │   └── compliance/ # ComplianceExporter, NDJSON + HMAC-SHA256
 │   │   ├── engines/      # Taylor, Statistical, Seasonal, Baseline
 │   │   │   ├── taylor/   # 14 archivos (derivatives, least_squares, coefficient_cache)
 │   │   │   ├── statistical/ # EMA/Holt, param_optimizer
@@ -247,7 +258,9 @@ iot_machine_learning/
 │   │   │   └── scoring/  # Anomaly scoring
 │   │   ├── filters/      # Kalman, EMA, Median, Hampel, FilterChain
 │   │   ├── interfaces.py # PredictionEngine, PredictionPort, PredictionEnginePortBridge
-│   │   └── moe/          # MoEGateway (optional, OCP integration)
+│   │   └── moe/          # MoE full infrastructure: registry, gating, experts, gateway, rollout
+│   ├── repositories/     # SqlSensorProfileRepository, InMemorySensorProfileRepository
+│   │   # Equipment-aware profiles from dbo.sensors + dbo.devices with defaults per EquipmentClass
 │   ├── persistence/      # Redis, SQL Server, repositorios
 │   ├── resilience/       # CircuitBreaker (CLOSED/OPEN/HALF_OPEN)
 │   ├── security/         # Rate limiting, validación de entrada, SecretRedactor
@@ -264,6 +277,7 @@ iot_machine_learning/
 │   ├── api/              # Routes (routes.py, routes_cognitive.py, routes_governance.py)
 │   ├── api/services/     # PredictionService, CognitiveService
 │   ├── governance/       # GovernanceInitializer (registry, bounds, tuning, scaling)
+│   ├── activation/       # FeatureActivator — controlled rollout of MoE, coherence, arbiter
 │   └── metrics/          # Observability, MetricsCollector
 ├── tests/                # Unit, integration, stress, property-based, meta-tests arquitectónicos
 └── docs/                 # Documentación técnica (ver índice abajo)
@@ -281,10 +295,9 @@ iot_machine_learning/
 | Detección de anomalías (ensemble) | `docs/anomaly_detection.md` |
 | Cumplimiento y auditoría | `docs/compliance_and_audit.md` |
 | ROI y casos de uso | `docs/roi_and_business_case.md` (metodología basada en código) |
-| Deuda técnica documentada | `docs/technical_debt.md` |
 | Feature flags y configuración | `docs/configuration.md` |
 | Referencia de motores | `docs/ENGINES.md` |
-| Reglas arquitectónicas | `docs/ARCHITECTURE.md` |
+| Reglas arquitectónicas | `docs/architecture.md` |
 | Plasticidad y aprendizaje | `docs/plasticity.md` |
 | Guía de desarrollo | `docs/development.md` |
 | Operaciones y monitoreo | `docs/operations.md` |
