@@ -1,327 +1,295 @@
-# ZENIN — Motor de Decisión Cognitiva para Operaciones Industriales
-
-Predicción de anomalías en sensores IoT, fusión de motores con pesos bayesianos adaptativos por régimen de señal, y decisión automatizada con trazabilidad auditável. Diseñado para plantas industriales latinoamericanas con sensores heterogéneos, equipos de mantenimiento limitados, y presión regulatoria creciente.
-
+# ZENIN
+### Motor de Decisión Cognitiva para Operaciones Industriales
+ 
+> Pipeline de predicción IoT con Mixture of Experts, fusión bayesiana adaptativa y trazabilidad auditável — diseñado para plantas industriales con sensores heterogéneos.
+ 
 ---
-
-## El Problema
-
-Las plantas industriales operan con uno o más de estos dolores:
-
-- **Máquinas que fallan sin aviso** — los sensores generan datos, pero nadie los cruza con el historial de mantenimiento hasta que la falla es costosa.
-- **Sistemas de monitoreo con falsos positivos constantes** — umbrales fijos disparan alarmas en horas pico; en horario nocturno el operador las ignora por costumbre.
-- **Decisiones de parada por intuición** — el supervisor decide si detener la línea basado en experiencia, no en una puntuación de riesgo trazable.
-- **Auditorías que consumen semanas** — cuando llega el cliente o el regulador, reconstruir qué pasó requiere revisar logs de 3 sistemas distintos.
-
-## Cómo lo Resuelve ZENIN
-
-1. **Ingesta** — lecturas de sensores vía MQTT o HTTP.
-2. **Sanitización** — NaN/Inf se detectan antes de cualquier cálculo; valores extremos se suavizan con ventana local ±6σ.
-3. **Percepción** — clasifica la señal en régimen (`STABLE`, `TRENDING`, `VOLATILE`, `NOISY`, `TRANSITIONAL`) y mide ruido.
-4. **Predicción concurrente** — múltiples motores (Taylor, estadístico, seasonal, baseline) predicen con timeout por motor (400ms default).
-5. **Adaptación bayesiana** — pesos por régimen se actualizan con inferencia bayesiana (prior gaussiano, σ²_obs empírica por motor), no con EMA fijo.
-6. **Inhibición** — motores con error reciente alto se suprimen antes de la fusión.
-7. **Fusión** — filtro Hampel (~3σ) descarta percepciones atípicas; consenso ponderado genera valor y confianza.
-8. **Detección de anomalías** — ensemble de 8 sub-detectores con votación ponderada adaptativa.
-9. **Decisión contextual** — 8 amplificadores + 3 atenuadores ajustan severidad. Acciones: `ESCALATE` / `INVESTIGATE` / `MONITOR` / `LOG_ONLY`.
-10. **Explicación y auditoría** — cada predicción lleva reasoning trace por fase. Exporte NDJSON con HMAC-SHA256.
-
-```mermaid
-flowchart LR
-    subgraph Input
-        A1[Sensor MQTT]
-        A3[API HTTP]
-    end
-
-    subgraph Pipeline["Pipeline Cognitivo (15 fases)"]
-        B1[Sanitize]
-        B2[BoundaryCheck]
-        B3[SeasonalDecomp]
-        B4[Perceive]
-        B5[DriftDetection]
-        B6[Predict]
-        B7[Adapt]
-        B8[Inhibit]
-        B9[Fuse]
-        B10[DecisionArbiter]
-        B11[CoherenceCheck]
-        B12[ConfidenceCalib]
-        B13[Explain]
-        B14[ActionGuard]
-        B15[NarrativeUnification]
-    end
-
-    subgraph Output
-        C1[Predicción + Confianza]
-        C2[Anomalía + Severidad]
-        C3[Decisión AUTO/ASK/DENY]
-        C4[Audit NDJSON HMAC]
-    end
-
-    A1 --> B1
-    A3 --> B1
-    B1 --> B2 --> B3 --> B4 --> B5 --> B6 --> B7 --> B8 --> B9 --> B10 --> B11 --> B12 --> B13 --> B14 --> B15
-    B15 --> C1
-    B15 --> C2
-    B15 --> C3
-    B15 --> C4
+ 
+## ¿Qué problema resuelve?
+ 
+| Dolor | Cómo lo resuelve ZENIN |
+|-------|------------------------|
+| Máquinas que fallan sin aviso | Predicción continua con 4 engines especializados + detección de drift por sensor |
+| Falsos positivos constantes | Hampel filter adaptativo por equipo + InhibitionGate + Ensemble de 8 detectores |
+| Decisiones de parada por intuición | Score de riesgo trazable con `ESCALATE / INVESTIGATE / MONITOR / LOG_ONLY` |
+| Auditorías que consumen semanas | NDJSON append-only con HMAC-SHA256 por cada predicción |
+ 
+---
+ 
+## Pipeline Cognitivo — 15 Fases
+ 
 ```
-
+Sensor (MQTT / HTTP)
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  [1] Sanitize      → NaN/Inf → imputación; clamp ±6σ       │
+│  [2] BoundaryCheck → validación de rango operativo          │
+│  [3] SeasonalDecomp→ FFT / STL (periodo 24h, mín 48pts)    │
+│  [4] Perceive      → régimen: STABLE/TRENDING/VOLATILE/NOISY│
+│  [5] DriftDetect   → Page-Hinkley (δ=0.005, λ=50)          │
+│  [6] Predict       → MoE: Taylor + Statistical + Kalman +   │
+│                      Baseline en paralelo (timeout 400ms)   │
+│  [7] Adapt         → pesos bayesianos por (série, régimen)  │
+│  [8] Inhibit       → suprime engines con error reciente alto │
+│  [9] Fuse          → Hampel k·MAD + consenso ponderado      │
+│  [10] DecisionArb  → 8 amplificadores + 3 atenuadores       │
+│  [11] Coherence    → validación de consistencia temporal     │
+│  [12] ConfCalib    → temperatura por régimen                 │
+│  [13] Explain      → ReasoningTrace por fase                 │
+│  [14] ActionGuard  → guardrail antes de emitir acción       │
+│  [15] Narrative    → unificación de explicación final        │
+└─────────────────────────────────────────────────────────────┘
+      │
+      ▼
+Predicción + Confianza + Anomalía + Decisión + Audit NDJSON
+```
+ 
 ---
-
-## Capacidades Técnicas Verificadas en Código
-
-Toda capacidad en esta tabla tiene su implementación verificada en el código fuente del repositorio.
-
-| Capacidad | Detalle técnico | Diferenciador vs mercado |
-|-----------|-----------------|--------------------------|
-| Pipeline cognitivo 15 fases + Assembly | Orden fijo: Sanitize → BoundaryCheck → SeasonalDecomposition → Perceive → DriftDetection → Predict → Adapt → Inhibit → Fuse → DecisionArbiter → CoherenceCheck → ConfidenceCalibration → Explain → ActionGuard → NarrativeUnification → Assembly | Fases desacoplables; cada una inyectable por flags. Early termination en NaN/Inf, out-of-domain, o budget excedido. Fresh executor per predict() (IMP-3). |
-| StructuralAnalysis unificado | slope, curvature, stability, accel_variance, noise_ratio, regime classification, trend_strength, mean, std, n_points. Bridge desde TaylorDiagnostic sin recomputar. | Single source of truth para análisis estructural. Consumido por Taylor, anomaly, pattern, cognitive. RegimeType enum (STABLE, TRENDING, VOLATILE, NOISY, TRANSITIONAL, UNKNOWN). |
-| Explanation layer domain-pure | Explanation (root aggregate) + Outcome + ReasoningTrace + ContributionBreakdown + SignalSnapshot + FilterSnapshot. Todos frozen dataclasses con to_dict(). | Domain-pure (zero imports from infrastructure). Extensible via `extra: Dict`. Conditional serialization (omite secciones vacías). ExplanationRenderer transforma a humano. |
-| EngineReliabilityTracker (IMP-4b) | Beta-Bernoulli posterior por (engine, series). `is_reliable()` → hard exclusion en InhibitionGate. Reemplaza 3 reglas hardcoded (stability, fit_error, recent_error). | Autoridad única en inhibición. No asume σ²_obs=1.0 para todos los motores. |
-| HyperparameterAdaptor (IMP-4c) | Redis Hash at `engine_hyperparams:{series_id}:{engine_name}`. TTL 7d auto-refresh. Filtra NaN/inf/non-numeric. Inert cuando Redis ausente. | Single source of truth para hiperparámetros por serie. Redis-only para consistencia distribuida. |
-| SeriesValuesStore (IMP-1) | Rolling buffer de valores crudos para SanitizePhase. Redis Stream o Sorted Set (max_values=500). Bounds providers: Redis (primary) → LocalWindow (fallback). | Sanitización con ventana local ±6σ. CUSUM two-sided (k=0.5σ, h=4σ). |
-| EnsembleWatchdog + ForcedRecovery | Observer pattern. Estados: HEALTHY, DEGRADED, CRITICAL, COLLAPSED. ForcedRecoveryManager ejecuta estrategias de recuperación. Post-fusion: re-ejecuta fusión con pesos recuperados. | Auto-recuperación de ensemble collapse. No modifica pesos directamente (observer). |
-| Voting ensemble 8+ detectores | Isolation Forest (30%), Z-score (20%), IQR (10%), LOF (15%), velocity_z (15%), acceleration_z (10%), IF-ND, LOF-ND; pesos adaptativos por precisión histórica (50 outcomes). `RobustScaler` para entrenamiento. | `velocity_z` y `acceleration_z` detectan cambios de régimen invisibles para detectores de magnitud pura. |
-| BayesianWeightTracker por régimen | Prior gaussiano N(μ,σ²), update conjugado normal-normal, σ²_obs empírica por motor con ventana de 20 errores, mínimo 5 muestras, clamp a 0.01. LRU eviction de 10 régimes, TTL 24h. | No asume σ²_obs=1.0 para todos los motores; temperatura y vibración tienen escalas de error distintas. |
-| Drift detection online | Page-Hinkley (δ=0.005, λ=50, α=0.9999) por defecto; ADWIN opcional (δ=0.002, max_window=1000); cooldown 300s por serie. | Reset de pesos del régimen afectado, no del sistema completo. Emite indicador ISO 13374. |
-| Seasonal decomposition | FFT por defecto (periodo 24h); STL opcional (requiere statsmodels); mínimo 48 puntos. | Descompone antes de la predicción, no post-hoc. |
-| Filtro Hampel | k=3.0 × 1.4826 × MAD; rechaza percepciones atípicas antes del consenso. No-op si <3 percepciones o MAD=0. | Aplica sobre predicciones de motores, no sobre datos brutos. Evita que un motor errático contamine la fusión. |
-| Circuit breaker | CLOSED/OPEN/HALF_OPEN; backoff exponencial; thread-safe; decorador `@protected`. | Protege llamadas a Weaviate, SQL Server, Redis ante fallos transitorios. |
-| Decision engine contextual | 8 amplificadores + 3 atenuadores; base scores por severidad; umbrales ESCALATE (0.85) / INVESTIGATE (0.65) / MONITOR (0.40). | Ajusta decisión según régimen, tasa de anomalías recientes, y drift. No hardcodea umbrales. |
-| ComplianceExporter | NDJSON line-delimited; 12 campos estructurados + HMAC-SHA256 sobre cuerpo canónico ordenado lexicográficamente. Path traversal validation en startup. | Verificación independiente con `verify_record()`; comparación constant-time. Escritura atómica (append + fsync). Thread-safe con Lock. |
-| Explicación por fase | `ExplanationRenderer` + `CausalNarrativeBuilder`; reasoning trace por fase en `PredictionResult.metadata`. 5 clasificaciones: certainty, disagreement, cognitive_stability, overfit_risk, engine_conflict. | Auditable operador-a-operador, no solo científico de datos. Renderer solo transforma (no recalcula métricas). |
-| AuditPort dual interface | `log_prediction(sensor_id:int)` legacy + `log_series_prediction(series_id:str)` agnóstico con bridge a legacy. | Permite migración gradual de `sensor_id:int` a `series_id:str` sin romper implementaciones existentes. |
-| StoragePort dual interface | `load_sensor_window(sensor_id:int)` legacy + `load_series_window(series_id:str)` agnóstico. | Bridge convierte con `safe_series_id_to_int`; fallback a sensor_id=0 para series no numéricas. |
-| Confidence calibration por régimen | Temperatura configurable: STABLE=1.2, VOLATILE=2.0, NOISY=1.8, TRENDING=1.5. | Evita sobreconfianza en régimen VOLATILE y subconfianza en STABLE. |
-| PredictPhase concurrente | `ThreadPoolExecutor` con max_workers=3, timeout por motor=400ms. Fallback a secuencial si executor falla. Surface de fallos (timeout, excepción, cannot_handle) en metadata. | Preserva orden de engines. Thread-safe con lock-protected `_failures` list. |
-| PipelineTimer | `perceive_ms`, `predict_ms`, `adapt_ms`, `inhibit_ms`, `fuse_ms`, `explain_ms`. Budget default 500ms. | Corta a fallback si PERCEIVE+PREDICT excede budget. Evita degradación silenciosa. |
-| ContextStateManager (R-1) | Aislamiento de estado por serie. LRU eviction (max_series=10000). `get_state(series_id)` retorna estado aislado. | Elimina condiciones de carrera entre series concurrentes. Thread-safe con RLock. |
-| WeightResolutionService consolidado | Base weights → plasticity adaptation → inhibition → final weights. Consolidado de Phase 3 refactor. | Single source of truth para resolución de pesos. Elimina duplicación de lógica. |
-| Governance system | Registry, bounds, tuning, scaling. GovernanceInitializer en startup. | Centraliza configuración dinámica de hiperparámetros por serie. |
-| Equipment Awareness (Fase 1) | `SensorProfile` + `EquipmentClass` (PASTEURIZER, CIP, FILLER, PET_BLOWER, CONVEYOR, SILO, GENERIC). Defaults por equipo: noise_floor, setpoint_tolerance, hampel_k, hampel_window, operational_range. `SqlSensorProfileRepository` carga desde dbo.sensors + dbo.devices. | Clasificación de régimen ajustada por perfil de equipo. Pasteurizador acepta std=0.4 como estable; FILLER usa hampel_k=4.0. |
-| MoE Infrastructure | `MoERegistry` + `ContextualRegimeGating` + `FeatureContext` + expert wrappers. Routing por régimen + equipment_class. Tests: `test_moe_engine.py`, `test_moe_foundation.py`. | Gating contextual: PASTEURIZER/stable → Taylor domina; FILLER/stable → Statistical domina; FILLER/volatile → Taylor excluido. |
-| Controlled Activation | `FeatureActivator` singleton. Flags progresivos: `ML_MOE_AS_ENGINE`, `ML_BATCH_ENTERPRISE_SENSORS` (whitelist), `ML_COHERENCE_CHECK_ENABLED`, `ML_DECISION_ARBITER_ENABLED`. Safe default: False. | Rollout progresivo sin riesgo. Whitelist de sensores enterprise para MoE. Recomendaciones automáticas de seguridad. |
-| ImpactSignalDetector (texto) | `detect_impact_signals()` → `ImpactSignalResult`. 5 categorías: critical_markers, sla_breach, extreme_metrics, temporal_risk, cascade_risk. Multi-category bonus (2× → 1.15×, 3× → 1.3×). | Fórmula 3 ejes: urgency×0.30 + sentiment×0.20 + impact×0.50. Hard override si 3+ categorías. |
-
+ 
+## Mixture of Experts (MoE)
+ 
+El gating no es global — cada tipo de equipo tiene su propia distribución de pesos:
+ 
+```python
+# Pasteurizador en régimen stable → Taylor domina
+PASTEURIZER / stable  →  taylor: 0.65  kalman: 0.15  statistical: 0.10  baseline: 0.10
+ 
+# Llenadora en cualquier régimen → Taylor excluido estructuralmente
+FILLER / stable       →  statistical: 0.70  kalman: 0.20  baseline: 0.10  taylor: 0.00
+FILLER / volatile     →  statistical: 0.70  kalman: 0.25  baseline: 0.05  taylor: 0.00
+ 
+# Transportador (vibración) → Kalman domina
+CONVEYOR / noisy      →  kalman: 0.75  statistical: 0.15  baseline: 0.05  taylor: 0.05
+ 
+# Silo (nivel) → Taylor domina (detecta tendencias de vaciado)
+SILO / trending       →  taylor: 0.75  statistical: 0.10  kalman: 0.10  baseline: 0.05
+```
+ 
+**Equipment classes soportados:** `PASTEURIZER · CIP · FILLER · PET_BLOWER · CONVEYOR · SILO · GENERIC`
+ 
 ---
-
-## Capacidades en Desarrollo / No Confirmadas en Pipeline Numérico Activo
-
-| Capacidad | Documentado en | Estado | Notas |
-|-----------|---------------|--------|-------|
-| TextCognitiveEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/text/engine.py:41`), **NO usado en pipeline numérico de 15 fases** | Pipeline documental/API separado. Analiza reportes de mantenimiento en texto. |
-| HybridNeuralEngine | `docs/ENGINES.md` | Verificado en código (`infrastructure/ml/cognitive/neural/hybrid_engine.py:27`), **NO usado en pipeline numérico** | Bridge en `neural_bridge.py` para análisis documental. No integrado en `MetaCognitiveOrchestrator`. |
-| MoEGateway | `docs/ENGINES.md` | Infraestructura completa (`infrastructure/ml/moe/`), **activable progresivamente** | `FeatureActivator` con whitelist (`ML_BATCH_ENTERPRISE_SENSORS`) y flag `ML_MOE_AS_ENGINE`. Tests reales: `test_moe_engine.py`, `test_moe_foundation.py`. Controlled activation evita riesgo en producción. |
-| SNNLayer with STDP | `docs/ENGINES.md` | No verificado en pipeline numérico | Mencionado en documentación de motores. No encontrado en fases del pipeline. |
-| CognitiveMemory / Weaviate | `cognitive_config.py` | Infraestructura presente, `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto | Stub de integración. No activo en pipeline numérico. |
-| Attention mechanism | `cognitive_config.py` | `ML_ENABLE_ATTENTION=false` por defecto | Documentado como "too slow for CPU". No activo. |
-| SNN full | `cognitive_config.py` | `ML_ENABLE_SNN_FULL=false` por defecto | Deshabilitado en CPU. No activo. |
-
-> ⚠️ **Nota:** Las capacidades de esta sección están documentadas en `docs/ENGINES.md` o configuradas en `ml_service/config/cognitive_config.py`, pero no forman parte del pipeline numérico de 15 fases que procesa lecturas de sensores en tiempo real.
-
+ 
+## Aprendizaje Bayesiano por Sensor
+ 
+Los pesos NO son globales. Cada sensor aprende de forma independiente:
+ 
+```
+sensor_01 (pasteurizador) → clave: default:sensor_01:stable → taylor: 0.71
+sensor_02 (pasteurizador) → clave: default:sensor_02:stable → taylor: 0.58
+```
+ 
+Estrategia de fallback:
+ 
+```
+< 50 lecturas  →  cold start: pesos de aptitud por equipment_class (blend gradual)
+≥ 50 lecturas  →  pesos per-sensor aprendidos por Bayesian update
+sin historial  →  pesos globales por régimen (comportamiento legacy)
+```
+ 
 ---
-
-## ROI Estimado
-
-### ¿Qué retorno puede esperar una planta industrial?
-
-| Métrica | Estimación conservadora | Capacidad ZENIN que lo genera |
-|---|---|---|
-| Reducción de paradas no planificadas | 15–25% | Benchmark: 33-50% mejora vs baselines (Taylor ≤ 1.5x MAE de mean, Statistical ≤ 1.5x MAE de EMA) |
-| Reducción de falsos positivos | 30–50% | Hampel filter (k=3.0) + InhibitionGate (>40% failure rate) + Ensemble 8 detectores + Confidence calibration |
-| Tiempo de diagnóstico post-incidente | 50–70% | ReasoningTrace por 15 fases + ExplanationRenderer + PipelineTimer + NDJSON estructurado con HMAC-SHA256 |
-| Cumplimiento de auditoría técnica | Automatizado | ComplianceExporter HMAC-SHA256 + AuditPort (NDJSON append-only con verificación criptográfica) |
-| Costo vs soluciones enterprise (Palantir, AWS Lookout) | 70–85% | Open source (Python/Redis/SQL Server) + deploy local Docker vs cloud SaaS |
-
-**Metodología:** Estimaciones derivadas de evidencia verificada en código fuente. Ver `docs/roi_and_business_case.md` para metodología detallada, suposiciones, y referencias a archivos específicos.
-
-**Suposiciones:**
-- Planta con sensores existentes vía MQTT/HTTP (no requiere reemplazo OT)
-- Frecuencia de muestreo ≥5 minutos para detección temprana relevante
-- SQL Server disponible o licenciable on-premise
-- Personal de mantenimiento puede interpretar alertas con explicación estructurada
-
-**Limitaciones:**
-- Lead time específico en horas NO validado en código (medido en samples)
-- Sin benchmarks públicos (NAB/Yahoo S5) ejecutados
-- Estimaciones basadas en componentes técnicos, no en producción
-- Sistema degrada >100 sensores (audit documentado)
-
+ 
+## Hampel Filter Adaptativo
+ 
+```python
+# k universal antes
+result = hampel_filter(perceptions, k=3.0)
+ 
+# k por tipo de equipo ahora
+# PASTEURIZER → k=2.5, window=10  (señal suave, estricto)
+# CIP         → k=5.0, window=5   (ciclos abruptos, permisivo)
+# FILLER      → k=4.0, window=20  (periódica, ventana larga)
+# CONVEYOR    → k=4.5, window=15  (vibración, permisivo)
+result = hampel_filter_with_profile(perceptions, sensor_profile=profile)
+ 
+# Durante eventos industriales activos (STARTUP, CIP_CYCLE):
+# k se amplía automáticamente × 1.5
+result = hampel_filter_with_profile(perceptions, sensor_profile=profile, event_context=event)
+```
+ 
 ---
-
-## Comparación de Mercado (Honesta)
-
-| Capacidad | ZENIN | AWS Lookout | Azure AD | Palantir AIP |
-|---|---|---|---|---|
-| Detección de anomalías univariada | ✅ Voting ensemble 8 detectores | ✅ Isolation Forest | ✅ Ensemble limitado | ✅ Extensible |
-| Velocidad/aceleración (derivadas) | ✅ velocity_z + acceleration_z | ❌ No nativo | ❌ No nativo | ❌ Requiere desarrollo |
-| Pesos bayesianos por régimen | ✅ Online, sin retraining | ❌ Retrain batch | ❌ Retrain batch | ❌ Retrain batch |
-| Decisión contextual con guardrails | ✅ AUTO/ASK/DENY + amplificadores | ❌ Solo alerta | ⚠️ Con conector extra | ✅ Flexible, costoso |
-| Explicación trazable por fase | ✅ ReasoningTrace + CausalNarrative | ⚠️ Básica | ⚠️ Básica | ✅ Avanzada |
-| Exporte de auditoría HMAC | ✅ NDJSON + SHA-256 + verificación | ❌ No nativo | ❌ No nativo | ❌ No nativo |
-| Deploy on-premise sin cloud | ✅ Docker local | ❌ Cloud-only | ❌ Cloud-only | ⚠️ On-prem costoso |
-| Escalabilidad >1000 sensores | ⚠️ Degrada >100 (estimado) | ✅ Alta | ✅ Alta | ✅ Alta |
-| Benchmark público NAB/Yahoo S5 | ❌ Pendiente | ✅ Validado | ✅ Validado | ✅ Validado |
-| Equipo de ciencia de datos requerido | ⚠️ 1 ingeniero ML para tuning | ❌ No (managed) | ❌ No (managed) | ✅ Sí (especialista) |
-| Equipment awareness (perfiles por tipo de equipo) | ✅ SensorProfile + EquipmentClass + defaults por equipo | ❌ No nativo | ❌ No nativo | ❌ Requiere desarrollo |
-| MoE routing contextual por régimen + equipo | ✅ ContextualRegimeGating + expert wrappers | ❌ No nativo | ❌ No nativo | ❌ Requiere desarrollo |
-| Análisis de impacto en texto (reportes de mantenimiento) | ✅ TextCognitiveEngine + ImpactSignalDetector (5 categorías) | ❌ No nativo | ❌ No nativo | ⚠️ Con NLP externo |
-| Rollout progresivo con whitelist | ✅ FeatureActivator + ML_BATCH_ENTERPRISE_SENSORS | ❌ No nativo | ❌ No nativo | ❌ No nativo |
-
-ZENIN gana en **transparencia arquitectónica**, **decisión contextual con guardrails**, **equipment awareness**, y **costo de infraestructura**. Pierde en **escalabilidad masiva out-of-the-box** y **benchmarks públicos validados**.
-
+ 
+## Detección de Eventos Industriales
+ 
+```python
+# Eventos detectados automáticamente desde la señal:
+IndustrialEvent.STARTUP            # rampa abrupta → arranque de línea
+IndustrialEvent.CIP_CYCLE          # ciclo de limpieza activo
+IndustrialEvent.PRODUCT_CHANGEOVER # cambio de producto en silo
+IndustrialEvent.FAULT_TRANSIENT    # >30% de valores clampeados
+IndustrialEvent.SHUTDOWN           # caída de señal
+ 
+# Efecto en el pipeline:
+# → InhibitPhase: supresión reducida al 50% (PostEventStabilizationGate)
+# → HampelFilter: k × 1.5 (más permisivo durante transitorio)
+# → Régimen: reclasificado con contexto temporal (hour_of_day)
+```
+ 
 ---
-
-## Stack Técnico
-
-| Capa | Tecnología |
-|------|-----------|
-| API | Python 3.10+, FastAPI, Uvicorn |
-| ML / Matemáticas | NumPy, scikit-learn, SciPy |
-| Estado | Redis (streams, cache, sliding windows, plasticity shared state) |
-| Persistencia | SQL Server (predictions, anomalies, config); NDJSON append-only (compliance) |
-| Arquitectura | Hexagonal (Ports & Adapters) — dominio sin dependencias externas |
-| Deployment | Docker, docker-compose |
-| Observabilidad | Structured JSON logging; PipelineTimer por fase |
-| Tests | pytest + typeguard; meta-tests arquitectónicos |
-
+ 
+## Auditoría y Compliance
+ 
+Cada predicción genera un registro NDJSON firmado:
+ 
+```jsonc
+{
+  "ts": "2024-01-15T06:23:41Z",
+  "series_id": "PAST-01",
+  "predicted_value": 71.84,
+  "confidence": 0.91,
+  "regime": "STABLE",
+  "equipment_class": "PASTEURIZER",
+  "top_expert": "taylor",
+  "decision": "MONITOR",
+  "reasoning_phases": ["sanitize", "perceive", "predict", "fuse", "explain"],
+  "hmac": "sha256:a3f9c2..."   // verificación independiente vía verify_record()
+}
+```
+ 
 ---
-
+ 
+## Capacidades Verificadas en Código
+ 
+| Capacidad | Detalle |
+|-----------|---------|
+| **Pipeline 15 fases** | Orden fijo, fases desacoplables por flags, early termination en NaN/budget |
+| **MoE equipment-aware** | Gating por `(equipment_class, regime)` — 6 equipos × 4 regímenes |
+| **Bayesian per-sensor** | Clave `namespace:series_id:regime`, fallback a global, cold start blend |
+| **Hampel adaptativo** | `k` y `window` desde `SensorProfile`, amplificación × 1.5 en eventos |
+| **Drift detection** | Page-Hinkley online; reset de régimen afectado, no del sistema completo |
+| **Ensemble 8 detectores** | Z-score, IQR, IsolationForest, LOF, velocity\_z, acceleration\_z + 2 ND |
+| **Compliance HMAC** | NDJSON append-only, SHA-256, verificación constant-time, fsync atómico |
+| **Circuit breaker** | CLOSED/OPEN/HALF\_OPEN, backoff exponencial, decorador `@protected` |
+| **Rate limiter** | Protección DoS por serie, configurable |
+| **Rollout progresivo** | `FeatureActivator` con whitelist `ML_BATCH_ENTERPRISE_SENSORS` |
+ 
+---
+ 
+## Capacidades en Desarrollo
+ 
+| Capacidad | Estado |
+|-----------|--------|
+| `TextCognitiveEngine` | Verificado en código, no integrado en pipeline numérico |
+| `HybridNeuralEngine` | Verificado en código, no integrado en pipeline numérico |
+| `CognitiveMemory / Weaviate` | `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto |
+| `SNNLayer con STDP` | Documentado, no encontrado en pipeline activo |
+| Benchmarks NAB/Yahoo S5 | Pendiente |
+| Escalabilidad >100 sensores | Degrada — documentado |
+ 
+---
+ 
+## Stack
+ 
+```
+API          →  FastAPI · Uvicorn · Python 3.10+
+ML           →  NumPy · scikit-learn · SciPy · XGBoost
+Estado       →  Redis (streams, sliding windows, plasticity)
+Persistencia →  SQL Server · NDJSON append-only
+Arquitectura →  Hexagonal (Ports & Adapters)
+Deploy       →  Docker · docker-compose
+```
+ 
+---
+ 
 ## Inicio Rápido
-
+ 
 ```bash
-# 1. Dependencias (Redis + SQL Server)
+# 1. Infraestructura
 docker run -d --name redis-zenin -p 6379:6379 redis:7-alpine
 docker run -d --name sql-zenin -p 1433:1433 \
-  -e SA_PASSWORD=YourPassword123 -e ACCEPT_EULA=Y \
+  -e SA_PASSWORD=YourPassword123 \
+  -e ACCEPT_EULA=Y \
   mcr.microsoft.com/mssql/server:2022-latest
-
-# 2. Variables de entorno
+ 
+# 2. Configuración
 cp .env.example .env
 # Editar .env con credenciales reales
-
-# 3. Levantar servicio
+ 
+# 3. Levantar
 uvicorn ml_service.main:app --host 0.0.0.0 --port 8002 --reload
-
+ 
 # 4. Verificar
 curl http://localhost:8002/
 # {"service": "iot-ml-service", "status": "ok"}
+ 
+# 5. Predicción de ejemplo
+curl -X POST http://localhost:8002/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "series_id": "PAST-01",
+    "values": [71.2, 71.4, 71.3, 71.5, 71.4],
+    "timestamps": [1700000000, 1700000300, 1700000600, 1700000900, 1700001200]
+  }'
 ```
-
-Para configuración completa de feature flags, ver `docs/configuration.md`.
-
+ 
 ---
-
+ 
+## Comparación de Mercado
+ 
+| Capacidad | ZENIN | AWS Lookout | Azure AD | Palantir |
+|-----------|:-----:|:-----------:|:--------:|:--------:|
+| Pesos bayesianos online (sin retraining) | ✅ | ❌ | ❌ | ❌ |
+| Equipment awareness por tipo de equipo | ✅ | ❌ | ❌ | ❌ |
+| MoE routing contextual | ✅ | ❌ | ❌ | ❌ |
+| Decisión con guardrails auditables | ✅ | ❌ | ⚠️ | ✅ |
+| Explicación trazable por fase | ✅ | ⚠️ | ⚠️ | ✅ |
+| Compliance HMAC-SHA256 nativo | ✅ | ❌ | ❌ | ❌ |
+| Deploy on-premise sin cloud | ✅ | ❌ | ❌ | ⚠️ |
+| velocity\_z + acceleration\_z | ✅ | ❌ | ❌ | ❌ |
+| Escalabilidad >1000 sensores | ⚠️ | ✅ | ✅ | ✅ |
+| Benchmarks públicos validados | ❌ | ✅ | ✅ | ✅ |
+ 
+---
+ 
 ## Estructura del Repositorio
-
+ 
 ```
 iot_machine_learning/
-├── application/          # Casos de uso, DTOs, explainability, servicios de aplicación
-│   ├── use_cases/        # PredictSensorValueUseCase, DetectAnomaliesUseCase, AnalyzePatternsUseCase
-│   ├── dto/              # PredictionDTO, AnomalyDTO, etc.
-│   └── explainability/   # ExplanationRenderer (domain → human transformation)
-├── domain/               # Entidades, puertos abstractos, políticas, servicios de dominio
-│   ├── entities/         # Value objects frozen dataclasses
-│   │   ├── series/       # StructuralAnalysis, TimeSeries, TimePoint, TemporalFeatures
-│   │   ├── patterns/     # PatternResult, ChangePoint, DeltaSpikeResult, OperationalRegime
-│   │   ├── results/      # Prediction, AnomalyResult, MemorySearchResult
-│   │   ├── iot/          # SensorReading, SensorWindow (legacy)
-│   │   ├── decision/     # Decision, DecisionContext, SimulatedOutcome
-│   │   ├── explainability/ # Explanation, Outcome, ReasoningTrace, ContributionBreakdown
-│   │   ├── threshold/    # Threshold, ThresholdSeverity
-│   │   ├── severity/     # AnomalySeverity, SeverityClassifier
-│   │   └── sensor_profile/ # SensorProfile, EquipmentClass (PASTEURIZER, CIP, FILLER, etc.)
-│   ├── ports/            # StoragePort, AuditPort, DecisionEnginePort, AnomalyDetectionPort, etc.
-│   ├── policies/         # ThresholdPolicy, DecisionPolicy
-│   ├── services/         # AnomalyDomainService, PredictionDomainService, MemoryRecallEnricher
-│   └── validators/       # DataSanitizer, temporal validators, input guards
-├── infrastructure/       # Adaptadores concretos, ML, persistencia, resiliencia
-│   ├── ml/               # Motores, pipeline cognitivo, inferencia bayesiana, detección de anomalías
-│   │   ├── cognitive/    # MetaCognitiveOrchestrator, 15 fases, fusión, inhibición, plasticity
-│   │   │   ├── orchestration/ # orchestrator.py, pipeline_executor.py, phases/
-│   │   │   ├── fusion/   # WeightedFusion, HampelFilter, EnsembleWatchdog
-│   │   │   ├── inhibition/ # InhibitionGate, InhibitionConfig (IMP-4b)
-│   │   │   ├── bayesian_weight_tracker/ # 28 archivos (adaptive LR, contextual, drift)
-│   │   │   ├── analysis/  # SignalAnalyzer, types
-│   │   │   ├── perception/ # collect_perceptions() con timeout (IMP-2)
-│   │   │   ├── explanation/ # ExplanationBuilder (infra → domain)
-│   │   │   ├── text/      # TextCognitiveEngine, ImpactSignalDetector, severity_mapper
-│   │   │   └── compliance/ # ComplianceExporter, NDJSON + HMAC-SHA256
-│   │   ├── engines/      # Taylor, Statistical, Seasonal, Baseline
-│   │   │   ├── taylor/   # 14 archivos (derivatives, least_squares, coefficient_cache)
-│   │   │   ├── statistical/ # EMA/Holt, param_optimizer
-│   │   │   └── baseline/ # Simple baseline
-│   │   ├── anomaly/      # VotingAnomalyDetector + 8 sub-detectores
-│   │   │   ├── detectors/ # Z-score, IQR, IsolationForest, LOF, velocity_z, acceleration_z
-│   │   │   ├── voting/   # VotingAnomalyDetector
-│   │   │   └── scoring/  # Anomaly scoring
-│   │   ├── filters/      # Kalman, EMA, Median, Hampel, FilterChain
-│   │   ├── interfaces.py # PredictionEngine, PredictionPort, PredictionEnginePortBridge
-│   │   └── moe/          # MoE full infrastructure: registry, gating, experts, gateway, rollout
-│   ├── repositories/     # SqlSensorProfileRepository, InMemorySensorProfileRepository
-│   │   # Equipment-aware profiles from dbo.sensors + dbo.devices with defaults per EquipmentClass
-│   ├── persistence/      # Redis, SQL Server, repositorios
-│   ├── resilience/       # CircuitBreaker (CLOSED/OPEN/HALF_OPEN)
-│   ├── security/         # Rate limiting, validación de entrada, SecretRedactor
-│   └── adapters/         # Adaptadores concretos para ports
-├── core/                 # Algoritmos estadísticos y ensemble
-│   ├── ensemble/         # EnsembleWatchdog, ForcedRecoveryManager
-│   ├── statistical/      # Métodos estadísticos
-│   ├── drift/            # Detección de drift
-│   ├── parameters/       # Constantes numéricas
-│   └── tuning/           # Tuning de hiperparámetros
-├── ml_service/           # FastAPI app, runners, consumers, configuración
-│   ├── main.py           # Punto de entrada FastAPI con lifespan manager
-│   ├── config/           # FeatureFlags, CognitiveConfig, DecisionConfig
-│   ├── api/              # Routes (routes.py, routes_cognitive.py, routes_governance.py)
-│   ├── api/services/     # PredictionService, CognitiveService
-│   ├── governance/       # GovernanceInitializer (registry, bounds, tuning, scaling)
-│   ├── activation/       # FeatureActivator — controlled rollout of MoE, coherence, arbiter
-│   └── metrics/          # Observability, MetricsCollector
-├── tests/                # Unit, integration, stress, property-based, meta-tests arquitectónicos
-└── docs/                 # Documentación técnica (ver índice abajo)
+├── domain/                    # Entidades, puertos, políticas — zero infra deps
+│   ├── entities/              # Value objects frozen (Prediction, Anomaly, Explanation...)
+│   ├── ports/                 # StoragePort, AuditPort, DecisionEnginePort...
+│   └── value_objects/         # EquipmentClass, IndustrialEvent, SensorProfile
+├── infrastructure/
+│   ├── ml/
+│   │   ├── cognitive/         # Pipeline 15 fases + BayesianWeightTracker + Hampel
+│   │   │   ├── orchestration/ # MetaCognitiveOrchestrator + phases/
+│   │   │   ├── bayesian_weight_tracker/  # 28 archivos — per-sensor learning
+│   │   │   ├── fusion/        # WeightedFusion, HampelFilter adaptativo
+│   │   │   └── inhibition/    # InhibitionGate + EngineReliabilityTracker
+│   │   ├── engines/           # Taylor, Statistical, Baseline, Kalman
+│   │   ├── anomaly/           # VotingAnomalyDetector + 8 sub-detectores
+│   │   └── moe/               # MoE: registry, gating, experts, events, drift
+│   ├── repositories/          # SqlSensorProfileRepository (equipment-aware)
+│   ├── persistence/           # Redis, SQL Server
+│   └── resilience/            # CircuitBreaker, RateLimiter
+├── ml_service/                # FastAPI app, feature flags, governance
+├── core/                      # Ensemble, drift, statistical, tuning
+└── tests/                     # Unit, integration, meta-tests arquitectónicos
 ```
-
+ 
 ---
-
-## Documentación Técnica
-
+ 
+## Documentación
+ 
 | Tema | Archivo |
 |------|---------|
-| Arquitectura hexagonal + reglas | `docs/architecture.md` |
-| Pipeline ML de 15 fases | `docs/ml_pipeline.md` |
-| Detección de drift y adaptación | `docs/drift_and_adaptation.md` |
-| Detección de anomalías (ensemble) | `docs/anomaly_detection.md` |
-| Cumplimiento y auditoría | `docs/compliance_and_audit.md` |
-| ROI y casos de uso | `docs/roi_and_business_case.md` (metodología basada en código) |
-| Feature flags y configuración | `docs/configuration.md` |
-| Referencia de motores | `docs/ENGINES.md` |
-| Reglas arquitectónicas | `docs/architecture.md` |
-| Plasticidad y aprendizaje | `docs/plasticity.md` |
-| Guía de desarrollo | `docs/development.md` |
-| Operaciones y monitoreo | `docs/operations.md` |
-| API reference | `docs/api.md` |
-
+| Arquitectura hexagonal | `docs/architecture.md` |
+| Pipeline 15 fases | `docs/ml_pipeline.md` |
+| Detección de anomalías | `docs/anomaly_detection.md` |
+| Drift y adaptación | `docs/drift_and_adaptation.md` |
+| Compliance y auditoría | `docs/compliance_and_audit.md` |
+| Feature flags | `docs/configuration.md` |
+| ROI y casos de uso | `docs/roi_and_business_case.md` |
+ 
 ---
-
-## Estándares y Certificaciones
-
-| Estándar | Estado | Implementado | Faltante |
-|----------|--------|--------------|----------|
-| **ISO 13374** (CM&D) | Parcial | Percepción de estado, indicadores de condición, detección de anomalías, drift como indicador de cambio | Diagnóstico de causa raíz, pronóstico de vida útil remanente |
-| **ISO 27001** | Parcial | AuditPort con logging estructurado, HMAC-SHA256 en compliance export, trazabilidad de decisiones | Gestión de acceso (RBAC), cifrado en tránsito TLS obligatorio, políticas de retención |
-| **IEC 62443** | En evaluación | Segmentación por series_id, validación de entrada (`safe_series_id_to_int`) | Seguridad por diseño (SaB), gestión de parches, autenticación de dispositivos |
-| **NIS2** | Gap documentado | No implementado | Notificación de incidentes, gestión de riesgos de cadena de suministro, registro de operadores |
-
----
-
+ 
 ## Contacto
+ 
+**Sergio Nicolás** — [GitHub](https://github.com/SNPL-glicth) · LinkedIn
+ 
+Piloto industrial disponible. PRs bienvenidos — leer `docs/development.md` antes de contribuir.
+ 
+---
+ 
+> Licencia: MIT
 
-Desarrollado por Sergio Nicolás.
-
-- GitHub: [SNPL-glicth/ZENIN](https://github.com/SNPL-glicth/ZENIN)
-- Piloto industrial: contacto vía LinkedIn o issue en GitHub
-- Contribuciones: PRs bienvenidos; leer `docs/development.md` antes de contribuir
-
-Licencia: MIT (a verificar — confirmar en `pyproject.toml` o `LICENSE`)
