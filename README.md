@@ -291,5 +291,5 @@ Piloto industrial disponible. PRs bienvenidos — leer `docs/development.md` ant
  
 ---
  
-> Licencia: MIT
+> Licencia: Propietaria — Todos los derechos reservados. Consulte el archivo LICENSE para términos comerciales.
 
