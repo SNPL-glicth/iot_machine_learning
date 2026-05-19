@@ -46,8 +46,50 @@ from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFa
 from iot_machine_learning.infrastructure.repositories.prediction_repository import (
     PredictionRepository,
 )
+from ml_service.config.feature_flags import get_feature_flags
 
 logger = logging.getLogger(__name__)
+
+
+class _CognitivePredictionPort:
+    """Adapter: MetaCognitiveOrchestrator → PredictionPort for domain service.
+
+    Wraps the orchestrator so it can be injected into PredictionDomainService
+    as a first-class engine.  Handles the flags_snapshot requirement that
+    the generic PredictionEnginePortBridge does not pass.
+    """
+
+    def __init__(self, orchestrator, flags):
+        self._orchestrator = orchestrator
+        self._flags = flags
+
+    @property
+    def name(self) -> str:
+        return "meta_cognitive_orchestrator"
+
+    def can_handle(self, n_points: int) -> bool:
+        return self._orchestrator.can_handle(n_points)
+
+    def predict(self, window):
+        from iot_machine_learning.domain.entities.prediction import Prediction
+
+        result = self._orchestrator.predict(
+            series_id=str(window.sensor_id),
+            values=window.values,
+            timestamps=window.timestamps if window.timestamps else None,
+            flags_snapshot=self._flags,
+        )
+        return Prediction(
+            series_id=str(window.sensor_id),
+            predicted_value=result.predicted_value,
+            confidence_score=result.confidence,
+            trend=result.trend,
+            engine_name="meta_cognitive_orchestrator",
+            metadata=result.metadata,
+        )
+
+    def supports_confidence_interval(self) -> bool:
+        return False
 
 
 class PredictionService:
@@ -62,6 +104,7 @@ class PredictionService:
         conn: Connection,
         storage: Optional[StoragePort] = None,
         threshold_repo: Optional["ThresholdRepositoryPort"] = None,
+        cognitive_orchestrator: Optional[Any] = None,
     ):
         self._conn = conn
 
@@ -85,13 +128,27 @@ class PredictionService:
             self._threshold_repo = threshold_repo
 
         # Initialize use cases
+        engines = []
+        self._cognitive_orchestrator = cognitive_orchestrator
+        if cognitive_orchestrator is not None:
+            flags = get_feature_flags()
+            engines.append(
+                _CognitivePredictionPort(cognitive_orchestrator, flags)
+            )
+            logger.info(
+                "cognitive_orchestrator_injected",
+                extra={"engine": "meta_cognitive_orchestrator"},
+            )
+
         baseline_engine = EngineFactory.create("baseline_moving_average")
         kalman_engine = EngineFactory.create("kalman")
+        engines.extend([
+            kalman_engine.as_port(),
+            baseline_engine.as_port(),
+        ])
+
         prediction_domain_service = PredictionDomainService(
-            engines=[
-                kalman_engine.as_port(),
-                baseline_engine.as_port(),
-            ],
+            engines=engines,
         )
 
         self._predict_use_case = PredictSensorValueUseCase(

@@ -7,6 +7,9 @@ Responsabilidad: Validar umbrales y estado operacional del sensor.
 from __future__ import annotations
 
 import logging
+import os
+import threading
+import time
 from typing import Dict, Optional
 
 from sqlalchemy import text
@@ -20,10 +23,12 @@ logger = logging.getLogger(__name__)
 class ThresholdValidator:
     """Valida umbrales y estado operacional del sensor.
     
+    FIX P0-2: Cache en memoria para thresholds WARNING con TTL configurable.
+    
     Responsabilidades:
-    - Verificar si el sensor puede emitir eventos
-    - Verificar si el valor está dentro del rango WARNING del usuario
-    - Cargar umbrales desde la BD
+    - Verificar si el sensor puede emitir eventos (NO cacheado — estado dinámico)
+    - Verificar si el valor está dentro del rango WARNING del usuario (cacheado)
+    - Cargar umbrales desde la BD con stale-while-revalidate
     
     REGLA DE DOMINIO CRÍTICA:
     Si el valor está dentro del rango WARNING del usuario, el ML NO puede
@@ -33,6 +38,11 @@ class ThresholdValidator:
     
     def __init__(self) -> None:
         self._thresholds_cache: Dict[int, dict] = {}
+        self._cache_timestamps: Dict[int, float] = {}
+        self._cache_ttl_seconds = float(
+            os.getenv("ML_THRESHOLD_CACHE_TTL_SECONDS", "30.0")
+        )
+        self._cache_lock = threading.Lock()
     
     def can_sensor_emit_events(self, sensor_id: int) -> bool:
         """Verifica si el sensor puede emitir eventos ML.
@@ -111,12 +121,57 @@ class ThresholdValidator:
         
         return within_range
 
+    def invalidate_cache(self, sensor_id: int) -> None:
+        """Invalida el cache de thresholds para un sensor específico."""
+        with self._cache_lock:
+            self._thresholds_cache.pop(sensor_id, None)
+            self._cache_timestamps.pop(sensor_id, None)
+        logger.debug(
+            "ml_threshold_cache_invalidate",
+            extra={"sensor_id": sensor_id},
+        )
+
+    def invalidate_all(self) -> None:
+        """Invalida todo el cache de thresholds."""
+        with self._cache_lock:
+            self._thresholds_cache.clear()
+            self._cache_timestamps.clear()
+        logger.debug("ml_threshold_cache_invalidate_all")
+
     def _load_warning_thresholds(self, sensor_id: int) -> dict:
-        """Carga los umbrales WARNING del sensor desde la BD.
-        
+        """Carga los umbrales WARNING del sensor desde la BD con cache.
+
+        FIX P0-2:
+        - Cache en memoria con TTL configurable (ML_THRESHOLD_CACHE_TTL_SECONDS).
+        - Stale-while-revalidate: si la query falla, usa el valor cacheado anterior.
+        - Thread-safe para soportar paralelización futura.
+
         Returns:
             dict con warning_min y warning_max, o dict vacío si no hay umbrales
         """
+        now = time.monotonic()
+
+        with self._cache_lock:
+            cached = self._thresholds_cache.get(sensor_id)
+            cached_ts = self._cache_timestamps.get(sensor_id)
+            if cached is not None and cached_ts is not None:
+                age = now - cached_ts
+                if age < self._cache_ttl_seconds:
+                    logger.debug(
+                        "ml_threshold_cache_hit",
+                        extra={
+                            "sensor_id": sensor_id,
+                            "age_seconds": round(age, 2),
+                            "ttl_seconds": self._cache_ttl_seconds,
+                        },
+                    )
+                    return cached
+                # TTL expirado — intentar refrescar, pero conservar stale para fallback
+                stale_value = dict(cached) if cached else None
+            else:
+                stale_value = None
+
+        # Cache miss o expirado: consultar BD (fuera del lock para no bloquear)
         try:
             engine = get_engine()
             with engine.connect() as conn:
@@ -136,20 +191,45 @@ class ThresholdValidator:
                     ),
                     {"sensor_id": sensor_id},
                 ).fetchone()
-                
-                if not row:
-                    return {}
-                
+
                 result = {}
-                if row[0] is not None:
-                    result["warning_min"] = float(row[0])
-                if row[1] is not None:
-                    result["warning_max"] = float(row[1])
-                
+                if row:
+                    if row[0] is not None:
+                        result["warning_min"] = float(row[0])
+                    if row[1] is not None:
+                        result["warning_max"] = float(row[1])
+
+                with self._cache_lock:
+                    self._thresholds_cache[sensor_id] = result
+                    self._cache_timestamps[sensor_id] = now
+
+                logger.debug(
+                    "ml_threshold_cache_miss",
+                    extra={
+                        "sensor_id": sensor_id,
+                        "has_thresholds": bool(result),
+                    },
+                )
                 return result
+
         except Exception as e:
             logger.warning(
-                "[ML_THRESHOLD_LOAD_ERROR] sensor_id=%s error=%s",
-                sensor_id, str(e)
+                "ml_threshold_load_error",
+                extra={
+                    "sensor_id": sensor_id,
+                    "error": str(e),
+                    "stale_available": stale_value is not None,
+                },
             )
+            # Stale-while-revalidate: usar cache anterior si existe
+            if stale_value is not None:
+                logger.info(
+                    "ml_threshold_cache_stale_fallback",
+                    extra={
+                        "sensor_id": sensor_id,
+                        "stale_age_seconds": round(now - (self._cache_timestamps.get(sensor_id, now)), 2),
+                    },
+                )
+                return stale_value
+
             return {}

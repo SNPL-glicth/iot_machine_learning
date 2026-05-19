@@ -34,14 +34,12 @@ class SecurityConfig(BaseModel):
     ML_CORS_ALLOW_CREDENTIALS: bool = False  # SEC-2: explicit opt-in required
 
     # --- Enterprise Features (Fase 3) ---
-    ML_ENABLE_DELTA_SPIKE_DETECTION: bool = False
-    ML_ENABLE_REGIME_DETECTION: bool = False
-    ML_ENABLE_ENSEMBLE_PREDICTOR: bool = False
+    # NOTE: Orphan flags removed in audit (Phase 3):
+    #   ML_ENABLE_DELTA_SPIKE_DETECTION, ML_ENABLE_REGIME_DETECTION,
+    #   ML_ENABLE_ENSEMBLE_PREDICTOR, ML_ENABLE_PREDICTION_CACHE,
+    #   ML_ENABLE_VOTING_ANOMALY, ML_ENABLE_CHANGE_POINT_DETECTION,
+    #   ML_ENABLE_EXPLAINABILITY — defined but no code consumed them.
     ML_ENABLE_AUDIT_LOGGING: bool = False
-    ML_ENABLE_PREDICTION_CACHE: bool = False
-    ML_ENABLE_VOTING_ANOMALY: bool = False
-    ML_ENABLE_CHANGE_POINT_DETECTION: bool = False
-    ML_ENABLE_EXPLAINABILITY: bool = False
 
     # --- Anomaly Config ---
     ML_ANOMALY_VOTING_THRESHOLD: float = 0.5

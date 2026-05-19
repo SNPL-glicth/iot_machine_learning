@@ -17,46 +17,35 @@ logger = logging.getLogger(__name__)
 _redis_circuit_breakers: Dict[str, CircuitBreaker] = {}
 
 
-def get_redis_circuit_breaker(name: str) -> CircuitBreaker:
+def get_redis_circuit_breaker(
+    name: str,
+    failure_threshold: int = 0,
+    recovery_timeout: int = 0,
+) -> CircuitBreaker:
     """Get or create a circuit breaker for Redis operations.
-    
+
     Pre-configured settings:
-    - redis_broker: threshold=3, recovery=30s (fast recovery, critical path)
-    - redis_cache: threshold=5, recovery=60s (tolerate more failures)
-    - redis_window: threshold=3, recovery=30s (critical for ML)
-    
-    Args:
-        name: Breaker name (redis_broker, redis_cache, redis_window)
-        
-    Returns:
-        CircuitBreaker instance
+    - redis_broker: threshold=3, recovery=30s
+    - redis_cache: threshold=5, recovery=60s
+    - redis_window: threshold=3, recovery=30s
+
+    FIX PROD-1: Accept optional kwargs to override defaults.
     """
     if name not in _redis_circuit_breakers:
         configs = {
-            "redis_broker": {
-                "failure_threshold": 3,
-                "recovery_timeout": 30,
-            },
-            "redis_cache": {
-                "failure_threshold": 5,
-                "recovery_timeout": 60,
-            },
-            "redis_window": {
-                "failure_threshold": 3,
-                "recovery_timeout": 30,
-            },
+            "redis_broker": {"failure_threshold": 3, "recovery_timeout": 30},
+            "redis_cache": {"failure_threshold": 5, "recovery_timeout": 60},
+            "redis_window": {"failure_threshold": 3, "recovery_timeout": 30},
         }
-        
         config = configs.get(name, {
-            "failure_threshold": 5,
-            "recovery_timeout": 30,
+            "failure_threshold": failure_threshold or 5,
+            "recovery_timeout": recovery_timeout or 30,
         })
-        
-        _redis_circuit_breakers[name] = CircuitBreaker(
-            name=name,
-            **config
-        )
-    
+        if failure_threshold:
+            config["failure_threshold"] = failure_threshold
+        if recovery_timeout:
+            config["recovery_timeout"] = recovery_timeout
+        _redis_circuit_breakers[name] = CircuitBreaker(name=name, **config)
     return _redis_circuit_breakers[name]
 
 

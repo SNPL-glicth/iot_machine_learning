@@ -79,6 +79,11 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+markers = [
+    "integration: integration tests requiring external services",
+    "slow: stress/load tests that take significant time",
+    "cognitive: tests for the MetaCognitiveOrchestrator pipeline",
+]
 
 # ─── Coverage ────────────────────────────────────────────────────────────────
 [tool.coverage.run]

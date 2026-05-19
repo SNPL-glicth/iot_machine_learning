@@ -10,6 +10,9 @@ Tests:
 """
 
 import pytest
+
+pytest.importorskip("httpx", reason="requires httpx for FastAPI TestClient")
+
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
 

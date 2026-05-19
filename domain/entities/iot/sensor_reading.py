@@ -1,18 +1,6 @@
-"""Value Objects para lecturas de sensores.
-
-DEPRECADO: Este módulo será eliminado en la migración completa a Zenin.
-Usar: domain.entities.series + infrastructure.adapters.iot
-"""
+"""Value Objects para lecturas de sensores — legacy IoT boundary."""
 
 from __future__ import annotations
-
-import warnings
-warnings.warn(
-    "domain.entities.iot está deprecado. "
-    "Usar domain.entities.series + infrastructure.adapters.iot",
-    DeprecationWarning,
-    stacklevel=1,
-)
 
 import math
 from dataclasses import dataclass, field

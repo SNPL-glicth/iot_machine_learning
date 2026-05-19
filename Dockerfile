@@ -58,8 +58,9 @@ RUN chown -R zenin:zenin /app
 USER zenin
 
 ENV PYTHONPATH=/app
+ENV ML_API_WORKERS=4
 
 EXPOSE 8002
 
-CMD ["uvicorn", "iot_machine_learning.ml_service.main:app", \
-     "--host", "0.0.0.0", "--port", "8002", "--workers", "2"]
+CMD uvicorn iot_machine_learning.ml_service.main:app \
+    --host 0.0.0.0 --port 8002 --workers ${ML_API_WORKERS:-4}

@@ -13,10 +13,11 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from iot_machine_learning.infrastructure.persistence.sql.zenin_db_connection import ZeninDbConnection
 from iot_machine_learning.ml_service.api.services.analysis.document_analyzer_factory import create_document_analyzer
+from iot_machine_learning.ml_service.utils.watchdog_thread import WatchdogThread
 
 from iot_machine_learning.ml_service.workers import queue_repository as repo
 from iot_machine_learning.ml_service.workers.job_processor import parse_queue_row, build_payload
@@ -35,7 +36,7 @@ class ZeninQueuePoller:
         self.batch_size = int(
             os.environ.get("ZENIN_QUEUE_BATCH_SIZE", "1")
         )
-        
+
         # Load feature flags explicitly for daemon thread context
         feature_flags = None
         try:
@@ -50,8 +51,8 @@ class ZeninQueuePoller:
                 feature_flags.ML_DECISION_ENGINE_STRATEGY,
             )
         except Exception as e:
-            logger.warning(f"[ZENIN_POLLER] Could not load feature flags: {e}")
-        
+            logger.warning("[ZENIN_POLLER] Could not load feature flags: %s", e)
+
         self.document_analyzer = create_document_analyzer(feature_flags=feature_flags)
         self._weaviate_url = resolve_weaviate_url()
 
@@ -59,25 +60,48 @@ class ZeninQueuePoller:
         self._total_processed = 0
         self._total_errors = 0
 
+        # FIX P1-3: Watchdog para el daemon thread
+        self._watchdog: Optional[WatchdogThread] = None
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Main polling loop (blocking — run in a daemon thread)."""
+        """Arranca el polling bajo supervisión de WatchdogThread."""
         logger.info(
             "[ZENIN_POLLER] Starting (interval=%ds, batch=%d)",
             self.poll_interval,
             self.batch_size,
         )
+        self._watchdog = WatchdogThread(
+            target=self._poll_loop,
+            name="zenin-queue-poller",
+            max_restarts=10,
+            backoff_seconds=5.0,
+        )
+        self._watchdog.start()
 
+    def stop(self) -> None:
+        """Señaliza shutdown graceful al watchdog."""
+        if self._watchdog:
+            self._watchdog.stop()
+            logger.info("[ZENIN_POLLER] Stop signal sent")
+
+    def is_healthy(self) -> bool:
+        """Delega al watchdog para health checks externos."""
+        if self._watchdog is None:
+            return False
+        return self._watchdog.is_healthy()
+
+    def _poll_loop(self) -> None:
+        """Main polling loop (bloqueante — ejecutado por el watchdog)."""
         while True:
             try:
                 self._poll_cycle()
             except Exception:
                 logger.exception("[ZENIN_POLLER] Error in poll cycle")
                 self._total_errors += 1
-
             time.sleep(self.poll_interval)
 
     @property

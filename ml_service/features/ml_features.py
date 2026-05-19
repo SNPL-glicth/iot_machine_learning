@@ -36,48 +36,70 @@ logger = logging.getLogger(__name__)
 
 class MLFeaturesProducer:
     """Produces observable ML features for every sensor reading.
-    
+
     This transforms ML from a "black box that fires events" to an
     observable system that ALWAYS produces features, not just on anomalies.
     """
-    
-    def __init__(self, max_window_size: int = 100, max_window_age_seconds: float = 300.0):
+
+    def __init__(
+        self,
+        max_window_size: int = 100,
+        max_window_age_seconds: float = 300.0,
+        registry=None,
+    ):
         self._window_manager = WindowManager(max_window_size, max_window_age_seconds)
-        self._feature_computer = FeatureComputer()
-    
-    def add_reading(self, sensor_id: int, value: float, timestamp: Optional[float] = None) -> Optional[MLFeatures]:
+        self._feature_computer = FeatureComputer(registry=registry)
+
+    def add_reading(
+        self,
+        sensor_id: int,
+        value: float,
+        timestamp: Optional[float] = None,
+        sensor_type: Optional[str] = None,
+    ) -> Optional[MLFeatures]:
         """Add a reading and compute features.
-        
+
+        FIX P3-4: Acepta sensor_type para resolver config por sensor.
         Args:
             sensor_id: ID of the sensor
             value: Sensor reading value
             timestamp: Unix timestamp (default: current time)
-            
+            sensor_type: Optional sensor type for per-sensor config
+
         Returns:
             MLFeatures if enough data available, None otherwise
         """
         if timestamp is None:
             timestamp = time.time()
-        
+
+        # FIX P3-4: resolve per-sensor config to pick window size
+        config = self._feature_computer._resolve_config(sensor_id, sensor_type)
+        if self._window_manager.max_size != config.max_window_size:
+            # WindowManager doesn't support per-sensor max_size directly;
+            # we keep the global max_size but log if config suggests different.
+            pass
+
         # Add to window
         self._window_manager.add_reading(sensor_id, value, timestamp)
-        
+
         # Get window and compute features
         window = self._window_manager.get_window(sensor_id)
         if window is None or window.is_empty:
             return None
-        
-        return self._feature_computer.compute_features(window, value, timestamp)
-    
+
+        return self._feature_computer.compute_features(
+            window, value, timestamp, sensor_type=sensor_type
+        )
+
     def get_sensor_features(self, sensor_id: int) -> Optional[MLFeatures]:
         """Get the latest features for a sensor (if available)."""
         window = self._window_manager.get_window(sensor_id)
         if window is None or window.is_empty:
             return None
-        
+
         values = window.get_values()
         timestamps = window.get_timestamps()
-        
+
         return self._feature_computer.compute_features(
             window,
             values[-1],

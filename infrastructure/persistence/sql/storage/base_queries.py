@@ -40,16 +40,36 @@ def _is_valid_sensor_value(value: object) -> bool:
 
 class BaseQueries:
     """Queries base para lecturas de sensores y metadata."""
-    
-    def __init__(self, conn: Connection) -> None:
+
+    def __init__(self, conn: Connection, tsdb_adapter=None) -> None:
         self._conn = conn
-    
+        self._tsdb = tsdb_adapter
+
     def load_sensor_window(
         self,
         sensor_id: int,
         limit: int = 500,
     ) -> SensorWindow:
-        """Carga las últimas ``limit`` lecturas de un sensor."""
+        """Carga las últimas ``limit`` lecturas de un sensor.
+
+        FIX P3-5: Intenta Redis TSDB primero; si tiene >= limit lecturas,
+        retorna sin SQL. Si tiene < limit, complementa con SQL.
+        """
+        # FIX P3-5: intentar TSDB primero
+        if self._tsdb is not None:
+            try:
+                recent = self._tsdb.get_recent(sensor_id, limit)
+                if len(recent) >= limit:
+                    readings = [
+                        SensorReading(series_id=str(sensor_id), value=v, timestamp=ts)
+                        for ts, v in reversed(recent)  # oldest first
+                    ]
+                    logger.debug("[P3-5] tsdb_hit sensor=%d count=%d", sensor_id, len(readings))
+                    return SensorWindow(series_id=str(sensor_id), readings=readings)
+            except Exception as e:
+                logger.warning("[P3-5] tsdb_error sensor=%d: %s", sensor_id, e)
+
+        # Fallback completo a SQL
         rows = self._conn.execute(
             text(
                 """
@@ -86,6 +106,21 @@ class BaseQueries:
                 value=value,
                 timestamp=ts,
             ))
+
+        # FIX P3-5: si TSDB tenía < limit, complementar (TSDB es más reciente)
+        if self._tsdb is not None and len(readings) > 0:
+            try:
+                recent = self._tsdb.get_recent(sensor_id, limit)
+                # Evitar duplicados: solo agregar TSDB entries más recientes que SQL oldest
+                sql_oldest_ts = readings[0].timestamp if readings else 0.0
+                extra = [SensorReading(series_id=str(sensor_id), value=v, timestamp=ts)
+                         for ts, v in recent if ts > sql_oldest_ts]
+                if extra:
+                    readings.extend(extra)
+                    logger.info("[P3-5] tsdb_complement sensor=%d sql=%d extra=%d",
+                                sensor_id, len(rows), len(extra))
+            except Exception as e:
+                logger.warning("[P3-5] tsdb_complement_failed sensor=%d: %s", sensor_id, e)
 
         return SensorWindow(series_id=str(sensor_id), readings=readings)
 

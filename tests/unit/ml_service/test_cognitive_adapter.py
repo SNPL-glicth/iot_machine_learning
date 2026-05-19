@@ -120,18 +120,17 @@ class TestCognitiveAdapter:
         assert hasattr(orchestrator, "record_actual")
 
     def test_container_cognitive_vs_standard_adapter(self):
-        flags = FeatureFlags()
+        # Standard adapter when flag explicitly False
+        flags_standard = FeatureFlags(ML_USE_COGNITIVE_ORCHESTRATOR=False)
         container = BatchEnterpriseContainer(
-            engine=MagicMock(), flags=flags,
+            engine=MagicMock(), flags=flags_standard,
         )
+        assert flags_standard.ML_USE_COGNITIVE_ORCHESTRATOR is False
 
-        # By default (flag False) -> standard adapter
-        assert flags.ML_USE_COGNITIVE_ORCHESTRATOR is False
-
-        # Cognitive flag True
-        flags.ML_USE_COGNITIVE_ORCHESTRATOR = True
+        # Cognitive adapter when flag True (default)
+        flags_cognitive = FeatureFlags(ML_USE_COGNITIVE_ORCHESTRATOR=True)
         container2 = BatchEnterpriseContainer(
-            engine=MagicMock(), flags=flags,
+            engine=MagicMock(), flags=flags_cognitive,
         )
         assert hasattr(container2, "get_cognitive_adapter")
 

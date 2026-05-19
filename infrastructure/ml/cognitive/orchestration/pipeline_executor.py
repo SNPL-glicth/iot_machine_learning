@@ -1,19 +1,9 @@
-"""Pipeline Executor — MED-1 Refactored.
-
-Orquestador de fases del pipeline cognitivo usando patrón Strategy.
-Cada fase es independiente y el executor solo coordina la ejecución.
-
-Reducción: 666 líneas → ~180 líneas (73% de reducción)
-"""
-
+"""Pipeline Executor — MED-1 Refactored. Orquestador de fases cognitivas."""
 from __future__ import annotations
-
-import logging
+import logging, os, time
 from typing import TYPE_CHECKING, Any, List, Optional
-
 if TYPE_CHECKING:
     from ...interfaces import PredictionResult
-
 from .phases import PipelineContext, create_initial_context
 from ..sanitize import SanitizePhase
 from .phases.boundary_check_phase import BoundaryCheckPhase
@@ -33,198 +23,98 @@ from .phases.narrative_unification_phase import NarrativeUnificationPhase
 from .phases.assembly_phase import AssemblyPhase
 from ..analysis.types import PipelineTimer
 from ..compliance import ComplianceExporter
-
 logger = logging.getLogger(__name__)
 
-
 class PipelineExecutor:
-    """Ejecutor del pipeline cognitivo.
-    
-    Responsabilidad única: orquestar la ejecución secuencial de fases.
-    La lógica pesada está delegada a las clases de fase individuales.
-    
-    Attributes:
-        phases: Lista ordenada de fases a ejecutar
-    """
-    
-    def __init__(
-        self,
-        phases: Optional[list] = None,
-        compliance_exporter: Optional[ComplianceExporter] = None,
-    ) -> None:
-        """Inicializa el executor con las fases configuradas.
-
-        Phase order (IMP-1: SanitizePhase inserted at index 0):
-            [0]  SanitizePhase                — NaN/Inf hard-stop, 6σ clamp, CUSUM flag
-            [1]  BoundaryCheckPhase           — domain boundary validation
-            [2]  SeasonalDecompositionPhase   — seasonal component removal (FASE 2)
-            [3]  PerceivePhase                — signal profile analysis
-            [4]  DriftDetectionPhase          — concept drift detection (FASE 1)
-            [5]  PredictPhase                 — engine perceptions
-            [6]  AdaptPhase                   — plasticity weight resolution
-            [7]  InhibitPhase                 — engine inhibition
-            [8]  FusePhase                    — weighted fusion + Hampel
-            [9]  DecisionArbiterPhase         — decision arbitration
-            [10] CoherenceCheckPhase          — coherence validation
-            [11] ConfidenceCalibrationPhase   — confidence calibration
-            [12] ExplainPhase                 — explanation assembly
-            [13] ActionGuardPhase             — action validation
-            [14] NarrativeUnificationPhase    — narrative unification
-        """
+    """Orquesta ejecución secuencial de fases."""
+    def __init__(self, phases: Optional[list]=None, compliance_exporter: Optional[ComplianceExporter]=None) -> None:
         if phases is None:
-            phases = [
-                SanitizePhase(),
-                BoundaryCheckPhase(),
-                SeasonalDecompositionPhase(),
-                PerceivePhase(),
-                DriftDetectionPhase(),
-                PredictPhase(),
-                AdaptPhase(),
-                InhibitPhase(),
-                FusePhase(),
-                DecisionArbiterPhase(),
-                CoherenceCheckPhase(),
-                ConfidenceCalibrationPhase(),
-                ExplainPhase(),
-                ActionGuardPhase(),
-                NarrativeUnificationPhase(),
-            ]
+            phases = [SanitizePhase(), BoundaryCheckPhase(), SeasonalDecompositionPhase(),
+                      PerceivePhase(), DriftDetectionPhase(), PredictPhase(), AdaptPhase(),
+                      InhibitPhase(), FusePhase(), DecisionArbiterPhase(), CoherenceCheckPhase(),
+                      ConfidenceCalibrationPhase(), ExplainPhase(), ActionGuardPhase(),
+                      NarrativeUnificationPhase()]
         self._phases = phases
         self._assembly = AssemblyPhase(compliance_exporter=compliance_exporter)
-    
-    def execute(
-        self,
-        orchestrator,
-        values: List[float],
-        timestamps: Optional[List[float]],
-        series_id: str,
-        flags: Any,
-    ) -> PredictionResult:
-        """Ejecuta el pipeline completo.
-        
-        Args:
-            orchestrator: MetaCognitiveOrchestrator instance
-            values: Time series values
-            timestamps: Optional timestamps
-            series_id: Series identifier
-            flags: Feature flags snapshot (required)
-        
-        Returns:
-            PredictionResult with cognitive metadata
-        """
-        # Validar flags (CRIT-3)
+    def execute(self, orchestrator, values: List[float], timestamps: Optional[List[float]],
+                series_id: str, flags: Any) -> PredictionResult:
         if flags is None:
-            raise ValueError(
-                "flags is required. Pass feature flags from orchestrator "
-                "to enable testable dependency injection."
-            )
-        
-        # Crear contexto inicial
+            raise ValueError("flags is required. Pass feature flags from orchestrator.")
         timer = PipelineTimer(budget_ms=orchestrator._budget_ms)
-        ctx = create_initial_context(
-            orchestrator=orchestrator,
-            values=values,
-            timestamps=timestamps,
-            series_id=series_id,
-            flags=flags,
-            timer=timer,
-        )
-        
-        # Ejecutar fases secuencialmente
+        ctx = create_initial_context(orchestrator=orchestrator, values=values, timestamps=timestamps,
+                                     series_id=series_id, flags=flags, timer=timer)
+        _warn_ms = int(os.environ.get("ML_COGNITIVE_PHASE_WARN_MS", "200"))
+        _phase_times: dict[str, float] = {}
+        _total_elapsed_ms = 0.0
         for phase in self._phases:
+            phase_name = phase.__class__.__name__
+            t0 = time.perf_counter()
             ctx = phase.execute(ctx)
-            
-            # Early termination si es out-of-domain
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            _phase_times[phase_name] = elapsed_ms
+            _total_elapsed_ms += elapsed_ms
+            if elapsed_ms > _warn_ms:
+                logger.warning("[PROD-2] slow_phase %s %.1fms > %dms", phase_name, elapsed_ms, _warn_ms)
+            try:
+                from ...metrics.performance_metrics import record_cognitive_phase
+                record_cognitive_phase(phase_name, elapsed_ms)
+            except Exception:
+                pass
             if ctx.is_fallback and ctx.fallback_reason == "out_of_domain":
                 return self._create_early_result(ctx)
-            
-            # IMP-1: Early termination si SanitizePhase rechazó NaN/Inf
             if ctx.is_fallback and ctx.fallback_reason == "nan_or_inf_rejected":
                 return self._create_sanitize_fallback_result(ctx)
-            
-            # Early termination si es fallback normal
             if ctx.is_fallback and ctx.diagnostic is not None:
                 return self._create_fallback_result(ctx)
-        
-        # Fase final: ensamblar resultado
+            if _total_elapsed_ms > timer.budget_ms:
+                logger.warning(
+                    "pipeline_over_budget",
+                    extra={
+                        "series_id": series_id,
+                        "phase": phase_name,
+                        "elapsed_ms": round(_total_elapsed_ms, 2),
+                        "budget_ms": timer.budget_ms,
+                    },
+                )
+                ctx.metadata["_cognitive_phase_times"] = _phase_times
+                ctx.metadata["truncated"] = True
+                ctx.metadata["truncation_reason"] = "over_budget"
+                return self._create_over_budget_result(ctx)
+        ctx.metadata["_cognitive_phase_times"] = _phase_times
         return self._assembly.execute(ctx)
-    
     def _create_early_result(self, ctx: PipelineContext) -> PredictionResult:
-        """Crea resultado temprano para out-of-domain."""
-        phase = BoundaryCheckPhase()
-        return phase.create_early_result(ctx)
-    
+        return BoundaryCheckPhase().create_early_result(ctx)
     def _create_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
-        """Crea resultado para fallback."""
         from ...interfaces import PredictionResult
-        
         return PredictionResult(
-            predicted_value=ctx.orchestrator._last_explanation.predicted_value 
-                if ctx.orchestrator._last_explanation else None,
-            confidence=0.2,
-            trend="unknown",
-            metadata=ctx.metadata,
-        )
-    
-    def _create_sanitize_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
-        """IMP-1: minimal PredictionResult when NaN/Inf hard-stop fires."""
+            predicted_value=ctx.orchestrator._last_explanation.predicted_value if ctx.orchestrator._last_explanation else None,
+            confidence=0.2, trend="unknown", metadata=ctx.metadata)
+    def _create_over_budget_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
-        
         return PredictionResult(
-            predicted_value=None,
-            confidence=0.0,
+            predicted_value=ctx.orchestrator._last_explanation.predicted_value if ctx.orchestrator._last_explanation else None,
+            confidence=0.15,
             trend="unknown",
             metadata={
-                "is_sanitize_fallback": True,
-                "rejection_reason": "nan_or_inf_rejected",
-                "sanitization_flags": list(ctx.sanitization_flags),
+                **ctx.metadata,
+                "is_over_budget_fallback": True,
+                "rejection_reason": "over_budget",
             },
         )
+    def _create_sanitize_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
+        from ...interfaces import PredictionResult
+        return PredictionResult(
+            predicted_value=None, confidence=0.0, trend="unknown",
+            metadata={"is_sanitize_fallback": True, "rejection_reason": "nan_or_inf_rejected",
+                      "sanitization_flags": list(ctx.sanitization_flags)})
 
-
-# IMP-3: No more module-level singleton. Callers go through
-# PipelineExecutorFactory (preferred) or the execute_pipeline() helper
-# below (which instantiates a fresh executor per call via the factory).
-#
-# Rationale: phases carry per-call mutable state (Sanitize's flag list,
-# Fuse's Hampel diagnostic, etc.). Sharing a singleton across concurrent
-# requests would race on those attributes.
-
-
-def execute_pipeline(
-    orchestrator,
-    values: List[float],
-    timestamps: Optional[List[float]],
-    series_id: str,
-    flags_snapshot: Optional[Any] = None,
-) -> PredictionResult:
-    """Entry point para ejecutar el pipeline.
-
-    Prefers the orchestrator's own :class:`PipelineExecutorFactory`
-    (``orchestrator._pipeline_executor_factory``) when available;
-    otherwise constructs a one-shot factory. Either path produces a
-    fresh :class:`PipelineExecutor` per invocation.
-
-    Args:
-        orchestrator: MetaCognitiveOrchestrator instance
-        values: Time series values
-        timestamps: Optional timestamps
-        series_id: Series identifier
-        flags_snapshot: Feature flags snapshot (required por CRIT-3)
-
-    Returns:
-        PredictionResult with cognitive metadata
-    """
+def execute_pipeline(orchestrator, values: List[float], timestamps: Optional[List[float]],
+                     series_id: str, flags_snapshot: Optional[Any]=None) -> PredictionResult:
+    """Entry point para ejecutar el pipeline."""
     from .pipeline_executor_factory import PipelineExecutorFactory
-
     factory = getattr(orchestrator, "_pipeline_executor_factory", None)
     if not isinstance(factory, PipelineExecutorFactory):
         factory = PipelineExecutorFactory()
     executor = factory.create(flags_snapshot)
-    return executor.execute(
-        orchestrator=orchestrator,
-        values=values,
-        timestamps=timestamps,
-        series_id=series_id,
-        flags=flags_snapshot,
-    )
+    return executor.execute(orchestrator=orchestrator, values=values, timestamps=timestamps,
+                            series_id=series_id, flags=flags_snapshot)

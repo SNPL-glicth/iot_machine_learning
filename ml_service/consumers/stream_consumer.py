@@ -1,25 +1,21 @@
 """ML Stream Consumer — reads readings:raw, triggers predictions.
 
-Features:
-- Backpressure control: rejects messages when overloaded
-- Priority-based acceptance (critical always accepted)
-- At-least-once semantics: ACK after successful prediction
-
+At-least-once semantics: ACK after successful prediction processing.
 MIGRATED 2026-04-09: Now uses RedisConnectionManager for centralized connection.
 """
-
 from __future__ import annotations
 
 import logging
 import os
-import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
 
-from iot_machine_learning.infrastructure.persistence.redis import (
-    RedisConnectionManager,
-)
-from .sliding_window import Reading, SlidingWindowStore
+from iot_machine_learning.infrastructure.persistence.redis import RedisConnectionManager
+from .sliding_window import SlidingWindowStore
+from .prediction_worker import PredictionWorker, PredictionTask
+from .backpressure import BackpressureController, DEFAULT_MAX_IN_FLIGHT
+from .stream_predictor import predict_sensor, parse_reading
 from ..metrics.performance_metrics import MetricsCollector
 
 if TYPE_CHECKING:
@@ -34,81 +30,8 @@ DEFAULT_MAX_WINDOW = 20
 DEFAULT_BATCH_SIZE = 50
 DEFAULT_BLOCK_MS = 2000
 
-# Backpressure defaults
-DEFAULT_MAX_IN_FLIGHT = 1000
-DEFAULT_LATENCY_TARGET_MS = 5000
-
-
-class BackpressureController:
-    """Simple backpressure: rejects messages when system overloaded."""
-    
-    def __init__(
-        self,
-        max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
-        target_latency_ms: float = DEFAULT_LATENCY_TARGET_MS,
-    ):
-        self._max_in_flight = max_in_flight
-        self._target_latency = target_latency_ms
-        self._in_flight = 0
-        self._lock = threading.Lock()
-        self._rejected = 0
-        self._accepted = 0
-    
-    def can_accept(self, priority: str = "normal") -> bool:
-        """Check if we can accept a new message.
-        
-        Priority levels:
-        - critical: always accepted (unless >90% capacity)
-        - high: accepted until 80% capacity  
-        - normal: accepted until 70% capacity
-        - low: accepted until 50% capacity
-        """
-        with self._lock:
-            load = self._in_flight / self._max_in_flight
-            
-            if priority == "critical":
-                return load < 0.9
-            elif priority == "high":
-                return load < 0.8
-            elif priority == "normal":
-                return load < 0.7
-            else:  # low
-                return load < 0.5
-    
-    def record_start(self):
-        """Call when starting to process a message."""
-        with self._lock:
-            self._in_flight += 1
-            self._accepted += 1
-    
-    def record_complete(self, latency_ms: float):
-        """Call when finished processing."""
-        with self._lock:
-            self._in_flight = max(0, self._in_flight - 1)
-    
-    def record_reject(self):
-        """Call when rejecting a message."""
-        with self._lock:
-            self._rejected += 1
-    
-    def get_metrics(self) -> dict:
-        """Get current backpressure metrics."""
-        with self._lock:
-            return {
-                "in_flight": self._in_flight,
-                "max_in_flight": self._max_in_flight,
-                "load_factor": self._in_flight / self._max_in_flight,
-                "accepted": self._accepted,
-                "rejected": self._rejected,
-            }
-
-
 class ReadingsStreamConsumer:
-    """Consumes readings:raw Redis Stream and triggers ML predictions.
-    
-    Implements at-least-once semantics by ACKing messages only after
-    successful prediction processing.
-    """
+    """Consumes readings:raw Redis Stream and triggers ML predictions."""
 
     def __init__(
         self,
@@ -119,32 +42,33 @@ class ReadingsStreamConsumer:
         max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
         engine_factory: Optional[Callable[[], "PredictionAdapter"]] = None,
         db_engine: Optional["Engine"] = None,
+        prediction_worker: Optional[PredictionWorker] = None,
+        store: Optional[SlidingWindowStore] = None,
+        tsdb_adapter=None,
+        distributed_adapter=None,
     ):
-        # DEPRECATED: redis_url parameter kept for compatibility, ignored
         self._min_window = min_window
         self._consumer_name = consumer_name or f"ml_stream_{os.getpid()}"
-        self._store = SlidingWindowStore(max_size=max_window)
+        self._store = store or SlidingWindowStore(max_size=max_window)
         self._use_case = None
         self._running = False
         self._engine_factory = engine_factory
         self._db_engine = db_engine
-        
-        # Backpressure controller
+        self._prediction_worker = prediction_worker
+        self._tsdb = tsdb_adapter
+        self._distributed = distributed_adapter
+        self._migration_attempted: set = set()
         self._backpressure = BackpressureController(max_in_flight=max_in_flight)
-
     def _init_use_case(self):
         if self._use_case is not None:
             return
         try:
             from ..config.feature_flags import get_feature_flags
             from ..runners.wiring.container import BatchEnterpriseContainer
-            
-            # Use injected engine or create default
             engine = self._db_engine
             if engine is None:
                 from iot_machine_learning.infrastructure.persistence.sql import get_engine
                 engine = get_engine()
-            
             container = BatchEnterpriseContainer(engine=engine, flags=get_feature_flags())
             container.get_prediction_adapter()
             self._use_case = container
@@ -153,8 +77,6 @@ class ReadingsStreamConsumer:
             logger.error("[STREAM_CONSUMER] Use case init failed: %s", e)
 
     def _connect_redis(self):
-        """Connect via centralized RedisConnectionManager."""
-        # Use centralized connection manager
         self._redis = RedisConnectionManager.get_sync_client()
         self._redis.ping()
         try:
@@ -163,7 +85,6 @@ class ReadingsStreamConsumer:
             if "BUSYGROUP" not in str(e):
                 raise
         logger.info("[STREAM_CONSUMER] Connected via RedisConnectionManager, group=%s", CONSUMER_GROUP)
-
     def start(self) -> None:
         self._connect_redis()
         self._init_use_case()
@@ -180,7 +101,6 @@ class ReadingsStreamConsumer:
                 time.sleep(1)
 
         logger.info("[STREAM_CONSUMER] Stopped")
-
     def stop(self) -> None:
         self._running = False
 
@@ -194,41 +114,57 @@ class ReadingsStreamConsumer:
         )
         if not messages:
             return
-
         _t0 = time.monotonic()
         pending_acks: List[Tuple[str, int]] = []  # [(msg_id, sensor_id), ...]
         n_msgs = 0
-
         for _stream, entries in messages:
             for msg_id, fields in entries:
-                reading = self._parse_reading(fields)
+                reading = parse_reading(fields)
                 if reading is None:
-                    # ACK invalid messages immediately
                     self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
                     continue
-
                 window_size = self._store.append(reading)
                 n_msgs += 1
+                if self._tsdb is not None:
+                    try:
+                        self._tsdb.append(reading.sensor_id, reading.value, reading.timestamp)
+                    except Exception as e:
+                        logger.debug("[P3-5] tsdb_append_failed sensor=%d: %s", reading.sensor_id, e)
 
                 if window_size >= self._min_window:
                     pending_acks.append((msg_id, reading.sensor_id))
                 else:
-                    # ACK messages that don't trigger prediction yet
                     self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
 
-        # Process predictions and ACK only after successful completion
-        for msg_id, sensor_id in pending_acks:
-            try:
-                self._predict(sensor_id)
-                # ACK after successful prediction (at-least-once semantics)
-                self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
-            except Exception as e:
-                logger.error(
-                    "[STREAM_CONSUMER] Prediction failed for sensor=%d: %s. "
-                    "Message will be reprocessed (no ACK).",
-                    sensor_id, e
+        if self._prediction_worker is not None:
+            for msg_id, sensor_id in pending_acks:
+                enqueued = self._prediction_worker.enqueue(
+                    PredictionTask(sensor_id=sensor_id)
                 )
-                # Do not ACK - message will be redelivered
+                if enqueued:
+                    self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
+                else:
+                    logger.warning(
+                        "[STREAM_CONSUMER] prediction_worker_queue_full sensor=%d",
+                        sensor_id,
+                    )
+        elif pending_acks:
+            max_w = min(32, len(pending_acks))
+            with ThreadPoolExecutor(max_workers=max_w) as executor:
+                futures = {
+                    executor.submit(self._predict, sensor_id): (msg_id, sensor_id)
+                    for msg_id, sensor_id in pending_acks
+                }
+                for future in as_completed(futures, timeout=30):
+                    msg_id, sensor_id = futures[future]
+                    try:
+                        future.result()
+                        self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
+                    except Exception as e:
+                        logger.warning(
+                            {"event": "stream_batch_item_failed",
+                             "sensor_id": sensor_id, "error": str(e)}
+                        )
 
         batch_ms = (time.monotonic() - _t0) * 1000
         MetricsCollector.get_instance().record_reading_processed(batch_ms)
@@ -237,60 +173,8 @@ class ReadingsStreamConsumer:
             batch_ms, n_msgs, len(pending_acks),
         )
 
-    def _parse_reading(self, fields: dict) -> Optional[Reading]:
-        try:
-            def d(v): return v.decode() if isinstance(v, bytes) else str(v)
-            return Reading(
-                sensor_id=int(d(fields.get(b"sensor_id", fields.get("sensor_id", 0)))),
-                value=float(d(fields.get(b"value", fields.get("value", 0)))),
-                timestamp=float(d(fields.get(b"timestamp", fields.get("timestamp", 0)))),
-                timestamp_iso=d(fields.get(b"timestamp_iso", fields.get("timestamp_iso", ""))),
-            )
-        except Exception as e:
-            logger.warning("[STREAM_CONSUMER] Parse error: %s", e)
-            return None
-
     def _predict(self, sensor_id: int) -> None:
-        if self._use_case is None:
-            return
-        try:
-            from ..config.feature_flags import get_feature_flags
-            # ARCHITECTURE NOTE (INF-5): stream predictions y batch runner
-            # son paths MUTUAMENTE EXCLUYENTES. Habilitar ambos produce
-            # filas duplicadas en dbo.predictions y eventos duplicados en
-            # dbo.ml_events. El guard en lifespan previene esta configuración.
-            if not get_feature_flags().ML_STREAM_PREDICTIONS_ENABLED:
-                logger.debug("stream_predictions_disabled sensor=%d", sensor_id)
-                return
-            _t0 = time.monotonic()
-            adapter = self._use_case.get_prediction_adapter()
-            window = self._build_sensor_window(sensor_id)
-            if window is None:
-                return
-            result = adapter.predict_with_window(sensor_window=window)
-            pred_ms = (time.monotonic() - _t0) * 1000
-            MetricsCollector.get_instance().record_prediction(pred_ms)
-            logger.debug(
-                "stream_predict sensor=%d ms=%.1f conf=%.3f engine=%s",
-                sensor_id, pred_ms, result.confidence,
-                result.engine_used,
-            )
-        except Exception as e:
-            logger.error("[STREAM_CONSUMER] Prediction failed sensor=%d: %s", sensor_id, e)
-
-    def _build_sensor_window(self, sensor_id: int):
-        """Build a SensorWindow from the in-memory sliding window store."""
-        from iot_machine_learning.domain.entities.sensor_reading import (
-            SensorReading, SensorWindow,
+        predict_sensor(
+            self._use_case, sensor_id, self._store,
+            self._min_window, self._distributed, self._migration_attempted,
         )
-        readings_raw = self._store.get_window(sensor_id)
-        if len(readings_raw) < self._min_window:
-            return None
-        readings = [
-            SensorReading(sensor_id=sensor_id, value=r.value, timestamp=r.timestamp)
-            for r in readings_raw
-            if r.value == r.value and r.timestamp > 0
-        ]
-        if len(readings) < 2:
-            return None
-        return SensorWindow(sensor_id=sensor_id, readings=readings)

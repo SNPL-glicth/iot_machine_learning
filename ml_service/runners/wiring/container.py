@@ -75,6 +75,7 @@ class BatchEnterpriseContainer:
         self._audit: Optional[AuditPort] = None
         self._prediction_adapter: Optional[EnterprisePredictionAdapter] = None
         self._cognitive_adapter: Optional[OrchestratorPredictionAdapter] = None
+        self._dynamic_tuner: Optional[object] = None
 
     @property
     def flags(self) -> FeatureFlags:
@@ -329,6 +330,18 @@ class BatchEnterpriseContainer:
 
         return self._cognitive_adapter
 
+    def get_dynamic_tuner(self) -> Optional[object]:
+        """DynamicTuner (singleton por container)."""
+        if self._dynamic_tuner is None:
+            from core.tuning.dynamic_tuning import DynamicTuner
+            from core.parameters.parameter_bounds import ParameterBoundsEnforcer
+            self._dynamic_tuner = DynamicTuner(
+                bounds_enforcer=ParameterBoundsEnforcer(),
+                convergence_window=20,
+            )
+            logger.info("container_dynamic_tuner_created")
+        return self._dynamic_tuner
+
     def close(self) -> None:
         """Cierra recursos abiertos."""
         conn = getattr(self._thread_local, "connection", None)
@@ -341,3 +354,4 @@ class BatchEnterpriseContainer:
         self._thread_local.storage = None
         self._prediction_adapter = None
         self._cognitive_adapter = None
+        self._dynamic_tuner = None

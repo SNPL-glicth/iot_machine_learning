@@ -48,6 +48,15 @@ class OrchestratorPredictionAdapter:
             flags, "ML_ORCHESTRATOR_TIMEOUT_S", 5.0
         )
 
+    @property
+    def orchestrator(self):
+        """Public accessor for the wrapped MetaCognitiveOrchestrator.
+
+        Used by FASE-1A wiring to inject the orchestrator into
+        PredictionDomainService as a PredictionPort.
+        """
+        return self._orchestrator
+
     def predict(
         self,
         sensor_id: int,

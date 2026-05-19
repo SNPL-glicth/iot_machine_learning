@@ -1,18 +1,7 @@
-"""Rangos operativos por tipo de sensor — LEGACY IoT.
-
-DEPRECADO: Este módulo será eliminado en la migración completa a Zenin.
-Usar: domain.entities.series + infrastructure.adapters.iot
-"""
+"""Rangos operativos por tipo de sensor — legacy IoT boundary."""
 
 from __future__ import annotations
 
-import warnings
-warnings.warn(
-    "domain.entities.iot está deprecado. "
-    "Usar domain.entities.series + infrastructure.adapters.iot",
-    DeprecationWarning,
-    stacklevel=1,
-)
 from typing import Dict, Optional, Tuple
 
 # Rangos operativos recomendados por tipo de sensor.

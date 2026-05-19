@@ -92,9 +92,13 @@ class PredictResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Response schema for health endpoint."""
     status: str
+    degraded: bool = False
     broker: dict | None = None
     poller: dict | None = None
+    sql_pool: dict | None = None
     version: str = "0.1.0"
+    tsdb_circuit: str = "unknown"
+    dist_window_circuit: str = "unknown"
 
 
 class BrokerHealthResponse(BaseModel):

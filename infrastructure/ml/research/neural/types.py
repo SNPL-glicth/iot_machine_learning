@@ -6,9 +6,18 @@ Pure value objects for neural analysis results and internal state.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, List, Optional
 
-from ..universal.analysis.types import InputType
+# NOTE: InputType was imported from ..universal.analysis.types,
+# but the universal module does not exist. Defined locally to prevent
+# import errors in downstream consumers.
+class InputType(Enum):
+    SENSOR = "sensor"
+    TEXT = "text"
+    IMAGE = "image"
+    AUDIO = "audio"
+    TABULAR = "tabular"
 
 
 @dataclass(frozen=True)

@@ -1,20 +1,19 @@
 """Event persister service for ML online processing.
 
-Extraído de ml_stream_runner.py para modularidad.
-Responsabilidad: Persistir eventos ML y notificaciones en BD.
+Orquestador delegado a event_inserter (SQL puro) y event_buffer (batching).
+Mantiene retrocompatibilidad total de la interfaz pública.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Dict, Optional
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from iot_ingest_services.common.db import get_engine
-from iot_machine_learning.ml_service.repository.sensor_repository import get_device_id_for_sensor
+from .event_buffer import EventBuffer
+from .event_inserter import insert_single, insert_single_transaction
 from ..models.online_analysis import OnlineAnalysis
 
 logger = logging.getLogger(__name__)
@@ -22,29 +21,19 @@ logger = logging.getLogger(__name__)
 
 class MLEventPersister:
     """Persiste eventos ML y notificaciones en la base de datos.
-    
-    Responsabilidades:
-    - Verificar cooldown de eventos
-    - Verificar deduplicación
-    - Insertar eventos ML
-    - Crear notificaciones asociadas
-    
-    LÓGICA DE DOMINIO (FIX 2026-01-28 - Auditoría Delta Spike):
-    - TODOS los eventos ML tienen cooldown de 5 min (incluyendo DELTA_SPIKE)
-    - ALERT activo NO bloquea eventos ML (pueden coexistir)
-    - Deduplicación para eventos activos del mismo tipo
+
+    FIX P0-3: Batching de eventos en buffer con flush periódico.
+    Responsabilidades: delega inserts a event_inserter y buffering a event_buffer.
     """
-    
+
     def __init__(self) -> None:
         self._device_cache: Dict[int, int] = {}
-    
-    def _get_device_id(self, conn: Connection, sensor_id: int) -> int:
-        """Obtiene device_id con cache."""
-        if sensor_id in self._device_cache:
-            return self._device_cache[sensor_id]
-        device_id = get_device_id_for_sensor(conn, sensor_id)
-        self._device_cache[sensor_id] = device_id
-        return device_id
+
+        from os import getenv
+        batch_size = int(getenv("ML_EVENT_BATCH_SIZE", "50"))
+        flush_interval = float(getenv("ML_EVENT_FLUSH_INTERVAL_SECONDS", "5.0"))
+        self._buffer = EventBuffer(batch_size, flush_interval) if batch_size > 1 else None
+        self._batch_size = batch_size
 
     def insert_ml_event(
         self,
@@ -62,157 +51,84 @@ class MLEventPersister:
         prediction_id: Optional[int],
         extra_payload: Optional[dict],
     ) -> None:
-        """Inserta un ml_event y crea una notificación asociada.
+        """Inserta un ml_event. batch_size=1 → inmediato; >1 → buffer."""
+        event_data = {
+            "sensor_id": sensor_id,
+            "sensor_type": sensor_type,
+            "severity_label": severity_label,
+            "event_type": event_type,
+            "event_code": event_code,
+            "title": title,
+            "explanation": explanation,
+            "recommended_action": recommended_action,
+            "analysis": analysis,
+            "ts_utc": ts_utc,
+            "prediction_id": prediction_id,
+            "extra_payload": extra_payload,
+        }
 
-        - ml_events: registro detallado del evento ML.
-        - alert_notifications: estado de notificación (read/unread).
-        
-        LÓGICA DE DOMINIO (FIX 2026-01-28 - Auditoría Delta Spike):
-        - TODOS los eventos ML tienen cooldown de 5 min (incluyendo DELTA_SPIKE)
-        - ALERT activo NO bloquea eventos ML (pueden coexistir)
-        - Deduplicación para eventos activos del mismo tipo
-        """
-        engine = get_engine()
-        with engine.begin() as conn:
-            # Verificar cooldown
-            recent_event = conn.execute(
-                text("""
-                    SELECT TOP 1 1 FROM dbo.ml_events
-                    WHERE sensor_id = :sensor_id
-                      AND event_code = :event_code
-                      AND created_at >= DATEADD(MINUTE, -5, GETDATE())
-                """),
-                {"sensor_id": sensor_id, "event_code": event_code}
-            ).fetchone()
-            
-            if recent_event:
-                logger.debug(
-                    "[ML_COOLDOWN] sensor_id=%s event_code=%s in cooldown, skipping",
-                    sensor_id, event_code
-                )
-                return
-            
-            # Verificar deduplicación
-            active_same_event = conn.execute(
-                text("""
-                    SELECT TOP 1 1 FROM dbo.ml_events
-                    WHERE sensor_id = :sensor_id
-                      AND event_code = :event_code
-                      AND status = 'active'
-                """),
-                {"sensor_id": sensor_id, "event_code": event_code}
-            ).fetchone()
-            
-            if active_same_event:
-                logger.debug(
-                    "[ML_DEDUPE] sensor_id=%s already has active %s event, skipping",
-                    sensor_id, event_code
-                )
-                return
+        if self._buffer is None:
+            insert_single_transaction(
+                **event_data, device_cache=self._device_cache
+            )
+            return
 
-            device_id = self._get_device_id(conn, sensor_id)
+        self._buffer.append(event_data)
 
-            base_payload: dict = {
-                "severity": severity_label,
-                "behavior_pattern": analysis.behavior_pattern,
-                "recommended_action": recommended_action,
-                "sensor_type": sensor_type,
-                "baseline_mean": analysis.baseline_mean,
-                "last_value": analysis.last_value,
-                "z_score_last": analysis.z_score_last,
-                "is_curve_anomalous": analysis.is_curve_anomalous,
-                "has_microvariation": analysis.has_microvariation,
-                "microvariation_delta": analysis.microvariation_delta,
-            }
-            if extra_payload:
-                base_payload.update(extra_payload)
+    def flush(self) -> int:
+        """Fuerza flush inmediato. Retorna eventos flusheados."""
+        if self._buffer is None:
+            return 0
+        buffer = self._buffer.flush()
+        if not buffer:
+            return 0
+        return self._flush_batch(buffer)
 
-            payload_json = json.dumps(base_payload, ensure_ascii=False)
+    def close(self) -> int:
+        """Shutdown graceful: retorna eventos pendientes flusheados."""
+        if self._buffer is None:
+            return 0
+        buffer = self._buffer.close()
+        return self._flush_batch(buffer)
 
-            # Insertar evento ML
-            row = conn.execute(
-                text(
-                    """
-                    INSERT INTO dbo.ml_events (
-                      device_id,
-                      sensor_id,
-                      prediction_id,
-                      event_type,
-                      event_code,
-                      title,
-                      message,
-                      status,
-                      created_at,
-                      payload
+    def _flush_batch(self, buffer: list) -> int:
+        """Flush real: batch → fallback individual."""
+        count = len(buffer)
+        logger.info("ml_event_persister_flush_start", extra={"buffered_events": count})
+
+        # Batch en una sola transacción
+        from iot_ingest_services.common.db import get_engine
+        try:
+            engine = get_engine()
+            with engine.begin() as conn:
+                for event in buffer:
+                    insert_single(
+                        conn, **event, device_cache=self._device_cache
                     )
-                    OUTPUT INSERTED.id
-                    VALUES (
-                      :device_id,
-                      :sensor_id,
-                      :prediction_id,
-                      :event_type,
-                      :event_code,
-                      :title,
-                      :message,
-                      'active',
-                      DATEADD(second, :ts_utc, '1970-01-01'),
-                      :payload
-                    )
-                    """
-                ),
-                {
-                    "device_id": device_id,
-                    "sensor_id": sensor_id,
-                    "prediction_id": prediction_id,
-                    "event_type": event_type,
-                    "event_code": event_code,
-                    "title": title,
-                    "message": explanation,
-                    "ts_utc": ts_utc,
-                    "payload": payload_json,
-                },
-            ).fetchone()
+            logger.info("ml_event_persister_flush_success", extra={"flushed_events": count})
+            return count
+        except Exception:
+            logger.exception("ml_event_persister_batch_failed", extra={"buffered_events": count})
 
-            if not row:
-                return
-
-            event_id = int(row[0])
-
-            # Crear notificación
+        # Fallback individual
+        ok = 0
+        for event in buffer:
             try:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO dbo.alert_notifications (
-                          source,
-                          source_event_id,
-                          severity,
-                          title,
-                          message,
-                          is_read,
-                          created_at
-                        )
-                        VALUES (
-                          :source,
-                          :source_event_id,
-                          :severity,
-                          :title,
-                          :message,
-                          0,
-                          GETDATE()
-                        )
-                        """
-                    ),
-                    {
-                        "source": "ml_event",
-                        "source_event_id": event_id,
-                        "severity": event_type,
-                        "title": title,
-                        "message": explanation,
+                insert_single_transaction(**event, device_cache=self._device_cache)
+                ok += 1
+            except Exception:
+                logger.exception(
+                    "ml_event_persister_individual_fallback_failed",
+                    extra={
+                        "sensor_id": event.get("sensor_id"),
+                        "event_code": event.get("event_code"),
                     },
                 )
-            except Exception:
-                logger.exception("No se pudo insertar en alert_notifications (ML online)")
+        logger.warning(
+            "ml_event_persister_fallback_complete",
+            extra={"buffered_events": count, "fallback_ok": ok, "fallback_failed": count - ok},
+        )
+        return ok
 
     def should_dedupe_prediction_deviation(
         self,

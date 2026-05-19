@@ -25,6 +25,7 @@ from iot_machine_learning.infrastructure.persistence.redis import (
     get_redis_circuit_breaker,
     CircuitOpenError,
 )
+from iot_machine_learning.ml_service.utils.watchdog_thread import WatchdogThread
 from ..reading_broker import Reading, ReadingBroker
 
 logger = logging.getLogger(__name__)
@@ -70,15 +71,15 @@ class RedisReadingBroker(ReadingBroker):
         self._redis: Optional[Redis] = None
         self._running = False
         self._handlers: list[Callable[[Reading], None]] = []
-        self._consumer_thread: Optional[threading.Thread] = None
-        
+        self._watchdog: Optional[WatchdogThread] = None
+
         # Connection state
         self._connected = False
         self._last_error: Optional[str] = None
-        
+
         # Circuit breaker for resilience
         self._circuit_breaker = get_redis_circuit_breaker("redis_broker")
-        
+
         # Local fallback queue (when circuit open)
         self._local_queue: deque[Reading] = deque(maxlen=10000)
     
@@ -225,32 +226,33 @@ class RedisReadingBroker(ReadingBroker):
     
     def subscribe(self, handler: Callable[[Reading], None]) -> None:
         """Subscribe to readings from Redis Stream.
-        
-        Starts a consumer thread that reads from the stream.
+
+        Starts a consumer watchdog that supervisa el loop del stream.
         """
         self._handlers.append(handler)
-        
-        if self._consumer_thread is None or not self._consumer_thread.is_alive():
+
+        if self._watchdog is None or not self._watchdog.is_healthy():
             self._start_consumer()
-    
+
     def _start_consumer(self) -> None:
-        """Start the consumer thread."""
+        """Start the consumer under WatchdogThread."""
         if not self._connect():
             logger.error("[REDIS_BROKER] Cannot start consumer, not connected")
             return
-        
+
         self._ensure_consumer_group()
         self._running = True
-        
-        self._consumer_thread = threading.Thread(
+
+        self._watchdog = WatchdogThread(
             target=self._consume_loop,
             name="redis-reading-consumer",
-            daemon=True,
+            max_restarts=10,
+            backoff_seconds=5.0,
         )
-        self._consumer_thread.start()
-        
+        self._watchdog.start()
+
         logger.info(
-            "[REDIS_BROKER] Consumer started: group=%s consumer=%s",
+            "[REDIS_BROKER] Consumer watchdog started: group=%s consumer=%s",
             self.CONSUMER_GROUP,
             self._consumer_name,
         )
@@ -362,21 +364,24 @@ class RedisReadingBroker(ReadingBroker):
     def stop(self) -> None:
         """Stop the consumer."""
         self._running = False
-        if self._consumer_thread:
-            self._consumer_thread.join(timeout=5)
+        if self._watchdog:
+            self._watchdog.stop()
         if self._redis:
             self._redis.close()
         logger.info("[REDIS_BROKER] Broker stopped")
-    
+
+    def is_healthy(self) -> bool:
+        """Para health checks externos: delega al watchdog."""
+        if self._watchdog is None:
+            return False
+        return self._watchdog.is_healthy()
+
     def health_check(self) -> dict:
         """Return health status."""
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         return {
             "connected": self._connected,
-            "consumer_running": self._running and (
-                self._consumer_thread is not None and 
-                self._consumer_thread.is_alive()
-            ),
+            "consumer_running": self.is_healthy(),
             "handlers_count": len(self._handlers),
             "last_error": self._last_error,
             "redis_url": redis_url.split("@")[-1],  # Hide password

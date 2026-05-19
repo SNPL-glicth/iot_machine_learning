@@ -78,8 +78,11 @@ class CognitiveConfig(BaseModel):
     ML_ANOMALY_KEY_TTL_SECONDS: int = 3600
     ML_ANOMALY_TRACKER_BACKEND: str = "memory"  # memory | redis
 
-    # --- Orchestrator Integration (batch runner) ---
-    ML_USE_COGNITIVE_ORCHESTRATOR: bool = False  # Safe rollout: False until validated
+    # --- Orchestrator Integration (batch runner + API) ---
+    # FASE-FINAL: Activado por default. Graceful degradation en routes.py y
+    # prediction_lifecycle.py asegura fallback a baseline+kalman si el
+    # container falla. Para deshabilitar: ML_USE_COGNITIVE_ORCHESTRATOR=false
+    ML_USE_COGNITIVE_ORCHESTRATOR: bool = True
 
     # --- Domain Boundary Check (EJE 4 fix) ---
     ML_DOMAIN_BOUNDARY_ENABLED: bool = False
