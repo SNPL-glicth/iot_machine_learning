@@ -101,8 +101,11 @@ class TestExecuteWithWindow:
         # Key assertion: storage.load_sensor_window was NOT called
         mock_storage.load_sensor_window.assert_not_called()
 
-        # prediction_service.predict WAS called with the window
-        mock_pred_service.predict.assert_called_once_with(window)
+        # prediction_service.predict WAS called with a sanitized window
+        mock_pred_service.predict.assert_called_once()
+        called_window = mock_pred_service.predict.call_args[0][0]
+        assert called_window.sensor_id == window.sensor_id
+        assert called_window.values == window.values
 
         # DTO has correct values
         assert dto.predicted_value == 21.5
@@ -244,10 +247,10 @@ class TestStreamConsumerSlidingWindow:
         consumer._store.append(
             Reading(sensor_id=7, value=21.0, timestamp=1001.0, timestamp_iso="")
         )
-        # NaN value — should be filtered
-        consumer._store.append(
-            Reading(sensor_id=7, value=float("nan"), timestamp=1002.0, timestamp_iso="")
-        )
+        # NaN value — build a valid reading then inject NaN to bypass validation
+        nan_reading = Reading(sensor_id=7, value=0.0, timestamp=1002.0)
+        object.__setattr__(nan_reading, "value", float("nan"))
+        consumer._store.append(nan_reading)
 
         window = consumer._build_sensor_window(7)
         assert window is not None

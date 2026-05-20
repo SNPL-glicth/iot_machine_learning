@@ -34,7 +34,6 @@ def parse_reading(fields: dict) -> Optional[Reading]:
         timestamp = float(d(raw_ts)) if raw_ts is not None else 0.0
         return Reading(
             sensor_id=sensor_id, value=value, timestamp=timestamp,
-            timestamp_iso=d(fields.get(b"timestamp_iso", fields.get("timestamp_iso", ""))),
         )
     except Exception as e:
         logger.warning("[STREAM_CONSUMER] Parse error: %s", e)
@@ -109,7 +108,7 @@ def build_sensor_window(sensor_id: int, store: SlidingWindowStore,
                 for r in remote:
                     store.append(
                         Reading(sensor_id=sensor_id, value=r.value,
-                                timestamp=r.timestamp, timestamp_iso="")
+                                timestamp=r.timestamp)
                     )
                 readings_raw = store.get_window(sensor_id)
         except Exception as e:

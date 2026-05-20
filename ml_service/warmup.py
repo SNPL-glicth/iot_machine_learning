@@ -71,8 +71,13 @@ def warmup_engines(result: WarmupResult) -> None:
         from iot_machine_learning.infrastructure.ml.cognitive.orchestration.orchestrator import MetaCognitiveOrchestrator
         from iot_machine_learning.infrastructure.ml.engines.taylor.engine import TaylorPredictionEngine
         from iot_machine_learning.infrastructure.ml.engines.statistical.engine import StatisticalPredictionEngine
+        from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
         orch = MetaCognitiveOrchestrator(engines=[TaylorPredictionEngine(), StatisticalPredictionEngine()])
-        orch.predict(series_id="warmup", values=[20.0, 20.1, 20.2, 20.3, 20.4])
+        orch.predict(
+            series_id="warmup",
+            values=[20.0, 20.1, 20.2, 20.3, 20.4],
+            flags_snapshot=get_feature_flags(),
+        )
         elapsed = (time.monotonic() - t0) * 1000.0
         result.record("cognitive_orchestrator", True, elapsed, "initialized + warm prediction")
     except Exception as exc:
@@ -102,9 +107,10 @@ def warmup_db(result: WarmupResult) -> None:
     t0 = time.monotonic()
     try:
         from iot_ingest_services.common.db import get_engine
+        from sqlalchemy import text
         engine = get_engine()
         with engine.connect() as conn:
-            conn.execute("SELECT 1" if hasattr(conn, 'execute') else None)
+            conn.execute(text("SELECT 1"))
         elapsed = (time.monotonic() - t0) * 1000.0
         result.record("database", True, elapsed, "connection verified")
     except Exception as exc:

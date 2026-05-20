@@ -15,7 +15,7 @@ from iot_machine_learning.infrastructure.persistence.redis import RedisConnectio
 from .sliding_window import SlidingWindowStore
 from .prediction_worker import PredictionWorker, PredictionTask
 from .backpressure import BackpressureController, DEFAULT_MAX_IN_FLIGHT
-from .stream_predictor import predict_sensor, parse_reading
+from .stream_predictor import predict_sensor, parse_reading, build_sensor_window
 from ..metrics.performance_metrics import MetricsCollector
 
 if TYPE_CHECKING:
@@ -67,8 +67,8 @@ class ReadingsStreamConsumer:
             from ..runners.wiring.container import BatchEnterpriseContainer
             engine = self._db_engine
             if engine is None:
-                from iot_machine_learning.infrastructure.persistence.sql import get_engine
-                engine = get_engine()
+                from iot_machine_learning.infrastructure.persistence.sql import ZeninDbConnection
+                engine = ZeninDbConnection.get_engine()
             container = BatchEnterpriseContainer(engine=engine, flags=get_feature_flags())
             container.get_prediction_adapter()
             self._use_case = container
@@ -77,7 +77,7 @@ class ReadingsStreamConsumer:
             logger.error("[STREAM_CONSUMER] Use case init failed: %s", e)
 
     def _connect_redis(self):
-        self._redis = RedisConnectionManager.get_sync_client()
+        self._redis = RedisConnectionManager.get_stream_client()
         self._redis.ping()
         try:
             self._redis.xgroup_create(STREAM_NAME, CONSUMER_GROUP, id="0", mkstream=True)
@@ -171,6 +171,12 @@ class ReadingsStreamConsumer:
         logger.debug(
             "stream_batch ms=%.1f msgs=%d triggered=%d",
             batch_ms, n_msgs, len(pending_acks),
+        )
+
+    def _build_sensor_window(self, sensor_id: int):
+        return build_sensor_window(
+            sensor_id, self._store, self._min_window,
+            self._distributed, self._migration_attempted,
         )
 
     def _predict(self, sensor_id: int) -> None:

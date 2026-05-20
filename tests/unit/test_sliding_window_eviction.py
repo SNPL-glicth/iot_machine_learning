@@ -32,8 +32,8 @@ from iot_machine_learning.ml_service.sliding_window_buffer import (
 
 def _reading(sensor_id: int, value: float = 1.0, ts: float = 1000.0) -> Reading:
     return Reading(
-        sensor_id=sensor_id, value=value,
-        timestamp=ts, timestamp_iso="2026-01-01T00:00:00Z",
+        series_id=str(sensor_id), value=value,
+        timestamp=ts,
     )
 
 
@@ -44,7 +44,7 @@ def _reading(sensor_id: int, value: float = 1.0, ts: float = 1000.0) -> Reading:
 class TestSlidingWindowStoreLRU:
 
     def test_lru_eviction_oldest_removed(self):
-        store = SlidingWindowStore(max_size=20, max_sensors=3)
+        store = SlidingWindowStore(max_size=20, max_sensors=3, n_shards=1)
         store.append(_reading(1, ts=100))
         store.append(_reading(2, ts=101))
         store.append(_reading(3, ts=102))
@@ -57,7 +57,7 @@ class TestSlidingWindowStoreLRU:
         assert store.get_metrics()["evictions_lru"] == 1
 
     def test_lru_access_refreshes_order(self):
-        store = SlidingWindowStore(max_size=20, max_sensors=3)
+        store = SlidingWindowStore(max_size=20, max_sensors=3, n_shards=1)
         store.append(_reading(1, ts=100))
         store.append(_reading(2, ts=101))
         store.append(_reading(3, ts=102))
@@ -73,7 +73,7 @@ class TestSlidingWindowStoreLRU:
         assert store.get_metrics()["evictions_lru"] == 1
 
     def test_existing_sensor_does_not_trigger_eviction(self):
-        store = SlidingWindowStore(max_size=20, max_sensors=2)
+        store = SlidingWindowStore(max_size=20, max_sensors=2, n_shards=1)
         store.append(_reading(1, ts=100))
         store.append(_reading(2, ts=101))
 
@@ -85,7 +85,7 @@ class TestSlidingWindowStoreLRU:
         assert store.get_metrics()["evictions_lru"] == 0
 
     def test_max_sensors_one(self):
-        store = SlidingWindowStore(max_size=5, max_sensors=1)
+        store = SlidingWindowStore(max_size=5, max_sensors=1, n_shards=1)
         store.append(_reading(1, ts=100))
         store.append(_reading(2, ts=101))
 
@@ -171,7 +171,7 @@ class TestSlidingWindowStoreThreadSafety:
             try:
                 for _ in range(200):
                     store.get_window(0)
-                    store.sensor_ids
+                    store.series_ids
                     store.get_metrics()
             except Exception as e:
                 errors.append(e)
@@ -207,10 +207,10 @@ class TestSlidingWindowStoreCompat:
         assert store.get_window(1) == []
 
     def test_sensor_ids(self):
-        store = SlidingWindowStore(max_size=20)
+        store = SlidingWindowStore(max_size=20, n_shards=1)
         store.append(_reading(1, ts=100))
         store.append(_reading(2, ts=101))
-        assert set(store.sensor_ids) == {1, 2}
+        assert set(store.series_ids) == {"1", "2"}
 
     def test_get_window_nonexistent_returns_empty(self):
         store = SlidingWindowStore(max_size=20)

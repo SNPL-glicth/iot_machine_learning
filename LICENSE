@@ -1,37 +1,72 @@
-Copyright (c) 2026 Zenin Team
-All Rights Reserved
+ZENIN ENTERPRISE LICENSE AGREEMENT
+Version 1.0 — Effective Date: 2026-05-19
 
-This software and its source code are the exclusive proprietary property of Zenin Team.
-The Zenin Team remains the sole owner of this codebase.
+Copyright (c) 2026 Zenin Team. All Rights Reserved.
 
-You may NOT:
-- Use this software or its source code in your own projects
-- Modify, adapt, or create derivative works
-- Distribute, publish, or share copies of this software
-- Use this software for commercial purposes
-- Remove or alter this copyright notice
-- Claim ownership or rights to this code, even if you contribute
+This software and its source code ("Software") are the exclusive proprietary
+property of Zenin Team ("Licensor"). The Licensor retains all ownership,
+intellectual property rights, and title to the Software.
 
-You MAY:
-- Review the source code for educational and inspirational purposes
-- Learn from the architectural patterns and implementation approaches
-- Reference the design concepts in your own original implementations
+1. GRANT OF LICENSE
+   Subject to payment of applicable fees and compliance with this Agreement,
+   Licensor grants you ("Licensee") a limited, non-exclusive, non-transferable,
+   revocable license to:
 
-CLONING THIS REPOSITORY:
-Cloning this repository does NOT grant you any rights to use, modify, or distribute the code.
-The code remains proprietary property of Zenin Team regardless of cloning.
-By cloning, you agree to review the code for educational/inspirational purposes only.
+   a) Use the Software internally within Licensee's organization for
+      production industrial IoT operations, up to the licensed sensor limit.
+   b) Modify the Software solely for internal deployment and configuration
+      tailored to Licensee's infrastructure.
+   c) Deploy the Software on-premises or on Licensee-owned cloud infrastructure.
 
-CONTRIBUTIONS:
-Contributors will be recognized for their contributions but will NOT:
-- Gain ownership or rights to the code
-- Become co-owners or partners in the project
-- Have any claim to the intellectual property
-- Have rights to use the contributed code outside this project
+2. RESTRICTIONS
+   Licensee may NOT:
+   - Sublicense, sell, rent, lease, or distribute the Software to third parties.
+   - Use the Software beyond the purchased sensor tier or deployment scope.
+   - Reverse engineer, decompile, or disassemble the Software except as required
+     by applicable law.
+   - Remove or alter any copyright, trademark, or proprietary notices.
+   - Use the Software to build a competing product or service.
+   - Publish benchmark results without prior written consent from Licensor.
 
-All contributions become exclusive property of Zenin Team under the same restrictive terms.
+3. CONTRIBUTIONS
+   Any feedback, patches, or contributions provided by Licensee become the
+   exclusive property of Licensor. Licensee grants Licensor a perpetual,
+   irrevocable, worldwide, royalty-free license to use, modify, and distribute
+   such contributions within the Software.
 
-Any unauthorized use, copying, modification, or distribution of this software
-is strictly prohibited and may result in legal action.
+4. SUPPORT AND UPDATES
+   Enterprise licensees are entitled to:
+   - Email support with SLA response times (Business Critical: 4h; Standard: 24h).
+   - Access to security patches and minor version updates.
+   - Annual architecture review and calibration assistance.
+   Major version upgrades and custom feature development require separate
+   professional services engagement.
 
-For permission to use this software, contact: zeninenterprise8@gmail.com
+5. LIMITATIONS OF LIABILITY
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+   FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. IN NO EVENT SHALL LICENSOR BE
+   LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE
+   DAMAGES ARISING OUT OF OR RELATED TO THE USE OF THE SOFTWARE.
+
+6. TERMINATION
+   This license terminates automatically upon breach of any term. Upon
+   termination, Licensee must cease all use and destroy all copies of the
+   Software. Sections 2, 3, 5, and 7 shall survive termination.
+
+7. GOVERNING LAW AND DISPUTES
+   This Agreement shall be governed by the laws of Colombia. Any dispute shall
+   be resolved through binding arbitration in Bogotá, Colombia under ICC Rules.
+
+8. CONTACT AND COMMERCIAL TERMS
+   For licensing inquiries, pricing, and support agreements:
+   Email: zeninenterprise8@gmail.com
+
+   Tiers (illustrative — subject to executed Master Service Agreement):
+   - Pilot:     Up to 10 sensors, 90 days, evaluation use.
+   - Growth:    Up to 100 sensors, annual subscription, standard support.
+   - Enterprise: Unlimited sensors, annual subscription, dedicated support,
+                 SLA guarantees, on-site calibration.
+
+BY INSTALLING, ACCESSING, OR USING THE SOFTWARE, LICENSEE ACKNOWLEDGES THAT
+THEY HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THE TERMS OF THIS AGREEMENT.

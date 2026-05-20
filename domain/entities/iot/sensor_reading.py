@@ -10,10 +10,10 @@ from typing import List, Optional
 @dataclass(frozen=True, slots=True)
 class Reading:
     """UTSAE Canonical Reading type - unified sensor reading with series_id.
-    
+
     Phase 6: Replaces SensorReading with series_id (str) as universal key.
     Eliminates sensor_id: int vs series_id: str duality.
-    
+
     Attributes:
         series_id: Universal series identifier (string).
         value: Numeric reading value.
@@ -21,23 +21,43 @@ class Reading:
         sensor_type: Type classification.
         device_id: Optional device reference.
     """
-    
+
     series_id: str
     value: float
     timestamp: float
     sensor_type: str = ""
     device_id: Optional[int] = None
-    
-    def __post_init__(self) -> None:
-        if not math.isfinite(self.value):
-            raise ValueError(f"Reading.value must be finite, got {self.value}")
-        if not math.isfinite(self.timestamp):
-            raise ValueError(f"Reading.timestamp must be finite, got {self.timestamp}")
-    
+
+    def __init__(
+        self,
+        *,
+        series_id: str = "",
+        value: float = 0.0,
+        timestamp: float = 0.0,
+        sensor_type: str = "",
+        device_id: Optional[int] = None,
+        sensor_id: int = 0,
+        timestamp_iso: str = "",
+    ) -> None:
+        """Custom init for backward compatibility: accepts sensor_id and timestamp_iso."""
+        if not series_id and sensor_id:
+            series_id = str(sensor_id)
+        # Ignore timestamp_iso (legacy stream field)
+        del timestamp_iso
+        if not math.isfinite(value):
+            raise ValueError(f"Reading.value debe ser finito, got {value}")
+        if not math.isfinite(timestamp):
+            raise ValueError(f"Reading.timestamp debe ser finito, got {timestamp}")
+        object.__setattr__(self, "series_id", series_id)
+        object.__setattr__(self, "value", value)
+        object.__setattr__(self, "timestamp", timestamp)
+        object.__setattr__(self, "sensor_type", sensor_type)
+        object.__setattr__(self, "device_id", device_id)
+
     @property
     def is_valid(self) -> bool:
         return math.isfinite(self.value) and self.timestamp > 0
-    
+
     # GOLD: @deprecated - Use series_id instead
     # Backward compatibility alias only - will be removed in v0.3.0
     @property
@@ -49,7 +69,7 @@ class Reading:
             return 0
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(init=False, frozen=True, slots=True)
 class SensorReading(Reading):
     """@deprecated Legacy alias for Reading. Use Reading directly."""
     pass
@@ -58,20 +78,46 @@ class SensorReading(Reading):
 @dataclass(frozen=True, slots=True)
 class TimeSeriesWindow:
     """UTSAE Canonical window - unified temporal window with series_id.
-    
+
     Phase 6: Replaces SensorWindow with series_id (str) as universal key.
-    
+
     Attributes:
         series_id: Universal series identifier (string).
         readings: Ordered chronologically.
         sensor_type: Type classification.
         device_id: Optional device reference.
     """
-    
+
     series_id: str
     readings: List[Reading] = field(default_factory=list)
     sensor_type: str = ""
     device_id: Optional[int] = None
+
+    def __init__(
+        self,
+        *,
+        series_id: str = "",
+        readings: List[Reading] = None,
+        sensor_type: str = "",
+        device_id: Optional[int] = None,
+        sensor_id: int = 0,
+        values: List[float] = None,
+        timestamps: List[float] = None,
+    ) -> None:
+        """Custom init for backward compatibility: accepts sensor_id, values, timestamps."""
+        if not series_id and sensor_id:
+            series_id = str(sensor_id)
+        if readings is None:
+            readings = []
+        if values is not None and timestamps is not None:
+            readings = [
+                Reading(series_id=series_id, value=v, timestamp=t)
+                for v, t in zip(values, timestamps)
+            ]
+        object.__setattr__(self, "series_id", series_id)
+        object.__setattr__(self, "readings", readings)
+        object.__setattr__(self, "sensor_type", sensor_type)
+        object.__setattr__(self, "device_id", device_id)
     
     @property
     def values(self) -> List[float]:
@@ -107,7 +153,7 @@ class TimeSeriesWindow:
             return 0
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(init=False, frozen=True, slots=True)
 class SensorWindow(TimeSeriesWindow):
     """@deprecated Legacy alias for TimeSeriesWindow. Use TimeSeriesWindow directly."""
     pass

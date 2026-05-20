@@ -77,9 +77,9 @@ class SlidingWindowStore:
                 entry = shard.entries[sid]
                 shard.entries.move_to_end(sid)
             else:
-                self._evict_lru_if_needed(shard)
                 entry = _WindowEntry(window=deque(maxlen=self._max_size), last_accessed=now)
                 shard.entries[sid] = entry
+                self._evict_lru_if_needed(shard)
             entry.window.append(reading)
             entry.last_accessed = now
             self._evict_global_if_needed(shard)
@@ -134,8 +134,8 @@ class SlidingWindowStore:
             except Exception as e:
                 logger.warning("flush_failed series_id=%s: %s", sid, e)
     def _evict_lru_if_needed(self, shard: _Shard) -> None:
-        per_shard = max(1, self._max_sensors // self._n_shards + 1)
-        while len(shard.entries) >= per_shard and shard.entries:
+        per_shard = max(1, (self._max_sensors + self._n_shards - 1) // self._n_shards)
+        while len(shard.entries) > per_shard and shard.entries:
             evicted_id, entry = shard.entries.popitem(last=False)
             self._flush(evicted_id, entry)
             shard.evictions_lru += 1
