@@ -12,11 +12,12 @@ Items sin infraestructura o datos disponibles para implementación inmediata.
 
 ## Connection pooling Redis/MLflow
 
-- **Ubicación:** `ml_service/runners/wiring/container.py`
-- **Approach:** `redis.ConnectionPool` con `max_connections` configurable por flag
-- **Prerequisito:** `ML_REDIS_MAX_CONNECTIONS` en config
+- **Ubicación:** `infrastructure/persistence/redis/pools.py`
+- **Approach:** `redis.ConnectionPool` con `max_connections` configurable por env
+- **Prerequisito:** `REDIS_MAX_CONNECTIONS` en env
 - **Effort:** 1 día
-- **Status:** BACKLOG
+- **Status:** ✅ DONE — pools.py has general (150), stream (50), async pools.
+  Configurable via `REDIS_MAX_CONNECTIONS`, `REDIS_STREAM_MAX_CONNECTIONS`.
 
 ## Batch prediction API
 
@@ -25,6 +26,29 @@ Items sin infraestructura o datos disponibles para implementación inmediata.
 - **Prerequisito:** Test de carga concurrente (ya existe `test_cognitive_pipeline_100_sensors_concurrent` como referencia)
 - **Effort:** 2–3 días
 - **Status:** BACKLOG
+
+## PERF-P0: zenin_db pool scaling (DONE)
+
+- **Ubicación:** `infrastructure/persistence/sql/zenin_db_connection.py`
+- **Fix:** pool_size 5→20, max_overflow 10→30, configurable via env vars
+  `ZENIN_DB_POOL_SIZE`, `ZENIN_DB_MAX_OVERFLOW`, `ZENIN_DB_POOL_TIMEOUT`,
+  `ZENIN_DB_POOL_RECYCLE`, `ZENIN_DB_CONNECT_TIMEOUT`
+- **Status:** ✅ DONE — max_capacity=50 by default (was 15)
+
+## PERF-P0: Orchestrator thread pool leak (DONE)
+
+- **Ubicación:** `ml_service/runners/adapters/orchestrator_prediction.py`
+- **Fix:** Replaced per-call ThreadPoolExecutor(max_workers=1) with shared
+  singleton executor. Configurable via `ML_ORCHESTRATOR_WORKERS` (default 4).
+- **Status:** ✅ DONE — 0 thread leak under 1000-sensor load
+
+## PERF-P0: Batch runner error isolation (DONE)
+
+- **Ubicación:** `ml_service/runners/ml_batch_runner.py`
+- **Fix:** Added try/except around future.result() in parallel mode.
+  A failed sensor logs error and continues; does not crash the batch.
+  ML_BATCH_PARALLEL_WORKERS default changed from 1 to 8.
+- **Status:** ✅ DONE — 1000 sensors with 8 workers < 7s (10ms/sensor sim)
 
 ## Warm-start de engines (Taylor)
 

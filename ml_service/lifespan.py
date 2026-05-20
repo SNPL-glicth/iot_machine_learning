@@ -144,6 +144,15 @@ async def lifespan(app: FastAPI):
         app.state.prediction_worker = None
         app.state.result_store = None
 
+    # Warm-start: pre-load engines, pools, config
+    try:
+        from .warmup import run_warmup
+        warmup_result = run_warmup()
+        app.state.warmup = warmup_result.to_dict()
+    except Exception as e:
+        logger.warning("[ML-SERVICE] Warmup failed: %s", e)
+        app.state.warmup = {"all_healthy": False, "error": str(e)}
+
     yield
 
     # Shutdown

@@ -18,6 +18,21 @@ from sqlalchemy.engine import Engine
 logger = logging.getLogger(__name__)
 
 
+def _env_int(name: str, default: int) -> int:
+    """Read int from env; log warning and use default on invalid value."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        logger.warning(
+            "zenin_db_config_env_invalid",
+            extra={"env_var": name, "raw_value": raw, "using_default": default},
+        )
+        return default
+
+
 class ZeninDbConnection:
     """Manages connection to zenin_db (separate from iot_monitoring_system)."""
 
@@ -43,15 +58,38 @@ class ZeninDbConnection:
             f"mssql+pymssql://{user}:{password}@{host}:{port}/{database}"
         )
 
+        # PERF-P0: Pool sizes configurable for 1000-sensor scale.
+        # Rule: pool_size >= total_workers * 2 (batch + API + MQTT)
+        pool_size = _env_int("ZENIN_DB_POOL_SIZE", 20)
+        max_overflow = _env_int("ZENIN_DB_MAX_OVERFLOW", 30)
+        pool_timeout = _env_int("ZENIN_DB_POOL_TIMEOUT", 30)
+        pool_recycle = _env_int("ZENIN_DB_POOL_RECYCLE", 300)
+        connect_timeout = _env_int("ZENIN_DB_CONNECT_TIMEOUT", 10)
+
         engine = create_engine(
             conn_str,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=pool_timeout,
             pool_pre_ping=True,
-            pool_recycle=300,
+            pool_recycle=pool_recycle,
+            connect_args={"timeout": connect_timeout},
         )
 
-        logger.info("[ZENIN_DB] Engine created (pymssql) for %s@%s:%s/%s", user, host, port, database)
+        logger.info(
+            "zenin_db_engine_created",
+            extra={
+                "host": host,
+                "port": port,
+                "database": database,
+                "pool_size": pool_size,
+                "max_overflow": max_overflow,
+                "pool_timeout": pool_timeout,
+                "pool_recycle": pool_recycle,
+                "connect_timeout": connect_timeout,
+                "max_capacity": pool_size + max_overflow,
+            },
+        )
         return engine
 
     @classmethod

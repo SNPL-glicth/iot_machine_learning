@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import os
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -23,6 +24,27 @@ if TYPE_CHECKING:
     from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
+
+# PERF-P0: Shared executor — avoids creating a new ThreadPoolExecutor per call.
+# Old code created ThreadPoolExecutor(max_workers=1) in _run_with_timeout,
+# leaking OS threads under load (1 thread per prediction * 1000 sensors = OOM).
+_ORCHESTRATOR_WORKERS = int(os.getenv("ML_ORCHESTRATOR_WORKERS", "4"))
+_shared_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+
+def _get_shared_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Lazy singleton ThreadPoolExecutor for orchestrator predictions."""
+    global _shared_executor
+    if _shared_executor is None or _shared_executor._shutdown:
+        _shared_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=_ORCHESTRATOR_WORKERS,
+            thread_name_prefix="orch-predict",
+        )
+        logger.info(
+            "orchestrator_executor_created",
+            extra={"max_workers": _ORCHESTRATOR_WORKERS},
+        )
+    return _shared_executor
 
 
 class OrchestratorPredictionAdapter:
@@ -89,15 +111,14 @@ class OrchestratorPredictionAdapter:
         """Execute fn in a separate thread with a hard timeout.
 
         Raises TimeoutError if fn does not complete within timeout_seconds.
-        Uses shutdown(wait=False) so a hung thread does not block the caller.
+        PERF-P0: Uses shared executor to avoid thread pool leak under load.
         """
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        executor = _get_shared_executor()
         future = executor.submit(fn)
         try:
             return future.result(timeout=timeout_seconds)
         except concurrent.futures.TimeoutError:
             future.cancel()
-            executor.shutdown(wait=False)
             logger.error(
                 "orchestrator_timeout",
                 extra={
@@ -108,11 +129,6 @@ class OrchestratorPredictionAdapter:
             raise TimeoutError(
                 f"Orchestrator exceeded {timeout_seconds}s budget"
             )
-        except Exception:
-            executor.shutdown(wait=False)
-            raise
-        else:
-            executor.shutdown(wait=False)
 
     def _predict_window(
         self,

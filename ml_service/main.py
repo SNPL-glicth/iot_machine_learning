@@ -63,6 +63,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from .api.routes_batch import router as batch_router
+    app.include_router(batch_router)
+except ImportError:
+    pass
+
 
 @app.get("/")
 async def root():

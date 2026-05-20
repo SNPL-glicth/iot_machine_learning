@@ -151,7 +151,22 @@ class MLBatchRunner:
                     ): sensor_id for sensor_id in sensors
                 }
                 for future in as_completed(futures):
-                    result = future.result()
+                    sensor_id = futures[future]
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        # PERF-P0: Error isolation — one sensor failure
+                        # must not crash the entire batch.
+                        errors += 1
+                        logger.error(
+                            "ml_batch_sensor_exception",
+                            extra={
+                                "sensor_id": sensor_id,
+                                "error": str(exc),
+                                "error_type": type(exc).__name__,
+                            },
+                        )
+                        continue
                     if result["ok"]:
                         processed += 1
                         enterprise_count += 1 if result["enterprise"] else 0

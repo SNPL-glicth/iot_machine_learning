@@ -26,7 +26,11 @@ class BatchConfig(BaseModel):
     ML_BATCH_CIRCUIT_BREAKER_THRESHOLD: int = 10
 
     # --- Batch Parallelism (E-4 / RC-2 fix) ---
-    ML_BATCH_PARALLEL_WORKERS: int = 1  # 1 = sequential (backward compat)
+    # PERF-P0: Changed from 1 to 8 for 1000-sensor scale.
+    # ml_batch_runner.py reads ML_BATCH_MAX_WORKERS from env (default 4).
+    # This config is used by BatchConfig consumers (stream, etc).
+    # Set ML_BATCH_PARALLEL_WORKERS=1 in .env for sequential backward compat.
+    ML_BATCH_PARALLEL_WORKERS: int = 8
 
     # --- Stream Prediction Dedup (E-2 / RC-1 fix) ---
     ML_STREAM_PREDICTIONS_ENABLED: bool = False  # Default: batch only
