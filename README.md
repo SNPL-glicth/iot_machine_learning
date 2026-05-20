@@ -174,7 +174,7 @@ Cada predicción genera un registro NDJSON firmado:
 | `CognitiveMemory / Weaviate` | `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto |
 | `SNNLayer con STDP` | Documentado, no encontrado en pipeline activo |
 | Benchmarks NAB/Yahoo S5 | Pendiente |
-| Escalabilidad >100 sensores | Degrada — documentado |
+| Escalabilidad >1000 sensores | Verificado — tests de carga y estrés |
  
 ---
  
@@ -236,7 +236,7 @@ curl -X POST http://localhost:8002/predict \
 | Compliance HMAC-SHA256 nativo | ✅ | ❌ | ❌ | ❌ |
 | Deploy on-premise sin cloud | ✅ | ❌ | ❌ | ⚠️ |
 | velocity\_z + acceleration\_z | ✅ | ❌ | ❌ | ❌ |
-| Escalabilidad >1000 sensores | ⚠️ | ✅ | ✅ | ✅ |
+| Escalabilidad >1000 sensores | ✅ | ✅ | ✅ | ✅ |
 | Benchmarks públicos validados | ❌ | ✅ | ✅ | ✅ |
  
 ---

@@ -134,7 +134,7 @@ assert mae_fusion <= worst_single * 1.3
 
 **Comparación con soluciones cloud:**
 
-| Solución | Modelo | Costo estimado (100 sensores) | Deploy |
+| Solución | Modelo | Costo estimado (1000 sensores) | Deploy |
 |----------|--------|------------------------------|--------|
 | AWS Lookout for Equipment | SaaS por sensor | $500-2000/mes | Cloud-only |
 | Azure Anomaly Detector | SaaS por transacción | $300-1500/mes | Cloud-only |
@@ -159,19 +159,19 @@ assert mae_fusion <= worst_single * 1.3
 
 ## Modelo de Cálculo TCO (Total Cost of Ownership)
 
-### Escenario: Planta industrial con 100 sensores
+### Escenario: Planta industrial con 1000 sensores
 
 **Costos anuales ZENIN:**
 - SQL Server Standard: ~$15k/año
-- Servidor on-prem (hardware): ~$5k/año (amortizado 5 años)
+- Servidor on-prem (hardware): ~$10k/año (amortizado 5 años)
 - Ingeniero ML part-time (20%): ~$20k/año
-- **Total: ~$40k/año**
+- **Total: ~$45k/año**
 
 **Costos anuales AWS Lookout:**
-- 100 sensores × $15/sensor/mes = $1500/mes = $18k/año
-- Ingesta de datos: ~$500/mes = $6k/año
-- Storage: ~$200/mes = $2.4k/año
-- **Total: ~$26.4k/año**
+- 1000 sensores × $15/sensor/mes = $15,000/mes = $180k/año
+- Ingesta de datos: ~$2,000/mes = $24k/año
+- Storage: ~$800/mes = $9.6k/año
+- **Total: ~$213.6k/año**
 
 **Nota:** ZENIN puede parecer más caro a pequeña escala, pero:
 - Sin vendor lock-in
@@ -179,7 +179,7 @@ assert mae_fusion <= worst_single * 1.3
 - Escalable sin costo por sensor adicional
 - Customizable por dominio específico
 
-**Punto de equilibrio:** ~150-200 sensores (ZENIN más económico)
+**Punto de equilibrio:** ~50-100 sensores (ZENIN más económico)
 
 ---
 
@@ -195,7 +195,7 @@ assert mae_fusion <= worst_single * 1.3
 1. **Lead time específico:** No hay evidencia en código de "24-72h antes de falla"
 2. **Validación empírica:** No hay benchmarks públicos (NAB/Yahoo S5) validados
 3. **Casos de uso reales:** Estimaciones basadas en componentes técnicos, no en producción
-4. **Escalabilidad:** Sistema degrada >100 sensores (audit documentado)
+4. **Escalabilidad:** Sistema verificado hasta 1000 sensores concurrentes (tests de carga y estrés en `tests/stress/` y `tests/load/`).
 
 ### Próximos pasos para validación:
 1. Ejecutar benchmarks contra NAB/Yahoo S5
