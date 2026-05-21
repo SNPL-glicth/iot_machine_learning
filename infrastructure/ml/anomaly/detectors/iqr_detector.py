@@ -182,7 +182,17 @@ class IQRDetector(SubDetector):
                 if local_iqr > 0:
                     self._rolling_iqr_history.append(local_iqr)
 
-        return 1.0 if (value < lower or value > upper) else 0.0
+        # Voto continuo: distancia normalizada a los fences
+        if value < lower:
+            distance = (lower - value) / iqr
+        elif value > upper:
+            distance = (value - upper) / iqr
+        else:
+            distance = 0.0
+
+        # Mapear distancia a [0, 1] con saturación suave
+        vote = min(1.0, distance / 3.0)  # >3 IQRs fuera → 1.0
+        return float(vote)
 
     @property
     def is_trained(self) -> bool:

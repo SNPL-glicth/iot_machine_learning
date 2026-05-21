@@ -99,6 +99,8 @@ class IsolationForestDetector(SubDetector):
             )
             model.fit(X)
             self._model = model
+            # Guardar scores de training para calibración continua
+            self._training_scores = self._model.decision_function(X).flatten()
             logger.debug(
                 "if_detector_trained",
                 extra={
@@ -118,13 +120,14 @@ class IsolationForestDetector(SubDetector):
             import numpy as np
             X = np.array([[value]])
             score = self._model.decision_function(X)[0]
-            is_anomaly = 1.0 if score < 0 else 0.0
+            # Calibrar con scores de training
+            if not hasattr(self, '_training_scores'):
+                return 0.5  # Fallback si no hay training
             
-            # NUEVO: Registrar detección para adaptive contamination
-            if self.adaptive_contamination:
-                self.adaptive_contamination.add_detection(is_anomaly == 1.0)
-            
-            return is_anomaly
+            # Sigmoid suave: scores negativos → cercano a 1.0
+            alpha = 2.0  # Ajustable
+            vote = 1.0 / (1.0 + np.exp(alpha * score))
+            return float(np.clip(vote, 0.0, 1.0))
         except Exception:
             return 0.0
 
@@ -274,7 +277,7 @@ class IsolationForestNDDetector(SubDetector):
             return None
         try:
             score = self._model.decision_function(features)[0]
-            return 1.0 if score < 0 else 0.0
+            return max(0.0, min(1.0, -score / 3.0))
         except Exception:
             return 0.0
 

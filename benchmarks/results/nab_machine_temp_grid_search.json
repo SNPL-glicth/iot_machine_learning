@@ -1,0 +1,210 @@
+{
+  "best_threshold": 0.75,
+  "best_f1": 0.1773,
+  "best_precision": 0.1513,
+  "best_recall": 0.2143,
+  "best_fp": 101,
+  "best_fn": 66,
+  "grid_results": [
+    {
+      "threshold": 0.05,
+      "f1": 0.0074,
+      "precision": 0.0037,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 22561,
+      "fn": 0,
+      "anomalies_detected": 22645
+    },
+    {
+      "threshold": 0.1,
+      "f1": 0.0074,
+      "precision": 0.0037,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 22561,
+      "fn": 0,
+      "anomalies_detected": 22645
+    },
+    {
+      "threshold": 0.15,
+      "f1": 0.0074,
+      "precision": 0.0037,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 22561,
+      "fn": 0,
+      "anomalies_detected": 22645
+    },
+    {
+      "threshold": 0.2,
+      "f1": 0.008,
+      "precision": 0.004,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 20780,
+      "fn": 0,
+      "anomalies_detected": 20864
+    },
+    {
+      "threshold": 0.25,
+      "f1": 0.0096,
+      "precision": 0.0048,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 17383,
+      "fn": 0,
+      "anomalies_detected": 17467
+    },
+    {
+      "threshold": 0.3,
+      "f1": 0.01,
+      "precision": 0.005,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 16562,
+      "fn": 0,
+      "anomalies_detected": 16646
+    },
+    {
+      "threshold": 0.35,
+      "f1": 0.0105,
+      "precision": 0.0053,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 15772,
+      "fn": 0,
+      "anomalies_detected": 15856
+    },
+    {
+      "threshold": 0.4,
+      "f1": 0.0111,
+      "precision": 0.0056,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 14938,
+      "fn": 0,
+      "anomalies_detected": 15022
+    },
+    {
+      "threshold": 0.45,
+      "f1": 0.0118,
+      "precision": 0.0059,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 14090,
+      "fn": 0,
+      "anomalies_detected": 14174
+    },
+    {
+      "threshold": 0.5,
+      "f1": 0.0871,
+      "precision": 0.0533,
+      "recall": 0.2381,
+      "tp": 20,
+      "fp": 355,
+      "fn": 64,
+      "anomalies_detected": 375
+    },
+    {
+      "threshold": 0.55,
+      "f1": 0.1143,
+      "precision": 0.0752,
+      "recall": 0.2381,
+      "tp": 20,
+      "fp": 246,
+      "fn": 64,
+      "anomalies_detected": 266
+    },
+    {
+      "threshold": 0.6,
+      "f1": 0.1316,
+      "precision": 0.0909,
+      "recall": 0.2381,
+      "tp": 20,
+      "fp": 200,
+      "fn": 64,
+      "anomalies_detected": 220
+    },
+    {
+      "threshold": 0.65,
+      "f1": 0.1479,
+      "precision": 0.1098,
+      "recall": 0.2262,
+      "tp": 19,
+      "fp": 154,
+      "fn": 65,
+      "anomalies_detected": 173
+    },
+    {
+      "threshold": 0.7,
+      "f1": 0.1558,
+      "precision": 0.1224,
+      "recall": 0.2143,
+      "tp": 18,
+      "fp": 129,
+      "fn": 66,
+      "anomalies_detected": 147
+    },
+    {
+      "threshold": 0.75,
+      "f1": 0.1773,
+      "precision": 0.1513,
+      "recall": 0.2143,
+      "tp": 18,
+      "fp": 101,
+      "fn": 66,
+      "anomalies_detected": 119
+    },
+    {
+      "threshold": 0.8,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 84,
+      "anomalies_detected": 0
+    },
+    {
+      "threshold": 0.85,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 84,
+      "anomalies_detected": 0
+    },
+    {
+      "threshold": 0.9,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 84,
+      "anomalies_detected": 0
+    },
+    {
+      "threshold": 0.95,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 84,
+      "anomalies_detected": 0
+    }
+  ],
+  "precision_target": {
+    "threshold": 0.45,
+    "f1": 0.0118,
+    "precision": 0.0059,
+    "recall": 1.0,
+    "tp": 84,
+    "fp": 14090,
+    "fn": 0,
+    "anomalies_detected": 14174
+  }
+}

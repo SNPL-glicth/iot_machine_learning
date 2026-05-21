@@ -183,12 +183,11 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         # Min 0.01, max 0.2
         try:
             import numpy as np
-            # Use IQR method to estimate outlier rate
-            q1, q3 = np.percentile(historical_values, [25, 75])
-            iqr = q3 - q1
-            lower_bound = q1 - STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
-            upper_bound = q3 + STAT_THRESHOLDS.IQR_FENCE_MULTIPLIER * iqr
-            outlier_count = sum(1 for v in historical_values if v < lower_bound or v > upper_bound)
+            # Use Z-score method to estimate outlier rate (aligns with pipeline thresholds)
+            mean = np.mean(historical_values)
+            std = np.std(historical_values)
+            z_scores = np.abs((historical_values - mean) / std)
+            outlier_count = np.sum(z_scores > STAT_THRESHOLDS.Z_SCORE_UPPER)
             dynamic_contamination = max(
                 STAT_THRESHOLDS.CONTAMINATION_MIN,
                 min(STAT_THRESHOLDS.CONTAMINATION_MAX, outlier_count / len(historical_values))

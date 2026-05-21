@@ -133,7 +133,7 @@ class LOFNDDetector(SubDetector):
             return None
         try:
             score = self._model.decision_function(features)[0]
-            return 1.0 if score < 0 else 0.0
+            return max(0.0, min(1.0, (-score - 1.0) / 2.0))
         except Exception:
             return 0.0
 

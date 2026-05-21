@@ -139,3 +139,22 @@ def create_my_detector(config):
 | LOF | 0.15 |
 | IQR | 0.10 |
 | AccelerationZ | 0.10 |
+
+## Benchmark NAB — Machine Temperature
+
+Resultados del ensemble sobre el dataset `machine_temperature_system_failure` de NAB (22,695 puntos, 84 anomalías).
+
+### Tuning de Threshold
+
+Grid search sobre thresholds 0.05–0.95 para encontrar el punto óptimo de precision/recall:
+
+![NAB Threshold Tuning](../../../benchmarks/results/nab_machine_temp_tuning.png)
+
+### Resultados (post-fixes)
+
+| Configuración | F1 | Precision | Recall | FP | FN |
+|---|---|---|---|---|---|
+| ZENIN tuned (optimal) 🏆 | 0.1773 | 0.1513 | 0.2143 | 101 | 66 |
+| ZENIN default (0.5) | 0.0871 | 0.0533 | 0.2381 | 355 | 64 |
+| Z-Score (global) | 0.1538 | 0.0909 | 0.5000 | 420 | 42 |
+| IQR (global) | 0.0529 | 0.0274 | 0.7500 | 2235 | 21 |

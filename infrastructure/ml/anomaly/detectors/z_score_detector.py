@@ -13,7 +13,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from core.parameters.numerical_constants import STAT_THRESHOLDS
+from core.parameters.numerical_constants import STAT_THRESHOLDS, EPSILON
 from core.drift.adaptive_strategy import (
     AdaptiveScaler,
     UnifiedAdaptiveConfig,
@@ -173,8 +173,19 @@ class ZScoreDetector(SubDetector):
                 },
             )
         else:
-            # Use standard z-score
-            z = compute_z_score(value, self._stats.mean, self._stats.std)
+            # Dual z-score con switch condicional por drift
+            z_global = compute_z_score(value, self._stats.mean, self._stats.std)
+
+            # EMA de mean (alpha=0.1 para reacción lenta)
+            if not hasattr(self, '_ema_mean'):
+                self._ema_mean = self._stats.mean
+            self._ema_mean = 0.1 * value + 0.9 * self._ema_mean
+
+            z_local = compute_z_score(value, self._ema_mean, self._stats.std)
+
+            # Switch: usar z_local si hay drift de régimen
+            drift_detected = abs(self._ema_mean - self._stats.mean) > 2.0 * self._stats.std
+            z = z_local if drift_detected else z_global
 
         lower, upper = self._effective_thresholds
         result = compute_z_vote(z, lower, upper)
