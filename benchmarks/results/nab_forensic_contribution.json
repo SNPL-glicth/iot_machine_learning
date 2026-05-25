@@ -1,0 +1,68 @@
+{
+  "isolation_forest": {
+    "tp": 63,
+    "fp": 3244,
+    "fn": 21,
+    "tn": 19317,
+    "precision": 0.0191,
+    "recall": 0.75,
+    "f1": 0.0372,
+    "mean_vote": 0.4624,
+    "vote_rate": 0.146
+  },
+  "z_score": {
+    "tp": 19,
+    "fp": 333,
+    "fn": 65,
+    "tn": 22228,
+    "precision": 0.054,
+    "recall": 0.2262,
+    "f1": 0.0872,
+    "mean_vote": 0.0162,
+    "vote_rate": 0.0155
+  },
+  "iqr": {
+    "tp": 63,
+    "fp": 8588,
+    "fn": 21,
+    "tn": 13973,
+    "precision": 0.0073,
+    "recall": 0.75,
+    "f1": 0.0144,
+    "mean_vote": 0.3944,
+    "vote_rate": 0.382
+  },
+  "local_outlier_factor": {
+    "tp": 84,
+    "fp": 10571,
+    "fn": 0,
+    "tn": 11990,
+    "precision": 0.0079,
+    "recall": 1.0,
+    "f1": 0.0156,
+    "mean_vote": 0.4744,
+    "vote_rate": 0.4705
+  },
+  "velocity_z": {
+    "tp": 34,
+    "fp": 9131,
+    "fn": 50,
+    "tn": 13430,
+    "precision": 0.0037,
+    "recall": 0.4048,
+    "f1": 0.0074,
+    "mean_vote": 0.4079,
+    "vote_rate": 0.4047
+  },
+  "acceleration_z": {
+    "tp": 29,
+    "fp": 9329,
+    "fn": 55,
+    "tn": 13232,
+    "precision": 0.0031,
+    "recall": 0.3452,
+    "f1": 0.0061,
+    "mean_vote": 0.4155,
+    "vote_rate": 0.4132
+  }
+}

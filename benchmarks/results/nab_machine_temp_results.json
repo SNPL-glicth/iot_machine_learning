@@ -12,7 +12,7 @@
       "recall": 0.2143,
       "auc_roc": 0.8662,
       "auc_pr": 0.0636,
-      "elapsed_s": 133.66,
+      "elapsed_s": 112.95,
       "anomalies_detected": 119,
       "false_positives": 101,
       "false_negatives": 66
@@ -48,7 +48,7 @@
       "recall": 0.0238,
       "auc_roc": 0.671,
       "auc_pr": 0.0065,
-      "elapsed_s": 0.88,
+      "elapsed_s": 0.71,
       "anomalies_detected": 636,
       "false_positives": 634,
       "false_negatives": 82
@@ -60,7 +60,7 @@
       "recall": 0.2381,
       "auc_roc": 0.8662,
       "auc_pr": 0.0636,
-      "elapsed_s": 127.02,
+      "elapsed_s": 106.44,
       "anomalies_detected": 375,
       "false_positives": 355,
       "false_negatives": 64
