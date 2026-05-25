@@ -29,6 +29,7 @@ DEFAULT_MIN_WINDOW = 5
 DEFAULT_MAX_WINDOW = 20
 DEFAULT_BATCH_SIZE = 50
 DEFAULT_BLOCK_MS = 2000
+DEFAULT_PREDICTION_INTERVAL_SECONDS = int(os.getenv("DEFAULT_PREDICTION_INTERVAL_SECONDS", "30"))
 
 class ReadingsStreamConsumer:
     """Consumes readings:raw Redis Stream and triggers ML predictions."""
@@ -138,6 +139,9 @@ class ReadingsStreamConsumer:
 
         if self._prediction_worker is not None:
             for msg_id, sensor_id in pending_acks:
+                if not self._should_enqueue_prediction(sensor_id):
+                    self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
+                    continue
                 enqueued = self._prediction_worker.enqueue(
                     PredictionTask(sensor_id=sensor_id)
                 )
@@ -151,10 +155,13 @@ class ReadingsStreamConsumer:
         elif pending_acks:
             max_w = min(32, len(pending_acks))
             with ThreadPoolExecutor(max_workers=max_w) as executor:
-                futures = {
-                    executor.submit(self._predict, sensor_id): (msg_id, sensor_id)
-                    for msg_id, sensor_id in pending_acks
-                }
+                futures = {}
+                for msg_id, sensor_id in pending_acks:
+                    if not self._should_enqueue_prediction(sensor_id):
+                        self._redis.xack(STREAM_NAME, CONSUMER_GROUP, msg_id)
+                        continue
+                    futures[executor.submit(self._predict, sensor_id)] = (msg_id, sensor_id)
+
                 for future in as_completed(futures, timeout=30):
                     msg_id, sensor_id = futures[future]
                     try:
@@ -184,3 +191,42 @@ class ReadingsStreamConsumer:
             self._use_case, sensor_id, self._store,
             self._min_window, self._distributed, self._migration_attempted,
         )
+
+    def _should_enqueue_prediction(self, sensor_id: int) -> bool:
+        cooldown_key = f"zenin:pred:cooldown:{sensor_id}"
+        try:
+            # 1. Check if cooldown key exists in Redis
+            if self._redis.exists(cooldown_key):
+                return False
+
+            # 2. Key does not exist, determine cooldown interval
+            contract_key = f"zenin:contract:{sensor_id}"
+            interval_seconds = DEFAULT_PREDICTION_INTERVAL_SECONDS
+
+            try:
+                interval_raw = self._redis.hget(contract_key, "interval")
+                if interval_raw is not None:
+                    if isinstance(interval_raw, bytes):
+                        interval_str = interval_raw.decode('utf-8')
+                    else:
+                        interval_str = str(interval_raw)
+
+                    interval_ms = int(interval_str)
+                    # Convert milliseconds to seconds
+                    interval_seconds = max(1, interval_ms // 1000)
+            except Exception as e:
+                logger.warning(
+                    "[STREAM_CONSUMER] Failed to read contract for sensor=%d, using default: %s",
+                    sensor_id, e
+                )
+
+            # 3. Set the cooldown key
+            self._redis.setex(cooldown_key, interval_seconds, 1)
+            return True
+        except Exception as e:
+            logger.error(
+                "[STREAM_CONSUMER] Redis error in _should_enqueue_prediction for sensor=%d: %s",
+                sensor_id, e
+            )
+            # Fail-safe: allow enqueuing if Redis is down/failing
+            return True
