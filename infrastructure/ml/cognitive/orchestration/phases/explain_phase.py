@@ -175,6 +175,39 @@ class ExplainPhase:
             if parts:
                 explanation_summary = " | ".join(parts)
 
+        # RUL enrichment
+        from iot_machine_learning.infrastructure.ml.anomaly.rul import (
+            RULEstimator, RULNarrator
+        )
+
+        _REGIME_DRIFT_MAP = {
+            "STABLE": 0.0, "TRENDING": 0.3,
+            "NOISY": 0.4, "VOLATILE": 0.6,
+            "TRANSITIONAL": 0.5,
+        }
+
+        try:
+            rul_score = min(
+                abs(getattr(ctx.profile, "z_score", 0.0)) / 4.0,
+                1.0,
+            )
+            rul_drift = _REGIME_DRIFT_MAP.get(
+                getattr(ctx, "regime", "STABLE"), 0.0
+            )
+            rul_consecutive = getattr(ctx, "consecutive_anomalies", 0)
+
+            rul_estimate = RULEstimator().estimate(
+                anomaly_score=rul_score,
+                drift_magnitude=rul_drift,
+                consecutive_anomalies=rul_consecutive,
+            )
+            rul_narrative = RULNarrator().narrate(rul_estimate)
+
+            if rul_narrative:
+                all_narratives.append(rul_narrative)
+        except Exception:
+            pass  # RUL never breaks the pipeline
+
         return ctx.with_field(
             diagnostic=diag,
             explanation=explanation_dict,

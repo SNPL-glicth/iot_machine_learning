@@ -63,6 +63,7 @@ class PipelineContext:
     diagnostic: Optional[Any] = None
     explanation: Optional[Any] = None
     explanation_summary: Optional[str] = None
+    consecutive_anomalies: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
     is_fallback: bool = False
     fallback_reason: Optional[str] = None
@@ -109,6 +110,7 @@ class PipelineContext:
             'unified_narrative': self.unified_narrative,
             'diagnostic': self.diagnostic,
             'explanation': self.explanation,
+            'consecutive_anomalies': self.consecutive_anomalies,
             'metadata': self.metadata.copy(),
             'is_fallback': self.is_fallback,
             'fallback_reason': self.fallback_reason,
