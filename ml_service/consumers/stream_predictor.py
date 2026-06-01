@@ -11,8 +11,10 @@ from typing import Optional
 
 from .sliding_window import Reading, SlidingWindowStore
 from ..metrics.performance_metrics import MetricsCollector
+from ...domain.validators.data_sanitizer import DataSanitizer
 
 logger = logging.getLogger(__name__)
+_MIN_ML_POINTS = DataSanitizer.MIN_POINTS  # 3
 
 
 def parse_reading(fields: dict) -> Optional[Reading]:
@@ -94,9 +96,10 @@ def build_sensor_window(sensor_id: int, store: SlidingWindowStore,
         SensorReading, SensorWindow,
     )
     readings_raw = store.get_window(sensor_id)
+    effective_min = max(min_window, _MIN_ML_POINTS)
 
     # FIX P3-6: intentar migración desde otra réplica UNA vez por sensor
-    if (len(readings_raw) < min_window
+    if (len(readings_raw) < effective_min
             and distributed_adapter is not None
             and sensor_id not in migration_attempted):
         migration_attempted.add(sensor_id)
@@ -114,7 +117,11 @@ def build_sensor_window(sensor_id: int, store: SlidingWindowStore,
         except Exception as e:
             logger.warning("[P3-6] window_migration_failed sensor=%d: %s", sensor_id, e)
 
-    if len(readings_raw) < min_window:
+    if len(readings_raw) < effective_min:
+        logger.warning(
+            "insufficient_data sensor=%d needed=%d got=%d",
+            sensor_id, effective_min, len(readings_raw),
+        )
         return None
     readings = [
         SensorReading(sensor_id=sensor_id, value=r.value, timestamp=r.timestamp)
