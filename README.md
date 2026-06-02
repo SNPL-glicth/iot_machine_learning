@@ -31,14 +31,14 @@
   </pre>
 </h1>
 
-<p align="center"><strong>Motor de Decision Cognitiva para Operaciones Industriales.</strong></p>
-<p align="center">Pipeline de prediccion IoT con Mixture of Experts, fusion bayesiana adaptativa y trazabilidad auditavel.</p>
+<p align="center"><strong>Motor Cognitivo para Analisis y Prediccion de Datos IoT.</strong></p>
+<p align="center">Pipeline de prediccion con Mixture of Experts, fusion bayesiana adaptativa y trazabilidad auditavel. Disenado para multiples dominios: industria, agricultura, energia, salud, ciudades inteligentes y mas.</p>
 
 ---
 
 ## Vision
 
-ZENIN ML es el nucleo cognitivo de la plataforma ZENIN. Ingiere series temporales de cualquier sensor, ejecuta un <strong>pipeline de 15 fases especializadas</strong>, y entrega al operador una decision clara con confianza calibrada:
+ZENIN ML es el nucleo cognitivo de la plataforma ZENIN. Ingiere series temporales de cualquier sensor, ejecuta un <strong>pipeline de 15 fases especializadas</strong>, y entrega una decision clara con confianza calibrada, independientemente del dominio de aplicacion:
 
 <p align="center">
   <img src="https://img.shields.io/badge/ESCALATE-FF3D3D?style=for-the-badge&logo=alert-circle&logoColor=white"/>
@@ -84,24 +84,24 @@ Prediccion + Confianza + Anomalia + Decision + Audit NDJSON
 
 ## <a name="moe"></a> Mixture of Experts (MoE)
 
-El gating no es global — cada tipo de equipo tiene su propia distribucion de pesos:
+El gating no es global — cada tipo de dispositivo o sensor tiene su propia distribucion de pesos, adaptada a su comportamiento natural:
 
 ```python
-# Pasteurizador en regimen stable -> Taylor domina
-PASTEURIZER / stable  ->  taylor: 0.65  kalman: 0.15  statistical: 0.10  baseline: 0.10
+# Equipo estable (ej. temperatura controlada) -> Taylor domina
+STABLE_DEVICE / stable  ->  taylor: 0.65  kalman: 0.15  statistical: 0.10  baseline: 0.10
 
-# Llenadora en cualquier regimen -> Taylor excluido estructuralmente
-FILLER / stable       ->  statistical: 0.70  kalman: 0.20  baseline: 0.10  taylor: 0.00
-FILLER / volatile     ->  statistical: 0.70  kalman: 0.25  baseline: 0.05  taylor: 0.00
+# Equipo ciclico (ej. riego, ciclos de frio) -> Taylor excluido estructuralmente
+CYCLIC_DEVICE / stable       ->  statistical: 0.70  kalman: 0.20  baseline: 0.10  taylor: 0.00
+CYCLIC_DEVICE / volatile     ->  statistical: 0.70  kalman: 0.25  baseline: 0.05  taylor: 0.00
 
-# Transportador (vibracion) -> Kalman domina
-CONVEYOR / noisy      ->  kalman: 0.75  statistical: 0.15  baseline: 0.05  taylor: 0.05
+# Sensor de vibracion o movimiento -> Kalman domina
+VIBRATION_SENSOR / noisy      ->  kalman: 0.75  statistical: 0.15  baseline: 0.05  taylor: 0.05
 
-# Silo (nivel) -> Taylor domina (detecta tendencias de vaciado)
-SILO / trending       ->  taylor: 0.75  statistical: 0.10  kalman: 0.10  baseline: 0.05
+# Almacenamiento con nivel variable -> Taylor domina (detecta tendencias)
+LEVEL_SENSOR / trending       ->  taylor: 0.75  statistical: 0.10  kalman: 0.10  baseline: 0.05
 ```
 
-**Equipment classes soportados:** `PASTEURIZER · CIP · FILLER · PET_BLOWER · CONVEYOR · SILO · GENERIC`
+**Perfiles de dispositivo extensibles:** ZENIN permite definir nuevas clases de sensores sin modificar el motor central. Perfiles de ejemplo incluidos: `TEMPERATURE · HUMIDITY · VIBRATION · LEVEL · CYCLIC · GENERIC`
 
 ---
 
@@ -130,29 +130,29 @@ sin historial  ->  pesos globales por regimen (comportamiento legacy)
 # k universal antes
 result = hampel_filter(perceptions, k=3.0)
 
-# k por tipo de equipo ahora
-# PASTEURIZER -> k=2.5, window=10  (senal suave, estricto)
-# CIP         -> k=5.0, window=5   (ciclos abruptos, permisivo)
-# FILLER      -> k=4.0, window=20  (periodica, ventana larga)
-# CONVEYOR    -> k=4.5, window=15  (vibracion, permisivo)
+# k por tipo de sensor ahora
+# TEMPERATURA    -> k=2.5, window=10  (senal suave, estricto)
+# CICLO_AGUA     -> k=5.0, window=5   (ciclos abruptos, permisivo)
+# CONSUMO_ENERGIA-> k=4.0, window=20  (periodica, ventana larga)
+# VIBRACION      -> k=4.5, window=15  (vibracion, permisivo)
 result = hampel_filter_with_profile(perceptions, sensor_profile=profile)
 
-# Durante eventos industriales activos (STARTUP, CIP_CYCLE):
+# Durante eventos activos (ARRANQUE, CICLO, CAMBIO_DE_PRODUCTO):
 # k se amplia automaticamente x 1.5
 result = hampel_filter_with_profile(perceptions, sensor_profile=profile, event_context=event)
 ```
 
 ---
 
-## Deteccion de Eventos Industriales
+## Deteccion de Eventos Contextuales
 
 ```python
 # Eventos detectados automaticamente desde la senal:
-IndustrialEvent.STARTUP            # rampa abrupta -> arranque de linea
-IndustrialEvent.CIP_CYCLE          # ciclo de limpieza activo
-IndustrialEvent.PRODUCT_CHANGEOVER # cambio de producto en silo
-IndustrialEvent.FAULT_TRANSIENT    # >30% de valores clampeados
-IndustrialEvent.SHUTDOWN           # caida de senal
+SensorEvent.STARTUP            # rampa abrupta -> arranque de equipo
+SensorEvent.CYCLE              # ciclo periodico activo
+SensorEvent.PRODUCT_CHANGEOVER # cambio de configuracion o producto
+SensorEvent.FAULT_TRANSIENT    # >30% de valores clampeados
+SensorEvent.SHUTDOWN           # caida de senal
 
 # Efecto en el pipeline:
 # -> InhibitPhase: supresion reducida al 50% (PostEventStabilizationGate)
