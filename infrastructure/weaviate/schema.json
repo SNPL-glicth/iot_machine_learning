@@ -1,0 +1,599 @@
+{
+  "classes": [
+    {
+      "class": "SensorProfile",
+      "description": "Equipment-aware sensor calibration profile. Defines operational ranges and noise characteristics.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "equipmentClass",
+          "dataType": ["text"],
+          "description": "Type of equipment: hvac, motor, pump, turbine, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "operationalRangeMin",
+          "dataType": ["number"],
+          "description": "Minimum expected sensor value"
+        },
+        {
+          "name": "operationalRangeMax",
+          "dataType": ["number"],
+          "description": "Maximum expected sensor value"
+        },
+        {
+          "name": "setpointTolerance",
+          "dataType": ["number"],
+          "description": "Allowed deviation from setpoint"
+        },
+        {
+          "name": "noiseFloor",
+          "dataType": ["number"],
+          "description": "Minimum significant signal amplitude"
+        },
+        {
+          "name": "hampelK",
+          "dataType": ["number"],
+          "description": "Hampel filter K parameter (default 3.0)"
+        },
+        {
+          "name": "hampelWindow",
+          "dataType": ["int"],
+          "description": "Hampel filter window size (default 10)"
+        },
+        {
+          "name": "typicalCycleDurationSeconds",
+          "dataType": ["int"],
+          "description": "Expected operational cycle duration if cyclical"
+        },
+        {
+          "name": "thermalInertiaClass",
+          "dataType": ["text"],
+          "description": "Thermal response speed: fast, medium, slow",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "maintenanceHistoryScore",
+          "dataType": ["number"],
+          "description": "0.0-1.0 score indicating maintenance health"
+        },
+        {
+          "name": "sensorType",
+          "dataType": ["text"],
+          "description": "Sensor measurement type: temperature, humidity, pressure, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "unit",
+          "dataType": ["text"],
+          "description": "Measurement unit: C, F, %, bar, kPa, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        }
+      ]
+    },
+    {
+      "class": "MlModel",
+      "description": "Machine learning model trained for a specific sensor. Tracks model metadata, accuracy, version and training history.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "modelName",
+          "dataType": ["text"],
+          "description": "Human-readable model name (e.g. 'TEMP_HVAC_LSTM_v3')",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "modelType",
+          "dataType": ["text"],
+          "description": "Algorithm type: lstm, prophet, isolation_forest, lof, ensemble, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "version",
+          "dataType": ["text"],
+          "description": "Semantic version tag",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "isActive",
+          "dataType": ["boolean"],
+          "description": "Whether this model is currently serving predictions"
+        },
+        {
+          "name": "trainedAt",
+          "dataType": ["date"],
+          "description": "ISO-8601 timestamp of last training run"
+        },
+        {
+          "name": "accuracy",
+          "dataType": ["number"],
+          "description": "Model accuracy score 0.0-1.0"
+        },
+        {
+          "name": "metadata",
+          "dataType": ["text"],
+          "description": "Free-form JSON with hyperparameters, feature list, training config",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "belongsToSensor",
+          "dataType": ["SensorProfile"],
+          "description": "Reference to the sensor this model was trained on"
+        }
+      ]
+    },
+    {
+      "class": "TimeSeriesWindow",
+      "description": "Historical sensor readings window. Captures raw time-series data for context and re-analysis.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "sensorType",
+          "dataType": ["text"],
+          "description": "Type classification: temperature, humidity, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "deviceId",
+          "dataType": ["text"],
+          "description": "Optional device reference",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "values",
+          "dataType": ["text"],
+          "description": "Numeric readings as comma-separated string (e.g. '23.1,23.4,23.2')",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "timestamps",
+          "dataType": ["text"],
+          "description": "ISO-8601 timestamps as comma-separated string",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "windowSize",
+          "dataType": ["int"],
+          "description": "Number of readings in this window"
+        },
+        {
+          "name": "timeSpanSeconds",
+          "dataType": ["number"],
+          "description": "Duration from first to last reading"
+        },
+        {
+          "name": "capturedAt",
+          "dataType": ["date"],
+          "description": "When this window snapshot was stored"
+        },
+        {
+          "name": "belongsToSensor",
+          "dataType": ["SensorProfile"],
+          "description": "Reference to the sensor this window belongs to"
+        }
+      ]
+    },
+    {
+      "class": "PatternResult",
+      "description": "Detected pattern in time series: change points, delta spikes, operational regimes.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "patternType",
+          "dataType": ["text"],
+          "description": "Type: trend_change, seasonal_shift, delta_spike, regime_transition, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "description",
+          "dataType": ["text"],
+          "description": "Human-readable pattern description",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "startIndex",
+          "dataType": ["int"],
+          "description": "Start position in the time series"
+        },
+        {
+          "name": "endIndex",
+          "dataType": ["int"],
+          "description": "End position in the time series"
+        },
+        {
+          "name": "startTimestamp",
+          "dataType": ["date"],
+          "description": "When the pattern started"
+        },
+        {
+          "name": "endTimestamp",
+          "dataType": ["date"],
+          "description": "When the pattern ended"
+        },
+        {
+          "name": "confidence",
+          "dataType": ["number"],
+          "description": "Pattern detection confidence 0.0-1.0"
+        },
+        {
+          "name": "severity",
+          "dataType": ["text"],
+          "description": "Pattern severity: info, warning, critical",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "detectedAt",
+          "dataType": ["date"],
+          "description": "When this pattern was detected"
+        },
+        {
+          "name": "detectedForSensor",
+          "dataType": ["SensorProfile"],
+          "description": "Reference to the sensor where pattern was found"
+        }
+      ]
+    },
+    {
+      "class": "Prediction",
+      "description": "Individual ML prediction output. Core entity for forecasting and anomaly detection.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "predictedValue",
+          "dataType": ["number"],
+          "description": "Forecasted sensor reading value"
+        },
+        {
+          "name": "confidenceScore",
+          "dataType": ["number"],
+          "description": "Model confidence 0.0-1.0"
+        },
+        {
+          "name": "confidenceLevel",
+          "dataType": ["text"],
+          "description": "Qualitative confidence: very_low, low, medium, high, very_high",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "trend",
+          "dataType": ["text"],
+          "description": "Trend direction: up, down, stable",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "engineName",
+          "dataType": ["text"],
+          "description": "Name of the engine that generated this prediction",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "horizonSteps",
+          "dataType": ["int"],
+          "description": "Steps ahead predicted"
+        },
+        {
+          "name": "predictedAt",
+          "dataType": ["date"],
+          "description": "When the prediction was generated"
+        },
+        {
+          "name": "targetTimestamp",
+          "dataType": ["date"],
+          "description": "The future point in time this prediction targets"
+        },
+        {
+          "name": "confidenceIntervalLower",
+          "dataType": ["number"],
+          "description": "Lower bound of confidence interval"
+        },
+        {
+          "name": "confidenceIntervalUpper",
+          "dataType": ["number"],
+          "description": "Upper bound of confidence interval"
+        },
+        {
+          "name": "featureContributions",
+          "dataType": ["text"],
+          "description": "JSON string: map of feature name -> contribution score",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "auditTraceId",
+          "dataType": ["text"],
+          "description": "ISO 27001 traceability ID",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "generatedBy",
+          "dataType": ["MlModel"],
+          "description": "Reference to the model that produced this prediction"
+        },
+        {
+          "name": "predictsForSensor",
+          "dataType": ["SensorProfile"],
+          "description": "Reference to the sensor being predicted"
+        }
+      ]
+    },
+    {
+      "class": "AnomalyResult",
+      "description": "Anomaly detection result. Output from isolation forest, LOF, Z-score or ensemble detectors.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "isAnomaly",
+          "dataType": ["boolean"],
+          "description": "Whether an anomaly was detected"
+        },
+        {
+          "name": "score",
+          "dataType": ["number"],
+          "description": "Anomaly score 0.0=normal, 1.0=strong anomaly"
+        },
+        {
+          "name": "severity",
+          "dataType": ["text"],
+          "description": "none, low, medium, high, critical",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "confidence",
+          "dataType": ["number"],
+          "description": "Confidence in the detection 0.0-1.0"
+        },
+        {
+          "name": "explanation",
+          "dataType": ["text"],
+          "description": "Human-readable explanation of why this was flagged",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "methodVotes",
+          "dataType": ["text"],
+          "description": "JSON string: map of detector name -> vote score",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "context",
+          "dataType": ["text"],
+          "description": "JSON string: operational regime, correlations, etc.",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "detectedAt",
+          "dataType": ["date"],
+          "description": "Timestamp when the anomaly was detected"
+        },
+        {
+          "name": "auditTraceId",
+          "dataType": ["text"],
+          "description": "ISO 27001 traceability ID",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "detectedForSensor",
+          "dataType": ["SensorProfile"],
+          "description": "Reference to the sensor evaluated"
+        }
+      ]
+    },
+    {
+      "class": "Decision",
+      "description": "AI-recommended action with explainability. The final output of the cognitive pipeline.",
+      "vectorizer": "text2vec-transformers",
+      "moduleConfig": {
+        "text2vec-transformers": {
+          "vectorizeClassName": true
+        }
+      },
+      "properties": [
+        {
+          "name": "action",
+          "dataType": ["text"],
+          "description": "Recommended action code: monitor, investigate, intervene, escalate",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "priority",
+          "dataType": ["int"],
+          "description": "Priority level 1=critical, 4=lowest/info"
+        },
+        {
+          "name": "confidence",
+          "dataType": ["number"],
+          "description": "Confidence in this decision 0.0-1.0"
+        },
+        {
+          "name": "reason",
+          "dataType": ["text"],
+          "description": "Human-readable justification for the recommendation",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "strategyUsed",
+          "dataType": ["text"],
+          "description": "Which strategy produced this decision (e.g. passthrough, ensemble, rule_based)",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "isActionable",
+          "dataType": ["boolean"],
+          "description": "True if priority <= 2 (requires action)"
+        },
+        {
+          "name": "seriesId",
+          "dataType": ["text"],
+          "description": "UTSAE canonical series identifier",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "sourceMlOutputs",
+          "dataType": ["text"],
+          "description": "JSON string: references to upstream ML results",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "simulatedOutcomes",
+          "dataType": ["text"],
+          "description": "JSON string: evidence from scenario simulation",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": false, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "auditTraceId",
+          "dataType": ["text"],
+          "description": "ISO 27001 traceability ID",
+          "moduleConfig": {
+            "text2vec-transformers": {"skip": true, "vectorizePropertyName": false}
+          }
+        },
+        {
+          "name": "decidedAt",
+          "dataType": ["date"],
+          "description": "Timestamp when the decision was made"
+        },
+        {
+          "name": "basedOnPredictions",
+          "dataType": ["Prediction"],
+          "description": "Predictions that triggered this decision"
+        },
+        {
+          "name": "basedOnAnomalies",
+          "dataType": ["AnomalyResult"],
+          "description": "Anomaly results that triggered this decision"
+        }
+      ]
+    }
+  ]
+}
