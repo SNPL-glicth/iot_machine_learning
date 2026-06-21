@@ -14,10 +14,11 @@ from iot_machine_learning.domain.ports.analysis import (
 )
 
 from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
-from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
-    extract_entities,
-    extract_urgency_sentiment,
-)
+# text/ module deleted - entity extraction removed
+# from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
+#     extract_entities,
+#     extract_urgency_sentiment,
+# )
 
 logger = logging.getLogger(__name__)
 
@@ -126,13 +127,14 @@ class ExplainPhase:
 
         mock_result = _MockResult(signal, decision)
         try:
-            entity_list, word_count = extract_entities(mock_result)
-            urgency_score, sentiment_label = extract_urgency_sentiment(mock_result)
+            # text/ module deleted - entity extraction removed
+            # entity_list, word_count = extract_entities(mock_result)
+            # urgency_score, sentiment_label = extract_urgency_sentiment(mock_result)
             entities_dict = {
-                "entities": entity_list,
-                "word_count": word_count,
-                "urgency_score": urgency_score,
-                "sentiment_label": sentiment_label,
+                "entities": [],
+                "word_count": 0,
+                "urgency_score": 0.0,
+                "sentiment_label": "neutral",
             }
             return format_conclusion(mock_result, entities_dict)
         except Exception as e:

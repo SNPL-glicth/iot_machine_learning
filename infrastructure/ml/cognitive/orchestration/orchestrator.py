@@ -34,6 +34,44 @@ from iot_machine_learning.infrastructure.security.rate_limiter import (
 )
 from iot_machine_learning.infrastructure.security.rate_limit_decorator import rate_limit_series
 
+try:
+    from ..observability import CognitiveMetricsCollector, MemoryHealthMonitor
+except (ImportError, ModuleNotFoundError):
+    CognitiveMetricsCollector = None  # type: ignore[assignment,misc]
+    MemoryHealthMonitor = None  # type: ignore[assignment,misc]
+
+try:
+    from ..memory import CognitiveMemoryRegistry
+except (ImportError, ModuleNotFoundError):
+    CognitiveMemoryRegistry = None  # type: ignore[assignment,misc]
+
+try:
+    from ..neural import HybridNeuralEngine
+except (ImportError, ModuleNotFoundError):
+    HybridNeuralEngine = None  # type: ignore[assignment,misc]
+
+try:
+    from ..decision import ContextualDecisionEngine
+except (ImportError, ModuleNotFoundError):
+    ContextualDecisionEngine = None  # type: ignore[assignment,misc]
+
+try:
+    from ..universal.analysis.pattern_interpreter import PatternInterpreter
+except (ImportError, ModuleNotFoundError):
+    PatternInterpreter = None  # type: ignore[assignment,misc]
+
+try:
+    from ..dynamic import RollingWindowEngine, DynamicFeaturePipeline
+except (ImportError, ModuleNotFoundError):
+    RollingWindowEngine = None  # type: ignore[assignment,misc]
+    DynamicFeaturePipeline = None  # type: ignore[assignment,misc]
+
+try:
+    from ..regime import RegimeDetectionPipeline, OperationalRegimeClassifier
+except (ImportError, ModuleNotFoundError):
+    RegimeDetectionPipeline = None  # type: ignore[assignment,misc]
+    OperationalRegimeClassifier = None  # type: ignore[assignment,misc]
+
 
 class MetaCognitiveOrchestrator(PredictionEngine):
     """Orchestrates multiple engines with cognitive reasoning.
@@ -70,6 +108,14 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         sensor_profile_repository: Optional[Any] = None,
         weight_initializer: Optional[Any] = None,
         engine_filter: Optional[Any] = None,
+        metrics_collector: Optional[Any] = None,
+        memory_health_monitor: Optional[Any] = None,
+        memory_registry: Optional[Any] = None,
+        neural_engine: Optional[Any] = None,
+        decision_engine: Optional[Any] = None,
+        pattern_interpreter: Optional[Any] = None,
+        rolling_window_engine: Optional[Any] = None,
+        regime_detection_pipeline: Optional[Any] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -179,7 +225,7 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         # Iterative cognitive loop
         self._enable_iterative = enable_iterative
         self._loop_controller = None
-        if enable_iterative:
+        if enable_iterative and CognitiveLoopController is not None:
             self._loop_controller = CognitiveLoopController(
                 pipeline_fn=execute_pipeline,
                 config=IterationConfig(
@@ -190,6 +236,45 @@ class MetaCognitiveOrchestrator(PredictionEngine):
             )
         else:
             self._loop_controller = None
+        
+        # Observability components (Phase 3C)
+        self._metrics_collector = metrics_collector
+        if CognitiveMetricsCollector is not None and self._metrics_collector is None:
+            self._metrics_collector = CognitiveMetricsCollector()
+        
+        self._memory_health_monitor = memory_health_monitor
+        if MemoryHealthMonitor is not None and self._memory_health_monitor is None:
+            self._memory_health_monitor = MemoryHealthMonitor()
+        
+        # Memory components (Phase 3A)
+        self._memory_registry = memory_registry
+        if CognitiveMemoryRegistry is not None and self._memory_registry is None:
+            self._memory_registry = CognitiveMemoryRegistry()
+        
+        # Neural components (High impact)
+        self._neural_engine = neural_engine
+        if HybridNeuralEngine is not None and self._neural_engine is None:
+            self._neural_engine = HybridNeuralEngine()
+        
+        # Decision components (High impact)
+        self._decision_engine = decision_engine
+        if ContextualDecisionEngine is not None and self._decision_engine is None:
+            self._decision_engine = ContextualDecisionEngine()
+        
+        # Pattern interpreter components (Medium-high impact)
+        self._pattern_interpreter = pattern_interpreter
+        if PatternInterpreter is not None and self._pattern_interpreter is None:
+            self._pattern_interpreter = PatternInterpreter()
+        
+        # Dynamic components (Medium-high impact)
+        self._rolling_window_engine = rolling_window_engine
+        if RollingWindowEngine is not None and self._rolling_window_engine is None:
+            self._rolling_window_engine = RollingWindowEngine()
+        
+        # Regime detection components (Medium-high impact)
+        self._regime_detection_pipeline = regime_detection_pipeline
+        if RegimeDetectionPipeline is not None and self._regime_detection_pipeline is None:
+            self._regime_detection_pipeline = RegimeDetectionPipeline()
         
     @property
     def name(self) -> str:
@@ -315,9 +400,3 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         """Access state manager for testing and monitoring."""
         return self._state_manager
 
-    # ------------------------------------------------------------------
-    # GOLD: Removed broken backward compatibility properties
-    # Phase 3 refactor consolidated weight services into WeightResolutionService
-    # Use _weight_resolver directly or the public orchestrator interface
-    # ------------------------------------------------------------------
-    # ------------------------------------------------------------------

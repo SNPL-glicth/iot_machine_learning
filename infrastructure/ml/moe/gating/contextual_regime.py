@@ -1,10 +1,10 @@
 """ContextualRegimeGating — routing basado en features numéricos del pipeline.
 
-Reemplaza RegimeBasedGating:
-- Usa FeatureContext completo (std, slope, noise_ratio), no solo regime string.
-- Pesos externalizados a dict/configurable, NO hardcoded en código.
-- Determinista y explicable (explain() retorna string legible).
-- Diseño Strategy Pattern: implementa GatingStrategy Protocol.
+Mejoras:
+- Ajustes acotados vía sigmoide (nunca distortionan pesos más allá de [0.5x, 3x])
+- Historial de performance por experto para ajuste fino del routing
+- Factor de estabilidad temporal: evita cambios bruscos de top_expert
+- Utiliza curvature y relative_deviation del FeatureContext
 """
 
 from __future__ import annotations
@@ -14,6 +14,16 @@ from typing import Dict, List, Optional
 
 from .base import GatingProbs
 from ..feature_context import FeatureContext
+
+
+def _sigmoid_boost(x: float, midpoint: float = 1.0, steepness: float = 2.0) -> float:
+    """Factor de boost acotado [1.0, 3.0) vía sigmoide."""
+    return 1.0 + 2.0 / (1.0 + math.exp(-steepness * (x - midpoint)))
+
+
+def _sigmoid_reduce(x: float, midpoint: float = 1.0, steepness: float = 2.0) -> float:
+    """Factor de reducción acotado (0.5, 1.0] vía sigmoide inversa."""
+    return 1.0 - 0.5 / (1.0 + math.exp(-steepness * (x - midpoint)))
 
 
 def _load_regime_weights() -> Dict[str, Dict[str, float]]:
@@ -71,14 +81,42 @@ EQUIPMENT_REGIME_WEIGHTS: Dict[str, Dict[str, Dict[str, float]]] = {
 }
 
 
+class ExpertPerformanceTracker:
+    """Track historial de performance por experto para ajustar routing."""
+
+    def __init__(self, decay: float = 0.3, window: int = 20):
+        self._decay = decay
+        self._window = window
+        self._scores: Dict[str, float] = {}
+        self._counts: Dict[str, int] = {}
+
+    def record(self, expert_id: str, error: float) -> None:
+        prev = self._scores.get(expert_id, 0.0)
+        count = self._counts.get(expert_id, 0)
+        if count >= self._window:
+            self._scores[expert_id] = prev * (1 - self._decay) + error * self._decay
+        else:
+            self._scores[expert_id] = (prev * count + error) / (count + 1)
+        self._counts[expert_id] = min(count + 1, self._window)
+
+    def get_reliability(self, expert_id: str) -> float:
+        """Retorna confiabilidad [0, 1] basada en error promedio histórico."""
+        score = self._scores.get(expert_id)
+        if score is None:
+            return 0.5
+        return max(0.1, 1.0 - abs(score))
+
+
 class ContextualRegimeGating:
     """Gating que utiliza features numéricos del pipeline para routing.
 
     Attributes:
         _regime_weights: Dict {regime: {expert_id: weight}} externalizado.
         _expert_ids: Lista de expertos conocidos.
-        _noise_boost_factor: Multiplicador de peso cuando noise_ratio es alto.
+        _noise_boost_factor: Factor multiplicador para expertos de noisy.
         _slope_threshold: Umbral para considerar tendencia significativa.
+        _performance_tracker: Historial de error por experto.
+        _last_top_expert: Último top_expert seleccionado (estabilidad temporal).
     """
 
     # Pesos por defecto — cargados desde config externa
@@ -90,20 +128,15 @@ class ContextualRegimeGating:
         expert_ids: Optional[List[str]] = None,
         noise_boost_factor: float = 1.5,
         slope_threshold: float = 0.01,
+        stability_bonus: float = 0.05,
     ) -> None:
-        """Inicializa gating con pesos externalizados.
-
-        Args:
-            regime_weights: Dict {regime: {expert_id: weight}}.
-                Si None, usa DEFAULT_WEIGHTS.
-            expert_ids: Lista de expertos registrados.
-            noise_boost_factor: Factor multiplicador para expertos de noisy.
-            slope_threshold: Umbral mínimo de slope para trending.
-        """
         self._regime_weights = regime_weights or dict(self.DEFAULT_WEIGHTS)
         self._expert_ids = expert_ids or []
         self._noise_boost_factor = noise_boost_factor
         self._slope_threshold = slope_threshold
+        self._stability_bonus = stability_bonus
+        self._performance_tracker = ExpertPerformanceTracker()
+        self._last_top_expert: Optional[str] = None
 
     def route(self, feature_context: FeatureContext) -> GatingProbs:
         """Decide distribución de probabilidades usando features numéricos.
@@ -121,14 +154,24 @@ class ContextualRegimeGating:
             eid: base_weights.get(eid, 0.0) for eid in self._expert_ids
         }
 
-        # Ajuste por std (volatilidad)
+        # Ajuste por std (volatilidad) — sigmoide acotado
         weights = self._adjust_by_std(weights, feature_context.std)
 
-        # Ajuste por slope (tendencia)
+        # Ajuste por slope (tendencia) — sigmoide acotado
         weights = self._adjust_by_slope(weights, feature_context.slope)
 
-        # Ajuste por noise_ratio (ruido)
+        # Ajuste por noise_ratio (ruido) — sigmoide acotado
         weights = self._adjust_by_noise(weights, feature_context.noise_ratio)
+
+        # Ajuste por curvature (aceleración) — nuevo
+        weights = self._adjust_by_curvature(weights, feature_context.curvature)
+
+        # Ajuste por reliability histórico — nuevo
+        weights = self._adjust_by_performance(weights)
+
+        # Estabilidad temporal: leve bonus al último top_expert
+        if self._last_top_expert is not None and self._last_top_expert in weights:
+            weights[self._last_top_expert] *= (1.0 + self._stability_bonus)
 
         # Normalizar a probabilidades
         probabilities = self._normalize(weights)
@@ -137,6 +180,7 @@ class ContextualRegimeGating:
         entropy = self._compute_entropy(probabilities)
 
         top_expert = max(probabilities.items(), key=lambda x: x[1])[0] if probabilities else ""
+        self._last_top_expert = top_expert
 
         return GatingProbs(
             probabilities=probabilities,
@@ -147,51 +191,44 @@ class ContextualRegimeGating:
                 "std": feature_context.std,
                 "slope": feature_context.slope,
                 "noise_ratio": feature_context.noise_ratio,
+                "curvature": feature_context.curvature,
                 "raw_weights": weights,
                 "equipment_class": equipment_class,
                 "used_equipment_override": equipment_class in EQUIPMENT_REGIME_WEIGHTS,
+                "performance_scores": {
+                    eid: round(self._performance_tracker.get_reliability(eid), 3)
+                    for eid in self._expert_ids
+                },
             },
         )
 
     def explain(
         self, feature_context: FeatureContext, probs: GatingProbs
     ) -> str:
-        """Explica la decisión de routing en lenguaje humano.
-
-        Args:
-            feature_context: Contexto usado.
-            probs: Probabilidades resultantes.
-
-        Returns:
-            String legible explicando la decisión.
-        """
+        """Explica la decisión de routing en lenguaje humano."""
         regime = feature_context.regime
         top = probs.top_expert
         top_prob = probs.max_probability
 
-        reasons = []
+        reasons = [f"régimen={regime}"]
 
-        # Régimen base
-        reasons.append(f"régimen={regime}")
-
-        # Std
-        if feature_context.std > 2.0:
-            reasons.append(f"alta_volatilidad(std={feature_context.std:.2f})")
-        elif feature_context.std < 0.5:
-            reasons.append(f"baja_volatilidad(std={feature_context.std:.2f})")
-
-        # Slope
+        if feature_context.std > 1.0:
+            reasons.append(f"std={feature_context.std:.2f}")
         if abs(feature_context.slope) > self._slope_threshold:
-            reasons.append(f"tendencia(slope={feature_context.slope:.4f})")
-
-        # Noise
+            reasons.append(f"slope={feature_context.slope:.4f}")
         if feature_context.noise_ratio > 0.3:
-            reasons.append(f"ruido_alto(noise={feature_context.noise_ratio:.2f})")
+            reasons.append(f"noise={feature_context.noise_ratio:.2f}")
+        if abs(feature_context.curvature) > 0.001:
+            reasons.append(f"curvature={feature_context.curvature:.4f}")
+
+        perf_scores = probs.metadata.get("performance_scores", {})
+        if perf_scores:
+            top_perf = max(perf_scores.items(), key=lambda x: x[1])
+            reasons.append(f"best_history={top_perf[0]}({top_perf[1]:.2f})")
 
         return (
             f"ContextualRegimeGating: top_expert={top}({top_prob:.2f}) "
-            f"basado en {', '.join(reasons)}. "
-            f"Entropía={probs.entropy:.3f}"
+            f"entropy={probs.entropy:.3f} | {' | '.join(reasons)}"
         )
 
     def get_expert_ids(self) -> List[str]:
@@ -201,35 +238,72 @@ class ContextualRegimeGating:
     def _adjust_by_std(
         self, weights: Dict[str, float], std: float
     ) -> Dict[str, float]:
-        """Boost a expertos de alta volatilidad si std es elevado."""
-        if std < 1.0:
+        """Boost acotado [1x, 3x) a expertos de alta volatilidad vía sigmoide."""
+        if std < 0.5:
             return weights
+        boost = _sigmoid_boost(std, midpoint=1.5, steepness=1.5)
         adjusted = dict(weights)
         for eid in ("taylor", "kalman"):
             if eid in adjusted:
-                adjusted[eid] = adjusted[eid] * (1.0 + 0.2 * std)
+                adjusted[eid] = adjusted[eid] * boost
+        # Penalizar baseline en alta volatilidad
+        if std > 1.5 and "baseline" in adjusted:
+            adjusted["baseline"] *= _sigmoid_reduce(std, midpoint=2.0, steepness=1.0)
         return adjusted
 
     def _adjust_by_slope(
         self, weights: Dict[str, float], slope: float
     ) -> Dict[str, float]:
-        """Boost a statistical si hay tendencia significativa."""
+        """Boost acotado [1x, 3x) a statistical si hay tendencia, vía sigmoide."""
         if abs(slope) <= self._slope_threshold:
             return weights
+        boost = _sigmoid_boost(abs(slope), midpoint=0.05, steepness=30.0)
         adjusted = dict(weights)
         if "statistical" in adjusted:
-            adjusted["statistical"] = adjusted["statistical"] * (1.0 + abs(slope))
+            adjusted["statistical"] = adjusted["statistical"] * boost
+        if "taylor" in adjusted:
+            adjusted["taylor"] = adjusted["taylor"] * (1.0 + (boost - 1.0) * 0.5)
         return adjusted
 
     def _adjust_by_noise(
         self, weights: Dict[str, float], noise_ratio: float
     ) -> Dict[str, float]:
-        """Boost a kalman si hay mucho ruido."""
-        if noise_ratio < 0.2:
+        """Boost acotado [1x, 3x) a kalman si hay ruido, vía sigmoide."""
+        if noise_ratio < 0.15:
             return weights
+        boost = _sigmoid_boost(noise_ratio, midpoint=0.3, steepness=5.0)
         adjusted = dict(weights)
         if "kalman" in adjusted:
-            adjusted["kalman"] = adjusted["kalman"] * self._noise_boost_factor
+            adjusted["kalman"] = adjusted["kalman"] * boost
+        # Penalizar baseline con ruido alto
+        if noise_ratio > 0.4 and "baseline" in adjusted:
+            adjusted["baseline"] *= _sigmoid_reduce(noise_ratio, midpoint=0.5, steepness=3.0)
+        return adjusted
+
+    def _adjust_by_curvature(
+        self, weights: Dict[str, float], curvature: float
+    ) -> Dict[str, float]:
+        """Ajuste por curvatura (aceleración). Alta curvatura -> Taylor."""
+        if abs(curvature) <= 0.001:
+            return weights
+        boost = _sigmoid_boost(abs(curvature), midpoint=0.01, steepness=50.0)
+        adjusted = dict(weights)
+        if "taylor" in adjusted:
+            adjusted["taylor"] = adjusted["taylor"] * boost
+        return adjusted
+
+    def _adjust_by_performance(
+        self, weights: Dict[str, float]
+    ) -> Dict[str, float]:
+        """Ajusta pesos según reliability histórico de cada experto."""
+        adjusted = dict(weights)
+        for eid in adjusted:
+            rel = self._performance_tracker.get_reliability(eid)
+            # Si reliability es baja (<0.3), penalizar; si alta (>0.7), boost suave
+            if rel < 0.3:
+                adjusted[eid] *= 0.5
+            elif rel > 0.7:
+                adjusted[eid] *= (1.0 + (rel - 0.7) * 0.3)
         return adjusted
 
     @staticmethod

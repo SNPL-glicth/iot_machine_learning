@@ -63,7 +63,7 @@ class ConfidenceConfig:
     Floor y ceiling unificados entre todos los engines.
     Temperature scaling por régimen (justificación en temperature_scaling.py).
     """
-    MIN_CONFIDENCE: Final[float] = 0.3  # Floor unificado
+    MIN_CONFIDENCE: Final[float] = 0.5  # Floor unificado (0.3→0.5 para industria)
     MAX_CONFIDENCE: Final[float] = 0.95  # Ceiling unificado
     # Temperature scaling por régimen (justificación en temperature_scaling.py)
     TEMP_STABLE: Final[float] = 1.2  # ligera suavización, datos predecibles

@@ -1,5 +1,6 @@
 [tool.poetry]
-name = "zenin-ml"
+name = "iot-machine-learning"
+packages = [{include = "iot_machine_learning"}]
 version = "0.1.0"
 description = "Motor ML unificado para la plataforma Zenin IoT"
 authors = ["Zenin Team"]

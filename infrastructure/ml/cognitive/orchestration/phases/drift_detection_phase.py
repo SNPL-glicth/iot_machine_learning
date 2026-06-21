@@ -16,6 +16,11 @@ from typing import TYPE_CHECKING, Optional
 
 from ...drift import PageHinkleyDetector, PageHinkleyConfig, ADWINDetector
 
+try:
+    from ...observability import DriftDetectionEngine
+except (ImportError, ModuleNotFoundError):
+    DriftDetectionEngine = None  # type: ignore[assignment,misc]
+
 if TYPE_CHECKING:
     from . import PipelineContext
 
@@ -50,6 +55,7 @@ class DriftDetectionPhase:
         cooldown_seconds: float = 300.0,
         error_drift_detector: Optional[Any] = None,
         error_drift_weight: float = 0.5,
+        drift_detection_engine: Optional[Any] = None,
     ) -> None:
         """Initialize drift detection phase.
 
@@ -90,6 +96,11 @@ class DriftDetectionPhase:
             )
             self._detector = PageHinkleyDetector(config)
             self._detector_name = "page_hinkley"
+        
+        # Initialize DriftDetectionEngine (Phase 3C)
+        self._drift_detection_engine = drift_detection_engine
+        if DriftDetectionEngine is not None and self._drift_detection_engine is None:
+            self._drift_detection_engine = DriftDetectionEngine()
     
     @property
     def name(self) -> str:
@@ -195,6 +206,53 @@ class DriftDetectionPhase:
             self._detector.reset()
             if self._error_drift_detector is not None:
                 self._error_drift_detector.reset()
+
+        # Record drift metrics (Phase 3C)
+        if ctx.metrics_collector is not None:
+            try:
+                ctx.metrics_collector.record_drift(
+                    drift_detected=drift_detected,
+                    drift_score=drift_score,
+                )
+            except Exception as e:
+                logger.debug(f"metrics_collection_failed: {e}")
+        
+        # Use DriftDetectionEngine for multi-dimensional drift detection (Phase 3C)
+        multi_dimensional_drift_result = None
+        if self._drift_detection_engine is not None:
+            try:
+                # Prepare current distributions for drift detection
+                current_regime_distribution = {ctx.regime: 1.0} if ctx.regime else {}
+                current_feature_means = {
+                    "mean": getattr(ctx.profile, "mean", 0.0),
+                    "std": getattr(ctx.profile, "std", 0.0),
+                    "slope": getattr(ctx.profile, "slope", 0.0),
+                }
+                current_anomaly_frequency = getattr(ctx, "consecutive_anomalies", 0) / 100.0
+                current_embedding_mean = drift_score  # Use drift score as proxy
+                
+                multi_dimensional_drift_result = self._drift_detection_engine.detect_drift(
+                    current_regime_distribution=current_regime_distribution,
+                    current_feature_means=current_feature_means,
+                    current_anomaly_frequency=current_anomaly_frequency,
+                    current_embedding_mean=current_embedding_mean,
+                    sensor_id=int(ctx.series_id) if ctx.series_id.isdigit() else None,
+                    regime=ctx.regime,
+                )
+                
+                # Combine with existing drift detection
+                if multi_dimensional_drift_result.drift_detected:
+                    drift_detected = True
+                    logger.info(
+                        "multi_dimensional_drift_detected",
+                        extra={
+                            "series_id": ctx.series_id,
+                            "drift_type": multi_dimensional_drift_result.drift_type,
+                            "drift_magnitude": multi_dimensional_drift_result.drift_magnitude,
+                        },
+                    )
+            except Exception as e:
+                logger.debug(f"multi_dimensional_drift_detection_failed: {e}")
 
         # ISO 13374: Emit condition indicator
         condition_indicator = {

@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_builder import build_tabular_conclusion
+# text/ module deleted - conclusion builder removed
+# from iot_machine_learning.infrastructure.ml.cognitive.text.conclusion_builder import build_tabular_conclusion
 from iot_machine_learning.infrastructure.ml.analyzers.numeric_analyzer import analyze_numeric_column
 from iot_machine_learning.infrastructure.ml.analyzers.numeric_stats import resolve_series
 
@@ -84,15 +85,9 @@ def analyze_tabular_document(payload: Dict[str, Any]) -> Dict[str, Any]:
         if s.get("regime") == "noisy"
     )
 
-    conclusion = build_tabular_conclusion(
-        row_count=row_count,
-        n_headers=len(headers),
-        n_numeric=len(series_data),
-        column_conclusions=column_conclusions,
-        n_anomaly_cols=n_anomaly_cols,
-        n_trending=n_trending,
-        n_noisy=n_noisy,
-    )
+    # text/ module deleted - using simple conclusion fallback
+    conclusion = f"Analyzed {row_count} rows, {len(headers)} headers, {len(series_data)} numeric columns. "
+    conclusion += f"Found {n_anomaly_cols} anomaly columns, {n_trending} trending, {n_noisy} noisy."
 
     avg_confidence = (
         sum(confidence_scores) / len(confidence_scores)

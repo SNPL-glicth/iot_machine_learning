@@ -81,7 +81,7 @@ class EngineExpertAdapter(ExpertPort):
         # Convertir a ExpertOutput
         return ExpertOutput(
             prediction=prediction.predicted_value,
-            confidence=prediction.confidence,
+            confidence=prediction.confidence_score,
             trend=prediction.trend,
             metadata=prediction.metadata,
         )
@@ -148,7 +148,7 @@ class EnsembleExpertAdapter(ExpertPort):
         prediction = self._engine.predict(window)
         return ExpertOutput(
             prediction=prediction.predicted_value,
-            confidence=prediction.confidence,
+            confidence=prediction.confidence_score,
             trend=prediction.trend,
             metadata=prediction.metadata,
         )

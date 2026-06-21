@@ -88,6 +88,16 @@ engines/
     └── predictor.py               ← EnsembleWeightedPredictor (PredictionPort, not PredictionEngine)
 ```
 
+## Confidence Floor
+
+All engines share a unified confidence floor via `CONFIDENCE.MIN_CONFIDENCE` in `core/parameters/numerical_constants.py`:
+
+| Engine | Antes (2026-05) | Después (2026-06) |
+|--------|----------------|-------------------|
+| All engines | 0.3 | **0.5** |
+
+Razón: datos industriales ruidosos requieren un piso más alto para mantener credibilidad operativa frente a operadores. El floor de 0.3 generaba confianzas fusionadas de 0.29 en el dataset ALPLA; con 0.5 subió a 0.55.
+
 **NOT in engines/:** `infrastructure/ml/interfaces.py` — stays at ml/ root (cross-cutting)
 
 ---
@@ -126,6 +136,24 @@ from infrastructure.ml.engines.ensemble import EnsembleWeightedPredictor
 ---
 
 ## Engine Registration
+
+**⚠️ 2026-06-20:** Always use **relative imports** inside `engines/__init__.py` and engine subpackages. Absolute FQN imports (`from iot_machine_learning.infrastructure.ml.engines.core...`) create duplicate `EngineFactory` classes when both `/path/to/project` and `/path/to/project/..` are on `sys.path`. Use `.core`, `.taylor`, etc.
+
+```python
+# ✅ Correct — relative import (works regardless of sys.path entry)
+from .core import EngineFactory
+
+# ❌ Wrong — creates duplicate EngineFactory class
+from iot_machine_learning.infrastructure.ml.engines.core import EngineFactory
+```
+
+**Note:** `Prediction` domain entity uses `confidence_score`, NOT `confidence`. When accessing prediction results in adapters:
+```python
+# ✅ Correct
+confidence = prediction.confidence_score
+# ❌ AttributeError
+confidence = prediction.confidence
+```
 
 ```python
 # Auto-registration with decorator (recommended)

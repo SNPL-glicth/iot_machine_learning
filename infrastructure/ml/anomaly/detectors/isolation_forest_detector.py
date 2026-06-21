@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from core.parameters.numerical_constants import EPSILON, STAT_THRESHOLDS
 from core.drift.adaptive_contamination import AdaptiveContamination, ContaminationHysteresisConfig
@@ -116,6 +116,11 @@ class IsolationForestDetector(SubDetector):
     def vote(self, value: float, **kwargs: object) -> Optional[float]:
         if self._model is None:
             return None
+        
+        # Get regime for contextual scoring (ETAPA 2)
+        regime = kwargs.get("regime")
+        regime_config = kwargs.get("regime_config")
+        
         try:
             import numpy as np
             X = np.array([[value]])
@@ -127,6 +132,24 @@ class IsolationForestDetector(SubDetector):
             # Sigmoid suave: scores negativos → cercano a 1.0
             alpha = 2.0  # Ajustable
             vote = 1.0 / (1.0 + np.exp(alpha * score))
+            
+            # Adjust score according to regime (ETAPA 2) - from config if available
+            multiplier = 1.0
+            if regime and regime_config:
+                if regime == "VOLATILE_PEAK":
+                    multiplier = regime_config.peak_load_multiplier
+                elif regime == "STARTUP" or regime == "SHUTDOWN":
+                    multiplier = regime_config.transition_multiplier
+                elif regime == "ANOMALOUS_REGIME":
+                    multiplier = 1.0  # Maximum sensitivity
+            elif regime:
+                # Fallback hardcodeado si no hay config (compatibilidad)
+                if regime == "VOLATILE_PEAK":
+                    multiplier = 0.7
+                elif regime == "STARTUP" or regime == "SHUTDOWN":
+                    multiplier = 0.8
+            
+            vote = vote * multiplier
             return float(np.clip(vote, 0.0, 1.0))
         except Exception:
             return 0.0
@@ -272,6 +295,30 @@ class IsolationForestNDDetector(SubDetector):
     def vote(self, value: float, **kwargs: object) -> Optional[float]:
         if self._model is None:
             return None
+        
+        # Try to use DynamicFeatures for multi-dimensional features (v2.0.0)
+        dynamic_features: Optional[Dict[str, Any]] = kwargs.get("dynamic_features")
+        if dynamic_features is not None:
+            try:
+                import numpy as np
+                # Build feature vector from DynamicFeatures
+                feature_vector = []
+                feature_vector.append(value)  # current value
+                if dynamic_features.get("derivative") is not None:
+                    feature_vector.append(dynamic_features["derivative"])
+                if dynamic_features.get("second_derivative") is not None:
+                    feature_vector.append(dynamic_features["second_derivative"])
+                if dynamic_features.get("rolling_std_1h") is not None:
+                    feature_vector.append(dynamic_features["rolling_std_1h"])
+                
+                if len(feature_vector) > 1:
+                    X = np.array([feature_vector])
+                    score = self._model.decision_function(X)[0]
+                    return max(0.0, min(1.0, -score / 3.0))
+            except Exception:
+                pass  # Fallback to nd_features
+        
+        # Fallback to nd_features (v1.0.0)
         features = kwargs.get("nd_features")
         if features is None:
             return None

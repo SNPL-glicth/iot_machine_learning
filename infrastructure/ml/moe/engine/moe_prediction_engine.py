@@ -293,39 +293,76 @@ class MoEPredictionEngine(PredictionEngine):
     # ------------------------------------------------------------------
 
     def _build_context_from_values(self, values: List[float]) -> FeatureContext:
-        """Construye FeatureContext básico desde valores (standalone fallback)."""
+        """Construye FeatureContext desde valores con régimen mejorado.
+
+        Usa múltiples métricas para clasificación de régimen:
+        - Coefficient of Variation (CV) para volatilidad relativa
+        - R² de regresión lineal para detectar tendencia real vs ruido
+        - Autocorrelación lag-1 para detectar estructura temporal
+        - Curvatura estimada vía diferencia segunda
+        """
         import statistics
 
         n = len(values)
         mean = sum(values) / n if n > 0 else 0.0
         std = statistics.stdev(values) if n >= 2 else 0.0
 
-        # Estimación simple de slope (diferencia último - primero / intervalo)
+        # Slope por regresión lineal (OLS) — más robusto que diff primero-último
         slope = 0.0
+        r_squared = 0.0
+        curvature = 0.0
         if n >= 2:
-            slope = (values[-1] - values[0]) / max(n - 1, 1)
+            x_mean = (n - 1) / 2.0
+            y_mean = mean
+            num = sum((i - x_mean) * (y - y_mean) for i, y in enumerate(values))
+            den = sum((i - x_mean) ** 2 for i in range(n))
+            slope = num / den if abs(den) > 1e-12 else 0.0
+            if den > 1e-12:
+                ss_res = sum((y - (mean + slope * (i - x_mean))) ** 2 for i, y in enumerate(values))
+                ss_tot = sum((y - y_mean) ** 2 for y in values)
+                r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 1e-12 else 0.0
 
-        # Estimación simple de noise_ratio
-        noise_ratio = std / abs(mean) if abs(mean) > 1e-9 else 0.0
+        # Curvatura vía diferencia segunda (promedio)
+        if n >= 3:
+            second_diffs = [values[i] - 2 * values[i - 1] + values[i - 2] for i in range(2, n)]
+            curvature = sum(second_diffs) / len(second_diffs)
 
-        # Clasificación de régimen simple
-        if noise_ratio > 0.5:
+        # Noise ratio: CV más robusto con estabilizador
+        noise_ratio = std / (abs(mean) + 1e-6) if abs(mean) > 1e-9 else std / (std + 1e-6)
+
+        # Autocorrelación lag-1 (estructura temporal)
+        autocorr = 0.0
+        if n >= 4:
+            lag1 = [(values[i] - mean) * (values[i - 1] - mean) for i in range(1, n)]
+            var = sum((v - mean) ** 2 for v in values) + 1e-12
+            autocorr = sum(lag1) / var if var > 1e-12 else 0.0
+
+        # Clasificación de régimen multi-factor
+        # Prioridad: noisy > trending > volatile > stable
+        if noise_ratio > 0.5 and std > 0.3:
             regime = "noisy"
-        elif abs(slope) > 0.01 * abs(mean) if abs(mean) > 1e-9 else abs(slope) > 0.01:
+        elif r_squared > 0.6 and abs(slope) > 0.005 * (abs(mean) + 1e-6):
+            # Tendencia clara: R² alto y slope significativo
             regime = "trending"
-        elif std > 0.5:
+        elif std > 0.8 * (abs(mean) + 1e-6) or std > 2.0:
             regime = "volatile"
+        elif autocorr > 0.5 and abs(slope) < 0.001:
+            # Alta autocorrelación pero sin tendencia → estable
+            regime = "stable"
         else:
             regime = "stable"
+
+        # Estabilidad: 1.0 = perfectamente estable
+        stability = 1.0 / (1.0 + noise_ratio + abs(slope) * 10.0)
 
         return FeatureContext(
             regime=regime,
             mean=mean,
             std=std,
             slope=slope,
-            curvature=0.0,
+            curvature=curvature,
             noise_ratio=noise_ratio,
-            stability=0.0,
+            stability=stability,
             hampel_outlier_mask=[],
             spatial_correlation_score=0.0,
         )

@@ -15,15 +15,17 @@ class CheckpointMixin:
 
     def export_checkpoint(self) -> dict:
         """Export state as serializable checkpoint."""
-        return WeightTrackerCheckpoint.export(
-            self._scope, self._accuracy, self._priors,
-            self._regime_last_access, self._regime_last_update,
-            self._config.alpha, self._config.min_weight,
-        )
+        with self._lock:
+            return WeightTrackerCheckpoint.export(
+                self._scope, self._accuracy, self._priors,
+                self._regime_last_access, self._regime_last_update,
+                self._config.alpha, self._config.min_weight,
+            )
 
     def restore_from_checkpoint(self, checkpoint_data: dict) -> None:
         """Restore state from checkpoint."""
-        WeightTrackerCheckpoint.restore(
-            checkpoint_data, self._scope, self._accuracy, self._priors,
-            self._regime_last_access, self._regime_last_update,
-        )
+        with self._lock:
+            WeightTrackerCheckpoint.restore(
+                checkpoint_data, self._scope, self._accuracy, self._priors,
+                self._regime_last_access, self._regime_last_update,
+            )

@@ -28,7 +28,7 @@ class PerceivePhase:
         orchestrator = ctx.orchestrator
         
         # Signal analysis
-        profile = orchestrator._analyzer.analyze(ctx.values, ctx.timestamps)
+        profile = orchestrator._analyzer.analyze(ctx.values, ctx.timestamps, sensor_id=ctx.series_id)
         regime_str = profile.regime.value if hasattr(profile.regime, 'value') else str(profile.regime)
 
         # Extraer hour_of_day del último timestamp para contexto temporal
@@ -113,6 +113,13 @@ class PerceivePhase:
             sensor_profile=sensor_profile,
             event_context=event_ctx,
         )
+
+        # Record regime metrics (Phase 3C)
+        if ctx.metrics_collector is not None:
+            try:
+                ctx.metrics_collector.record_regime(regime_str)
+            except Exception as e:
+                logger.debug(f"metrics_collection_failed: {e}")
 
         return ctx.with_field(
             profile=profile,

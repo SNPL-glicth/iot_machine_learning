@@ -53,9 +53,10 @@ from iot_machine_learning.infrastructure.security.access_control import (
     Role,
     UserContext,
 )
-from iot_machine_learning.infrastructure.adapters.prediction_cache import (
-    InMemoryPredictionCache,
-)
+# prediction_cache/ module deleted
+# from iot_machine_learning.infrastructure.adapters.prediction_cache import (
+#     InMemoryPredictionCache,
+# )
 
 
 # --- Mock implementations for testing ---

@@ -266,10 +266,9 @@ class PlasticityFeedbackLoop:
             from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import (
                 EnginePerception,
             )
-            from iot_machine_learning.infrastructure.ml.cognitive.plasticity.contextual_plasticity_tracker import (
-                SignalContext,
-            )
+            # plasticity/ deleted - SignalContext moved to domain layer
             from iot_machine_learning.domain.entities.plasticity.signal_context import (
+                SignalContext,
                 RegimeType,
             )
             

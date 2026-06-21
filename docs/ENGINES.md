@@ -1,6 +1,6 @@
 # ZENIN Engines — Deep Architecture Reference
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-06-20
 
 This document describes **every engine** in ZENIN: how it works, what it predicts, where it plugs into the pipeline, and how it complements other engines. If you are extending ZENIN or debugging predictions, start here.
 
@@ -67,19 +67,23 @@ The cognitive layer consumes these `PredictionResult`s, runs them through signal
 Every prediction engine is registered in a central `EngineFactory`:
 
 ```python
-EngineFactory.register("taylor_polynomial", TaylorPredictionEngine)
+EngineFactory.register("taylor", TaylorPredictionEngine)
 EngineFactory.register("seasonal_fft", SeasonalPredictorEngine)
-EngineFactory.register("statistical_ema_holt", StatisticalPredictionEngine)
+EngineFactory.register("statistical", StatisticalPredictionEngine)
 EngineFactory.register("baseline_moving_average", BaselineMovingAverageEngine)
+EngineFactory.register("kalman", KalmanPredictionEngine)
+EngineFactory.register("adaptive_ensemble", AdaptiveEnsembleEngine)
 ```
 
 You can create any engine by name:
 
 ```python
-engine = EngineFactory.create("taylor_polynomial", series_id="temp_42")
+engine = EngineFactory.create("taylor", series_id="temp_42")
 ```
 
 If the name is unknown, the factory silently falls back to `BaselineMovingAverageEngine`. This is the **fail-open** guarantee: a missing engine never crashes the pipeline, it just degrades to the simplest predictor.
+
+> **2026-06-20:** All engines now load reliably. The `engine_not_found_fallback` was caused by duplicate `EngineFactory` classes from overlapping sys.path entries — fixed by switching `engines/__init__.py` from absolute FQN imports to relative imports (`.core`, `.taylor`, etc.).
 
 **Auto-registration** (decorator):
 
@@ -206,7 +210,7 @@ Double exponential smoothing (Holt's method) with auto-tuned α and β parameter
 2. **Holt's method** — `level = α × value + (1-α) × (level + trend)`; `trend = β × (level - prev_level) + (1-β) × trend`
 3. **Predict** — `prediction = level + trend × horizon`
 4. **Residual analysis** — EMA of residuals gives noise ratio
-5. **Confidence** — `1.0 - noise_ratio`, clamped to [0.2, 0.95]
+5. **Confidence** — `1.0 - noise_ratio`, clamped to [MIN_CONFIDENCE, MAX_CONFIDENCE]
 6. **Trend classification** — `up` / `down` / `stable` based on trend magnitude vs residual std
 
 **Auto-optimization (deferred):**
@@ -347,7 +351,7 @@ Gradient-boosting regressor for non-linear patterns in IoT time series.
 7. **Horizon extrapolation** — after the last point, apply `predict_cv` h times: `x_pred = x_hat + v_hat·dt·h`
 8. **Confidence** — derived from position covariance `P[0,0]`:
    `scale = max(mean_abs, std, EPSILON)`
-   `confidence = 0.95 / (1.0 + (0.5/scale)·√P[0,0])`, clamped to `[0.3, 0.95]`
+   `confidence = 0.95 / (1.0 + (0.5/scale)·√P[0,0])`, clamped to `[MIN_CONFIDENCE, MAX_CONFIDENCE]`
 9. **Warmup degradation** — if `n_points < 2·warmup_size`, confidence is multiplied by `(n/(2·warmup_size))²`
 10. **Trend** — classified from velocity estimate relative to scale
 
@@ -859,4 +863,41 @@ if regime == "my_regime":
 
 ---
 
-*Last updated: 2026-05-14*
+## Changelog 2026-06-20
+
+### Bugfixes
+
+| Bug | Archivo | Síntoma | Fix |
+|-----|---------|---------|-----|
+| **Duplicate `EngineFactory`** | `engines/__init__.py` | `engine_not_found_fallback` para taylor/kalman/statistical | FQN → relative imports (`.core`, `.taylor`) |
+| **`confidence` vs `confidence_score`** | `moe/expert_wrappers/engine_adapter.py:84,151` | MoE fusion devolvía confianza 0.0 (AttributeError silencioso) | `prediction.confidence` → `prediction.confidence_score` |
+
+### Confidence Floor
+
+| Parámetro | Antes | Después | Motivo |
+|-----------|-------|---------|--------|
+| `CONFIDENCE.MIN_CONFIDENCE` | 0.3 | **0.5** | Datos industriales requieren piso más alto para mantener credibilidad operativa |
+| `StatisticalPredictionEngine` floor | 0.2 | **0.5** (hereda de global) | Unificado con el sistema |
+
+Runner (`run_alpla_pipeline.py`) eliminó doble penalización — la MoE ya fusiona con discrepancia internamente.
+
+### ALPLA Validation Results
+
+**Dataset:** Chiller (18 parámetros) + Air Compressor (29 parámetros), Ene 2025 – May 2026  
+**Pipeline:** MoE Cognitivo con 4 engines (taylor, kalman, statistical, baseline)  
+**Confianza promedio:** **0.55** (moderada)
+
+| Régimen | Params | Top Expert | Match | Avg Confidence |
+|---------|--------|-----------|-------|---------------|
+| **volatile** | 30 (64%) | taylor | 30/30 ✅ | 0.50 |
+| **stable** | 12 (26%) | baseline | 12/12 ✅ | 0.69 |
+| **noisy** | 5 (11%) | kalman | 5/5 ✅ | 0.54 |
+
+**Anomalías detectadas:**
+- `Consumo RTAE 5`: 9.7M → 97.9M el **2025-11-27**
+- `Cto.2 N° arranques`: 4,520 → 591M el **2025-12-02**
+- `Cto.1 Tiempo operación`: 63 → 63,061 el **2025-12-26**
+
+---
+
+## Files Reference

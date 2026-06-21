@@ -22,10 +22,11 @@ Pure functions — no I/O, no state, no logging.
 from __future__ import annotations
 
 import math
-from typing import List, Optional
+import time
+from typing import Dict, List, Optional, Tuple, Union
 
 from core.parameters.numerical_constants import EPSILON
-from iot_machine_learning.domain.entities.series.structural_analysis import (
+from domain.entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
     _classify_regime as _domain_classify_regime,
@@ -131,25 +132,36 @@ def _compute_stability(accel_variance: float, f_t: float) -> float:
     return min(accel_variance / normalizer, 1.0)
 
 
+_SIGNAL_CACHE_TTL = 1.0
+
+
 class SignalAnalyzer:
     """Extracts a ``StructuralAnalysis`` from raw values + timestamps.
 
-    Stateless — each call is independent.
-
-    .. versionchanged:: 2.0
-        Returns ``StructuralAnalysis`` (domain) instead of ``SignalProfile``.
+    Includes a per‑sensor TTL cache (1 s granularity) to avoid
+    recomputation on repeated calls for the same sensor within a
+    sub‑second window.
     """
+
+    def __init__(self):
+        self._cache: Dict[Tuple[str, int], Tuple[float, StructuralAnalysis]] = {}
+
+    def _cache_key(self, sensor_id: str) -> Tuple[str, int]:
+        bucket = int(time.time())
+        return (sensor_id, bucket)
 
     def analyze(
         self,
         values: List[float],
         timestamps: Optional[List[float]] = None,
+        sensor_id: Optional[str] = None,
     ) -> StructuralAnalysis:
         """Compute structural features of the signal.
 
         Args:
             values: Time series (most recent last).
             timestamps: Optional Unix timestamps.
+            sensor_id: Optional sensor identifier for caching.
 
         Returns:
             ``StructuralAnalysis`` with all structural features.
@@ -157,6 +169,25 @@ class SignalAnalyzer:
         if not values:
             return StructuralAnalysis()
 
+        if sensor_id is not None:
+            key = self._cache_key(sensor_id)
+            cached = self._cache.get(key)
+            if cached is not None:
+                return cached[1]
+
+        result = self._compute(values, timestamps)
+
+        if sensor_id is not None:
+            key = self._cache_key(sensor_id)
+            self._cache[key] = (time.time(), result)
+
+        return result
+
+    def _compute(
+        self,
+        values: List[float],
+        timestamps: Optional[List[float]] = None,
+    ) -> StructuralAnalysis:
         dt = _estimate_dt(timestamps)
         mu, sigma = _compute_mean_std(values)
         noise_ratio = sigma / abs(mu) if abs(mu) > EPSILON.DIVISION else 0.0

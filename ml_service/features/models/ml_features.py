@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 @dataclass
@@ -54,9 +54,12 @@ class MLFeatures:
     window_size: int = 0
     model_version: str = "1.0.0"
     
+    # Dynamic features (optional, v2.0.0)
+    dynamic_features: Optional[Dict[str, Any]] = None
+    
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "sensor_id": self.sensor_id,
             "timestamp": self.timestamp,
             "timestamp_iso": datetime.fromtimestamp(
@@ -78,6 +81,12 @@ class MLFeatures:
             "window_size": self.window_size,
             "model_version": self.model_version,
         }
+        
+        # Add dynamic features if present
+        if self.dynamic_features is not None:
+            result["dynamic_features"] = self.dynamic_features
+        
+        return result
     
     def to_json(self) -> str:
         """Convert to JSON string."""

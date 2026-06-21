@@ -11,10 +11,14 @@ import time
 import logging
 from datetime import datetime, timezone
 from statistics import mean, stdev
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, TYPE_CHECKING
 
 from core.parameters.numerical_constants import STAT_THRESHOLDS
 from ..models.ml_features import MLFeatures
+
+if TYPE_CHECKING:
+    from infrastructure.ml.cognitive.dynamic.pipeline import DynamicFeaturePipeline
+    from infrastructure.ml.cognitive.dynamic.models.feature_config import FeatureConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +33,14 @@ class FeatureComputer:
 
     FIX P3-4: Acepta SensorFeatureConfigRegistry para configuración por sensor.
     FIX 2026-02-02: Implementa warm-up y cooldown.
+    FIX 2026-06-19: Agrega DynamicFeaturePipeline para features dinámicas.
     """
 
-    def __init__(self, registry=None):
+    def __init__(self, registry=None, dynamic_pipeline: Optional['DynamicFeaturePipeline'] = None):
         # Cooldown tracker: sensor_id -> last_anomaly_timestamp
         self._anomaly_cooldowns: Dict[int, float] = {}
         self._registry = registry
+        self._dynamic_pipeline = dynamic_pipeline
 
     def compute_features(
         self,
@@ -42,8 +48,9 @@ class FeatureComputer:
         current_value: float,
         current_timestamp: float,
         sensor_type: Optional[str] = None,
+        dynamic_config: Optional['FeatureConfig'] = None,
     ) -> Optional[MLFeatures]:
-        """Compute features. FIX P3-4: config por sensor."""
+        """Compute features. FIX P3-4: config por sensor. FIX 2026-06-19: dynamic features."""
         values = window.get_values(); timestamps = window.get_timestamps()
         config = self._resolve_config(window.sensor_id, sensor_type)
         min_readings = config.min_readings_for_features; min_age = config.min_window_age_seconds
@@ -70,6 +77,32 @@ class FeatureComputer:
             deviation_pct=deviation_pct, current_timestamp=current_timestamp,
         )
         
+        # Compute dynamic features if pipeline is available
+        dynamic_features_dict = None
+        if self._dynamic_pipeline is not None:
+            try:
+                dynamic_features = self._dynamic_pipeline.compute(
+                    sensor_id=window.sensor_id,
+                    sensor_type=sensor_type or "UNKNOWN",
+                    values=values,
+                    timestamps=timestamps,
+                    current_value=current_value,
+                    current_timestamp=current_timestamp,
+                    config=dynamic_config,
+                )
+                if dynamic_features and dynamic_features.has_any_features():
+                    dynamic_features_dict = dynamic_features.to_dict()
+                    # Update model version to indicate dynamic features
+                    model_version = "2.0.0"
+                else:
+                    model_version = "1.0.0"
+            except Exception as e:
+                logger.warning("Failed to compute dynamic features: sensor_id=%d error=%s",
+                             window.sensor_id, str(e))
+                model_version = "1.0.0"
+        else:
+            model_version = "1.0.0"
+        
         return MLFeatures(
             sensor_id=window.sensor_id, timestamp=current_timestamp,
             current_value=current_value, baseline=baseline,
@@ -79,7 +112,8 @@ class FeatureComputer:
             stability_score=stability_score, confidence=confidence,
             pattern_detected=pattern_detected, is_anomalous=is_anomalous,
             anomaly_score=anomaly_score, window_size=len(values),
-            model_version="1.0.0",
+            model_version=model_version,
+            dynamic_features=dynamic_features_dict,
         )
     def _compute_trend(self, values: list[float], timestamps: list[float]) -> Tuple[float, str]:
         if len(values) < 2:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.interpreter import PatternInterpreter
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import PatternInterpreter
 from .action_catalog import get_actions_for_domain
 
 

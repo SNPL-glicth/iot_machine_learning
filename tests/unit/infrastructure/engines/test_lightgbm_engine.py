@@ -9,6 +9,10 @@ Verifica:
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.skip(reason="experimental removed")
+
 import math
 import random
 
@@ -19,13 +23,25 @@ try:
 except Exception:
     lgb = None  # type: ignore[misc]
 
-from iot_machine_learning.infrastructure.ml._experimental.lightgbm import (
-    LightGBMPredictionEngine,
-)
-from iot_machine_learning.infrastructure.ml._experimental.lightgbm.feature_builder import (
-    build_feature_vector,
-    build_training_matrix,
-)
+# Module deleted - test skipped
+# from iot_machine_learning.infrastructure.ml._experimental.lightgbm import (
+#     LightGBMPredictionEngine,
+# )
+# from iot_machine_learning.infrastructure.ml._experimental.lightgbm.feature_builder import (
+#     build_feature_vector,
+#     build_training_matrix,
+# )
+
+# Stub classes for skipped test
+class LightGBMPredictionEngine:
+    def __init__(self, **kwargs):
+        pass
+
+def build_feature_vector(values):
+    return {}
+
+def build_training_matrix(values, min_points):
+    return [], [], []
 
 
 class TestLightGBMFeatureBuilder:

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter import PatternInterpreter
-from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.types import InterpretedPattern
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import PatternInterpreter, InterpretedPattern
 
 
 class TestPatternInterpreter:

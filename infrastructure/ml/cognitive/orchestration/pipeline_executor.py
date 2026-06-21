@@ -21,6 +21,9 @@ from .phases.explain_phase import ExplainPhase
 from .phases.action_guard_phase import ActionGuardPhase
 from .phases.narrative_unification_phase import NarrativeUnificationPhase
 from .phases.assembly_phase import AssemblyPhase
+from .phases.observability_phase import ObservabilityPhase
+from .phases.memory_phase import MemoryPhase
+from .phases.causal_phase import CausalPhase
 from ..analysis.types import PipelineTimer
 from ..compliance import ComplianceExporter
 logger = logging.getLogger(__name__)
@@ -33,7 +36,8 @@ class PipelineExecutor:
                       PerceivePhase(), DriftDetectionPhase(), PredictPhase(), AdaptPhase(),
                       InhibitPhase(), FusePhase(), DecisionArbiterPhase(), CoherenceCheckPhase(),
                       ConfidenceCalibrationPhase(), ExplainPhase(), ActionGuardPhase(),
-                      NarrativeUnificationPhase()]
+                      NarrativeUnificationPhase(), MemoryPhase(), CausalPhase(),
+                      ObservabilityPhase()]
         self._phases = phases
         self._assembly = AssemblyPhase(compliance_exporter=compliance_exporter)
     def execute(self, orchestrator, values: List[float], timestamps: Optional[List[float]],

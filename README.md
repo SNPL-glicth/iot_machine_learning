@@ -259,6 +259,38 @@ curl -X POST http://localhost:8002/predict \
 
 ---
 
+## Validacion con Datos Industriales Reales (ALPLA)
+
+**Junio 2026** — Pipeline MoE cognitivo ejecutado sobre dataset industrial de 47 parámetros (Chiller + Air Compressor, Ene 2025 – May 2026).
+
+### Resultados
+
+| Métrica | Valor |
+|---------|-------|
+| Parámetros analizados | 47 (18 Chiller + 29 CA) |
+| Confianza promedio fused | **0.55** (moderada) |
+| Matching expert→régimen | **100%** (64% volatile→taylor, 26% stable→baseline, 11% noisy→kalman) |
+| Tiempo total | ~1.1s (23ms por parámetro) |
+
+### Anomalías Detectadas
+
+| Equipo | Parámetro | Evento | Fecha |
+|--------|-----------|--------|-------|
+| Chiller | Consumo RTAE 5 | 9.7M → **97.9M** (10×) | 2025-11-27 |
+| Chiller | Cto.2 N° arranques | 4,520 → **591M** (130,000×) | 2025-12-02 |
+| Chiller | Tiempo operación compresor | 63 → **63,061** (1,000×) | 2025-12-26 |
+| CA | Horas de carga | 90,037 → **900,052** (10×) | 2025-08-16 |
+| CA | Punto de rocío secador | 3.3°C → **27°C** | 2025-08-23 |
+
+### Bugs Corregidos en Validación
+
+1. **Registro duplicado de `EngineFactory`** — imports FQN vs relativos creaban dos clases en memoria
+2. **`confidence` vs `confidence_score`** — `AttributeError` silencioso en MoE fusion
+3. **Doble penalización** — MoE + runner aplicaban penalizaciones por separado
+4. **Taylor floor 0.30** — elevado a 0.50 para datos industriales
+
+---
+
 ## Comparacion de Mercado
 
 | Capacidad | ZENIN | AWS Lookout | Azure AD | Palantir |

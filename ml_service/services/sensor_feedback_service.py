@@ -10,9 +10,10 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from iot_machine_learning.infrastructure.ml.cognitive.prediction_cache.pending_prediction_cache import (
-        PendingPredictionCache,
-    )
+    # prediction_cache/ module deleted
+    # from iot_machine_learning.infrastructure.ml.cognitive.prediction_cache.pending_prediction_cache import (
+    #     PendingPredictionCache,
+    # )
     from iot_machine_learning.infrastructure.ml.interfaces import (
         PredictionEngine,
         PredictionResult,

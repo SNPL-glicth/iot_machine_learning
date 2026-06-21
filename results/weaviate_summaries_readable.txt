@@ -1,0 +1,438 @@
+RESÚMENES SEMÁNTICOS PARA WEAVIATE
+================================================================================
+
+Tipo: equipment_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Equipo S-CHI-TRA-RTAE250F-U17J06239-5 con datos de Chiller desde 2025-01-02 a 2026-03-21. Registra 5568 mediciones de 18 parámetros diferentes. Los datos incluyen mediciones de temperatura, presión, consumo energético y horas de operación. El dataset es adecuado para análisis predictivo y detección de anomalías operativas.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Temperatura del medio ambiente' medido en °C con 312 registros. Rango de operación: 9.00 a 33.00. Promedio: 23.01 con desviación estándar de 5.23. Indicador de variabilidad: 22.7%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Punto de ajuste activo de agua helada' medido en °C con 312 registros. Rango de operación: 8.00 a 26.10. Promedio: 8.84 con desviación estándar de 1.12. Indicador de variabilidad: 12.7%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Temperatura de entrada de agua' medido en °C con 312 registros. Rango de operación: 9.10 a 16.60. Promedio: 11.66 con desviación estándar de 0.94. Indicador de variabilidad: 8.1%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Temperatura de salida de agua' medido en °C con 312 registros. Rango de operación: 7.80 a 80.10. Promedio: 9.59 con desviación estándar de 4.14. Indicador de variabilidad: 43.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Presión del refrigerante del evaporador' medido en Kpa con 306 registros. Rango de operación: 26.00 a 303.00. Promedio: 265.76 con desviación estándar de 16.87. Indicador de variabilidad: 6.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Temperatura de saturación del refrigerante del evaporador' medido en °C con 306 registros. Rango de operación: 4.60 a 9.30. Promedio: 6.52 con desviación estándar de 0.76. Indicador de variabilidad: 11.7%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Presión del refrigerante del evaporador' medido en Kpa con 310 registros. Rango de operación: 252.00 a 312.00. Promedio: 276.33 con desviación estándar de 9.56. Indicador de variabilidad: 3.5%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Temperatura de saturación de refrigerante de evaporador' medido en °C con 310 registros. Rango de operación: 5.40 a 9.90. Promedio: 7.23 con desviación estándar de 0.72. Indicador de variabilidad: 9.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Temperatura de saturación del refrigerante del condensador' medido en °C con 306 registros. Rango de operación: 3.60 a 272.00. Promedio: 51.26 con desviación estándar de 15.53. Indicador de variabilidad: 30.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Presión del refrigerante del condensador' medido en Kpa con 306 registros. Rango de operación: 6.90 a 13629.00. Promedio: 1296.31 con desviación estándar de 769.06. Indicador de variabilidad: 59.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Temperatura de saturación de refrigerante del condensador' medido en °C con 310 registros. Rango de operación: 0.00 a 68.60. Promedio: 52.10 con desviación estándar de 9.35. Indicador de variabilidad: 18.0%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Presión del refrigerante del condensador' medido en Kpa con 310 registros. Rango de operación: 1.36 a 5478.00. Promedio: 1336.61 con desviación estándar de 394.33. Indicador de variabilidad: 29.5%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Número de arranques del compresor' medido en No con 306 registros. Rango de operación: 5358.00 a 61552.00. Promedio: 5786.71 con desviación estándar de 4264.82. Indicador de variabilidad: 73.7%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.1 Tiempo de operación del compresor' medido en Hrs con 306 registros. Rango de operación: 63.00 a 64744.00. Promedio: 59382.13 con desviación estándar de 6223.20. Indicador de variabilidad: 10.5%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Número de arranques del compresor' medido en No con 310 registros. Rango de operación: 4323.00 a 591245207.00. Promedio: 1912051.86 con desviación estándar de 33580197.41. Indicador de variabilidad: 1756.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Cto.2 Tiempo de operación del compresor' medido en Hrs con 310 registros. Rango de operación: 6118.00 a 61598.00. Promedio: 56160.24 con desviación estándar de 4149.49. Indicador de variabilidad: 7.4%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Caudalímetro 5' medido en m3/h con 312 registros. Rango de operación: 0.00 a 260.00. Promedio: 195.04 con desviación estándar de 25.97. Indicador de variabilidad: 13.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Parámetro 'Consumo de energía sin restabecim. RTAE 5' medido en Kwh con 312 registros. Rango de operación: 0.00 a 97904759.00. Promedio: 10021804.29 con desviación estándar de 8603194.47. Indicador de variabilidad: 85.8%.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-01-18 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Cto.2 Temperatura de saturación de refrigerante del condensador, Temperatura del medio ambiente. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-02-13 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-02-26 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-03-07 00:00:00. Parámetros fuera de rango: Caudalímetro 5, Cto.1 Temperatura de saturación del refrigerante del evaporador, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-03-19 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-03-22 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-04-17 00:00:00. Parámetros fuera de rango: Cto.1 Presión del refrigerante del evaporador, Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-05-10 00:00:00. Parámetros fuera de rango: Caudalímetro 5, Cto.1 Presión del refrigerante del evaporador, Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-06-13 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-08-27 00:00:00. Parámetros fuera de rango: Consumo de energía sin restabecim. RTAE 5. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-10-14 00:00:00. Parámetros fuera de rango: Cto.1 Número de arranques del compresor, Cto.1 Tiempo de operación del compresor, Cto.2 Presión del refrigerante del condensador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-12-05 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del condensador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2025-12-24 00:00:00. Parámetros fuera de rango: Cto.1 Tiempo de operación del compresor, Cto.2 Temperatura de saturación de refrigerante del condensador, Temperatura del medio ambiente. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2026-02-20 00:00:00. Parámetros fuera de rango: Cto.1 Presión del refrigerante del condensador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2026-03-02 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Cto.2 Tiempo de operación del compresor, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: Anomalía detectada en equipo S-CHI-TRA-RTAE250F-U17J06239-5 el 2026-03-04 00:00:00. Parámetros fuera de rango: Cto.1 Temperatura de saturación del refrigerante del evaporador, Cto.2 Presión del refrigerante del evaporador, Cto.2 Temperatura de saturación de refrigerante de evaporador, Temperatura de entrada de agua. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: temporal_pattern
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: El parámetro 'Temperatura del medio ambiente' muestra una tendencia decreciente del 8.6% entre la primera y segunda mitad del período analizado. Esto puede indicar degradación de equipo, cambio de condiciones operativas o ajuste de setpoints. Monitoreo continuo recomendado.
+--------------------------------------------------------------------------------
+
+Tipo: temporal_pattern
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: El parámetro 'Punto de ajuste activo de agua helada' muestra una tendencia decreciente del 7.2% entre la primera y segunda mitad del período analizado. Esto puede indicar degradación de equipo, cambio de condiciones operativas o ajuste de setpoints. Monitoreo continuo recomendado.
+--------------------------------------------------------------------------------
+
+Tipo: temporal_pattern
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: El parámetro 'Temperatura de entrada de agua' muestra una tendencia decreciente del 7.6% entre la primera y segunda mitad del período analizado. Esto puede indicar degradación de equipo, cambio de condiciones operativas o ajuste de setpoints. Monitoreo continuo recomendado.
+--------------------------------------------------------------------------------
+
+Tipo: temporal_pattern
+Equipo: S-CHI-TRA-RTAE250F-U17J06239-5
+Resumen: El parámetro 'Temperatura de salida de agua' muestra una tendencia decreciente del 8.6% entre la primera y segunda mitad del período analizado. Esto puede indicar degradación de equipo, cambio de condiciones operativas o ajuste de setpoints. Monitoreo continuo recomendado.
+--------------------------------------------------------------------------------
+
+Tipo: equipment_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Equipo S-CMA-AF-CE680A-20G455-10 con datos de CA desde 2025-01-02 a 2026-05-30. Registra 4567 mediciones de 29 parámetros diferentes. Los datos incluyen mediciones de temperatura, presión, consumo energético y horas de operación. El dataset es adecuado para análisis predictivo y detección de anomalías operativas.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Horas de servicio' medido en Hrs con 353 registros. Rango de operación: 116456.00 a 125431.00. Promedio: 121279.95 con desviación estándar de 2706.35. Indicador de variabilidad: 2.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Horas de carga' medido en Hrs con 353 registros. Rango de operación: 9729.00 a 900052.00. Promedio: 92526.93 con desviación estándar de 43371.37. Indicador de variabilidad: 46.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión del aceite' medido en Bar con 143 registros. Rango de operación: 2.70 a 4.00. Promedio: 3.69 con desviación estándar de 0.15. Indicador de variabilidad: 4.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del aceite            ' medido en °C con 143 registros. Rango de operación: 48.00 a 69.00. Promedio: 57.10 con desviación estándar de 3.19. Indicador de variabilidad: 5.6%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de regulación' medido en Bar con 143 registros. Rango de operación: 7.40 a 8.50. Promedio: 8.05 con desviación estándar de 0.21. Indicador de variabilidad: 2.6%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de aire a la descarga 1a etapa' medido en °C con 143 registros. Rango de operación: 177.00 a 229.00. Promedio: 208.32 con desviación estándar de 8.71. Indicador de variabilidad: 4.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de aire a la descarga 2a etapa' medido en °C con 143 registros. Rango de operación: 141.00 a 198.00. Promedio: 178.22 con desviación estándar de 9.46. Indicador de variabilidad: 5.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de aire a la descarga 3a etapa' medido en °C con 143 registros. Rango de operación: 113.00 a 169.00. Promedio: 138.52 con desviación estándar de 7.53. Indicador de variabilidad: 5.4%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de cruceta vertical' medido en °C con 143 registros. Rango de operación: 60.00 a 81.00. Promedio: 76.61 con desviación estándar de 3.78. Indicador de variabilidad: 4.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de cruceta horizontal' medido en °C con 143 registros. Rango de operación: 61.00 a 79.00. Promedio: 70.92 con desviación estándar de 2.80. Indicador de variabilidad: 3.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de aire a la descarga de 3a etapa' medido en Bar con 143 registros. Rango de operación: 25.00 a 29.00. Promedio: 27.34 con desviación estándar de 0.65. Indicador de variabilidad: 2.4%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de chumacera lado motor' medido en °C con 143 registros. Rango de operación: 31.00 a 90.00. Promedio: 54.00 con desviación estándar de 9.29. Indicador de variabilidad: 17.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de chumacera lado libre ' medido en °C con 143 registros. Rango de operación: 25.00 a 90.00. Promedio: 58.39 con desviación estándar de 8.43. Indicador de variabilidad: 14.4%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de chumacera lado polea' medido en °C con 143 registros. Rango de operación: 0.00 a 56.00. Promedio: 40.77 con desviación estándar de 6.40. Indicador de variabilidad: 15.7%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del tanque pulmón' medido en °C con 143 registros. Rango de operación: 22.00 a 51.00. Promedio: 32.57 con desviación estándar de 4.39. Indicador de variabilidad: 13.5%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión del tanque pulmón' medido en Bar con 143 registros. Rango de operación: 23.00 a 37.00. Promedio: 27.24 con desviación estándar de 1.52. Indicador de variabilidad: 5.6%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del punto de rocío del secador' medido en °C con 143 registros. Rango de operación: 2.60 a 27.00. Promedio: 3.93 con desviación estándar de 2.10. Indicador de variabilidad: 53.4%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura ambiente' medido en °C con 143 registros. Rango de operación: 18.00 a 39.00. Promedio: 28.97 con desviación estándar de 4.57. Indicador de variabilidad: 15.8%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del rodamiento del motor lado flecha' medido en °C con 143 registros. Rango de operación: 32.00 a 67.00. Promedio: 44.94 con desviación estándar de 5.79. Indicador de variabilidad: 12.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del estator' medido en °C con 143 registros. Rango de operación: 2.00 a 83.00. Promedio: 70.17 con desviación estándar de 8.79. Indicador de variabilidad: 12.5%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura del rodamiento del motor lado ventilador' medido en °C con 143 registros. Rango de operación: 43.00 a 78.00. Promedio: 62.29 con desviación estándar de 6.97. Indicador de variabilidad: 11.2%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de aire a la descarga de 1a etapa' medido en Bar con 143 registros. Rango de operación: 3.00 a 3.00. Promedio: 3.00 con desviación estándar de 0.00. Indicador de variabilidad: 0.0%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de aspiración de 2a etapa' medido en °C con 143 registros. Rango de operación: 40.00 a 62.00. Promedio: 53.27 con desviación estándar de 5.82. Indicador de variabilidad: 10.9%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de aire a la descarga de 2a etapa' medido en Bar con 143 registros. Rango de operación: 2.00 a 12.00. Promedio: 11.93 con desviación estándar de 0.84. Indicador de variabilidad: 7.0%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de aspiración de 3a etapa                    ' medido en °C con 143 registros. Rango de operación: 30.00 a 48.00. Promedio: 40.52 con desviación estándar de 4.50. Indicador de variabilidad: 11.1%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de agua de entrada de la bomba' medido en Bar con 143 registros. Rango de operación: 2.00 a 2.00. Promedio: 2.00 con desviación estándar de 0.00. Indicador de variabilidad: 0.0%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Presión de agua de salida de la bomba' medido en Bar con 143 registros. Rango de operación: 4.00 a 4.00. Promedio: 4.00 con desviación estándar de 0.00. Indicador de variabilidad: 0.0%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de agua a la entrada del compresor' medido en °C con 143 registros. Rango de operación: 23.00 a 46.00. Promedio: 36.31 con desviación estándar de 5.19. Indicador de variabilidad: 14.3%.
+--------------------------------------------------------------------------------
+
+Tipo: parameter_profile
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Parámetro 'Temperatura de agua a la salida del compresor' medido en °C con 143 registros. Rango de operación: 28.00 a 54.00. Promedio: 44.20 con desviación estándar de 5.27. Indicador de variabilidad: 11.9%.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-02-15 00:00:00. Parámetros fuera de rango: Presión del aceite, Temperatura de agua a la salida del compresor, Temperatura de aire a la descarga 2a etapa, Temperatura de aire a la descarga 3a etapa, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-02-20 00:00:00. Parámetros fuera de rango: Presión del aceite, Temperatura de agua a la salida del compresor, Temperatura de aire a la descarga 2a etapa, Temperatura de aire a la descarga 3a etapa, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-02-21 00:00:00. Parámetros fuera de rango: Presión del aceite, Temperatura de agua a la salida del compresor, Temperatura de aire a la descarga 2a etapa, Temperatura de aire a la descarga 3a etapa, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-02-22 00:00:00. Parámetros fuera de rango: Presión del aceite, Temperatura de agua a la salida del compresor, Temperatura de aire a la descarga 2a etapa, Temperatura de aire a la descarga 3a etapa, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-02-24 00:00:00. Parámetros fuera de rango: Presión del aceite, Temperatura de agua a la salida del compresor, Temperatura de aire a la descarga 2a etapa, Temperatura de aire a la descarga 3a etapa, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-03-01 00:00:00. Parámetros fuera de rango: Temperatura de agua a la entrada del compresor, Temperatura de agua a la salida del compresor. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-04-19 00:00:00. Parámetros fuera de rango: Presión de regulación, Temperatura de aire a la descarga 3a etapa, Temperatura del estator. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-05-07 00:00:00. Parámetros fuera de rango: Temperatura ambiente, Temperatura de agua a la entrada del compresor, Temperatura de agua a la salida del compresor, Temperatura del rodamiento del motor lado flecha, Temperatura del rodamiento del motor lado ventilador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2025-12-22 00:00:00. Parámetros fuera de rango: Temperatura de chumacera lado libre , Temperatura de chumacera lado motor, Temperatura del rodamiento del motor lado flecha. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-02-25 00:00:00. Parámetros fuera de rango: Presión de aire a la descarga de 3a etapa, Presión del aceite, Temperatura de aire a la descarga 2a etapa, Temperatura del aceite            , Temperatura del rodamiento del motor lado ventilador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-02-26 00:00:00. Parámetros fuera de rango: Presión de aire a la descarga de 3a etapa, Presión del aceite, Temperatura de aire a la descarga 2a etapa, Temperatura del aceite            , Temperatura del rodamiento del motor lado ventilador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-02-28 00:00:00. Parámetros fuera de rango: Presión de aire a la descarga de 3a etapa, Presión del aceite, Temperatura de aire a la descarga 2a etapa, Temperatura del aceite            , Temperatura del rodamiento del motor lado ventilador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-03-02 00:00:00. Parámetros fuera de rango: Presión de aire a la descarga de 3a etapa, Presión del aceite, Temperatura de aire a la descarga 2a etapa, Temperatura del aceite            , Temperatura del rodamiento del motor lado ventilador. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-04-14 00:00:00. Parámetros fuera de rango: Temperatura de aire a la descarga 1a etapa, Temperatura de aire a la descarga 2a etapa, Temperatura de cruceta horizontal, Temperatura de cruceta vertical. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-05-20 00:00:00. Parámetros fuera de rango: Presión del tanque pulmón, Temperatura de aire a la descarga 1a etapa, Temperatura de chumacera lado libre , Temperatura de chumacera lado motor, Temperatura del tanque pulmón. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-05-21 00:00:00. Parámetros fuera de rango: Presión del tanque pulmón, Temperatura de aire a la descarga 1a etapa, Temperatura de chumacera lado libre , Temperatura de chumacera lado motor, Temperatura del tanque pulmón. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-05-27 00:00:00. Parámetros fuera de rango: Presión del tanque pulmón, Temperatura de aire a la descarga 1a etapa, Temperatura de chumacera lado libre , Temperatura de chumacera lado motor, Temperatura del tanque pulmón. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+
+Tipo: anomaly
+Equipo: S-CMA-AF-CE680A-20G455-10
+Resumen: Anomalía detectada en equipo S-CMA-AF-CE680A-20G455-10 el 2026-05-28 00:00:00. Parámetros fuera de rango: Presión del tanque pulmón, Temperatura de aire a la descarga 1a etapa, Temperatura de chumacera lado libre , Temperatura de chumacera lado motor, Temperatura del tanque pulmón. Esta anomalía puede indicar comportamiento operativo anormal, falla de sensor o condición de mantenimiento requerida. Se recomienda revisión manual de los registros operativos en ese período.
+--------------------------------------------------------------------------------
+

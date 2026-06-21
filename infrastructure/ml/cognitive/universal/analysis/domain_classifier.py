@@ -238,7 +238,8 @@ def fit_online(
 _ATTENTION_AVAILABLE = False
 try:
     from ...neural.attention import AttentionContextCollector
-    from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers.keyword_config import ATTENTION_CONFIG
+    # text/ module deleted - keyword config removed
+    # from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers.keyword_config import ATTENTION_CONFIG
     _ATTENTION_AVAILABLE = True
 except Exception:
     pass

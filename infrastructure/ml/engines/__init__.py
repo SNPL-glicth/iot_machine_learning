@@ -17,23 +17,16 @@ To add a new engine:
 Use ``discover_engines(package_path)`` for plugin auto-discovery.
 """
 
-from iot_machine_learning.infrastructure.ml.engines.core import (
+from .core import (
     EngineFactory,
     discover_engines,
     register_engine,
     BaselineMovingAverageEngine,
 )
-from iot_machine_learning.infrastructure.ml.engines.taylor import TaylorPredictionEngine
-from iot_machine_learning.infrastructure.ml.engines.statistical import StatisticalPredictionEngine
-# LightGBM movido a _experimental/ — ver docs/ENGINES.md
-# from iot_machine_learning.infrastructure.ml.engines.lightgbm import LightGBMPredictionEngine
-from iot_machine_learning.infrastructure.ml.engines.adaptive_ensemble import (
-    AdaptiveEnsembleEngine,
-)
-from iot_machine_learning.infrastructure.ml.engines.kalman import (
-    KalmanPredictionEngine,
-)
-# from iot_machine_learning.infrastructure.ml.engines.deprecated.ensemble_predictor import EnsembleWeightedPredictor
+from .taylor import TaylorPredictionEngine
+from .statistical import StatisticalPredictionEngine
+from .adaptive_ensemble import AdaptiveEnsembleEngine
+from .kalman import KalmanPredictionEngine
 
 # BaselineMovingAverageEngine ya se registra en core/factory.py
 EngineFactory.register("taylor", TaylorPredictionEngine)

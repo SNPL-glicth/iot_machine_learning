@@ -12,7 +12,7 @@ from iot_machine_learning.domain.services.severity_rules import (
 )
 from iot_machine_learning.domain.entities.explainability.explanation import Explanation
 from iot_machine_learning.infrastructure.ml.cognitive.explanation import ExplanationBuilder
-from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.interpreter import PatternInterpreter
+from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import PatternInterpreter
 
 from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.types import UniversalInput, UniversalResult, UniversalContext, InputType
 from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pipeline import (

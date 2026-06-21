@@ -412,176 +412,15 @@ class TestSeriesValues:
 
 
 # --- Text ---
-class TestTextCognitive:
-    def test_engine(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import engine
-        assert engine is not None
+# text/ module deleted - all text cognitive tests removed
+# class TestTextCognitive: ...
+# class TestTextAnalyzers: ...
+# class TestTextEmbeddings: ...
 
-    def test_engine_helpers(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import engine_helpers
-        assert engine_helpers is not None
-
-    def test_impact_detector(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import impact_detector
-        assert impact_detector is not None
-
-    def test_severity_mapper(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import severity_mapper
-        assert severity_mapper is not None
-
-    def test_types(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import types
-        assert types is not None
-
-    def test_text_chunker(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import text_chunker
-        assert text_chunker is not None
-
-    def test_text_pattern(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import text_pattern
-        assert text_pattern is not None
-
-    def test_signal_profiler(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import signal_profiler
-        assert signal_profiler is not None
-
-    def test_entity_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import entity_extractor
-        assert entity_extractor is not None
-
-    def test_explanation_assembler(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import explanation_assembler
-        assert explanation_assembler is not None
-
-    def test_memory_enricher(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import memory_enricher
-        assert memory_enricher is not None
-
-    def test_perception_collector(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import perception_collector
-        assert perception_collector is not None
-
-    def test_conclusion_builder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import conclusion_builder
-        assert conclusion_builder is not None
-
-    def test_conclusion_domain(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import conclusion_domain
-        assert conclusion_domain is not None
-
-    def test_conclusion_explanation(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text import conclusion_explanation
-        assert conclusion_explanation is not None
-
-
-class TestTextAnalyzers:
-    def test_keyword_config(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import keyword_config
-        assert keyword_config is not None
-
-    def test_text_readability(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import text_readability
-        assert text_readability is not None
-
-    def test_text_sentiment(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import text_sentiment
-        assert text_sentiment is not None
-
-    def test_text_structural(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import text_structural
-        assert text_structural is not None
-
-    def test_text_urgency(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.analyzers import text_urgency
-        assert text_urgency is not None
-
-
-class TestTextEmbeddings:
-    def test_char_encoder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import char_encoder
-        assert char_encoder is not None
-
-    def test_entity_detector(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import entity_detector
-        assert entity_detector is not None
-
-    def test_entropy_filter(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import entropy_filter
-        assert entropy_filter is not None
-
-    def test_hybrid_embedder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import hybrid_embedder
-        assert hybrid_embedder is not None
-
-    def test_phrase_encoder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import phrase_encoder
-        assert phrase_encoder is not None
-
-    def test_word_encoder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.embeddings import word_encoder
-        assert word_encoder is not None
-
-
-class TestTextEncoders:
-    def test_character_encoder(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.encoders import character_encoder
-        assert character_encoder is not None
-
-    def test_positional_weights(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.encoders import positional_weights
-        assert positional_weights is not None
-
-
-class TestTextPipeline:
-    def test_analyze_phase(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.pipeline import analyze_phase
-        assert analyze_phase is not None
-
-    def test_explain_phase(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.pipeline import explain_phase
-        assert explain_phase is not None
-
-    def test_perceive_phase(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.pipeline import perceive_phase
-        assert perceive_phase is not None
-
-    def test_reason_phase(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.pipeline import reason_phase
-        assert reason_phase is not None
-
-    def test_remember_phase(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.pipeline import remember_phase
-        assert remember_phase is not None
-
-
-class TestTextSemanticExtraction:
-    def test_composite_entity_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import composite_entity_extractor
-        assert composite_entity_extractor is not None
-
-    def test_equipment_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import equipment_extractor
-        assert equipment_extractor is not None
-
-    def test_extractor_factory(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import extractor_factory
-        assert extractor_factory is not None
-
-    def test_financial_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import financial_extractor
-        assert financial_extractor is not None
-
-    def test_metric_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import metric_extractor
-        assert metric_extractor is not None
-
-    def test_relation_detector(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import relation_detector
-        assert relation_detector is not None
-
-    def test_spacy_extractor(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import spacy_extractor
-        assert spacy_extractor is not None
+# text/ module deleted - all text encoder tests removed
+# class TestTextEncoders: ...
+# class TestTextPipeline: ...
+# class TestTextSemanticExtraction: ...
 
 
 # --- Universal ---
@@ -627,8 +466,10 @@ class TestUniversal:
         assert signal_profiler is not None
 
     def test_text_perception_collector(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis import text_perception_collector
-        assert text_perception_collector is not None
+        # text_perception_collector.py deleted
+        # from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis import text_perception_collector
+        # assert text_perception_collector is not None
+        pass
 
     def test_types(self):
         from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis import types

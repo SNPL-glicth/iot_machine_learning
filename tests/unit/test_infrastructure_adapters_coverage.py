@@ -37,8 +37,10 @@ class TestCoreAdapters:
         assert null_cognitive is not None
 
     def test_prediction_cache(self):
-        from iot_machine_learning.infrastructure.adapters import prediction_cache
-        assert prediction_cache is not None
+        # prediction_cache/ module deleted
+        # from iot_machine_learning.infrastructure.adapters import prediction_cache
+        # assert prediction_cache is not None
+        pass
 
     def test_reading_adapters(self):
         from iot_machine_learning.infrastructure.adapters import reading_adapters

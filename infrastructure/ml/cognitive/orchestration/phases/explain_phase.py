@@ -14,6 +14,16 @@ from iot_machine_learning.application.explainability.explanation_renderer import
 
 from ...analysis.types import MetaDiagnostic
 
+try:
+    from ...observability import ExplainabilityValidator
+except (ImportError, ModuleNotFoundError):
+    ExplainabilityValidator = None  # type: ignore[assignment,misc]
+
+try:
+    from ...explainability import ContextualExplainabilityEngine
+except (ImportError, ModuleNotFoundError):
+    ContextualExplainabilityEngine = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +104,25 @@ class CausalNarrativeBuilder:
 class ExplainPhase:
     """Phase 9: Explanation and diagnostic generation."""
     
+    def __init__(
+        self,
+        explainability_validator: Optional[Any] = None,
+        contextual_explainability_engine: Optional[Any] = None,
+    ) -> None:
+        """Initialize explain phase.
+        
+        Args:
+            explainability_validator: Optional ExplainabilityValidator instance.
+            contextual_explainability_engine: Optional ContextualExplainabilityEngine instance.
+        """
+        self._explainability_validator = explainability_validator
+        if ExplainabilityValidator is not None and self._explainability_validator is None:
+            self._explainability_validator = ExplainabilityValidator()
+        
+        self._contextual_explainability_engine = contextual_explainability_engine
+        if ContextualExplainabilityEngine is not None and self._contextual_explainability_engine is None:
+            self._contextual_explainability_engine = ContextualExplainabilityEngine()
+    
     @property
     def name(self) -> str:
         return "explain"
@@ -140,10 +169,11 @@ class ExplainPhase:
                 perceptions=list(ctx.perceptions) if ctx.perceptions else [],
             )
         
-        # Store diagnostic and explanation
-        orchestrator._last_diagnostic = diag
-        orchestrator._last_explanation = explanation_dict
-        orchestrator._last_timer = ctx.timer
+        # Store diagnostic and explanation (thread-safe)
+        with orchestrator._state_lock:
+            orchestrator._last_diagnostic = diag
+            orchestrator._last_explanation = explanation_dict
+            orchestrator._last_timer = ctx.timer
         
         # Log with narratives
         logger.debug("cognitive_prediction", extra={
@@ -208,8 +238,77 @@ class ExplainPhase:
         except Exception:
             pass  # RUL never breaks the pipeline
 
+        # Record explainability metrics (Phase 3C)
+        if ctx.metrics_collector is not None:
+            try:
+                ctx.metrics_collector.record_explainability(
+                    explanation_quality=len(all_narratives),
+                    explanation_coverage=1.0 if all_narratives else 0.0,
+                )
+            except Exception as e:
+                logger.debug(f"metrics_collection_failed: {e}")
+        
+        # Validate explainability quality (Phase 3C)
+        validation_result = None
+        if self._explainability_validator is not None:
+            try:
+                # Create a simple explanation object for validation
+                from domain.entities.explainability import ContextualExplanation
+                simple_explanation = ContextualExplanation(
+                    sensor_id=ctx.series_id,
+                    sensor_type="generic",
+                    current_regime=ctx.regime or "unknown",
+                    anomaly_score=getattr(ctx.profile, "z_score", 0.0) if ctx.profile else 0.0,
+                    operational_confidence=ctx.fused_confidence or 0.0,
+                    primary_drivers=[ctx.selected_engine] if ctx.selected_engine else [],
+                    suggested_actions=all_narratives[:3],
+                    timestamp=time.time(),
+                )
+                
+                validation_result = self._explainability_validator.validate_explanation(
+                    explanation=simple_explanation,
+                    retrieval_relevance=ctx.fused_confidence or 0.0,
+                )
+                
+                logger.debug(
+                    "explainability_validation",
+                    extra={
+                        "series_id": ctx.series_id,
+                        "quality_score": validation_result.get("explainability_quality_score", 0.0),
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"explainability_validation_failed: {e}")
+        
+        # Generate contextual explanation (Phase 3B)
+        contextual_explanation = None
+        if self._contextual_explainability_engine is not None and ctx.memory_registry is not None:
+            try:
+                contextual_explanation = self._contextual_explainability_engine.generate_explanation(
+                    sensor_id=ctx.series_id,
+                    regime=ctx.regime or "unknown",
+                    anomaly_score=getattr(ctx.profile, "z_score", 0.0) if ctx.profile else 0.0,
+                    confidence=ctx.fused_confidence or 0.0,
+                    memory_registry=ctx.memory_registry,
+                )
+                
+                if contextual_explanation:
+                    # Add contextual explanation to narratives
+                    all_narratives.extend(contextual_explanation.get("narratives", []))
+                    logger.debug(
+                        "contextual_explanation_generated",
+                        extra={
+                            "series_id": ctx.series_id,
+                            "contextual_confidence": contextual_explanation.get("confidence", 0.0),
+                        },
+                    )
+            except Exception as e:
+                logger.debug(f"contextual_explanation_failed: {e}")
+
         return ctx.with_field(
             diagnostic=diag,
             explanation=explanation_dict,
             explanation_summary=explanation_summary,
+            validation_result=validation_result,
+            contextual_explanation=contextual_explanation,
         )

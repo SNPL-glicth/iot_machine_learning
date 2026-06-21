@@ -46,7 +46,7 @@ def _get_cognitive_adapter():
         if not weaviate_url.strip():
             return None
 
-        from ...infrastructure.research.cognitive_memory_adapter import (
+        from ...infrastructure.adapters.weaviate_cognitive_adapter import (
             WeaviateCognitiveAdapter,
         )
         return WeaviateCognitiveAdapter(url=weaviate_url)

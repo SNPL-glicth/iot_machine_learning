@@ -131,6 +131,17 @@ class PredictPhase:
 
         builder.set_perceptions(perceptions, n_engines_total=len(engines))
 
+        # Record prediction metrics (Phase 3C)
+        if ctx.metrics_collector is not None:
+            try:
+                for perception in perceptions:
+                    ctx.metrics_collector.record_retrieval(
+                        hit=True,
+                        similarity=perception.confidence,
+                    )
+            except Exception as e:
+                logger.debug(f"metrics_collection_failed: {e}")
+
         return ctx.with_field(
             perceptions=perceptions,
             explanation=builder,

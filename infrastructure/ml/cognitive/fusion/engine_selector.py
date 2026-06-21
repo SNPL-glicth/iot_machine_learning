@@ -4,16 +4,20 @@ Combines inhibited weights with perceptions to produce a fused
 prediction and identify the primary (highest-weight) engine.
 
 Fusion formula:
-    final_prediction = Σ (prediction_i × w_i) / Σ w_i
-    final_confidence = Σ (confidence_i × w_i) / Σ w_i
-    final_trend      = majority vote weighted by w_i
+    final_prediction   = Σ (prediction_i × w_i) / Σ w_i
+    final_confidence   = Σ (confidence_i × w_i) / Σ w_i
+    final_trend        = majority vote weighted by w_i
 
-Pure logic — no I/O, no state, no logging.
+Confidence penalties (MEJORA):
+    - discrepancy_penalty: penaliza cuando los expertos discrepan (std alto)
+    - entropy_penalty: penaliza cuando la distribución de pesos es uniforme
+    - signal_quality_penalty: penaliza cuando la señal es ruidosa/inestable
 """
 
 from __future__ import annotations
 
 import json
+import math
 import logging
 from typing import Dict, List, Literal, Optional, Tuple
 
@@ -28,7 +32,13 @@ logger = logging.getLogger(__name__)
 
 
 class WeightedFusion:
-    """Fuses multiple engine perceptions into a single prediction."""
+    """Fuses multiple engine perceptions into a single prediction.
+
+    Penaliza la confianza fusionada cuando:
+    - Los expertos discrepan mucho (std de predicciones alto)
+    - Los pesos están muy distribuidos (entropía alta = poca certeza)
+    - La señal es ruidosa o inestable
+    """
 
     def __init__(
         self,
@@ -36,11 +46,13 @@ class WeightedFusion:
         decorrelator: Optional["EnsembleDecorrelator"] = None,
         watchdog: Optional[EnsembleWatchdog] = None,
         recovery_manager: Optional[ForcedRecoveryManager] = None,
+        discrepancy_threshold: float = 2.0,
     ) -> None:
         self._correlation_analyzer = correlation_analyzer
         self._decorrelator = decorrelator
         self._watchdog = watchdog
         self._recovery_manager = recovery_manager
+        self._discrepancy_threshold = discrepancy_threshold
 
     def fuse(
         self,
@@ -136,6 +148,18 @@ class WeightedFusion:
             fused_confidence += confidence * w
             trend_votes[p.trend] += w
 
+        # ── Penalizaciones a fused_confidence ──────────────────────────
+        # 1. Penalización por discrepancia (std alto entre expertos)
+        discrepancy_penalty = self._compute_discrepancy_penalty(perceptions, norm_weights)
+        # 2. Penalización por entropía de pesos (distribución muy plana)
+        entropy_penalty = self._compute_entropy_penalty(norm_weights)
+        # 3. Penalización por calidad de señal (ruido/inestabilidad)
+        signal_penalty = self._compute_signal_penalty(signal_std)
+
+        # Aplicar penalizaciones compuestas
+        fused_confidence *= discrepancy_penalty * entropy_penalty * signal_penalty
+        fused_confidence = max(0.0, min(1.0, fused_confidence))
+
         # Apply spatial bias from correlated neighbours
         if neighbor_trends and signal_std > EPSILON.DIVISION:
             up_count = sum(1 for t in neighbor_trends.values() if t == "up")
@@ -214,6 +238,17 @@ class WeightedFusion:
                         }
                     )
 
+        # Append penalty info to reason
+        penalties = []
+        if discrepancy_penalty < 0.95:
+            penalties.append(f"disc={discrepancy_penalty:.2f}")
+        if entropy_penalty < 0.95:
+            penalties.append(f"entropy={entropy_penalty:.2f}")
+        if signal_penalty < 0.95:
+            penalties.append(f"signal={signal_penalty:.2f}")
+        if penalties:
+            reason += f"; penalties=[{','.join(penalties)}]"
+
         return (
             fused_value,
             fused_confidence,
@@ -233,18 +268,103 @@ class WeightedFusion:
         w = weights.get(selected, 0.0)
         parts = [f"highest_weight={w:.3f}"]
 
-        # Check if any engines were inhibited
-        inhibited = [
-            s for s in states
-            if s.suppression_factor > 0.01
-        ]
+        inhibited = [s for s in states if s.suppression_factor > 0.01]
         if inhibited:
             names = [s.engine_name for s in inhibited]
             parts.append(f"inhibited=[{','.join(names)}]")
 
-        # Check if it's a single-engine scenario
         active = [k for k, v in weights.items() if v > 0.01]
         if len(active) == 1:
             parts.append("single_active_engine")
 
         return "; ".join(parts)
+
+    # ── Penalización por discrepancia ──────────────────────────────────
+
+    @staticmethod
+    def _compute_discrepancy_penalty(
+        perceptions: List["EnginePerception"],
+        weights: Dict[str, float],
+    ) -> float:
+        """Penaliza confianza si los expertos discrepan entre sí.
+
+        Calcula std ponderado de predicciones. Si std > threshold,
+        la penalización es inversamente proporcional.
+
+        Returns:
+            Factor [0.3, 1.0] — 1.0 = sin discrepancia.
+        """
+        if len(perceptions) < 2:
+            return 1.0
+
+        # Weighted mean
+        total_w = sum(weights.get(p.engine_name, 0.0) for p in perceptions)
+        if total_w < 1e-12:
+            return 1.0
+
+        w_mean = sum(
+            p.predicted_value * weights.get(p.engine_name, 0.0) / total_w
+            for p in perceptions
+        )
+
+        # Weighted variance
+        w_var = sum(
+            weights.get(p.engine_name, 0.0) / total_w * (p.predicted_value - w_mean) ** 2
+            for p in perceptions
+        )
+        w_std = math.sqrt(w_var) if w_var > 0 else 0.0
+
+        if w_std <= 0.5:
+            return 1.0
+
+        # Penalización suave: sigmoide inversa
+        # std=0.5 → 0.98, std=2.0 → 0.8, std=5.0 → 0.5, std=10.0 → 0.3
+        penalty = 1.0 / (1.0 + 0.3 * w_std)
+        return max(0.3, penalty)
+
+    # ── Penalización por entropía ──────────────────────────────────────
+
+    @staticmethod
+    def _compute_entropy_penalty(weights: Dict[str, float]) -> float:
+        """Penaliza confianza si los pesos están muy distribuidos.
+
+        Alta entropía = poca certeza sobre qué experto es mejor.
+
+        Returns:
+            Factor [0.5, 1.0] — 1.0 = un experto domina claramente.
+        """
+        n = len(weights)
+        if n <= 1:
+            return 1.0
+
+        # Normalizar a probabilidades
+        total = sum(weights.values())
+        if total < 1e-12:
+            return 0.5
+        probs = [v / total for v in weights.values()]
+
+        # Entropía normalizada [0, 1]
+        entropy = 0.0
+        for p in probs:
+            if p > 1e-9:
+                entropy -= p * math.log2(p)
+        norm_entropy = entropy / math.log2(n) if n > 1 else 0.0
+
+        # Mapear: entropía=0 → penalty=1.0, entropía=1 → penalty=0.5
+        penalty = 1.0 - norm_entropy * 0.5
+        return penalty
+
+    # ── Penalización por calidad de señal ──────────────────────────────
+
+    @staticmethod
+    def _compute_signal_penalty(signal_std: float) -> float:
+        """Penaliza confianza si la señal es muy ruidosa/inestable.
+
+        Returns:
+            Factor [0.6, 1.0] — 1.0 = señal estable.
+        """
+        if signal_std <= 0.5:
+            return 1.0
+        # std=0.5 → 0.95, std=2.0 → 0.8, std=5.0 → 0.6
+        penalty = 1.0 / (1.0 + 0.1 * signal_std)
+        return max(0.6, penalty)

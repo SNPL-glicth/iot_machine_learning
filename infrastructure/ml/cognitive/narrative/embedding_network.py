@@ -14,7 +14,7 @@ from typing import Optional
 
 import numpy as np
 
-from iot_machine_learning.infrastructure.ml.research.neural.classical.feedforward import FeedforwardLayer
+from iot_machine_learning.infrastructure.ml.cognitive.narrative.layers import FeedforwardLayer
 
 
 class NarrativeEmbeddingNetwork:

@@ -11,6 +11,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import PipelineContext
 
+try:
+    from ...observability import FeedbackLoopManager
+except (ImportError, ModuleNotFoundError):
+    FeedbackLoopManager = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,17 +68,29 @@ class AdaptPhase:
     in concurrent pipeline executions.
     """
     
-    def __init__(self, max_cache_entries: int = 1000, cache_ttl_seconds: float = 60.0) -> None:
+    def __init__(
+        self,
+        max_cache_entries: int = 1000,
+        cache_ttl_seconds: float = 60.0,
+        feedback_loop_manager: Optional[Any] = None,
+    ) -> None:
         """Initialize AdaptPhase with instance-scoped weight cache.
         
         Args:
             max_cache_entries: Maximum number of cached weight entries
             cache_ttl_seconds: Time-to-live for cache entries
+            feedback_loop_manager: Optional FeedbackLoopManager instance
         """
         self._weight_cache = WeightCache(
             max_entries=max_cache_entries,
             ttl_seconds=cache_ttl_seconds
         )
+        
+        # Initialize FeedbackLoopManager (Phase 3C)
+        self._feedback_loop_manager = feedback_loop_manager
+        if FeedbackLoopManager is not None and self._feedback_loop_manager is None:
+            self._feedback_loop_manager = FeedbackLoopManager()
+        
         logger.debug(
             "adapt_phase_initialized",
             extra={
@@ -138,6 +155,25 @@ class AdaptPhase:
         # Update explanation builder if available
         if ctx.explanation and hasattr(ctx.explanation, 'set_adaptation'):
             ctx.explanation.set_adaptation(adapted=adapted, regime=ctx.regime)
+        
+        # Record adaptation feedback (Phase 3C)
+        if self._feedback_loop_manager is not None:
+            try:
+                # Record feedback about adaptation usefulness
+                adaptation_usefulness = 1.0 if adapted else 0.5
+                sensor_id = int(ctx.series_id) if ctx.series_id.isdigit() else 0
+                
+                self._feedback_loop_manager.record_retrieval_feedback(
+                    sensor_id=sensor_id,
+                    usefulness=adaptation_usefulness,
+                    metadata={
+                        "regime": ctx.regime,
+                        "adapted": adapted,
+                        "cache_hit": plasticity_weights is not None,
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"feedback_recording_failed: {e}")
 
         return ctx.with_field(
             error_dict=error_dict,

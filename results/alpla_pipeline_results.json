@@ -1,0 +1,2246 @@
+{
+  "metadata": {
+    "pipeline": "MoE Cognitive Pipeline v2",
+    "improvements": [
+      "ContextualRegimeGating: ajustes sigmoide acotados + performance history",
+      "WeightedFusion: penalizaciones por discrepancia + entropía + calidad de señal",
+      "MoEPredictionEngine: detección de régimen multi-factor (R², OLS, autocorr)",
+      "Clasificación de régimen: noisy > trending > volatile > stable"
+    ],
+    "generated_at": "2026-06-20T21:11:23.599762",
+    "dataset": "ALPLA Industrial (Chiller + Air Compressor)",
+    "total_parameters_analyzed": 47
+  },
+  "parameters": [
+    {
+      "equipment": "Chiller",
+      "parameter": "Caudalímetro 5",
+      "n_samples": 312,
+      "regime": "volatile",
+      "regime_stability": 0.6425,
+      "signal_stats": {
+        "mean": 195.0417,
+        "std": 25.9288,
+        "slope": -0.0423,
+        "curvature": -0.1839,
+        "noise_ratio": 0.1329,
+        "r_squared": 674.4645
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8555,
+        "entropy": 0.7583,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0033,
+          "statistical": 0.0621,
+          "taylor": 0.8555,
+          "kalman": 0.0791
+        }
+      },
+      "prediction": {
+        "value": 127.3246,
+        "fused_confidence": 0.2675,
+        "raw_confidence": 0.2675,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8104,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 81.842,
+        "rmse": 84.925,
+        "mape_pct": 38.25
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Consumo de energía sin restabecim. RTAE 5",
+      "n_samples": 312,
+      "regime": "noisy",
+      "regime_stability": 0.0,
+      "signal_stats": {
+        "mean": 10021804.2917,
+        "std": 8589396.2317,
+        "slope": 11110.6771,
+        "curvature": -1.7806,
+        "noise_ratio": 0.8571,
+        "r_squared": 74014955044925.1
+      },
+      "gating": {
+        "top_expert": "kalman",
+        "top_expert_probability": 0.4951,
+        "entropy": 1.3196,
+        "selected_experts": [
+          "kalman",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.0036,
+          "statistical": 0.0687,
+          "taylor": 0.4326,
+          "kalman": 0.4951
+        }
+      },
+      "prediction": {
+        "value": 9421951.3067,
+        "fused_confidence": 0.3755,
+        "raw_confidence": 0.3755,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.6701,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 774252.5267,
+        "rmse": 774501.1992,
+        "mape_pct": 7.59
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Número de arranques del compresor",
+      "n_samples": 306,
+      "regime": "noisy",
+      "regime_stability": 0.033,
+      "signal_stats": {
+        "mean": 5786.7059,
+        "std": 4257.8469,
+        "slope": 2.8527,
+        "curvature": 0.0,
+        "noise_ratio": 0.7358,
+        "r_squared": 18188700.7591
+      },
+      "gating": {
+        "top_expert": "kalman",
+        "top_expert_probability": 0.7061,
+        "entropy": 1.1771,
+        "selected_experts": [
+          "kalman",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.0053,
+          "statistical": 0.0962,
+          "taylor": 0.1924,
+          "kalman": 0.7061
+        }
+      },
+      "prediction": {
+        "value": 5555.0297,
+        "fused_confidence": 0.9362,
+        "raw_confidence": 0.9362,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7057,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 2.9802,
+        "rmse": 3.7391,
+        "mape_pct": 0.05
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Presión del refrigerante del condensador",
+      "n_samples": 306,
+      "regime": "noisy",
+      "regime_stability": 0.2382,
+      "signal_stats": {
+        "mean": 1296.3088,
+        "std": 767.798,
+        "slope": -0.2605,
+        "curvature": -2.4243,
+        "noise_ratio": 0.5923,
+        "r_squared": 591446.5488
+      },
+      "gating": {
+        "top_expert": "kalman",
+        "top_expert_probability": 0.494,
+        "entropy": 1.3323,
+        "selected_experts": [
+          "kalman",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.0043,
+          "statistical": 0.0717,
+          "taylor": 0.43,
+          "kalman": 0.494
+        }
+      },
+      "prediction": {
+        "value": 964.5581,
+        "fused_confidence": 0.3642,
+        "raw_confidence": 0.3642,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.6669,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 418.4419,
+        "rmse": 461.7106,
+        "mape_pct": 28.47
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Presión del refrigerante del evaporador",
+      "n_samples": 306,
+      "regime": "volatile",
+      "regime_stability": 0.6242,
+      "signal_stats": {
+        "mean": 265.7582,
+        "std": 16.8387,
+        "slope": -0.0539,
+        "curvature": -0.0066,
+        "noise_ratio": 0.0634,
+        "r_squared": 284.4725
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.7897,
+        "entropy": 0.9777,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0045,
+          "statistical": 0.0925,
+          "taylor": 0.7897,
+          "kalman": 0.1133
+        }
+      },
+      "prediction": {
+        "value": 250.5509,
+        "fused_confidence": 0.275,
+        "raw_confidence": 0.275,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7556,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 7.4491,
+        "rmse": 8.4748,
+        "mape_pct": 2.86
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Temperatura de saturación del refrigerante del condensador",
+      "n_samples": 306,
+      "regime": "volatile",
+      "regime_stability": 0.6761,
+      "signal_stats": {
+        "mean": 51.2611,
+        "std": 15.5094,
+        "slope": -0.0176,
+        "curvature": -0.0727,
+        "noise_ratio": 0.3026,
+        "r_squared": 241.3312
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.7837,
+        "entropy": 0.9488,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0033,
+          "statistical": 0.0518,
+          "taylor": 0.7837,
+          "kalman": 0.1611
+        }
+      },
+      "prediction": {
+        "value": 21.9741,
+        "fused_confidence": 0.2839,
+        "raw_confidence": 0.2839,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7628,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 32.3593,
+        "rmse": 32.8838,
+        "mape_pct": 58.99
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Temperatura de saturación del refrigerante del evaporador",
+      "n_samples": 306,
+      "regime": "stable",
+      "regime_stability": 0.8633,
+      "signal_stats": {
+        "mean": 6.518,
+        "std": 0.7604,
+        "slope": -0.0042,
+        "curvature": -0.0003,
+        "noise_ratio": 0.1167,
+        "r_squared": 0.58
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7778,
+        "entropy": 0.9704,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7778,
+          "statistical": 0.1458,
+          "taylor": 0.0764,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 5.7662,
+        "fused_confidence": 0.9908,
+        "raw_confidence": 0.9908,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7574,
+        "signal": 0.9293
+      },
+      "metrics": {
+        "mae": 0.2167,
+        "rmse": 0.2954,
+        "mape_pct": 3.62
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.1 Tiempo de operación del compresor",
+      "n_samples": 306,
+      "regime": "volatile",
+      "regime_stability": 0.0042,
+      "signal_stats": {
+        "mean": 59382.1307,
+        "std": 6213.0225,
+        "slope": 23.9395,
+        "curvature": -0.0197,
+        "noise_ratio": 0.1046,
+        "r_squared": 38728210.9599
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8299,
+        "entropy": 0.8464,
+        "selected_experts": [
+          "taylor",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.0032,
+          "statistical": 0.0927,
+          "taylor": 0.8299,
+          "kalman": 0.0741
+        }
+      },
+      "prediction": {
+        "value": 37381.9688,
+        "fused_confidence": 0.269,
+        "raw_confidence": 0.269,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7884,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 27858.6874,
+        "rmse": 27892.5348,
+        "mape_pct": 114.95
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Número de arranques del compresor",
+      "n_samples": 310,
+      "regime": "noisy",
+      "regime_stability": 0.0,
+      "signal_stats": {
+        "mean": 1912051.8613,
+        "std": 33525992.0521,
+        "slope": 18697.888,
+        "curvature": -0.0032,
+        "noise_ratio": 17.534,
+        "r_squared": 1127629658106319.0
+      },
+      "gating": {
+        "top_expert": "kalman",
+        "top_expert_probability": 0.6053,
+        "entropy": 1.283,
+        "selected_experts": [
+          "kalman",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.0034,
+          "statistical": 0.0807,
+          "taylor": 0.3106,
+          "kalman": 0.6053
+        }
+      },
+      "prediction": {
+        "value": 4995.965,
+        "fused_confidence": 0.4035,
+        "raw_confidence": 0.4035,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.6792,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 464.1434,
+        "rmse": 469.8788,
+        "mape_pct": 9.97
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Presión del refrigerante del condensador",
+      "n_samples": 310,
+      "regime": "volatile",
+      "regime_stability": 0.0782,
+      "signal_stats": {
+        "mean": 1336.6086,
+        "std": 393.6956,
+        "slope": -1.1499,
+        "curvature": -2.7013,
+        "noise_ratio": 0.2945,
+        "r_squared": 155497.8123
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8162,
+        "entropy": 0.8791,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0023,
+          "statistical": 0.068,
+          "taylor": 0.8162,
+          "kalman": 0.1135
+        }
+      },
+      "prediction": {
+        "value": 429.9005,
+        "fused_confidence": 0.2735,
+        "raw_confidence": 0.2735,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7802,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 1007.2662,
+        "rmse": 1028.641,
+        "mape_pct": 69.29
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Presión del refrigerante del evaporador",
+      "n_samples": 310,
+      "regime": "volatile",
+      "regime_stability": 0.6484,
+      "signal_stats": {
+        "mean": 276.329,
+        "std": 9.5415,
+        "slope": -0.0508,
+        "curvature": -0.0065,
+        "noise_ratio": 0.0345,
+        "r_squared": 91.3348
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8009,
+        "entropy": 0.9444,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0044,
+          "statistical": 0.0888,
+          "taylor": 0.8009,
+          "kalman": 0.1059
+        }
+      },
+      "prediction": {
+        "value": 262.8848,
+        "fused_confidence": 0.3539,
+        "raw_confidence": 0.3539,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7639,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 6.1152,
+        "rmse": 7.5319,
+        "mape_pct": 2.25
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Temperatura de saturación de refrigerante de evaporador",
+      "n_samples": 310,
+      "regime": "stable",
+      "regime_stability": 0.8787,
+      "signal_stats": {
+        "mean": 7.2319,
+        "std": 0.7173,
+        "slope": -0.0039,
+        "curvature": -0.0003,
+        "noise_ratio": 0.0992,
+        "r_squared": 0.5162
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7787,
+        "entropy": 0.9671,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7787,
+          "statistical": 0.146,
+          "taylor": 0.0752,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 6.5461,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7582,
+        "signal": 0.9331
+      },
+      "metrics": {
+        "mae": 0.218,
+        "rmse": 0.3318,
+        "mape_pct": 3.15
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Temperatura de saturación de refrigerante del condensador",
+      "n_samples": 310,
+      "regime": "volatile",
+      "regime_stability": 0.645,
+      "signal_stats": {
+        "mean": 52.0994,
+        "std": 9.3397,
+        "slope": -0.0371,
+        "curvature": -0.0695,
+        "noise_ratio": 0.1793,
+        "r_squared": 87.5117
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8027,
+        "entropy": 0.9137,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0034,
+          "statistical": 0.0594,
+          "taylor": 0.8027,
+          "kalman": 0.1344
+        }
+      },
+      "prediction": {
+        "value": 21.4139,
+        "fused_confidence": 0.2768,
+        "raw_confidence": 0.2768,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7716,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 33.7528,
+        "rmse": 34.2207,
+        "mape_pct": 60.69
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Cto.2 Tiempo de operación del compresor",
+      "n_samples": 310,
+      "regime": "volatile",
+      "regime_stability": 0.0033,
+      "signal_stats": {
+        "mean": 56160.2387,
+        "std": 4142.7911,
+        "slope": 30.4907,
+        "curvature": -0.0195,
+        "noise_ratio": 0.0738,
+        "r_squared": 17218261.0302
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8365,
+        "entropy": 0.8233,
+        "selected_experts": [
+          "taylor",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.003,
+          "statistical": 0.0892,
+          "taylor": 0.8365,
+          "kalman": 0.0714
+        }
+      },
+      "prediction": {
+        "value": 61644.8174,
+        "fused_confidence": 0.2707,
+        "raw_confidence": 0.2707,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7942,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 151.6507,
+        "rmse": 174.3361,
+        "mape_pct": 0.25
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Punto de ajuste activo de agua helada",
+      "n_samples": 312,
+      "regime": "stable",
+      "regime_stability": 0.8488,
+      "signal_stats": {
+        "mean": 8.8401,
+        "std": 1.1229,
+        "slope": -0.0051,
+        "curvature": 0.0,
+        "noise_ratio": 0.127,
+        "r_squared": 1.265
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7688,
+        "entropy": 1.0009,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7688,
+          "statistical": 0.1442,
+          "taylor": 0.087,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 8.0,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7498,
+        "signal": 0.899
+      },
+      "metrics": {
+        "mae": 0.0,
+        "rmse": 0.0,
+        "mape_pct": 0.0
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Temperatura de entrada de agua",
+      "n_samples": 312,
+      "regime": "stable",
+      "regime_stability": 0.8775,
+      "signal_stats": {
+        "mean": 11.6599,
+        "std": 0.9427,
+        "slope": -0.0059,
+        "curvature": -0.0006,
+        "noise_ratio": 0.0809,
+        "r_squared": 0.8916
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7849,
+        "entropy": 0.9518,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7849,
+          "statistical": 0.1402,
+          "taylor": 0.075,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 10.6427,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.762,
+        "signal": 0.9138
+      },
+      "metrics": {
+        "mae": 0.4715,
+        "rmse": 0.549,
+        "mape_pct": 4.2
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Temperatura de salida de agua",
+      "n_samples": 312,
+      "regime": "volatile",
+      "regime_stability": 0.6742,
+      "signal_stats": {
+        "mean": 9.5881,
+        "std": 4.1344,
+        "slope": -0.0052,
+        "curvature": -0.0052,
+        "noise_ratio": 0.4312,
+        "r_squared": 17.1479
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.6286,
+        "entropy": 1.2176,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0051,
+          "statistical": 0.0564,
+          "taylor": 0.6286,
+          "kalman": 0.3099
+        }
+      },
+      "prediction": {
+        "value": 6.2277,
+        "fused_confidence": 0.6348,
+        "raw_confidence": 0.6348,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.6956,
+        "signal": 0.7075
+      },
+      "metrics": {
+        "mae": 2.8389,
+        "rmse": 2.9043,
+        "mape_pct": 30.99
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "Chiller",
+      "parameter": "Temperatura del medio ambiente",
+      "n_samples": 312,
+      "regime": "volatile",
+      "regime_stability": 0.7592,
+      "signal_stats": {
+        "mean": 23.0074,
+        "std": 5.2172,
+        "slope": -0.009,
+        "curvature": -0.0355,
+        "noise_ratio": 0.2268,
+        "r_squared": 27.3067
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.7469,
+        "entropy": 1.0231,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0048,
+          "statistical": 0.0464,
+          "taylor": 0.7469,
+          "kalman": 0.2019
+        }
+      },
+      "prediction": {
+        "value": 6.2566,
+        "fused_confidence": 0.2881,
+        "raw_confidence": 0.2881,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7442,
+        "signal": 0.6572
+      },
+      "metrics": {
+        "mae": 14.5767,
+        "rmse": 15.4041,
+        "mape_pct": 67.78
+      },
+      "anomaly_rate": 0.0513
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Horas de carga",
+      "n_samples": 353,
+      "regime": "volatile",
+      "regime_stability": 0.0062,
+      "signal_stats": {
+        "mean": 92526.9348,
+        "std": 43309.8919,
+        "slope": 15.971,
+        "curvature": -0.037,
+        "noise_ratio": 0.4681,
+        "r_squared": 1881075558.0724
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.787,
+        "entropy": 0.9583,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0018,
+          "statistical": 0.0724,
+          "taylor": 0.787,
+          "kalman": 0.1388
+        }
+      },
+      "prediction": {
+        "value": 93591.7989,
+        "fused_confidence": 0.2837,
+        "raw_confidence": 0.2837,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7604,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 39.6322,
+        "rmse": 45.4003,
+        "mape_pct": 0.04
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Horas de servicio",
+      "n_samples": 353,
+      "regime": "volatile",
+      "regime_stability": 0.0038,
+      "signal_stats": {
+        "mean": 121279.9547,
+        "std": 2702.5128,
+        "slope": 26.4592,
+        "curvature": -0.0199,
+        "noise_ratio": 0.0223,
+        "r_squared": 7324324.2195
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8371,
+        "entropy": 0.821,
+        "selected_experts": [
+          "taylor",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.003,
+          "statistical": 0.0888,
+          "taylor": 0.8371,
+          "kalman": 0.0711
+        }
+      },
+      "prediction": {
+        "value": 125444.8606,
+        "fused_confidence": 0.2741,
+        "raw_confidence": 0.2741,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7948,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 68.6939,
+        "rmse": 79.6408,
+        "mape_pct": 0.05
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de agua de entrada de la bomba",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 1.0,
+      "signal_stats": {
+        "mean": 2.0,
+        "std": 0.0,
+        "slope": 0.0,
+        "curvature": 0.0,
+        "noise_ratio": 0.0,
+        "r_squared": 0.0
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.798,
+        "entropy": 0.8927,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.798,
+          "statistical": 0.1496,
+          "taylor": 0.0524,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 2.0,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7768,
+        "signal": 1.0
+      },
+      "metrics": {
+        "mae": 0.0,
+        "rmse": 0.0,
+        "mape_pct": 0.0
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de agua de salida de la bomba",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 1.0,
+      "signal_stats": {
+        "mean": 4.0,
+        "std": 0.0,
+        "slope": 0.0,
+        "curvature": 0.0,
+        "noise_ratio": 0.0,
+        "r_squared": 0.0
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.8077,
+        "entropy": 0.8623,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.8077,
+          "statistical": 0.1442,
+          "taylor": 0.0481,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 4.0,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7844,
+        "signal": 1.0
+      },
+      "metrics": {
+        "mae": 0.0,
+        "rmse": 0.0,
+        "mape_pct": 0.0
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de aire a la descarga de 1a etapa",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 1.0,
+      "signal_stats": {
+        "mean": 3.0,
+        "std": 0.0,
+        "slope": 0.0,
+        "curvature": 0.0,
+        "noise_ratio": 0.0,
+        "r_squared": 0.0
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.8077,
+        "entropy": 0.8623,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.8077,
+          "statistical": 0.1442,
+          "taylor": 0.0481,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 3.0,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7844,
+        "signal": 1.0
+      },
+      "metrics": {
+        "mae": 0.0,
+        "rmse": 0.0,
+        "mape_pct": 0.0
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de aire a la descarga de 2a etapa",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 0.9287,
+      "signal_stats": {
+        "mean": 11.9301,
+        "std": 0.8333,
+        "slope": -0.0007,
+        "curvature": 0.0,
+        "noise_ratio": 0.0698,
+        "r_squared": 0.6993
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7873,
+        "entropy": 0.943,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7873,
+          "statistical": 0.1406,
+          "taylor": 0.0721,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 12.0,
+        "fused_confidence": 0.9903,
+        "raw_confidence": 0.9903,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7642,
+        "signal": 0.9231
+      },
+      "metrics": {
+        "mae": 0.0,
+        "rmse": 0.0,
+        "mape_pct": 0.0
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de aire a la descarga de 3a etapa",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 0.972,
+      "signal_stats": {
+        "mean": 27.3357,
+        "std": 0.6471,
+        "slope": -0.0005,
+        "curvature": 0.0071,
+        "noise_ratio": 0.0237,
+        "r_squared": 0.4217
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7445,
+        "entropy": 1.0752,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7445,
+          "statistical": 0.1329,
+          "taylor": 0.1226,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 27.1671,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7312,
+        "signal": 0.9392
+      },
+      "metrics": {
+        "mae": 0.8333,
+        "rmse": 0.8975,
+        "mape_pct": 3.09
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión de regulación",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 0.965,
+      "signal_stats": {
+        "mean": 8.0462,
+        "std": 0.2081,
+        "slope": 0.001,
+        "curvature": -0.0007,
+        "noise_ratio": 0.0259,
+        "r_squared": 0.0436
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.8077,
+        "entropy": 0.8623,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.8077,
+          "statistical": 0.1442,
+          "taylor": 0.0481,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 8.0935,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7844,
+        "signal": 1.0
+      },
+      "metrics": {
+        "mae": 0.1124,
+        "rmse": 0.1182,
+        "mape_pct": 1.4
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión del aceite",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 0.959,
+      "signal_stats": {
+        "mean": 3.6881,
+        "std": 0.154,
+        "slope": 0.0001,
+        "curvature": -0.0014,
+        "noise_ratio": 0.0417,
+        "r_squared": 0.0239
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.7782,
+        "entropy": 0.9749,
+        "selected_experts": [
+          "baseline",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.7782,
+          "statistical": 0.139,
+          "taylor": 0.0829,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 3.7224,
+        "fused_confidence": 0.9924,
+        "raw_confidence": 0.9924,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7563,
+        "signal": 1.0
+      },
+      "metrics": {
+        "mae": 0.1259,
+        "rmse": 0.1444,
+        "mape_pct": 3.36
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Presión del tanque pulmón",
+      "n_samples": 143,
+      "regime": "stable",
+      "regime_stability": 0.9347,
+      "signal_stats": {
+        "mean": 27.2378,
+        "std": 1.5143,
+        "slope": -0.0014,
+        "curvature": -0.0709,
+        "noise_ratio": 0.0556,
+        "r_squared": 2.3093
+      },
+      "gating": {
+        "top_expert": "baseline",
+        "top_expert_probability": 0.6058,
+        "entropy": 1.3316,
+        "selected_experts": [
+          "baseline",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.6058,
+          "statistical": 0.1336,
+          "taylor": 0.2606,
+          "kalman": 0.0
+        }
+      },
+      "prediction": {
+        "value": 24.7016,
+        "fused_confidence": 0.4248,
+        "raw_confidence": 0.4248,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.6671,
+        "signal": 0.8685
+      },
+      "metrics": {
+        "mae": 3.6317,
+        "rmse": 5.3302,
+        "mape_pct": 11.46
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura ambiente",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.6198,
+      "signal_stats": {
+        "mean": 28.965,
+        "std": 4.5564,
+        "slope": -0.0456,
+        "curvature": -0.0638,
+        "noise_ratio": 0.1573,
+        "r_squared": 20.9072
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8072,
+        "entropy": 0.9059,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0036,
+          "statistical": 0.0622,
+          "taylor": 0.8072,
+          "kalman": 0.127
+        }
+      },
+      "prediction": {
+        "value": 23.5755,
+        "fused_confidence": 0.2758,
+        "raw_confidence": 0.2758,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7735,
+        "signal": 0.687
+      },
+      "metrics": {
+        "mae": 5.5911,
+        "rmse": 5.808,
+        "mape_pct": 18.94
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de agua a la entrada del compresor",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8513,
+      "signal_stats": {
+        "mean": 36.3147,
+        "std": 5.1704,
+        "slope": 0.0032,
+        "curvature": -0.0496,
+        "noise_ratio": 0.1424,
+        "r_squared": 26.9214
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8321,
+        "entropy": 0.828,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.005,
+          "statistical": 0.048,
+          "taylor": 0.8321,
+          "kalman": 0.1149
+        }
+      },
+      "prediction": {
+        "value": 41.0504,
+        "fused_confidence": 0.5481,
+        "raw_confidence": 0.5481,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.793,
+        "signal": 0.6592
+      },
+      "metrics": {
+        "mae": 3.3838,
+        "rmse": 4.5832,
+        "mape_pct": 9.77
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de agua a la salida del compresor",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8594,
+      "signal_stats": {
+        "mean": 44.2028,
+        "std": 5.2564,
+        "slope": 0.0045,
+        "curvature": -0.0426,
+        "noise_ratio": 0.1189,
+        "r_squared": 27.8248
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8276,
+        "entropy": 0.8427,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0051,
+          "statistical": 0.0493,
+          "taylor": 0.8276,
+          "kalman": 0.118
+        }
+      },
+      "prediction": {
+        "value": 47.0971,
+        "fused_confidence": 0.5506,
+        "raw_confidence": 0.5506,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7893,
+        "signal": 0.6555
+      },
+      "metrics": {
+        "mae": 3.5324,
+        "rmse": 4.7672,
+        "mape_pct": 8.7
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de aire a la descarga 1a etapa",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.6713,
+      "signal_stats": {
+        "mean": 208.3217,
+        "std": 8.6773,
+        "slope": 0.0448,
+        "curvature": -0.0496,
+        "noise_ratio": 0.0417,
+        "r_squared": 75.8254
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8516,
+        "entropy": 0.7726,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0034,
+          "statistical": 0.0645,
+          "taylor": 0.8516,
+          "kalman": 0.0805
+        }
+      },
+      "prediction": {
+        "value": 223.9248,
+        "fused_confidence": 0.4375,
+        "raw_confidence": 0.4375,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8068,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 15.9749,
+        "rmse": 22.8265,
+        "mape_pct": 8.38
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de aire a la descarga 2a etapa",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8873,
+      "signal_stats": {
+        "mean": 178.2238,
+        "std": 9.4272,
+        "slope": -0.0074,
+        "curvature": -0.0638,
+        "noise_ratio": 0.0529,
+        "r_squared": 89.4989
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.838,
+        "entropy": 0.8071,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0046,
+          "statistical": 0.0463,
+          "taylor": 0.838,
+          "kalman": 0.1111
+        }
+      },
+      "prediction": {
+        "value": 175.7775,
+        "fused_confidence": 0.5506,
+        "raw_confidence": 0.5506,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7982,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 11.3333,
+        "rmse": 16.4735,
+        "mape_pct": 7.49
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de aire a la descarga 3a etapa",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.6792,
+      "signal_stats": {
+        "mean": 138.5175,
+        "std": 7.5056,
+        "slope": 0.0418,
+        "curvature": -0.0709,
+        "noise_ratio": 0.0542,
+        "r_squared": 56.7303
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8576,
+        "entropy": 0.7505,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0033,
+          "statistical": 0.0611,
+          "taylor": 0.8576,
+          "kalman": 0.078
+        }
+      },
+      "prediction": {
+        "value": 150.2765,
+        "fused_confidence": 0.536,
+        "raw_confidence": 0.536,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8124,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 7.851,
+        "rmse": 11.2901,
+        "mape_pct": 5.89
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de aspiración de 2a etapa",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8233,
+      "signal_stats": {
+        "mean": 53.2657,
+        "std": 5.796,
+        "slope": -0.0106,
+        "curvature": -0.0851,
+        "noise_ratio": 0.1088,
+        "r_squared": 33.8303
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8526,
+        "entropy": 0.7664,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0038,
+          "statistical": 0.0546,
+          "taylor": 0.8526,
+          "kalman": 0.0891
+        }
+      },
+      "prediction": {
+        "value": 41.8296,
+        "fused_confidence": 0.2695,
+        "raw_confidence": 0.2695,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8084,
+        "signal": 0.6331
+      },
+      "metrics": {
+        "mae": 7.1136,
+        "rmse": 7.5843,
+        "mape_pct": 14.34
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de aspiración de 3a etapa                    ",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.7796,
+      "signal_stats": {
+        "mean": 40.5175,
+        "std": 4.4797,
+        "slope": -0.0172,
+        "curvature": -0.0426,
+        "noise_ratio": 0.1106,
+        "r_squared": 20.2092
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8405,
+        "entropy": 0.8117,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0043,
+          "statistical": 0.0611,
+          "taylor": 0.8405,
+          "kalman": 0.0942
+        }
+      },
+      "prediction": {
+        "value": 44.7659,
+        "fused_confidence": 0.5409,
+        "raw_confidence": 0.5409,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7971,
+        "signal": 0.6906
+      },
+      "metrics": {
+        "mae": 6.0992,
+        "rmse": 6.8864,
+        "mape_pct": 16.67
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de chumacera lado libre ",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.4516,
+      "signal_stats": {
+        "mean": 58.3916,
+        "std": 8.3983,
+        "slope": -0.107,
+        "curvature": -0.0213,
+        "noise_ratio": 0.1438,
+        "r_squared": 71.0287
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.836,
+        "entropy": 0.827,
+        "selected_experts": [
+          "taylor",
+          "statistical"
+        ],
+        "probabilities": {
+          "baseline": 0.0032,
+          "statistical": 0.0851,
+          "taylor": 0.836,
+          "kalman": 0.0758
+        }
+      },
+      "prediction": {
+        "value": 85.8963,
+        "fused_confidence": 0.2684,
+        "raw_confidence": 0.2684,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7933,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 42.3963,
+        "rmse": 43.2014,
+        "mape_pct": 108.96
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de chumacera lado motor",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.6782,
+      "signal_stats": {
+        "mean": 54.0,
+        "std": 9.2608,
+        "slope": -0.0303,
+        "curvature": 0.078,
+        "noise_ratio": 0.1715,
+        "r_squared": 86.3662
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8104,
+        "entropy": 0.8877,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0032,
+          "statistical": 0.0553,
+          "taylor": 0.8104,
+          "kalman": 0.131
+        }
+      },
+      "prediction": {
+        "value": 76.9749,
+        "fused_confidence": 0.2778,
+        "raw_confidence": 0.2778,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7781,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 31.4749,
+        "rmse": 32.1132,
+        "mape_pct": 73.47
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de chumacera lado polea",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.529,
+      "signal_stats": {
+        "mean": 40.7692,
+        "std": 6.3738,
+        "slope": -0.0734,
+        "curvature": -0.1773,
+        "noise_ratio": 0.1563,
+        "r_squared": 40.9112
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.831,
+        "entropy": 0.8334,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0027,
+          "statistical": 0.0616,
+          "taylor": 0.831,
+          "kalman": 0.1047
+        }
+      },
+      "prediction": {
+        "value": 11.2628,
+        "fused_confidence": 0.2722,
+        "raw_confidence": 0.2722,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7916,
+        "signal": 0.6107
+      },
+      "metrics": {
+        "mae": 26.4039,
+        "rmse": 26.9825,
+        "mape_pct": 69.57
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de cruceta horizontal",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8067,
+      "signal_stats": {
+        "mean": 70.9231,
+        "std": 2.7913,
+        "slope": -0.02,
+        "curvature": -0.0213,
+        "noise_ratio": 0.0394,
+        "r_squared": 7.8462
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8124,
+        "entropy": 0.914,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0063,
+          "statistical": 0.0758,
+          "taylor": 0.8124,
+          "kalman": 0.1055
+        }
+      },
+      "prediction": {
+        "value": 67.1814,
+        "fused_confidence": 0.55,
+        "raw_confidence": 0.55,
+        "trend": "stable"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7715,
+        "signal": 0.7818
+      },
+      "metrics": {
+        "mae": 1.8333,
+        "rmse": 2.7168,
+        "mape_pct": 2.87
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura de cruceta vertical",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8426,
+      "signal_stats": {
+        "mean": 76.6084,
+        "std": 3.7715,
+        "slope": -0.0138,
+        "curvature": -0.0213,
+        "noise_ratio": 0.0492,
+        "r_squared": 14.3244
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8157,
+        "entropy": 0.8969,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0053,
+          "statistical": 0.0699,
+          "taylor": 0.8157,
+          "kalman": 0.1091
+        }
+      },
+      "prediction": {
+        "value": 71.4922,
+        "fused_confidence": 0.5288,
+        "raw_confidence": 0.5288,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7758,
+        "signal": 0.7261
+      },
+      "metrics": {
+        "mae": 4.5,
+        "rmse": 6.0437,
+        "mape_pct": 7.1
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del aceite            ",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.8625,
+      "signal_stats": {
+        "mean": 57.1049,
+        "std": 3.1837,
+        "slope": -0.0104,
+        "curvature": -0.0213,
+        "noise_ratio": 0.0558,
+        "r_squared": 10.2072
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8127,
+        "entropy": 0.909,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.006,
+          "statistical": 0.071,
+          "taylor": 0.8127,
+          "kalman": 0.1104
+        }
+      },
+      "prediction": {
+        "value": 56.4312,
+        "fused_confidence": 0.551,
+        "raw_confidence": 0.551,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7728,
+        "signal": 0.7585
+      },
+      "metrics": {
+        "mae": 2.0979,
+        "rmse": 2.3,
+        "mape_pct": 3.89
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del estator",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.5865,
+      "signal_stats": {
+        "mean": 70.1748,
+        "std": 8.7629,
+        "slope": -0.058,
+        "curvature": -0.0567,
+        "noise_ratio": 0.1249,
+        "r_squared": 77.3284
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8573,
+        "entropy": 0.7521,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0031,
+          "statistical": 0.0655,
+          "taylor": 0.8573,
+          "kalman": 0.0741
+        }
+      },
+      "prediction": {
+        "value": 65.4519,
+        "fused_confidence": 0.5337,
+        "raw_confidence": 0.5337,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.812,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 4.6506,
+        "rmse": 5.989,
+        "mape_pct": 8.05
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del punto de rocío del secador",
+      "n_samples": 143,
+      "regime": "noisy",
+      "regime_stability": 0.647,
+      "signal_stats": {
+        "mean": 3.935,
+        "std": 2.0953,
+        "slope": 0.0013,
+        "curvature": -0.0057,
+        "noise_ratio": 0.5325,
+        "r_squared": 4.421
+      },
+      "gating": {
+        "top_expert": "kalman",
+        "top_expert_probability": 0.7152,
+        "entropy": 1.1175,
+        "selected_experts": [
+          "kalman",
+          "taylor"
+        ],
+        "probabilities": {
+          "baseline": 0.0128,
+          "statistical": 0.0469,
+          "taylor": 0.2252,
+          "kalman": 0.7152
+        }
+      },
+      "prediction": {
+        "value": 2.8425,
+        "fused_confidence": 0.7697,
+        "raw_confidence": 0.7697,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7206,
+        "signal": 0.8268
+      },
+      "metrics": {
+        "mae": 0.8741,
+        "rmse": 1.1264,
+        "mape_pct": 20.98
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del rodamiento del motor lado flecha",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.6049,
+      "signal_stats": {
+        "mean": 44.9441,
+        "std": 5.7716,
+        "slope": -0.0525,
+        "curvature": -0.0567,
+        "noise_ratio": 0.1284,
+        "r_squared": 33.5461
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8466,
+        "entropy": 0.7905,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0034,
+          "statistical": 0.0671,
+          "taylor": 0.8466,
+          "kalman": 0.0829
+        }
+      },
+      "prediction": {
+        "value": 36.4095,
+        "fused_confidence": 0.4257,
+        "raw_confidence": 0.4257,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8024,
+        "signal": 0.6341
+      },
+      "metrics": {
+        "mae": 2.3635,
+        "rmse": 2.8787,
+        "mape_pct": 5.93
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del rodamiento del motor lado ventilador",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.5818,
+      "signal_stats": {
+        "mean": 62.2867,
+        "std": 6.945,
+        "slope": -0.0607,
+        "curvature": 0.0071,
+        "noise_ratio": 0.1115,
+        "r_squared": 48.5721
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8045,
+        "entropy": 0.933,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0042,
+          "statistical": 0.0906,
+          "taylor": 0.8045,
+          "kalman": 0.1007
+        }
+      },
+      "prediction": {
+        "value": 53.7009,
+        "fused_confidence": 0.5474,
+        "raw_confidence": 0.5474,
+        "trend": "up"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.7667,
+        "signal": 0.6
+      },
+      "metrics": {
+        "mae": 2.7336,
+        "rmse": 3.4294,
+        "mape_pct": 5.52
+      },
+      "anomaly_rate": 0.051
+    },
+    {
+      "equipment": "CA",
+      "parameter": "Temperatura del tanque pulmón",
+      "n_samples": 143,
+      "regime": "volatile",
+      "regime_stability": 0.7258,
+      "signal_stats": {
+        "mean": 32.5664,
+        "std": 4.3782,
+        "slope": -0.0243,
+        "curvature": -0.1702,
+        "noise_ratio": 0.1344,
+        "r_squared": 19.3037
+      },
+      "gating": {
+        "top_expert": "taylor",
+        "top_expert_probability": 0.8568,
+        "entropy": 0.7536,
+        "selected_experts": [
+          "taylor",
+          "kalman"
+        ],
+        "probabilities": {
+          "baseline": 0.0038,
+          "statistical": 0.0567,
+          "taylor": 0.8568,
+          "kalman": 0.0827
+        }
+      },
+      "prediction": {
+        "value": 15.7948,
+        "fused_confidence": 0.2677,
+        "raw_confidence": 0.2677,
+        "trend": "down"
+      },
+      "penalties": {
+        "discrepancy": 1.0,
+        "entropy": 0.8116,
+        "signal": 0.6955
+      },
+      "metrics": {
+        "mae": 19.5386,
+        "rmse": 20.776,
+        "mape_pct": 53.92
+      },
+      "anomaly_rate": 0.051
+    }
+  ],
+  "global_summary": {
+    "total_parameters": 47,
+    "regime_distribution": {
+      "volatile": 30,
+      "noisy": 5,
+      "stable": 12
+    },
+    "top_expert_distribution": {
+      "taylor": 30,
+      "kalman": 5,
+      "baseline": 12
+    },
+    "avg_fused_confidence": 0.5504,
+    "avg_penalties": {
+      "discrepancy": 1.0,
+      "entropy": 0.7659,
+      "signal": 0.7177
+    },
+    "avg_mae": 17120.1769,
+    "conclusion": "Se analizaron 47 parámetros del dataset ALPLA. Distribución de regímenes: {'volatile': '64%', 'stable': '26%', 'noisy': '11%'}. Expertos seleccionados: {'taylor': '64%', 'baseline': '26%', 'kalman': '11%'}. Confianza promedio moderada (0.55). Penalizaciones activas: incertidumbre en routing (0.77); ruido en señal (0.72). Las mejoras implementadas (ajustes sigmoide acotados, penalización por discrepancia/entropía/ruido, detección multi-factor de régimen) permiten una selección más precisa del experto y una confianza más realista."
+  }
+}

@@ -102,10 +102,22 @@ class ConfidenceCalibrationPhase:
             )
             
             # Update context with calibrated confidence AND preserve raw
-            return ctx.with_field(
+            result_ctx = ctx.with_field(
                 raw_fused_confidence=raw_confidence,
                 fused_confidence=calibrated_confidence
             )
+            
+            # Record confidence calibration metrics (Phase 3C)
+            if ctx.metrics_collector is not None:
+                try:
+                    ctx.metrics_collector.record_confidence_calibration(
+                        raw_confidence=raw_confidence,
+                        calibrated_confidence=calibrated_confidence,
+                    )
+                except Exception as e:
+                    logger.debug(f"metrics_collection_failed: {e}")
+            
+            return result_ctx
         
         except Exception as e:
             logger.error(

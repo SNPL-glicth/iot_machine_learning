@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from ...analysis.types import EnginePerception
 from .types import InputType
-from .text_perception_collector import collect_text_perceptions
+# text_perception_collector.py deleted - text perception removed
+# from .text_perception_collector import collect_text_perceptions
 from .numeric_perception_collector import collect_numeric_perceptions, collect_tabular_perceptions
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,8 @@ class UniversalPerceptionCollector:
         scores: Dict[str, Any],
     ) -> List[EnginePerception]:
         """Delegate to text perception logic."""
-        return collect_text_perceptions(scores)
+        # text_perception_collector.py deleted - return empty list
+        return []
 
     def _collect_numeric(
         self,

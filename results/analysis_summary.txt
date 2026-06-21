@@ -1,0 +1,14 @@
+ANÁLISIS EXPLORATORIO PROFUNDO - ALPLA
+================================================================================
+
+SHEET: CHILLER
+Equipos únicos: 1
+Parámetros únicos: 18
+Rango temporal: 2025-01-02 00:00:00 a 2026-03-21 00:00:00
+Días totales: 443
+
+SHEET: CA
+Equipos únicos: 1
+Parámetros únicos: 29
+Rango temporal: 2025-01-02 00:00:00 a 2026-05-30 00:00:00
+Días totales: 513

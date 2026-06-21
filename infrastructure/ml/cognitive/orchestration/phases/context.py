@@ -9,13 +9,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
-@dataclass(frozen=True)
+@dataclass
 class PipelineContext:
-    """Immutable context that flows through the pipeline.
-    
-    Each phase receives a context and returns a new one with
-    updated fields. This ensures data flow is explicit and
-    prevents side effects between phases.
+    """Mutable context that flows through the pipeline.
+
+    Each phase receives the same context and writes to it
+    directly.  No copies are made between phases, eliminating
+    the O(n) object‑explosion overhead of the previous
+    immutable design.
     """
     
     # Input (required)
@@ -68,55 +69,33 @@ class PipelineContext:
     is_fallback: bool = False
     fallback_reason: Optional[str] = None
     
+    # Observability components (Phase 3C)
+    metrics_collector: Optional[Any] = None
+    memory_health_monitor: Optional[Any] = None
+    
+    # Memory components (Phase 3A)
+    memory_registry: Optional[Any] = None
+    
+    # Neural components (High impact)
+    neural_engine: Optional[Any] = None
+    
+    # Decision components (High impact)
+    decision_engine: Optional[Any] = None
+    
+    # Pattern interpreter components (Medium-high impact)
+    pattern_interpreter: Optional[Any] = None
+    
+    # Dynamic components (Medium-high impact)
+    rolling_window_engine: Optional[Any] = None
+    
+    # Regime detection components (Medium-high impact)
+    regime_detection_pipeline: Optional[Any] = None
+    
     def with_field(self, **kwargs) -> PipelineContext:
-        """Return new context with updated fields."""
-        current_dict = {
-            'orchestrator': self.orchestrator,
-            'values': self.values,
-            'timestamps': self.timestamps,
-            'series_id': self.series_id,
-            'flags': self.flags,
-            'timer': self.timer,
-            'sanitized_values': self.sanitized_values,
-            'sanitization_flags': list(self.sanitization_flags),
-            'fusion_flags': list(self.fusion_flags),
-            'hampel_diagnostic': self.hampel_diagnostic,
-            'engine_failures': list(self.engine_failures),
-            'boundary_result': self.boundary_result,
-            'profile': self.profile,
-            'regime': self.regime,
-            'neighbor_trends': self.neighbor_trends,
-            'neighbors': self.neighbors,
-            'neighbor_values': self.neighbor_values,
-            'plasticity_context': self.plasticity_context,
-            'feature_context': self.feature_context,
-            'perceptions': self.perceptions,
-            'error_dict': self.error_dict,
-            'plasticity_weights': self.plasticity_weights,
-            'inhibition_states': self.inhibition_states,
-            'mediated_weights': self.mediated_weights,
-            'fused_value': self.fused_value,
-            'fused_confidence': self.fused_confidence,
-            'raw_fused_confidence': self.raw_fused_confidence,
-            'fused_trend': self.fused_trend,
-            'final_weights': self.final_weights,
-            'selected_engine': self.selected_engine,
-            'selection_reason': self.selection_reason,
-            'fusion_method': self.fusion_method,
-            'engine_decision': self.engine_decision,
-            'coherence_result': self.coherence_result,
-            'calibrated_confidence': self.calibrated_confidence,
-            'guarded_action': self.guarded_action,
-            'unified_narrative': self.unified_narrative,
-            'diagnostic': self.diagnostic,
-            'explanation': self.explanation,
-            'consecutive_anomalies': self.consecutive_anomalies,
-            'metadata': self.metadata.copy(),
-            'is_fallback': self.is_fallback,
-            'fallback_reason': self.fallback_reason,
-        }
-        current_dict.update(kwargs)
-        return PipelineContext(**current_dict)
+        """Update fields in place and return self for backward compatibility."""
+        for key, value in kwargs.items():
+            object.__setattr__(self, key, value)
+        return self
 
 
 def create_initial_context(
@@ -128,6 +107,14 @@ def create_initial_context(
     timer: Any,
 ) -> PipelineContext:
     """Factory function to create initial pipeline context."""
+    metrics_collector = getattr(orchestrator, '_metrics_collector', None)
+    memory_health_monitor = getattr(orchestrator, '_memory_health_monitor', None)
+    memory_registry = getattr(orchestrator, '_memory_registry', None)
+    neural_engine = getattr(orchestrator, '_neural_engine', None)
+    decision_engine = getattr(orchestrator, '_decision_engine', None)
+    pattern_interpreter = getattr(orchestrator, '_pattern_interpreter', None)
+    rolling_window_engine = getattr(orchestrator, '_rolling_window_engine', None)
+    regime_detection_pipeline = getattr(orchestrator, '_regime_detection_pipeline', None)
     return PipelineContext(
         orchestrator=orchestrator,
         values=values,
@@ -135,4 +122,12 @@ def create_initial_context(
         series_id=series_id,
         flags=flags,
         timer=timer,
+        metrics_collector=metrics_collector,
+        memory_health_monitor=memory_health_monitor,
+        memory_registry=memory_registry,
+        neural_engine=neural_engine,
+        decision_engine=decision_engine,
+        pattern_interpreter=pattern_interpreter,
+        rolling_window_engine=rolling_window_engine,
+        regime_detection_pipeline=regime_detection_pipeline,
     )

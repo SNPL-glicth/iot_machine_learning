@@ -79,7 +79,7 @@ def format_conclusion(analysis_result, comparison_result: Optional[object] = Non
     # Add pattern interpretation if available
     if hasattr(analysis_result, 'patterns') and analysis_result.patterns:
         try:
-            from iot_machine_learning.infrastructure.ml.cognitive.pattern_interpreter.interpreter import PatternInterpreter
+            from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import PatternInterpreter
             interpreter = PatternInterpreter()
             pattern_text = interpreter.format_for_conclusion(
                 analysis_result.patterns,
