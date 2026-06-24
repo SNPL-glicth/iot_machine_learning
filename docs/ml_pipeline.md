@@ -1,8 +1,8 @@
 # Pipeline Cognitivo ML — Referencia Técnica
 
-**Última actualización:** 2026-05-12
-**Archivo fuente:** `infrastructure/ml/cognitive/orchestration/pipeline_executor.py`
-**Fases:** 15 (índices 0–14) + AssemblyPhase final
+**Última actualización:** 2026-06-23
+**Archivo fuente:** `infrastructure/ml/cognitive/orchestration/pipeline_executor.py` + `orchestration/phases/`
+**Fases:** 25+ (fases base 0–14 + fases extendidas) + AssemblyPhase final
 
 ---
 
@@ -13,18 +13,25 @@
 | 0 | SanitizePhase | `values`, `timestamps` | `sanitization_flags`, `is_fallback` | `ML_ENABLE_SANITIZE` (implícito) |
 | 1 | BoundaryCheckPhase | `values` | `is_fallback`, `fallback_reason` | `ML_DOMAIN_BOUNDARY_ENABLED` |
 | 2 | SeasonalDecompositionPhase | `values`, `timestamps` | `seasonal_adjusted_values` | `ML_ENABLE_SEASONALITY` |
-| 3 | PerceivePhase | `values`, `timestamps` | `regime`, `noise_ratio`, `stability`, `neighbor_trends` | `ML_ENABLE_REGIME_DETECTION` |
-| 4 | DriftDetectionPhase | `regime`, `noise_ratio`, `stability` | `drift_detected`, `drift_magnitude`, `drift_reset_regime` | `ML_ENABLE_DRIFT_DETECTION` |
-| 5 | PredictPhase | `values`, `timestamps`, `regime` | `perceptions`, `engine_failures` | `ML_ENABLE_PREDICTION_CACHE` (cache) |
-| 6 | AdaptPhase | `perceptions`, `regime` | `resolved_weights`, `inhibition_states` | `ML_ENABLE_PLASTICITY` |
-| 7 | InhibitPhase | `perceptions`, `inhibition_states` | `inhibited_perceptions` | `ML_ENABLE_PLASTICITY` |
-| 8 | FusePhase | `inhibited_perceptions`, `resolved_weights` | `fused_value`, `confidence`, `trend`, `fusion_flags`, `hampel_diagnostic` | `ML_HAMPEL_ENABLED` |
-| 9 | DecisionArbiterPhase | `fused_value`, `confidence`, `anomaly_score` | `decision`, `decision_context` | `ML_DECISION_ARBITER_ENABLED` |
-| 10 | CoherenceCheckPhase | `decision`, `neighbor_trends` | `coherence_verdict` | `ML_COHERENCE_CHECK_ENABLED` |
-| 11 | ConfidenceCalibrationPhase | `confidence`, `regime` | `calibrated_confidence` | `ML_CONFIDENCE_CALIBRATION_ENABLED` |
-| 12 | ExplainPhase | `perceptions`, `fusion_flags`, `decision` | `explanation`, `narrative` | `ML_ENABLE_EXPLAINABILITY` |
-| 13 | ActionGuardPhase | `decision`, `coherence_verdict` | `guarded_action`, `action_reason` | `ML_ACTION_GUARD_ENABLED` |
-| 14 | NarrativeUnificationPhase | `explanation`, `narrative`, `guarded_action` | `unified_narrative` | `ML_NARRATIVE_UNIFICATION_ENABLED` |
+| 3 | ContextPhase | `series_id` | `operational_context` | `ML_ENABLE_CONTEXT` |
+| 4 | PredictionReadinessGate | `values`, `timestamps` | `is_ready`, `readiness_reason` | `ML_ENABLE_READINESS_GATE` |
+| 5 | PerceivePhase | `values`, `timestamps` | `regime`, `noise_ratio`, `stability`, `neighbor_trends` | `ML_ENABLE_REGIME_DETECTION` |
+| 6 | DriftDetectionPhase | `regime`, `noise_ratio`, `stability` | `drift_detected`, `drift_magnitude`, `drift_reset_regime` | `ML_ENABLE_DRIFT_DETECTION` |
+| 7 | DriftResponsePhase | `drift_detected` | `drift_action` | `ML_ENABLE_DRIFT_RESPONSE` |
+| 8 | PredictPhase | `values`, `timestamps`, `regime` | `perceptions`, `engine_failures` | `ML_ENABLE_PREDICTION_CACHE` (cache) |
+| 9 | CausalPhase | `values`, `series_id` | `causal_signals` | `ML_ENABLE_CAUSAL` |
+| 10 | AdaptPhase | `perceptions`, `regime` | `resolved_weights`, `inhibition_states` | `ML_ENABLE_PLASTICITY` |
+| 11 | InhibitPhase | `perceptions`, `inhibition_states` | `inhibited_perceptions` | `ML_ENABLE_PLASTICITY` |
+| 12 | FusePhase | `inhibited_perceptions`, `resolved_weights` | `fused_value`, `confidence`, `trend`, `fusion_flags`, `hampel_diagnostic` | `ML_HAMPEL_ENABLED` |
+| 13 | DecisionArbiterPhase | `fused_value`, `confidence`, `anomaly_score` | `decision`, `decision_context` | `ML_DECISION_ARBITER_ENABLED` |
+| 14 | CoherenceCheckPhase | `decision`, `neighbor_trends` | `coherence_verdict` | `ML_COHERENCE_CHECK_ENABLED` |
+| 15 | MemoryPhase | `decision` | `memory_recall` | `ML_ENABLE_COGNITIVE_MEMORY` |
+| 16 | ConfidenceCalibrationPhase | `confidence`, `regime` | `calibrated_confidence` | `ML_CONFIDENCE_CALIBRATION_ENABLED` |
+| 17 | ExplainPhase | `perceptions`, `fusion_flags`, `decision` | `explanation`, `narrative` | `ML_ENABLE_EXPLAINABILITY` |
+| 18 | ActionGuardPhase | `decision`, `coherence_verdict` | `guarded_action`, `action_reason` | `ML_ACTION_GUARD_ENABLED` |
+| 19 | NarrativeUnificationPhase | `explanation`, `narrative`, `guarded_action` | `unified_narrative` | `ML_NARRATIVE_UNIFICATION_ENABLED` |
+| 20 | ShadowEvaluationPhase | `fused_value` | `shadow_metrics` | `ML_ENABLE_SHADOW_EVAL` |
+| 21 | ObservabilityPhase | `pipeline_timing` | `observability_metrics` | `ML_ENABLE_OBSERVABILITY` |
 | — | AssemblyPhase | Todo el contexto | `PredictionResult`, `ComplianceRecord` | `ML_COMPLIANCE_EXPORT_PATH` |
 
 ---
@@ -253,25 +260,39 @@
 
 ---
 
-## VotingAnomalyDetector
+## VotingAnomalyDetector v2.0
 
-### Sub-detectores (8 por defecto, 9 con multivariate)
+**Archivo:** `infrastructure/ml/anomaly/core/detector.py`
+**CHANGELOG:** `infrastructure/ml/anomaly/CHANGELOG.md`
+
+### Sub-detectores (7 activos en v2.0)
 
 | # | Detector | Peso default | Qué detecta | Por qué importa |
-|---|----------|-------------|-------------|-----------------|
+|---|----------|:-----------:|-------------|-----------------|
 | 1 | ZScoreDetector | 0.20 | Spikes de magnitud (>2σ o >3σ) | Clásico, interpretable, rápido |
-| 2 | IQRDetector | 0.10 | Outliers robustos (Q1–1.5×IQR, Q3+1.5×IQR) | Inmune a distribuciones asimétricas |
-| 3 | IsolationForestDetector | 0.30 | Patrones de aislamiento en feature space | Capta anomalías multidimensionales sutiles |
-| 4 | LOFDetector | 0.15 | Outliers por densidad local | Detecta clusters con densidad heterogénea |
-| 5 | VelocityZDetector | 0.15 | Cambios súbitos de velocidad (1ª derivada) | Detecta rampas invisibles para detectores de magnitud |
-| 6 | AccelerationZDetector | 0.10 | Cambios de aceleración (2ª derivada) | Detecta inflexiones de régimen antes de que el valor explote |
-| 7 | IsolationForestNDDetector | — | Isolation Forest n-dimensional (no pesado en config base) | Extensión multivariada nativa |
-| 8 | LOFNDDetector | — | LOF n-dimensional (no pesado en config base) | Extensión multivariada nativa |
-| 9 | MultivariateDetector | — | PCA-based (si `enable_multivariate=true`) | Detecta correlaciones rotas entre series |
+| 2 | RollingZScoreDetector | 0.20 | Deriva gradual (ventana deslizante + histéresis) | Detecta cambios lentos que Z-score fijo no captura |
+| 3 | IsolationForestDetector | 0.25 | Patrones de aislamiento en feature space | Capta anomalías multidimensionales sutiles |
+| 4 | VelocityZDetector | 0.15 | Cambios súbitos de velocidad (1ª derivada) | Detecta rampas invisibles para detectores de magnitud |
+| 5 | AccelerationZDetector | 0.10 | Cambios de aceleración (2ª derivada) | Detecta inflexiones de régimen antes de que el valor explote |
+| 6 | IQRDetector | 0.05 | Outliers robustos (Q1–1.5×IQR, Q3+1.5×IQR) | Inmune a distribuciones asimétricas |
+| 7 | LOFDetector | 0.05 | Outliers por densidad local | Detecta clusters con densidad heterogénea |
 
-**Pesos adaptativos:** Cada detector mantiene un historial de 50 outcomes. Cuando un detector acierta frecuentemente, su peso en el ensemble aumenta; cuando falla, disminuye. Los pesos se normalizan para sumar 1.0.
+**Pesos fijos en v2.0** — Se eliminaron los pesos adaptativos que recalculaban silenciosamente y causaban inestabilidad.
 
-**RobustScaler:** Antes del entrenamiento, los valores se normalizan con `RobustScaler` (mediana + IQR) en vez de `StandardScaler` (media + σ). Esto evita que outliers en el set de entrenamiento distorsionen la escala.
+**Configuración de producción v2.0:**
+- `voting_threshold`: 0.75 (validado NAB)
+- `z_vote_lower`: 2.5 / `z_vote_upper`: 3.0
+- `contamination`: 0.005 (tasa real 0.37%)
+- `rolling_z`: window=150, hysteresis=3
+
+**Rendimiento NAB:** v1.0 F1=0.164, FP=73 → **v2.0 F1=0.2857, FP=24**
+
+### Detectores adicionales (no pesados en config base)
+
+- **IsolationForestNDDetector** — Extensión multivariada (sin peso en v2.0)
+- **LOFNDDetector** — Extensión multivariada (sin peso en v2.0)
+- **MultivariateDetector** — PCA-based (si `enable_multivariate=true`)
+- **PersistentDetector** — Wrapper con Redis-backed state persistence
 
 ---
 

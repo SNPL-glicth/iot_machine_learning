@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - Redis 7+
 - SQL Server (or compatible) with `zenin_db` schema
 - (Optional) Weaviate for cognitive memory features
@@ -17,7 +17,7 @@ cd iot_machine_learning
 python -m venv .venv && source .venv/bin/activate
 
 # Install deps
-pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements.txt
 
 # Configure env
 cp .env.example .env
@@ -27,58 +27,45 @@ cp .env.example .env
 pytest tests/ -q
 
 # Start dev server
-uvicorn iot_machine_learning.ml_service.main:app --reload --port 8002
+uvicorn ml_service.main:app --reload --port 8002
 ```
 
-## Docker (Standalone ML)
+## Docker (Full Stack)
 
 ```bash
-# From workspace root:
-docker compose -f iot_machine_learning/docker-compose.yml up --build
-```
-
-## Full Platform Demo
-
-```bash
-# From workspace root:
-cp .env.demo .env
-docker compose -f docker-compose.demo.yml up --build
+docker compose -f docker-compose.yml up --build
 ```
 
 Services available:
 | Service | Port | URL |
 |---------|------|-----|
 | ML Prediction API | 8002 | http://localhost:8002 |
-| Telemetry API | 3000 | http://localhost:3000 |
-| Ingest Service | 8001 | http://localhost:8001 |
-| Monitor Backend | 3001 | http://localhost:3001 |
-| MQTT Broker | 1883 | mqtt://localhost:1883 |
-| EMQX Dashboard | 18083 | http://localhost:18083 |
-| Redis | 6379 | redis://localhost:6379 |
+| Redis | 6380 | redis://localhost:6380 |
+| Weaviate | 8080 | http://localhost:8080 |
+| t2v-transformers | — | Embedding service for Weaviate |
 
 ## First Prediction
 
 ```bash
-curl -X POST http://localhost:8002/ml/predict \
+curl -X POST http://localhost:8002/predict \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: demo-api-key-change-in-production" \
   -d '{
-    "sensor_id": 1,
-    "horizon_minutes": 10,
-    "window": 60
+    "series_id": "PAST-01",
+    "values": [71.2, 71.4, 71.3, 71.5, 71.4],
+    "timestamps": [1700000000, 1700000300, 1700000600, 1700000900, 1700001200]
   }'
 ```
 
 Response:
 ```json
 {
-  "sensor_id": 1,
-  "predicted_value": 24.7,
-  "confidence": 0.87,
-  "trend": "stable",
-  "engine_used": "cognitive_orchestrator",
-  "decision": { "action": "monitor", "urgency": "low" },
-  "meta_diagnostic": { ... }
+  "series_id": "PAST-01",
+  "predicted_value": 71.35,
+  "confidence": 0.55,
+  "regime": "STABLE",
+  "decision": "MONITOR",
+  "top_expert": "baseline",
+  "reasoning_phases": ["sanitize", "perceive", "predict", "fuse", "explain"]
 }
 ```
 
@@ -86,7 +73,7 @@ Response:
 
 ```bash
 curl http://localhost:8002/health
-# {"status":"ok","degraded":false,"engines":["taylor","statistical","cognitive"]}
+# {"service":"iot-ml-service","status":"ok"}
 ```
 
 ## Key Endpoints
@@ -95,51 +82,41 @@ See [API Documentation](./API.md) for full reference.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/ml/predict` | Synchronous prediction |
-| POST | `/ml/predict?async=true` | Async prediction (202) |
-| GET | `/ml/predict/{id}/status` | Poll async result |
+| POST | `/predict` | Synchronous prediction |
+| POST | `/cognitive/predict` | Cognitive pipeline prediction |
+| POST | `/batch/predict` | Batch prediction |
+| POST | `/predict/async` | Async prediction (202) |
 | GET | `/health` | Service health |
-| GET | `/ml/metrics` | Performance metrics |
-| GET | `/ml/diagnostics` | Engine diagnostics |
-| POST | `/ml/index-document` | Index document for cognitive memory |
-| POST | `/ml/semantic-search` | Semantic search over indexed docs |
 | GET | `/governance/status` | Governance observability |
+| GET | `/observability/metrics` | Engine metrics |
 | GET | `/telemetry/ml-features/latest/{sensor_id}` | Telemetry features |
-
-## Feature Flags
-
-Control ML engine behavior via environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ML_USE_COGNITIVE_ORCHESTRATOR` | `true` | Enable meta-cognitive engine selection |
-| `ML_USE_BAYESIAN_WEIGHTS` | `true` | Bayesian weight tracking per sensor |
-| `ML_USE_MOE_ENGINE` | `false` | Mixture-of-Experts gating |
-| `ML_USE_COMPLIANCE_AUDIT` | `true` | HMAC audit trail for predictions |
-| `ML_COGNITIVE_MEMORY_ENABLED` | `false` | Weaviate-backed semantic memory |
+| POST | `/query` | Natural language query |
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     ML Prediction API                        │
-│  FastAPI (uvicorn, 4 workers)                               │
+│                     ML Service (FastAPI)                     │
+│  25+ fases cognitivas, 8 engines, 7 anomaly detectors       │
 ├─────────────────────────────────────────────────────────────┤
 │  Application Layer                                          │
-│  ├── PredictionService (use cases)                          │
-│  ├── DecisionService (action recommendations)               │
-│  └── DocumentAnalyzer (text cognitive engine)               │
+│  ├── Use cases (predict, detect anomalies, analyze patterns)│
+│  ├── DecisionService, Evaluation, Explainability            │
 ├─────────────────────────────────────────────────────────────┤
 │  Domain Layer                                               │
-│  ├── Entities (Prediction, SensorReading, TimeSeries)       │
-│  ├── Ports (PredictionPort, StoragePort, AuditPort)         │
-│  └── Services (Severity, Actions, Plasticity)               │
+│  ├── Entities (Prediction, Anomaly, Explanation, etc.)      │
+│  ├── Ports (23 interfaces), Services (33), Policies, Tools  │
 ├─────────────────────────────────────────────────────────────┤
 │  Infrastructure Layer                                       │
-│  ├── ML Engines (Taylor, Statistical, Cognitive, MoE)       │
-│  ├── Persistence (Redis cache, SQL storage, Weaviate)       │
-│  ├── Adapters (Calibrators, Drift detectors, Compliance)    │
-│  └── Neural (Attention, Feedforward, Hybrid)                │
+│  ├── ML Engines (Taylor, Statistical, Kalman, Baseline,     │
+│  │             LightGBM, Adaptive Ensemble, Multivariate)   │
+│  ├── Cognitive (25+ phases, bayesian weights, drift, Hampel)│
+│  ├── Anomaly (7 detectors v2.0, RUL estimator)              │
+│  ├── MoE (gating tree, sparse fusion, expert registry)      │
+│  ├── Inference (MLE, Bayes, Naive Bayes, Platt scaling)     │
+│  ├── Optimization (SGD, L-BFGS, genetic, PSO)              │
+│  ├── Persistence (Redis, SQL Server, Weaviate vector DB)    │
+│  └── Governance (9 componentes: registry, bounds, tuning)   │
 └─────────────────────────────────────────────────────────────┘
 ```
 

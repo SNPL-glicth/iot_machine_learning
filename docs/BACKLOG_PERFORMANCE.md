@@ -21,11 +21,9 @@ Items sin infraestructura o datos disponibles para implementación inmediata.
 
 ## Batch prediction API
 
-- **Ubicación:** `ml_service/api/routes.py`
-- **Approach:** `POST /ml/predict/batch` con lista de `PredictionRequest`; parallelizar con `ThreadPoolExecutor`
-- **Prerequisito:** Test de carga concurrente (ya existe `test_cognitive_pipeline_100_sensors_concurrent` como referencia)
-- **Effort:** 2–3 días
-- **Status:** BACKLOG
+- **Ubicación:** `ml_service/api/routes_batch.py`
+- **Approach:** `POST /batch/predict` con lista de predicciones; parallelizar con `ThreadPoolExecutor`
+- **Status:** ✅ DONE — Implementado en routes_batch.py con max_concurrency configurable
 
 ## PERF-P0: zenin_db pool scaling (DONE)
 
@@ -70,6 +68,4 @@ Items sin infraestructura o datos disponibles para implementación inmediata.
 
 - **Ubicación:** `infrastructure/ml/cognitive/orchestration/phases/adapt_phase.py`
 - **Approach:** Invocar `tuner.tune_learning_rate()` con error post-predict; persistir alpha en `SensorProfile`
-- **Prerequisito:** `BatchEnterpriseContainer.get_dynamic_tuner()` ya existe (Fase 3); falta inyectar en orchestrator
-- **Effort:** 2 días
-- **Status:** PARCIAL — wiring de container listo, falta invocación en pipeline
+- **Status:** PARCIAL — wiring de container listo, falta invocación en pipeline. El GovernanceInitializer ya integra `DynamicTuner` + `TemperatureScaler` + `ConvergenceDetector` como parte de los 9 componentes de governance.

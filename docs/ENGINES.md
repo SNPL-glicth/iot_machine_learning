@@ -501,20 +501,30 @@ Combines N `PredictionPort` instances (not raw `PredictionEngine`s) using invers
 **File:** `infrastructure/ml/cognitive/orchestration/orchestrator.py`
 
 **What it does:**
-The brain of ZENIN. Takes a sensor window, runs it through perception → prediction → inhibition → adaptation → fusion → explanation, and returns a `Decision`.
+The brain of ZENIN. Takes a sensor window, runs it through 25+ pipeline phases and returns a `Decision`.
 
-**Pipeline phases:**
+**Pipeline phases (evolucion de las 6 fases originales a 25+):**
 
 | Phase | What happens | Engines involved |
 |-------|-------------|------------------|
 | **PERCEIVE** | Analyze signal structure (volatility, stationarity, trend) | `SignalAnalyzer` |
-| **PREDICT** | Run all registered prediction engines in parallel | Taylor, Seasonal, Statistical, Baseline |
-| **INHIBIT** | Suppress low-confidence or contradictory predictions | `InhibitionGate` |
+| **CONTEXT** | Contexto operacional del sensor | `ContextualDecisionEngine` |
+| **DRIFT_DETECT** | Page-Hinkley + ADWIN online | `DriftDetectionPhase` |
+| **DRIFT_RESPONSE** | Accion correctiva ante deriva | `DriftResponsePhase` |
+| **CAUSAL** | Correlacion causal entre series | `CausalPhase` |
+| **PREDICT** | Run all registered prediction engines in parallel | Taylor, Kalman, Statistical, Baseline, Seasonal |
 | **ADAPT** | Update per-regime weights via Bayesian plasticity | `PlasticityTracker` |
-| **FUSE** | Weighted average of surviving predictions + Hampel outlier rejection | `WeightedFusion` + `hampel_filter` |
+| **INHIBIT** | Suppress low-confidence or contradictory predictions | `InhibitionGate` |
+| **FUSE** | Weighted average + Hampel outlier rejection | `WeightedFusion` + `hampel_filter` |
+| **DECIDE** | Decision arbitration + amplifiers/attenuators | `DecisionArbiterPhase` |
+| **MEMORY** | Cognitive memory recall (Weaviate) | `MemoryPhase` |
 | **EXPLAIN** | Build human-readable reasoning trace | `ExplanationBuilder` |
+| **NARRATIVE** | Unify final explanation | `NarrativeUnificationPhase` |
+| **OBSERVABILITY** | Export metrics and traces | `ObservabilityPhase` |
 
 **Latency budget:** 500ms total. `PipelineTimer` tracks each phase. If PERCEIVE + PREDICT exceeds budget, cuts to Baseline fallback.
+
+**Pipeline phases file location:** `infrastructure/ml/cognitive/orchestration/phases/` (25+ phase files).
 
 **Integration:**
 - Called by `predict_sensor_value` use case
@@ -726,17 +736,22 @@ StreamConsumer (ingest service)
        ↓
 SlidingWindowStore (Redis-backed LRU, max 1000 sensors)
        ↓
-MetaCognitiveOrchestrator
-  ├─ PERCEIVE → SignalAnalyzer
-  ├─ PREDICT  → EngineFactory.create_all() [Taylor, Seasonal, Statistical, Baseline, Kalman]
-  ├─ INHIBIT  → InhibitionGate
-  ├─ ADAPT    → PlasticityTracker (Redis)
-  ├─ FUSE     → WeightedFusion + hampel_filter
-  └─ EXPLAIN  → ExplanationBuilder
+MetaCognitiveOrchestrator (25+ phases)
+  ├─ PERCEIVE     → SignalAnalyzer
+  ├─ CONTEXT      → OperationalContext
+  ├─ DRIFT_DETECT → Page-Hinkley / ADWIN
+  ├─ CAUSAL       → CausalCorrelation
+  ├─ PREDICT      → EngineFactory.create_all() [Taylor, Kalman, Seasonal, Statistical, Baseline]
+  ├─ ADAPT        → PlasticityTracker / BayesianWeightTracker (Redis)
+  ├─ INHIBIT      → InhibitionGate
+  ├─ FUSE         → WeightedFusion + hampel_filter
+  ├─ DECIDE       → DecisionArbiterPhase
+  ├─ MEMORY       → Weaviate cognitive recall
+  └─ EXPLAIN      → ExplanationBuilder
        ↓
-Prediction (domain entity)
+Prediction (domain entity) + ComplianceRecord (NDJSON signed)
        ↓
-SQL Server (zenin_ml.predictions)
+SQL Server (zenin_ml.predictions) + NDJSON append-only
        ↓
 .NET Backend (read-only) → Frontend
 ```

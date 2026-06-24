@@ -1,6 +1,6 @@
 ## Development Guide
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-06-23
 
 ### Adding a New Prediction Engine
 
@@ -86,9 +86,9 @@ class MyCustomTool(Tool):
 - Edge deployment requires state synchronization
 
 **Anomaly Integration:**
-- Anomaly detection runs separate from prediction pipeline
-- No unified narrative between prediction and anomaly
-- Narrative unification is placeholder-only
+- Anomaly detection integrado vía `VotingAnomalyDetector` en pipeline cognitivo
+- Narrativa unificada vía `NarrativeUnificationPhase`
+- `RULEstimator` integra detección de anomalías con estimación de vida útil
 
 ### Performance Limits
 

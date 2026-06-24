@@ -9,6 +9,8 @@ Runners de ejecución ML: batch (SQL) y stream (broker en memoria).
 | `ml_batch_runner.py` | 234 | Runner batch interno (dev/test). **No es el runner de producción** — ver `iot_ingest_services/jobs/ml_batch_runner.py` |
 | `ml_stream_runner.py` | 260 | `SimpleMlOnlineProcessor` — procesa lecturas online vía `ReadingBroker` |
 | `prediction_deviation_checker.py` | 130 | `check_prediction_deviation()` — detecta desviación predicción vs real |
+| `batch_cli.py` | — | CLI runner para ejecución batch manual |
+| `batch_worker.py` | — | Worker batch para procesamiento asíncrono |
 
 ## Subdirectorios
 

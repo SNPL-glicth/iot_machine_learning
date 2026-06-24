@@ -1,11 +1,27 @@
-# Detección de Anomalías — Ensemble Voting
+# Detección de Anomalías — Ensemble Voting v2.0
 
-**Última actualización:** 2026-05-12
-**Archivo fuente:** `infrastructure/ml/anomaly/detectors/`, `infrastructure/ml/anomaly/voting/voting_anomaly_detector.py`
+**Última actualización:** 2026-06-23
+**Archivo fuente:** `infrastructure/ml/anomaly/`
+**CHANGELOG:** `infrastructure/ml/anomaly/CHANGELOG.md`
 
 ---
 
-## Los 8+ Detectores del Ensemble
+## Arquitectura (Clean Ensemble v2.0)
+
+```
+scoring/functions.py      → pure math, sin estado
+scoring/statistical_methods.py → scoring estadístico
+scoring/temporal.py       → scoring temporal
+scoring/training.py       → preparación de datos de entrenamiento
+voting/strategy.py        → combinación de votos, sin lógica
+voting/context_builder.py → votación con contexto
+core/config.py            → value object frozen
+core/protocol.py          → protocolo SubDetector
+core/detector.py          → train/detect/is_trained
+factory/defaults.py       → 7 detectores, sin condicionales
+```
+
+## Los 7 Detectores del Ensemble (v2.0)
 
 ### 1. ZScoreDetector
 
@@ -15,11 +31,21 @@
 
 **Voto:** 0 si `|z| < lower` (2.0), 1 si `|z| > upper` (3.0), interpolado linealmente entre ambos.
 
-**Por qué importa:** Detector clásico, interpretable, computacionalmente barato. Funciona bien para spikes de magnitud en señales gaussianas.
+**Por qué importa:** Detector clásico, interpretable, computacionalmente barato.
 
 ---
 
-### 2. IQRDetector
+### 2. RollingZScoreDetector
+
+**Qué detecta:** Desviación Z sobre ventana deslizante con histéresis.
+
+**Configuración v2.0:** `long_window=400`, `short_window=10`, `hysteresis=7`, `z_threshold=3.5`
+
+**Por qué importa:** Detecta deriva gradual que Z-score fijo no captura.
+
+---
+
+### 3. IQRDetector
 
 **Qué detecta:** Outliers robustos usando rango intercuartílico.
 
@@ -27,119 +53,98 @@
 
 **Voto:** 1 si fuera del rango, 0 si dentro.
 
-**Por qué importa:** Inmune a distribuciones asimétricas y colas pesadas donde Z-score falla (ej. proceso industrial con arranques/paradas que generan skew).
+---
+
+### 4. IsolationForestDetector
+
+**Qué detecta:** Patrones de aislamiento en el espacio de características.
+
+**Configuración:** 100 árboles (`n_estimators=100`), `contamination=0.005`, `random_state=42`.
 
 ---
 
-### 3. IsolationForestDetector
+### 5. LOFDetector (Local Outlier Factor)
 
-**Qué detecta:** Patrones de aislamiento en el espacio de características (unidimensional por defecto).
+**Qué detecta:** Outliers por densidad local.
 
-**Configuración:** 100 árboles (`n_estimators=100`), `contamination=0.1`, `random_state=42`.
-
-**Voto:** Normalizado a [0,1] basado en profundidad media de aislamiento.
-
-**Por qué importa:** No asume distribución. Detecta anomalías sutiles que no son spikes simples (ej. patrones de vibración anómalos en una ventana).
+**Configuración:** `max_neighbors=20`, `contamination=0.005`.
 
 ---
 
-### 4. LOFDetector (Local Outlier Factor)
-
-**Qué detecta:** Outliers por densidad local en el espacio de características.
-
-**Configuración:** `max_neighbors=20`, `contamination=0.1`.
-
-**Voto:** Score LOF normalizado.
-
-**Por qué importa:** Detecta puntos que son anómalos respecto a su vecindario, no respecto a la distribución global. Útil cuando la densidad de la señal varía (ej. día vs noche).
-
----
-
-### 5. VelocityZDetector
+### 6. VelocityZDetector
 
 **Qué detecta:** Cambios súbitos de velocidad (primera derivada).
 
-**Fórmula:** `velocity = (x_t - x_{t-1}) / Δt`
-
-**Voto:** Z-score de la velocidad con umbrales `lower=2.0`, `upper=3.0`.
-
-**Por qué importa:** Un sensor puede tener valor normal pero estar cambiando demasiado rápido. Esto anticipa fallas antes de que el valor cruce umbrales de magnitud. Ej: temperatura de motor que sube 5°C/min en vez de 1°C/min.
+**Voto:** Z-score de la velocidad con umbrales `lower=2.5`, `upper=3.0`.
 
 ---
 
-### 6. AccelerationZDetector
+### 7. AccelerationZDetector
 
 **Qué detecta:** Cambios de aceleración (segunda derivada) — inflexiones de régimen.
 
-**Fórmula:** `acceleration = (v_t - v_{t-1}) / Δt`
-
-**Voto:** Z-score de la aceleración con umbrales `lower=2.0`, `upper=3.0`.
-
-**Por qué importa:** Detecta cuando un proceso pasa de acelerar a desacelerar (o viceversa). Esto es crítico en IoT industrial donde cambios de régimen (arranque, parada, carga variable) preceden a fallas mecánicas.
+**Voto:** Z-score de la aceleración con umbrales `lower=2.5`, `upper=3.0`.
 
 ---
 
-### 7. IsolationForestNDDetector
-
-**Qué detecta:** Extensión multivariada de Isolation Forest.
-
-**Configuración:** Igual que IsolationForestDetector pero con `min_training_points=50`.
-
-**Voto:** Score normalizado.
-
-**Por qué importa:** Detecta anomalías que solo son visibles cuando se consideran múltiples dimensiones (ej. temperatura + presión + vibración juntas).
-
----
-
-### 8. LOFNDDetector
-
-**Qué detecta:** Extensión multivariada de LOF.
-
-**Configuración:** `max_neighbors=20`, `contamination=0.1`, `min_training_points=50`.
-
-**Voto:** Score LOF multivariado normalizado.
-
----
-
-### 9. MultivariateDetector (opcional)
-
-**Qué detecta:** Correlaciones rotas entre series usando PCA incremental.
-
-**Configuración:** `pca_components=2`, `baseline_percentile=95.0`, `warmup_samples=30`.
-
-**Requisito:** `ML_ENABLE_MULTIVARIATE=true` + mínimo 3 series correlacionadas.
-
-**Por qué importa:** Univariados no ven cuando dos sensores correlacionados dejan de moverse juntos (ej. temperatura de entrada y salida de un intercambiador de calor).
-
----
-
-## Pesos del Ensemble (Default)
+## Pesos del Ensemble v2.0 (Producción)
 
 ```python
 weights = {
-    "isolation_forest": 0.30,   # Mayor peso — detector más general
-    "z_score": 0.20,            # Segundo — rápido e interpretable
-    "local_outlier_factor": 0.15, # Tercero — bueno en densidad variable
-    "velocity_z": 0.15,         # Detecta cambios de régimen
-    "acceleration_z": 0.10,    # Detecta inflexiones
-    "iqr": 0.10,                # Robusto a skew
+    "isolation_forest": 0.25,   # Detector más general
+    "z_score": 0.20,            # Magnitud rápida
+    "rolling_z": 0.20,          # Deriva gradual
+    "velocity_z": 0.15,         # Cambios de régimen
+    "acceleration_z": 0.10,    # Inflexiones
+    "iqr": 0.05,                # Robusto a skew
+    "local_outlier_factor": 0.05, # Densidad variable
 }
 ```
 
 **Suma:** 1.0 (validado en `AnomalyDetectorConfig.__post_init__`).
 
----
+## Configuración de Producción v2.0
 
-## Pesos Adaptativos
+| Parámetro | Valor | Razón |
+|-----------|-------|-------|
+| `voting_threshold` | 0.75 | Validado en NAB machine temp |
+| `z_vote_lower` | 2.5 | Reduce FP en fluctuaciones normales |
+| `z_vote_upper` | 3.0 | Saturación 3σ estándar |
+| `contamination` | 0.005 | Tasa real de anomalías (0.37%) |
+| `rolling_z window` | 150 | Adaptación rápida de régimen |
+| `rolling_z hyst` | 3 | Filtra ruido transitorio |
 
-Cada detector mantiene un `deque(maxlen=50)` de outcomes booleanos (True = acertó, False = falló). Cada 10 outcomes (`_outcome_count % 10 == 0`), se recalculan pesos:
+## Rendimiento (NAB machine_temperature_system_failure)
 
-```python
-accuracy = sum(outcomes) / len(outcomes)
-new_weight = base_weight * (0.5 + accuracy)  # boost si accuracy > 0.5
-```
+| Versión | F1 | Precision | Recall | FP | Cliff's delta |
+|---------|:--:|:---------:|:------:|:--:|:------------:|
+| v1.0 | 0.164 | 0.161 | 0.167 | 73 | — |
+| v2.0 | **0.2857** | — | 0.2143 | **24** | 0.7261 |
 
-Los pesos se normalizan para sumar 1.0.
+RollingZ: `long_window=50→400`, `hysteresis=1→7`, `z_threshold=3.0→3.5`
+Validación: Grid search sobre 243 combinaciones.
+
+## Eliminado en v2.0
+
+- **Pesos adaptativos**: se recalculaban silenciosamente, causaban inestabilidad
+- **Drift coupling**: sobreescribía pesos configurados sin advertencia
+- **Contaminación dinámica**: fallaba silenciosamente, usaba tasa incorrecta
+- **Persistencia DB de pesos**: estado impredecible
+- **IsolationForestNDDetector**: sin peso definido, se filtraba al ensemble
+- **LOFNDDetector**: mismo problema
+
+## Componentes Adicionales
+
+### RUL Estimator (`rul/`)
+- `estimator.py` — Estimación de vida útil residual desde patrones de anomalía
+- `models.py` — Modelos de regresión para RUL
+- `narrator.py` — Generación de narrativa para explicaciones RUL
+
+### Persistent Detector (`persistent_detector.py`)
+- Wrapper con estado Redis-backed para detección stateful entre reinicios
+
+### Multivariate Detector (`detectors/multivariate/`)
+- Detección de anomalías multi-sensor por correlación
 
 ---
 
@@ -183,27 +188,8 @@ Los pesos se normalizan para sumar 1.0.
 
 ---
 
-## Mejas Recientes (IMP-2)
+## Reglas Críticas (v2.0)
 
-### Ejecución Concurrente de Motores
-
-- **PredictPhase** ahora ejecuta motores concurrentemente con `ThreadPoolExecutor`
-- `ML_PREDICT_MAX_WORKERS` (default 3) controla el número de workers
-- `ML_PREDICT_ENGINE_TIMEOUT_MS` (default 400ms) timeout por motor
-- Fallback a secuencial si el executor falla
-- Surface de fallos (timeout, excepción, cannot_handle) en `ctx.engine_failures`
-
-### Hampel Filter en FusePhase
-
-- Filtro Hampel (k=3.0 × 1.4826 × MAD) rechaza percepciones atípicas antes de la fusión ponderada
-- Filtra `predicted_value` de percepciones AND inhibition_states en lockstep
-- Kill switches: `ML_HAMPEL_ENABLED` (default True), `ML_HAMPEL_K` (default 3.0)
-- No-op si <3 percepciones o MAD=0
-- Diagnóstico en `ctx.hampel_diagnostic`
-
-### Ensemble Recovery
-
-- **EnsembleWatchdog** observa salud del ensemble (HEALTHY, DEGRADED, CRITICAL, COLLAPSED)
-- **ForcedRecoveryManager** ejecuta estrategias de recuperación cuando watchdog indica COLLAPSED
-- Post-fusion: re-ejecuta fusión con pesos recuperados
-- Re-normalización de pesos después de recovery
+1. `weighted_vote`: detectores ausentes excluidos del numerador Y denominador. Nunca dividir por 1.0 fijo.
+2. `compute_z_vote`: nunca compartido entre detectores. Cada detector tiene su propia lógica de voto.
+3. Un archivo cambiado = un benchmark run. F1 drop > 0.01 = revertir inmediatamente.

@@ -76,11 +76,11 @@ export ZENIN_LOG_STRUCTURED=true
 View plasticity state:
 
 ```python
-from infrastructure.ml.cognitive.plasticity.base import PlasticityTracker
+from infrastructure.ml.cognitive.bayesian_weight_tracker import BayesianWeightTracker
 
-tracker = PlasticityTracker(redis_client=redis)
-weights = tracker.get_weights("TRENDING")
-print(weights)  # {'taylor': 0.7, 'baseline': 0.3, 'statistical': 0.0}
+tracker = BayesianWeightTracker(redis_client=redis)
+weights = tracker.get_weights(series_id="sensor_42", regime="TRENDING")
+print(weights)  # {'taylor': 0.7, 'baseline': 0.3, 'kalman': 0.2, 'statistical': 0.0}
 ```
 
 ---

@@ -47,6 +47,28 @@ Regime-based meta-engine with fallback chain (2 files)
 Weighted combination of multiple engines (1 file)
 - `predictor.py` (291 lines) — `EnsembleWeightedPredictor` (implements `PredictionPort`, NOT `PredictionEngine`)
 
+### 📁 kalman/
+Kalman filter prediction engine (3 files)
+- `engine.py` — `KalmanPredictionEngine` with adaptive Q/R
+- `engine_helpers.py` — Kalman-specific helpers
+- `kalman_cv_math.py` — Constant-velocity Kalman math
+
+### 📁 multivariate/
+Multi-sensor correlation engine (3 files)
+- `engine.py` — `MultivariatePredictionEngine` with PCA online
+- `correlation_tracker.py` — Cross-sensor correlation tracking
+- `pca_online.py` — Online PCA for dimensionality reduction
+
+### 📁 seasonal/
+Seasonal pattern detection and prediction (4 files)
+- `engine.py` — `SeasonalPredictionEngine` with cycle detection
+- `cycle_detector.py` — Automatic cycle period detection
+- `resampler.py` — Time-series resampling for irregular intervals
+- `config.json` — Seasonal engine configuration
+
+### 📁 statistical/
+- `param_optimizer.py` — Online parameter optimization for EMA/Holt (added complement to engine.py)
+
 ---
 
 ## Folder Structure
@@ -72,10 +94,12 @@ engines/
 │   ├── polynomial.py              ← project(), compute_local_fit_error()
 │   ├── diagnostics.py             ← compute_diagnostic(), stability analysis
 │   ├── time_step.py               ← compute_dt() robust Δt estimation
-│   └── least_squares.py           ← Least-squares derivative estimation
+│   ├── least_squares.py           ← Least-squares derivative estimation
+│   └── engine_helpers.py          ← sanitize_inputs, classify_trend
 ├── statistical/                   ← Statistical engine
 │   ├── __init__.py
-│   └── engine.py                  ← StatisticalPredictionEngine (EMA/Holt + online alpha)
+│   ├── engine.py                  ← StatisticalPredictionEngine (EMA/Holt + online alpha)
+│   └── param_optimizer.py         ← Online parameter optimization
 ├── lightgbm/                      ← LightGBM regressor (optional dependency)
 │   ├── __init__.py
 │   ├── engine.py                  ← LightGBMPredictionEngine
@@ -83,9 +107,25 @@ engines/
 ├── adaptive_ensemble/             ← Regime-based meta-engine
 │   ├── __init__.py
 │   └── engine.py                  ← AdaptiveEnsembleEngine
-└── ensemble/                      ← Ensemble predictor
+├── ensemble/                      ← Ensemble predictor
+│   ├── __init__.py
+│   └── predictor.py               ← EnsembleWeightedPredictor (PredictionPort, not PredictionEngine)
+├── kalman/                        ← Kalman filter engine
+│   ├── __init__.py
+│   ├── engine.py                  ← KalmanPredictionEngine
+│   ├── engine_helpers.py          ← Kalman helpers
+│   └── kalman_cv_math.py         ← Constant-velocity Kalman math
+├── multivariate/                  ← Multivariate correlation engine
+│   ├── __init__.py
+│   ├── engine.py                  ← MultivariatePredictionEngine
+│   ├── correlation_tracker.py     ← Cross-sensor correlation
+│   └── pca_online.py             ← Online PCA
+└── seasonal/                      ← Seasonal prediction engine
     ├── __init__.py
-    └── predictor.py               ← EnsembleWeightedPredictor (PredictionPort, not PredictionEngine)
+    ├── engine.py                  ← SeasonalPredictionEngine
+    ├── cycle_detector.py          ← Cycle detection
+    ├── resampler.py              ← Interval resampling
+    └── config.json               ← Engine configuration
 ```
 
 ## Confidence Floor
@@ -131,6 +171,9 @@ from infrastructure.ml.engines.statistical import StatisticalPredictionEngine
 from infrastructure.ml.engines.lightgbm import LightGBMPredictionEngine
 from infrastructure.ml.engines.adaptive_ensemble import AdaptiveEnsembleEngine
 from infrastructure.ml.engines.ensemble import EnsembleWeightedPredictor
+from infrastructure.ml.engines.kalman import KalmanPredictionEngine
+from infrastructure.ml.engines.multivariate import MultivariatePredictionEngine
+from infrastructure.ml.engines.seasonal import SeasonalPredictionEngine
 ```
 
 ---
@@ -222,3 +265,16 @@ discovered = discover_engines("my_package.engines")
 - `engine.py` orchestrates the math (delegates to math modules)
 - `adapter.py` bridges to domain layer (PredictionPort)
 - `math.py` is a backward-compat facade for old `from .taylor_math import ...` callers
+
+**Engine Summary:**
+
+| Engine | File(s) | Strategy |
+|--------|---------|----------|
+| Taylor | `taylor/` (9 files) | Taylor series + Savitzky-Golay smoothing |
+| Statistical | `statistical/` (2 files) | EMA/Holt double exponential smoothing |
+| Baseline | `baseline/` (2 files) | Simple moving average, adaptive window |
+| Kalman | `kalman/` (3 files) | Kalman filter, adaptive Q/R |
+| LightGBM | `lightgbm/` (3 files) | Gradient-boosting regressor (opt dep) |
+| Adaptive Ensemble | `adaptive_ensemble/` (1 file) | Regime-routing meta-engine |
+| Multivariate | `multivariate/` (3 files) | PCA online, cross-sensor correlation |
+| Seasonal | `seasonal/` (4 files) | Cycle detection + seasonal prediction |

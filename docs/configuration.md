@@ -1,6 +1,6 @@
 ## Configuration
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-06-23
 
 ### Feature Flags Reference
 
@@ -27,6 +27,16 @@ All flags read from environment variables. Safe defaults are conservative
 | `ML_ENABLE_DELTA_SPIKE_DETECTION` | `false` | Delta spike detection |
 | `ML_ENABLE_REGIME_DETECTION` | `false` | Regime detection |
 | `ML_ENABLE_AUDIT_LOGGING` | `false` | Audit logging |
+| `ML_USE_COGNITIVE_ORCHESTRATOR` | `true` | Enable meta-cognitive orchestration |
+| `ML_USE_MOE_ENGINE` | `false` | Mixture-of-Experts gating |
+| `ML_ENABLE_GOVERNANCE` | `true` | Governance system (9 componentes) |
+| `ML_ENABLE_CAUSAL` | `false` | Causal correlation analysis |
+| `ML_ENABLE_SHADOW_EVAL` | `false` | Shadow mode evaluation |
+| `ML_ENABLE_OBSERVABILITY` | `false` | Observability metrics export |
+| `ML_ENABLE_DYNAMIC_FEATURES` | `false` | Dynamic feature engineering |
+| `ML_ENABLE_MULTIVARIATE` | `false` | Multivariate anomaly detection |
+| `ML_ENABLE_CONTEXT` | `false` | Operational context phase |
+| `ML_ENABLE_READINESS_GATE` | `false` | Prediction readiness gate |
 
 #### Plasticity tuning
 | Flag | Default | Description |
@@ -72,15 +82,17 @@ All flags read from environment variables. Safe defaults are conservative
 | `ML_DECISION_THRESHOLD_INVESTIGATE` | `0.65` | Score threshold to investigate |
 | `ML_DECISION_THRESHOLD_MONITOR` | `0.40` | Score threshold to monitor |
 
-#### Anomaly tracking
+#### Anomaly tracking (v2.0)
 | Flag | Default | Description |
 |------|---------|-------------|
 | `ML_ANOMALY_TTL_SECONDS` | `7200.0` | Anomaly entry TTL (2 hours) |
 | `ML_ANOMALY_MAX_ENTRIES_PER_SERIES` | `500` | Max entries per series |
 | `ML_ANOMALY_KEY_TTL_SECONDS` | `3600` | Redis key TTL (1 hour) |
 | `ML_ANOMALY_TRACKER_BACKEND` | `memory` | Backend: memory or redis |
-| `ML_ANOMALY_VOTING_THRESHOLD` | `0.5` | Voting threshold |
-| `ML_ANOMALY_CONTAMINATION` | `0.1` | Contamination factor |
+| `ML_ANOMALY_VOTING_THRESHOLD` | `0.75` | Voting threshold (validado NAB) |
+| `ML_ANOMALY_CONTAMINATION` | `0.005` | Contamination factor (tasa real 0.37%) |
+| `ML_ANOMALY_Z_VOTE_LOWER` | `2.5` | Z-score lower threshold |
+| `ML_ANOMALY_Z_VOTE_UPPER` | `3.0` | Z-score upper threshold |
 
 #### Performance & streaming
 | Flag | Default | Description |

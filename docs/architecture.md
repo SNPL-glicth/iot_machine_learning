@@ -1,6 +1,6 @@
 # Arquitectura ZENIN
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-06-23
 **Aplica a:** `iot_machine_learning/` completo
 
 ---
@@ -59,13 +59,15 @@ infrastructure/ ────┘
 - `infrastructure/` importa de `domain/` (dirección correcta).
 - `ml_service/` puede importar de cualquier capa interna.
 
-### Violación conocida documentada
+### Violaciones conocidas documentadas
 
-`ContextualDecisionEngine` en `infrastructure/ml/cognitive/decision/contextual_decision_engine.py` importa `FeatureFlags` desde `ml_service.config.flags`. Esto viola la regla de que `infrastructure/` no debe importar de `ml_service/`. Impacto: acoplamiento temporal entre decisión y configuración de servicio.
+1. `ContextualDecisionEngine` en `infrastructure/ml/cognitive/decision/contextual_decision_engine.py` importa `FeatureFlags` desde `ml_service.config.flags`. Esto viola la regla de que `infrastructure/` no debe importar de `ml_service/`. Impacto: acoplamiento temporal entre decisión y configuración de servicio.
+
+2. `infrastructure/ml/cognitive/` creció a 30+ subdirectorios con lógica de negocio significativa (drift, compliance, narrative, neural, causal, memory). Parte de esta lógica pertenecería a `domain/` o `application/` en una arquitectura hexagonal estricta. Refactor progresivo etiquetado como deuda técnica.
 
 ---
 
-## 2. Pipeline Cognitivo Completo (15 Fases)
+## 2. Pipeline Cognitivo Completo (25+ Fases)
 
 ```mermaid
 flowchart LR
@@ -73,38 +75,46 @@ flowchart LR
         IN[Raw values + timestamps]
     end
 
-    subgraph Phase1["Fases 1–3: Pre-procesamiento"]
+    subgraph Phase1["Fases 1–4: Pre-procesamiento"]
         P1[SanitizePhase<br/>NaN/Inf hard-stop, 6σ clamp, CUSUM]
         P2[BoundaryCheckPhase<br/>Validación de dominio]
         P3[SeasonalDecompositionPhase<br/>FFT/STL removal]
+        P4[ContextPhase<br/>Contexto operacional]
     end
 
-    subgraph Phase2["Fases 4–5: Percepción + Drift"]
-        P4[PerceivePhase<br/>Regime + noise_ratio + neighbor trends]
-        P5[DriftDetectionPhase<br/>Page-Hinkley / ADWIN]
+    subgraph Phase2["Fases 5–9: Percepción + Drift + Causal"]
+        P5[PredictionReadinessGate<br/>Verifica disponibilidad]
+        P6[PerceivePhase<br/>Regime + noise_ratio + neighbor trends]
+        P7[DriftDetectionPhase<br/>Page-Hinkley / ADWIN]
+        P8[DriftResponsePhase<br/>Acción correctiva]
+        P9[CausalPhase<br/>Correlación causal]
     end
 
-    subgraph Phase3["Fases 6–9: Predicción + Fusión"]
-        P6[PredictPhase<br/>Motores concurrentes con timeout]
-        P7[AdaptPhase<br/>Resolución de pesos bayesianos]
-        P8[InhibitPhase<br/>Supresión por error reciente]
-        P9[FusePhase<br/>Hampel filter + WeightedFusion]
+    subgraph Phase3["Fases 10–14: Predicción + Fusión"]
+        P10[PredictPhase<br/>Motores concurrentes con timeout]
+        P11[AdaptPhase<br/>Resolución de pesos bayesianos]
+        P12[InhibitPhase<br/>Supresión por error reciente]
+        P13[FusePhase<br/>Hampel filter + WeightedFusion]
+        P14[DecisionArbiterPhase<br/>Arbitraje de decisión]
     end
 
-    subgraph Phase4["Fases 10–14: Decisión + Validación"]
-        P10[DecisionArbiterPhase<br/>Arbitraje de decisión]
-        P11[CoherenceCheckPhase<br/>Validación de coherencia]
-        P12[ConfidenceCalibrationPhase<br/>Calibración de confianza]
-        P13[ExplainPhase<br/>ExplanationRenderer + CausalNarrative]
-        P14[ActionGuardPhase<br/>Guardrails AUTO/ASK/DENY]
-        P15[NarrativeUnificationPhase<br/>Narrativa unificada]
+    subgraph Phase4["Fases 15–21: Validación + Memoria + Narrativa"]
+        P15[CoherenceCheckPhase<br/>Validación de coherencia]
+        P16[MemoryPhase<br/>Memoria cognitiva Weaviate]
+        P17[ConfidenceCalibrationPhase<br/>Calibración de confianza]
+        P18[ExplainPhase<br/>ExplanationRenderer + CausalNarrative]
+        P19[ActionGuardPhase<br/>Guardrails AUTO/ASK/DENY]
+        P20[NarrativeUnificationPhase<br/>Narrativa unificada]
+        P21[ShadowEvaluationPhase<br/>Evaluación en segundo plano]
     end
 
     subgraph Assembly["Ensamblaje Final"]
         A[AssemblyPhase<br/>PredictionResult + ComplianceExport]
+        OB[ObservabilityPhase<br/>Métricas y trazas]
     end
 
-    IN --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13 --> P14 --> P15 --> A
+    IN --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19 --> P20 --> P21 --> A
+    P21 --> OB
 ```
 
 ### Early Termination Points
@@ -137,7 +147,7 @@ sequenceDiagram
     C->>C: SlidingWindowStore.append()
     C->>O: predict(values, timestamps, series_id)
     O->>P: execute_pipeline()
-    P->>P: 15 fases secuenciales
+    P->>P: 25+ fases secuenciales
     P->>O: PredictionResult
     O->>A: log_series_prediction()
     O->>E: export(series_id, result)

@@ -1,6 +1,6 @@
 # ml_service/metrics
 
-Métricas de rendimiento y A/B testing para comparar motores de predicción.
+Métricas de rendimiento, observabilidad y A/B testing para comparar motores de predicción.
 
 ## Archivos
 
@@ -9,6 +9,8 @@ Métricas de rendimiento y A/B testing para comparar motores de predicción.
 | `ab_testing.py` | 283 | `ABTester` — registro de predicciones y singleton global |
 | `ab_metrics.py` | 164 | Funciones puras: `compute_mae`, `compute_rmse`, `determine_winner`, `compute_ab_result`, `aggregate_summary` |
 | `performance_metrics.py` | 269 | `MetricsCollector` — métricas de sistema (predicciones, errores, latencia) |
+| `observability_metrics.py` | — | Métricas de observabilidad expuestas vía Prometheus |
+| `prometheus_exporter.py` | — | Exportador de métricas Prometheus para `/metrics` |
 
 ## Diseño
 
@@ -26,6 +28,14 @@ ABTester.compute_results()
 ABTester.get_summary()
   └── ab_metrics.aggregate_summary(results)
 ```
+
+## Prometheus / Observability
+
+Las métricas del sistema se exportan via `prometheus-client` en el endpoint `/metrics`:
+- `ml_predictions_total` — contador de predicciones por sensor
+- `ml_prediction_errors_total` — contador de errores
+- `ml_prediction_latency_seconds` — histograma de latencia
+- `ml_ab_tester_*` — métricas de A/B testing
 
 ## Uso
 

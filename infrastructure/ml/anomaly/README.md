@@ -4,11 +4,16 @@
 Clean ensemble following SOLID principles.
 5 core components, each with one responsibility:
 
-- scoring/functions.py   → pure math only, no state
-- voting/strategy.py     → vote combination, no logic
-- core/config.py         → value object, no methods
-- factory/defaults.py    → 7 detectors, no conditionals
-- core/detector.py       → train/detect/is_trained only
+- `scoring/functions.py`      → pure math only, no state
+- `scoring/statistical_methods.py` → statistical scoring methods
+- `scoring/temporal.py`       → temporal anomaly scoring
+- `scoring/training.py`       → training data preparation
+- `voting/strategy.py`        → vote combination, no logic
+- `voting/context_builder.py` → context-aware voting
+- `core/config.py`            → value object, no methods
+- `core/protocol.py`          → SubDetector protocol
+- `factory/defaults.py`       → 7 detectors, no conditionals
+- `core/detector.py`          → train/detect/is_trained only
 
 ## Detectors (7 active)
 | Detector             | Weight | Purpose                    |
@@ -32,15 +37,21 @@ Clean ensemble following SOLID principles.
 | rolling_z hyst     | 3     | Filters transient noise             |
 
 ## Performance (NAB machine_temperature_system_failure)
-| Version | F1     | Precision | Recall | FP  |
-|---------|--------|-----------|--------|-----|
-| v1.0    | 0.164  | 0.161     | 0.167  | 73  |
-| v2.0    | 0.2857 | —         | 0.2143 | 24  |
+| Version   | F1     | Precision | Recall | FP  | Cliff's delta |
+|-----------|--------|-----------|--------|-----|:------------:|
+| v1.0      | 0.164  | 0.161     | 0.167  | 73  | — |
+| v2.0      | 0.2857 | —         | 0.2143 | 24  | 0.7261 |
+
+RollingZ config v1.0 → v2.0: `long_window=50→400`, `hysteresis=1→7`, `z_threshold=3.0→3.5`
+Validacion: Grid search sobre 243 combinaciones de hiperparametros.
+
+## CHANGELOG
+Ver `CHANGELOG.md` en este directorio para el historial completo de versiones.
 
 ## Critical Rules (never break these)
-1. weighted_vote: absent detectors excluded from numerator
+1. `weighted_vote`: absent detectors excluded from numerator
    AND denominator. Never divide by fixed 1.0.
-2. compute_z_vote: never shared between detectors.
+2. `compute_z_vote`: never shared between detectors.
    Each detector owns its own vote logic.
 3. One file changed = one benchmark run.
    F1 drop > 0.01 = immediate revert.
@@ -52,3 +63,17 @@ Clean ensemble following SOLID principles.
 - DB persistence for weights: added unpredictable state
 - IsolationForestNDDetector: no weight defined, bled into ensemble
 - LOFNDDetector: same issue as above
+
+## Additional Components
+### RUL Estimator (`rul/`)
+- `estimator.py` — Residual Useful Life estimation from anomaly patterns
+- `models.py` — Regression models for RUL
+- `narrator.py` — Narrative generation for RUL explanations
+
+### Persistent Detector (`persistent_detector.py`)
+- Wraps VotingAnomalyDetector with Redis-backed state persistence
+- Enables stateful anomaly detection across service restarts
+
+### Multivariate Detector (`detectors/multivariate/`)
+- Multi-sensor correlation-based anomaly detection
+- Complementa el detector univariado estándar

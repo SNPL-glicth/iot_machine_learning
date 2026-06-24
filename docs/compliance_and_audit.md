@@ -1,6 +1,6 @@
 # Cumplimiento y Auditoría
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-06-23
 **Archivo fuente:** `infrastructure/ml/cognitive/compliance/compliance_exporter.py`, `domain/ports/audit_port.py`
 
 ---
@@ -92,9 +92,9 @@ Implementaciones existentes: `FileAuditLogger`, `NullAuditLogger`, `SqlServerSto
 |-----------------|--------|-------|
 | Percepción de estado (State Perception) | ✅ Implementado | `PerceivePhase` + `SignalAnalyzer` |
 | Indicadores de condición (Condition Indicators) | ✅ Implementado | `noise_ratio`, `stability`, `regime`, `drift_magnitude` |
-| Detección de anomalías (Anomaly Detection) | ✅ Implementado | `VotingAnomalyDetector` con 8+ detectores |
-| Diagnóstico de causa raíz (Root Cause Diagnosis) | ❌ Faltante | `CausalNarrativeBuilder` es básico; no llega a causa mecánica |
-| Pronóstico de vida útil remanente (RUL) | ❌ Faltante | No implementado |
+| Detección de anomalías (Anomaly Detection) | ✅ Implementado | `VotingAnomalyDetector` v2.0 con 7 detectores |
+| Diagnóstico de causa raíz (Root Cause Diagnosis) | ⚠️ Parcial | `CausalNarrativeBuilder` básico; no llega a causa mecánica |
+| Pronóstico de vida útil remanente (RUL) | ✅ Implementado | `infrastructure/ml/anomaly/rul/` con estimator + models + narrator |
 | Recomendación de acción (Action Recommendation) | ⚠️ Parcial | `ContextualDecisionEngine` da acciones, no prioriza tareas de mantenimiento |
 
 ### ISO 27001
@@ -104,7 +104,7 @@ Implementaciones existentes: `FileAuditLogger`, `NullAuditLogger`, `SqlServerSto
 | A.12.4.1 — Logging de eventos | ✅ Implementado | `AuditPort` con eventos estructurados |
 | A.12.4.3 — Registro de cambios | ✅ Implementado | `log_config_change` |
 | A.9.4.2 — Control de acceso a datos | ⚠️ Parcial | `safe_series_id_to_int` valida entrada, pero no hay RBAC |
-| A.14.2.8 — Pruebas de sistemas | ✅ Implementado | 1,800+ tests unitarios + meta-tests arquitectónicos |
+| A.14.2.8 — Pruebas de sistemas | ✅ Implementado | 3,600+ tests (unit, integration, load, stress, property) |
 | A.12.3.1 — Gestión de capacidad | ❌ Faltante | No hay monitoreo de capacidad ni auto-scaling |
 | A.17.1.1 — Continuidad de negocio | ❌ Faltante | No hay plan de DR documentado |
 

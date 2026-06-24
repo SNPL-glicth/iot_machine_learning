@@ -5,10 +5,11 @@ Sistema cognitivo de ML con meta-cognición, plasticidad adaptativa y explicabil
 ## Package Structure (Reorganized 2026-03-20)
 
 ### 📁 orchestration/
-Core orchestration pipeline
+Core orchestration pipeline with 25+ phase files
 - `orchestrator.py` (296 lines) — `MetaCognitiveOrchestrator` main class
 - `pipeline_executor.py` — Pipeline execution logic with WeightCache
 - `fallback_handler.py` — Fallback handling
+- `phases/` — 25+ phase files: action_guard, adapt, assembly, boundary_check, causal, coherence_check, confidence_calibration, context, decision_arbiter, drift_detection, drift_response, explain, fuse, inhibit, memory, narrative_unification, observability, perceive, predict, prediction_readiness_gate, protocols, seasonal_decomposition, shadow_evaluation
 
 ### 📁 fusion/
 Weighted fusion and engine selection
@@ -43,6 +44,40 @@ Regime-contextual weight learning (base + advanced)
 - `adaptive_learning_rate.py` (240 lines) — Context-aware learning rates
 - `contextual_plasticity_tracker.py` (264 lines) — MAE tracking by context
 
+### 📁 drift/
+Online drift detection algorithms
+- `page_hinkley.py` — Page-Hinkley test for change detection
+- `adwin.py` — ADWIN (Adaptive Windowing) algorithm
+- `error_drift_detector.py` — Error-based drift detection
+
+### 📁 compliance/
+HMAC-SHA256 audit trail for forensic compliance
+- `compliance_exporter.py` — NDJSON append-only exporter
+- `compliance_record.py` — Signed prediction record model
+- `hmac_key_manager.py` — Key management for HMAC signing
+
+### 📁 narrative/
+Unified explanation narrative generation
+- `generator.py` — Narrative generator from reasoning traces
+- `phrase_bank.py` — Domain-specific phrase templates
+- `embedding_network.py` — Embedding-based narrative selection
+- `layers.py` — Neural layers for narrative assembly
+
+### 📁 decision/
+Contextual decision engine with multiple strategies
+- `contextual_decision_engine.py` — Main decision engine
+- `aggressive/`, `conservative/`, `cost_optimized/` — Strategy implementations
+
+### 📁 causal/
+Causal correlation between sensor series
+- `causal_correlation.py` — Correlation analysis
+- `event_propagation.py` — Event propagation graph
+
+### 📁 memory/
+Cognitive memory stores for anomaly and operational patterns
+- `anomaly_memory_store.py` — Historical anomaly memory
+- `operational_memory_pipeline.py` — Operational pattern memory
+
 ### 📁 analysis/
 Signal analysis and type definitions
 - `signal_analyzer.py` (182 lines) — `SignalAnalyzer` → `StructuralAnalysis`
@@ -67,12 +102,20 @@ Universal cognitive engines (14 files)
 
 ```
 predict(values)
-  ├── PERCEIVE  → SignalAnalyzer → StructuralAnalysis
-  ├── PREDICT   → engines paralelos → EnginePerception[]
-  ├── INHIBIT   → InhibitionGate → pesos suprimidos
-  ├── ADAPT     → PlasticityTracker / AdvancedPlasticityCoordinator
-  ├── FUSE      → WeightedFusion → valor final
-  └── EXPLAIN   → ExplanationBuilder → domain Explanation
+  ├── PERCEIVE       → SignalAnalyzer → StructuralAnalysis
+  ├── PREDICT        → engines paralelos → EnginePerception[]
+  ├── INHIBIT        → InhibitionGate → pesos suprimidos
+  ├── ADAPT          → PlasticityTracker / AdvancedPlasticityCoordinator
+  ├── FUSE           → WeightedFusion → valor final
+  ├── EXPLAIN        → ExplanationBuilder → domain Explanation
+  ├── CONTEXT        → Contexto operacional del sensor
+  ├── DRIFT_DETECT   → Page-Hinkley + ADWIN
+  ├── DRIFT_RESPONSE → Accion correctiva
+  ├── CAUSAL         → Correlacion causal entre series
+  ├── MEMORY         → Memoria cognitiva (Weaviate)
+  ├── NARRATIVE      → Unificacion de narrativa
+  ├── OBSERVABILITY  → Metricas y trazas
+  └── SHADOW_EVAL    → Evaluacion en segundo plano
 ```
 
 ## Regla de complejidad
@@ -96,20 +139,25 @@ explanation = orc.last_explanation  # domain Explanation value object
 cognitive/
 ├── __init__.py                    ← Public API
 ├── cognitive_adapter.py           ← PredictionPort bridge
+├── severity_classifier.py         ← Severity classification
 ├── README.md
 ├── orchestration/                 ← Core pipeline
 │   ├── orchestrator.py
 │   ├── pipeline_executor.py
-│   └── fallback_handler.py
+│   ├── fallback_handler.py
+│   └── phases/                    ← 25+ phase files
 ├── fusion/                        ← Weighted fusion
 │   ├── engine_selector.py
 │   ├── fusion_phases.py
+│   ├── hampel_filter.py
 │   ├── weight_mediator.py
 │   ├── weight_adjustment_service.py
 │   └── contextual_weight_calculator.py
 ├── inhibition/                    ← Weight suppression
 │   ├── gate.py
-│   └── rules.py
+│   ├── rules.py
+│   ├── smart_rules.py
+│   └── adaptive_config.py
 ├── explanation/                   ← Explanation builder
 │   ├── builder.py
 │   └── explanation_builder.py    ← facade
@@ -129,6 +177,57 @@ cognitive/
 │   └── types.py
 ├── monitoring/                    ← Health monitor
 │   └── engine_health_monitor.py
+├── drift/                         ← Online drift detection
+│   ├── page_hinkley.py
+│   ├── adwin.py
+│   └── error_drift_detector.py
+├── compliance/                    ← HMAC audit trail
+│   ├── compliance_exporter.py
+│   ├── compliance_record.py
+│   └── hmac_key_manager.py
+├── narrative/                     ← Narrative generation
+│   ├── generator.py
+│   ├── phrase_bank.py
+│   ├── embedding_network.py
+│   └── layers.py
+├── decision/                      ← Decision strategies
+│   ├── contextual_decision_engine.py
+│   ├── aggressive/
+│   ├── conservative/
+│   └── cost_optimized/
+├── causal/                        ← Causal correlation
+│   ├── causal_correlation.py
+│   └── event_propagation.py
+├── memory/                        ← Cognitive memory
+│   ├── anomaly_memory_store.py
+│   └── operational_memory_pipeline.py
+├── neural/                        ← Neural engines
+│   ├── hybrid_engine.py
+│   ├── attention/
+│   ├── classical/
+│   ├── competition/
+│   ├── pipeline/
+│   ├── plasticity/
+│   └── snn/
+├── regime/                        ← Regime classification
+│   ├── classifier.py
+│   ├── factory.py
+│   ├── heuristic.py
+│   └── router.py
+├── sanitize/                      ← Data sanitization
+│   ├── imputer.py
+│   ├── cusum.py
+│   ├── phase.py
+│   └── bounds_provider.py
+├── seasonal/                      ← Seasonal decomposition
+│   ├── fft_seasonality.py
+│   └── stl_decomposer.py
+├── bayesian_weight_tracker/       ← Per-sensor weight learning (33 files)
+├── error_store/
+├── explainability/
+├── hyperparameters/
+├── observability/
+├── reliability/
 ├── text/                          ← Text engine (18 files)
 └── universal/                     ← Universal engines (14 files)
 ```
