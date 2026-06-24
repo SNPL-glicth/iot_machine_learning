@@ -7,7 +7,8 @@ if TYPE_CHECKING:
 from .phases import PipelineContext, create_initial_context
 from ..sanitize import SanitizePhase
 from .phases.boundary_check_phase import BoundaryCheckPhase
-from .phases.seasonal_decomposition_phase import SeasonalDecompositionPhase
+from .phases.prediction_readiness_gate import PredictionReadinessGate
+
 from .phases.perceive_phase import PerceivePhase
 from .phases.drift_detection_phase import DriftDetectionPhase
 from .phases.predict_phase import PredictPhase
@@ -32,11 +33,12 @@ class PipelineExecutor:
     """Orquesta ejecución secuencial de fases."""
     def __init__(self, phases: Optional[list]=None, compliance_exporter: Optional[ComplianceExporter]=None) -> None:
         if phases is None:
-            phases = [SanitizePhase(), BoundaryCheckPhase(), SeasonalDecompositionPhase(),
-                      PerceivePhase(), DriftDetectionPhase(), PredictPhase(), AdaptPhase(),
+            phases = [SanitizePhase(), BoundaryCheckPhase(), PredictionReadinessGate(),
+               PerceivePhase(), DriftDetectionPhase(),
+                      PredictPhase(), AdaptPhase(),
                       InhibitPhase(), FusePhase(), DecisionArbiterPhase(), CoherenceCheckPhase(),
-                      ConfidenceCalibrationPhase(), ExplainPhase(), ActionGuardPhase(),
-                      NarrativeUnificationPhase(), MemoryPhase(), CausalPhase(),
+                      ConfidenceCalibrationPhase(), CausalPhase(), ExplainPhase(), ActionGuardPhase(),
+                      NarrativeUnificationPhase(), MemoryPhase(),
                       ObservabilityPhase()]
         self._phases = phases
         self._assembly = AssemblyPhase(compliance_exporter=compliance_exporter)
@@ -68,6 +70,8 @@ class PipelineExecutor:
                 return self._create_early_result(ctx)
             if ctx.is_fallback and ctx.fallback_reason == "nan_or_inf_rejected":
                 return self._create_sanitize_fallback_result(ctx)
+            if ctx.is_fallback and ctx.fallback_reason == "quality_too_low_log_only":
+                return self._create_quality_fallback_result(ctx)
             if ctx.is_fallback and ctx.diagnostic is not None:
                 return self._create_fallback_result(ctx)
             if _total_elapsed_ms > timer.budget_ms:
@@ -105,6 +109,19 @@ class PipelineExecutor:
                 "rejection_reason": "over_budget",
             },
         )
+    def _create_quality_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
+        from ...interfaces import PredictionResult
+        return PredictionResult(
+            predicted_value=None, confidence=0.0, trend="unknown",
+            metadata={
+                "is_quality_fallback": True,
+                "rejection_reason": "quality_too_low_log_only",
+                "data_quality_score": getattr(ctx, "data_quality_score", 0.0),
+                "max_action": getattr(ctx, "max_action", "LOG_ONLY"),
+                "sanitization_flags": list(getattr(ctx, "sanitization_flags", [])),
+            },
+        )
+
     def _create_sanitize_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
         return PredictionResult(

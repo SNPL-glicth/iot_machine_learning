@@ -28,3 +28,4 @@ class BoundaryResult:
     rejection_reason: Optional[str] = None
     data_quality_score: float = 1.0
     warnings: List[str] = field(default_factory=list)
+    dynamic_range_used: bool = False

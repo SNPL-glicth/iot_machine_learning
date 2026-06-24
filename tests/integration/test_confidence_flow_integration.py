@@ -1,158 +1,74 @@
-"""Integration test for full confidence calibration flow.
+"""Integration test for unified confidence calibration flow.
 
 Tests the complete pipeline:
-1. Raw confidence from engines
-2. Domain penalty-based calibration (pre-decision)
-3. Fusion (weighted average)
-4. Infrastructure temperature scaling (post-fusion)
-5. Final scaled confidence
-
-This test uses mocked engines to isolate confidence calibration logic.
+1. Raw confidence from engine fusion
+2. Unified temperature‑scaled sigmoid calibration (infrastructure/ml/calibration/)
+3. Floor=0.30, ceiling=0.95, data_quality adjusts temperature
 """
 
 import pytest
 
-from core.tuning.temperature_scaling import TemperatureScaler
-from domain.services.confidence_calibrator import ConfidenceCalibrator
+from iot_machine_learning.infrastructure.ml.calibration import ConfidenceCalibrator
 
 
 class TestConfidenceFlowIntegration:
-    """Integration tests for complete confidence calibration flow."""
+    """Integration tests for unified confidence calibration flow."""
 
     def test_happy_path_full_flow(self):
-        """Happy path: raw confidence → domain calibrate → fuse → scale."""
-        # Step 1: Raw confidence from engines (simulated)
+        """Happy path: raw confidence → calibrate with good data quality."""
         raw_engine_confidences = [0.85, 0.80, 0.90]
-        fused_confidence = sum(raw_engine_confidences) / len(raw_engine_confidences)  # 0.85
+        fused_confidence = sum(raw_engine_confidences) / len(raw_engine_confidences)
 
-        # Step 2: Domain penalty-based calibration (pre-decision)
-        domain_calibrator = ConfidenceCalibrator()
-        domain_result = domain_calibrator.calibrate(
-            raw_confidence=fused_confidence,
-            n_points=20,  # Good sample size
-            noise_ratio=0.3,  # Low noise
-            engine_disagreement=0.1,  # Low disagreement
-            only_baseline_active=False,
-            coherence_conflict=False,
-            all_engines_inhibited=False,
-        )
-        # Should have minimal penalties
-        assert domain_result.calibrated >= 0.70  # Some penalty may apply
-        assert domain_result.penalty_applied >= 0.0
-
-        # Step 3: Use calibrated confidence for decision (simulated)
-        # In real flow, this would go to decision engine
-        decision_confidence = domain_result.calibrated
-
-        # Step 4: Infrastructure temperature scaling (post-fusion)
-        # In real flow, this happens in ConfidenceCalibrationPhase
-        temp_scaler = TemperatureScaler()
-        temp_result = temp_scaler.scale(
-            confidence=decision_confidence,
+        calibrator = ConfidenceCalibrator()
+        result = calibrator.calibrate(
+            score=fused_confidence,
             regime="STABLE",
+            data_quality=1.0,
         )
 
-        # Step 5: Verify final scaled confidence
-        assert 0.3 <= temp_result.scaled_confidence <= 0.95  # Floor/ceiling
-        assert temp_result.temperature_used == 1.2  # STABLE regime
-        assert "sigmoid" in temp_result.formula
+        assert 0.30 <= result.calibrated <= 0.95
+        assert result.raw == fused_confidence
 
     def test_edge_case_low_quality_data(self):
-        """Edge case: low quality data triggers penalties and scaling."""
-        # Step 1: Raw confidence from engines (low)
-        raw_engine_confidences = [0.60, 0.55, 0.65]
-        fused_confidence = sum(raw_engine_confidences) / len(raw_engine_confidences)  # 0.60
+        """Low data_quality boosts temperature, lowering calibrated confidence."""
+        calibrator = ConfidenceCalibrator()
+        good = calibrator.calibrate(score=0.85, regime="STABLE", data_quality=1.0)
+        bad = calibrator.calibrate(score=0.85, regime="STABLE", data_quality=0.2)
 
-        # Step 2: Domain penalty-based calibration with many penalties
-        domain_calibrator = ConfidenceCalibrator()
-        domain_result = domain_calibrator.calibrate(
-            raw_confidence=fused_confidence,
-            n_points=5,  # Low sample size
-            noise_ratio=0.8,  # High noise
-            engine_disagreement=0.5,  # High disagreement
-            only_baseline_active=True,  # Only baseline
-            coherence_conflict=True,  # Coherence conflict
-            all_engines_inhibited=False,
-        )
+        assert bad.calibrated <= good.calibrated
+        assert any("×1.6" in r for r in bad.reasons)
+        assert 0.30 <= bad.calibrated <= 0.95
 
-        # Should have significant penalties, but capped at 50%
-        assert domain_result.penalty_applied > 0.20
-        assert domain_result.calibrated >= 0.05  # Floor
-        assert "penalty_capped" in domain_result.reasons[-1] or domain_result.penalty_applied <= 0.30
+    def test_volatile_regime_lowers_confidence(self):
+        """VOLATILE regime uses higher temperature → lower calibrated."""
+        calibrator = ConfidenceCalibrator()
+        stable = calibrator.calibrate(score=0.85, regime="STABLE", data_quality=1.0)
+        volatile = calibrator.calibrate(score=0.85, regime="VOLATILE", data_quality=1.0)
+        assert volatile.calibrated <= stable.calibrated
 
-        # Step 3: Temperature scaling with VOLATILE regime
-        temp_scaler = TemperatureScaler()
-        temp_result = temp_scaler.scale(
-            confidence=domain_result.calibrated,
-            regime="VOLATILE",
-        )
+    def test_same_input_same_output(self):
+        """Same input always produces same output (deterministic)."""
+        calibrator = ConfidenceCalibrator()
+        r1 = calibrator.calibrate(score=0.75, regime="STABLE", data_quality=1.0)
+        r2 = calibrator.calibrate(score=0.75, regime="STABLE", data_quality=1.0)
+        assert r1.calibrated == r2.calibrated
+        assert r1.reasons == r2.reasons
 
-        # VOLATILE regime should further reduce confidence
-        assert temp_result.temperature_used == 2.0
-        assert temp_result.scaled_confidence >= 0.3  # Floor from CONFIDENCE.MIN
+    def test_floor_never_below_030(self):
+        """Calibrated confidence never below 0.30."""
+        calibrator = ConfidenceCalibrator()
+        result = calibrator.calibrate(score=-10.0, regime="VOLATILE", data_quality=0.1)
+        assert result.calibrated == 0.30
 
-    def test_edge_case_high_confidence_with_consensus(self):
-        """Edge case: high confidence with strong consensus."""
-        # Step 1: Raw confidence from engines (high)
-        raw_engine_confidences = [0.95, 0.94, 0.96]
-        fused_confidence = sum(raw_engine_confidences) / len(raw_engine_confidences)  # 0.95
+    def test_ceiling_never_above_095(self):
+        """Calibrated confidence never above 0.95."""
+        calibrator = ConfidenceCalibrator()
+        result = calibrator.calibrate(score=500.0, regime="STABLE", data_quality=1.0)
+        assert result.calibrated == 0.95
 
-        # Step 2: Domain penalty-based calibration (minimal penalties)
-        domain_calibrator = ConfidenceCalibrator()
-        domain_result = domain_calibrator.calibrate(
-            raw_confidence=fused_confidence,
-            n_points=50,  # Large sample
-            noise_ratio=0.1,  # Very low noise
-            engine_disagreement=0.05,  # Very low disagreement
-            only_baseline_active=False,
-            coherence_conflict=False,
-            all_engines_inhibited=False,
-        )
-
-        # Should have minimal penalties
-        assert domain_result.penalty_applied < 0.10
-        assert domain_result.calibrated > 0.85
-
-        # Step 3: Temperature scaling with STABLE regime
-        temp_scaler = TemperatureScaler()
-        temp_result = temp_scaler.scale(
-            confidence=domain_result.calibrated,
-            regime="STABLE",
-        )
-
-        # Temperature scaling centers around 0.5, so high confidence gets reduced
-        # This is expected behavior - sigmoid((c - 0.5) / T)
-        assert 0.5 <= temp_result.scaled_confidence <= 0.95  # Valid range
-        assert temp_result.temperature_used == 1.2
-        # The scaling is correct: sigmoid centers around 0.5
-        assert temp_result.scaled_confidence > 0.5  # Above center
-
-    def test_floor_respected_in_full_flow(self):
-        """Verify floor is respected throughout the flow."""
-        # Step 1: Very low raw confidence
-        fused_confidence = 0.20
-
-        # Step 2: Domain calibration with penalties
-        domain_calibrator = ConfidenceCalibrator()
-        domain_result = domain_calibrator.calibrate(
-            raw_confidence=fused_confidence,
-            n_points=3,
-            noise_ratio=0.9,
-            engine_disagreement=0.8,
-            only_baseline_active=True,
-            coherence_conflict=True,
-            all_engines_inhibited=False,
-        )
-
-        # Should hit floor 0.05
-        assert domain_result.calibrated >= 0.05
-
-        # Step 3: Temperature scaling
-        temp_scaler = TemperatureScaler()
-        temp_result = temp_scaler.scale(
-            confidence=domain_result.calibrated,
-            regime="NOISY",
-        )
-
-        # Should respect floor 0.3 from CONFIDENCE.MIN
-        assert temp_result.scaled_confidence >= 0.3
+    def test_invalid_score_returns_floor(self):
+        """NaN or inf score returns floor=0.30."""
+        calibrator = ConfidenceCalibrator()
+        for bad in [float("nan"), float("inf"), float("-inf")]:
+            result = calibrator.calibrate(score=bad, regime="STABLE")
+            assert result.calibrated == 0.30

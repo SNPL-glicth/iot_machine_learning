@@ -105,10 +105,24 @@ class AssemblyPhase:
             "cognitive_trace": self._build_cognitive_trace(ctx),
             # IMP-1: always surface sanitization flags (empty list on clean input).
             "sanitization_flags": list(getattr(ctx, "sanitization_flags", [])),
+            # PredictionReadinessGate: max_action and data_quality_score
+            "data_quality_score": getattr(ctx, "data_quality_score", 1.0),
+            "max_action": getattr(ctx, "max_action", "PREDICT"),
             # IMP-2: fusion/Hampel flags + per-engine failure visibility.
             "fusion_flags": list(getattr(ctx, "fusion_flags", [])),
             "engine_failures": list(getattr(ctx, "engine_failures", [])),
         }
+        # Drift detection enrichment
+        drift_event = ctx.metadata.get("drift_event")
+        if drift_event:
+            metadata["drift_event"] = drift_event
+        drift_type = getattr(ctx, "drift_type", None)
+        if drift_type:
+            metadata["drift_type"] = drift_type
+        drift_cause = getattr(ctx, "drift_cause", None)
+        if drift_cause:
+            metadata["drift_cause"] = drift_cause
+
         # IMP-2: include Hampel diagnostic when something was computed.
         hampel_diag = getattr(ctx, "hampel_diagnostic", None)
         if hampel_diag:

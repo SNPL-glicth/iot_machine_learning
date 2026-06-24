@@ -1,7 +1,12 @@
-"""Tests for SanitizePhase (IMP-1).
+"""Tests for SanitizePhase (IMP-1 + extended).
 
-Covers the four scenarios mandated by the spec plus unit coverage of
-the CUSUM detector, bounds providers, and pipeline wiring.
+Covers:
+  * NaN/Inf → per-value rejection (fallback only when ALL values rejected)
+  * In-window linear interpolation when adjacent valid values exist
+  * History-based imputation fallback with store
+  * Spike detection (>5σ from history)
+  * data_quality_score computation
+  * CUSUM, bounds providers, pipeline wiring
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.orchestration.phases impor
 )
 
 
-# -- fake Redis (minimal; shared with SeriesValuesStore tests) ------------
+# -- fake Redis ------------------------------------------------------------
 
 
 class _FakePipeline:
@@ -92,46 +97,120 @@ def _make_ctx(values, series_id="s-1"):
 
 
 # =========================================================================
-# Four mandated scenarios
+# Core scenarios
 # =========================================================================
 
 
-class TestMandatoryScenarios:
-    """The four test cases explicitly required by the IMP-1 spec."""
-
-    # (1) float('inf') → flag + fallback, no exception, pipeline does not crash
-    def test_inf_in_values_flags_and_fallback(self) -> None:
+class TestCorScenarios:
+    def test_inf_values_get_imputed_in_window_when_adjacent_valid(self) -> None:
         phase = SanitizePhase()
         ctx = _make_ctx([10.0, 11.0, float("inf"), 12.0])
-
         result = phase.execute(ctx)
+        assert "value_imputed" in result.sanitization_flags
+        assert not result.is_fallback
+        assert len(result.sanitized_values) == 4
+        # inf at index 2 → interpolated between 11.0 and 12.0 = 11.5
+        assert result.sanitized_values[2] == pytest.approx(11.5)
 
+    def test_all_nan_triggers_fallback(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([float("nan"), float("nan")])
+        result = phase.execute(ctx)
         assert "nan_or_inf_rejected" in result.sanitization_flags
         assert result.is_fallback is True
         assert result.fallback_reason == "nan_or_inf_rejected"
         assert result.sanitized_values == []
 
-    def test_nan_in_values_flags_and_fallback(self) -> None:
+    def test_nan_imputed_by_history_when_no_adjacent(self) -> None:
         phase = SanitizePhase()
-        ctx = _make_ctx([10.0, float("nan"), 12.0])
-
+        ctx = _make_ctx([float("nan")])
         result = phase.execute(ctx)
-
+        # No store → no history → value_rejected, but only NaN, so fallback
+        assert "value_rejected" in result.sanitization_flags
         assert "nan_or_inf_rejected" in result.sanitization_flags
         assert result.is_fallback is True
 
-    # (2) slow linear ramp → cusum_ramp_detected fires; values pass through
+    def test_in_window_linear_interpolation(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([1.0, float("nan"), 3.0, 4.0])
+        result = phase.execute(ctx)
+        assert "value_imputed" in result.sanitization_flags
+        assert len(result.sanitized_values) == 4
+        # NaN at index 1 → interpolated between 1.0 and 3.0 = 2.0
+        assert result.sanitized_values[1] == pytest.approx(2.0)
+
+    def test_nan_at_start_backfilled(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([float("nan"), 5.0, 6.0])
+        result = phase.execute(ctx)
+        assert "value_imputed" in result.sanitization_flags
+        assert result.sanitized_values[0] == 5.0  # backfill from next valid
+
+    def test_nan_at_end_forward_filled(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([5.0, 6.0, float("nan")])
+        result = phase.execute(ctx)
+        assert "value_imputed" in result.sanitization_flags
+        assert result.sanitized_values[2] == 6.0  # forward fill from prev
+
+    def test_history_imputation_when_window_cannot_interpolate(self) -> None:
+        redis = _FakeRedis()
+        store = SeriesValuesStore(redis_client=redis)
+        store.append_many("sid", [10.0, 20.0, 30.0, 40.0, 50.0])
+        phase = SanitizePhase(series_values_store=store)
+        # Single NaN in isolation (no neighbours in window)
+        ctx = _make_ctx([float("nan")], series_id="sid")
+        result = phase.execute(ctx)
+        assert "value_imputed_from_history" in result.sanitization_flags or "value_imputed" in result.sanitization_flags
+        # Median of [10,20,30,40,50] = 30.0
+        assert result.sanitized_values[0] == pytest.approx(30.0)
+
+    def test_spike_detected_from_history(self) -> None:
+        redis = _FakeRedis()
+        store = SeriesValuesStore(redis_client=redis)
+        # Tight history around 10 ± 1
+        store.append_many("sid", [9.0, 10.0, 11.0] * 30)
+        phase = SanitizePhase(series_values_store=store)
+        ctx = _make_ctx([10.0, 1000.0, 10.0], series_id="sid")
+        result = phase.execute(ctx)
+        assert "spike_suspected" in result.sanitization_flags
+
+    def test_no_false_spike_on_normal_values(self) -> None:
+        redis = _FakeRedis()
+        store = SeriesValuesStore(redis_client=redis)
+        store.append_many("sid", [9.0, 10.0, 11.0] * 10)
+        phase = SanitizePhase(series_values_store=store)
+        ctx = _make_ctx([10.0, 10.5, 9.8], series_id="sid")
+        result = phase.execute(ctx)
+        assert "spike_suspected" not in result.sanitization_flags
+
+    def test_data_quality_score_perfect(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = phase.execute(ctx)
+        assert result.data_quality_score == pytest.approx(1.0)
+
+    def test_data_quality_score_reduced_on_problematic(self) -> None:
+        phase = SanitizePhase()
+        # 1 NaN in 4 → imputed → 1/4 = 0.25 problematic → score = 0.75
+        ctx = _make_ctx([1.0, float("nan"), 3.0, 4.0])
+        result = phase.execute(ctx)
+        assert result.data_quality_score == pytest.approx(0.75, abs=0.01)
+
+    def test_data_quality_score_zero_when_all_rejected(self) -> None:
+        phase = SanitizePhase()
+        ctx = _make_ctx([float("nan"), float("nan")])
+        result = phase.execute(ctx)
+        assert result.data_quality_score == pytest.approx(0.0)
+
+    # (4) slow linear ramp → cusum_ramp_detected fires; values pass through
     def test_slow_linear_ramp_triggers_cusum(self) -> None:
-        # 20 points, clear drift. Added small noise so σ > 0 without killing the trend.
         values = [10.0 + 0.5 * i + (0.01 if i % 2 else -0.01) for i in range(20)]
         phase = SanitizePhase()
         ctx = _make_ctx(values, series_id="ramp-series")
-
         result = phase.execute(ctx)
-
         assert "cusum_ramp_detected" in result.sanitization_flags
         assert result.is_fallback is False
-        # CUSUM should NOT block — values flow through.
         assert result.sanitized_values is not None
         assert len(result.sanitized_values) == len(values)
 
@@ -140,26 +219,23 @@ class TestMandatoryScenarios:
         phase = SanitizePhase(
             config=SanitizeConfig(min_window_size=10, redis_min_samples=20),
         )
-        ctx = _make_ctx([10.0, 11.0, 12.0], series_id="cold-series")  # < 10
-
+        ctx = _make_ctx([10.0, 11.0, 12.0], series_id="cold-series")
         result = phase.execute(ctx)
-
         assert "bounds_unavailable_skipped" in result.sanitization_flags
         assert result.sanitized_values == [10.0, 11.0, 12.0]
         assert result.is_fallback is False
 
-    # (4) clean input → empty flags list, values pass through unchanged
+    # clean input → empty flags list, values pass through unchanged
     def test_clean_input_empty_flags(self) -> None:
         phase = SanitizePhase()
         values = [10.0, 10.1, 9.9, 10.05, 9.95]
         ctx = _make_ctx(values, series_id="clean-series")
-
         result = phase.execute(ctx)
-
         assert result.sanitization_flags == []
         assert result.sanitized_values == values
         assert result.values == values
         assert result.is_fallback is False
+        assert result.data_quality_score == pytest.approx(1.0)
 
 
 # =========================================================================
@@ -171,7 +247,6 @@ class TestClamping:
     def test_clamp_above_upper_bound(self) -> None:
         redis = _FakeRedis()
         store = SeriesValuesStore(redis_client=redis)
-        # Seed tight history around 10 (σ≈0.82) → 6σ bound ≈ 15
         seed = [9.0, 10.0, 11.0] * 20
         store.append_many("s", seed)
         phase = SanitizePhase(
@@ -186,7 +261,6 @@ class TestClamping:
     def test_explicit_bounds_from_store(self) -> None:
         redis = _FakeRedis()
         store = SeriesValuesStore(redis_client=redis)
-        # Tight history around 10 with σ≈1 → 6σ bounds ≈ [4, 16]
         store.append_many("sid", [9.0, 10.0, 11.0] * 20)
         phase = SanitizePhase(
             config=SanitizeConfig(redis_min_samples=20),
@@ -194,7 +268,6 @@ class TestClamping:
         )
         ctx = _make_ctx([10.0, 10.0, 10.0, 100.0], series_id="sid")
         result = phase.execute(ctx)
-        # 100 clamped to the upper Redis-derived bound.
         assert result.sanitized_values[-1] < 100.0
         assert any(f.startswith("value_clamped:") for f in result.sanitization_flags)
 
@@ -217,8 +290,6 @@ class TestExceptionSafety:
         )
         ctx = _make_ctx([10.0, 11.0, 12.0])
         result = phase.execute(ctx)
-
-        # Never raises; either runs via swallowed-exception path or continues.
         assert "sanitize_exception_swallowed" in result.sanitization_flags
 
     def test_empty_input_no_crash(self) -> None:
@@ -246,7 +317,6 @@ class TestCUSUM:
 
     def test_random_noise_does_not_ramp(self) -> None:
         import random
-
         random.seed(0)
         values = [10.0 + random.gauss(0, 0.01) for _ in range(50)]
         assert detect_ramp(values) is False
@@ -300,17 +370,46 @@ class TestPipelineWiring:
         from iot_machine_learning.infrastructure.ml.cognitive.orchestration.pipeline_executor import (
             PipelineExecutor,
         )
-
-        executor = PipelineExecutor()
-        assert executor._phases[0].__class__.__name__ == "SanitizePhase"
-        assert executor._phases[1].__class__.__name__ == "BoundaryCheckPhase"
-        assert executor._phases[2].__class__.__name__ == "PerceivePhase"
-
-    def test_inf_triggers_sanitize_fallback_result(self) -> None:
-        """End-to-end: float('inf') → PredictionResult with is_sanitize_fallback."""
-        from iot_machine_learning.infrastructure.ml.cognitive.orchestration.pipeline_executor import (
-            PipelineExecutor,
+        # Just verify the default phase list ordering without constructing
+        assert PipelineExecutor.__init__.__defaults__ is not None
+        # Alternative: check factory directly
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration.pipeline_executor_factory import (
+            PipelineExecutorFactory,
         )
+        factory = PipelineExecutorFactory()
+
+        class _MockFlags:
+            ML_DECISION_ARBITER_ENABLED = False
+            ML_COHERENCE_CHECK_ENABLED = False
+            ML_CONFIDENCE_CALIBRATION_ENABLED = False
+            ML_ACTION_GUARD_ENABLED = False
+            ML_EXPLAINABILITY_ENABLED = False
+            ML_NARRATIVE_ENABLED = False
+            ML_DOMAIN_BOUNDARY_ENABLED = False
+
+        executor = factory.create(flags_snapshot=_MockFlags())
+        names = [p.__class__.__name__ for p in executor._phases]
+        assert names[0] == "SanitizePhase"
+        assert names[1] == "BoundaryCheckPhase"
+        assert names[2] == "PredictionReadinessGate"
+        assert names[3] == "PerceivePhase"
+
+    def test_all_nan_triggers_sanitize_fallback_result(self) -> None:
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration.pipeline_executor_factory import (
+            PipelineExecutorFactory,
+        )
+        from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
+            pipeline_executor as pe_mod,
+        )
+
+        class _MockFlags:
+            ML_DECISION_ARBITER_ENABLED = False
+            ML_COHERENCE_CHECK_ENABLED = False
+            ML_CONFIDENCE_CALIBRATION_ENABLED = False
+            ML_ACTION_GUARD_ENABLED = False
+            ML_EXPLAINABILITY_ENABLED = False
+            ML_NARRATIVE_ENABLED = False
+            ML_DOMAIN_BOUNDARY_ENABLED = False
 
         class _MockOrchestrator:
             _budget_ms = 500.0
@@ -318,21 +417,49 @@ class TestPipelineWiring:
             _last_explanation = None
             _series_values_store = None
 
-        class _MockFlags:
-            ML_DOMAIN_BOUNDARY_ENABLED = False
-
-        executor = PipelineExecutor()
+        factory = PipelineExecutorFactory()
+        executor = factory.create(flags_snapshot=_MockFlags())
         result = executor.execute(
             orchestrator=_MockOrchestrator(),
-            values=[1.0, 2.0, float("inf"), 3.0],
+            values=[float("nan"), float("nan")],
             timestamps=None,
             series_id="test-series",
             flags=_MockFlags(),
         )
 
-        # Sanitize-fallback short-circuits the pipeline.
         assert result.predicted_value is None
         assert result.confidence == 0.0
         assert result.metadata["is_sanitize_fallback"] is True
         assert result.metadata["rejection_reason"] == "nan_or_inf_rejected"
         assert "nan_or_inf_rejected" in result.metadata["sanitization_flags"]
+
+
+# =========================================================================
+# Imputer unit tests
+# =========================================================================
+
+
+class TestLinearInterpolator:
+    def test_importable(self) -> None:
+        from iot_machine_learning.infrastructure.ml.cognitive.sanitize.imputer import (
+            LinearInterpolator,
+        )
+        imp = LinearInterpolator()
+        result = imp.impute(float("nan"), [1.0, 2.0, 3.0, 4.0])
+        assert result == pytest.approx(2.5)
+
+    def test_insufficient_history_raises(self) -> None:
+        from iot_machine_learning.infrastructure.ml.cognitive.sanitize.imputer import (
+            LinearInterpolator,
+        )
+        imp = LinearInterpolator(min_history=5)
+        with pytest.raises(ValueError):
+            imp.impute(float("nan"), [1.0, 2.0])
+
+    def test_fallback_value_on_insufficient_history(self) -> None:
+        from iot_machine_learning.infrastructure.ml.cognitive.sanitize.imputer import (
+            LinearInterpolator,
+        )
+        imp = LinearInterpolator(min_history=5, fallback_value=42.0)
+        result = imp.impute(float("nan"), [1.0, 2.0])
+        assert result == 42.0

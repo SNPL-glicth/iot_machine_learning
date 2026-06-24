@@ -1,95 +1,186 @@
-"""Inhibit Phase — MED-1 Refactoring.
+"""Inhibit Phase — Beta-Bernoulli reliability inhibition only.
 
-Engine inhibition and weight mediation.
+Legacy 3-threshold mode has been removed.  The sole inhibition authority
+is the EngineReliabilityTracker Beta-Bernoulli posterior.
+
+Redis persistence:
+  zenin:inhibition:{series_id}:{engine} — suppression factor (TTL 3600s)
+
+Thread-safe via threading.RLock on _prev_suppression state.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import TYPE_CHECKING, List
-
-from core.parameters.numerical_constants import EPSILON
+import math
+import threading
+import time
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from . import PipelineContext
 
+from ...analysis.types import InhibitionState
+
 logger = logging.getLogger(__name__)
 
+_INHIBITION_REDIS_PREFIX = "zenin:inhibition"
+_INHIBITION_REDIS_TTL = 3600
 
-def _compute_signal_z_score(values: List[float]) -> float:
-    """Compute z-score of the most recent value relative to the window."""
-    if len(values) < 3:
-        return 0.0
-    
-    historical = values[:-1]
-    mean = sum(historical) / len(historical)
-    variance = sum((x - mean) ** 2 for x in historical) / len(historical)
-    std = variance ** 0.5
-    
-    if std < EPSILON.DIVISION:
-        return 0.0
-    
-    return (values[-1] - mean) / std
+
+def _get_redis(ctx: PipelineContext) -> Any:
+    store = getattr(ctx.orchestrator, "_series_values_store", None)
+    if store is not None:
+        return getattr(store, "_redis", None)
+    return None
+
+
+def _redis_suppression_key(series_id: str, engine: str) -> str:
+    return f"{_INHIBITION_REDIS_PREFIX}:{series_id}:{engine}"
+
+
+def _load_suppression_from_redis(redis: Any, key: str) -> Optional[float]:
+    if redis is None:
+        return None
+    try:
+        raw = redis.get(key)
+        if raw is not None:
+            return float(raw.decode() if isinstance(raw, bytes) else raw)
+    except Exception:
+        pass
+    return None
+
+
+def _save_suppression_to_redis(redis: Any, key: str, value: float) -> None:
+    if redis is None:
+        return
+    try:
+        redis.setex(key, _INHIBITION_REDIS_TTL, str(round(value, 4)))
+    except Exception:
+        pass
 
 
 class InhibitPhase:
-    """Phase 4: Inhibition gate and weight mediation."""
-    
+    """Phase 4: Inhibition gate — Beta-Bernoulli reliability only.
+
+    Thread-safe: uses threading.RLock for _prev_suppression access.
+    Redis-backed: suppression state survives restarts.
+    """
+
+    def __init__(self) -> None:
+        self._prev_suppression: Dict[Tuple[str, str], float] = {}
+        self._last_update: Dict[Tuple[str, str], float] = {}
+        self._lock = threading.RLock()
+        self._suppression_half_life = 300.0
+        self._suppression_smoothing = 0.3
+        self._max_entries = 10000
+        self._redis_warned: bool = False
+
     @property
     def name(self) -> str:
         return "inhibit"
-    
+
+    def _apply_decay(self, prev: float, elapsed: float) -> float:
+        rate = math.log(2) / self._suppression_half_life
+        return prev * math.exp(-rate * elapsed)
+
     def execute(self, ctx: PipelineContext) -> PipelineContext:
-        """Execute inhibition phase."""
         orchestrator = ctx.orchestrator
+        redis = _get_redis(ctx)
+        series_id = ctx.series_id
 
-        # Compute signal z-score for anomaly override (CRIT-2)
-        signal_z_score = _compute_signal_z_score(ctx.values) if ctx.values else 0.0
-
-        # Fase 3: período de gracia post-evento (suprimir inhibición agresiva)
-        feature_ctx = getattr(ctx, "feature_context", None)
-        event_ctx = getattr(feature_ctx, "event_context", None) if feature_ctx else None
-
-        in_stabilization = event_ctx is not None and event_ctx.is_active
-        if in_stabilization:
-            logger.debug(
-                f"inhibit_stabilization_gate_active series={ctx.series_id} "
-                f"event={event_ctx.detected_event.value}"
+        # Get the reliability tracker
+        reliability = getattr(orchestrator, "_reliability_tracker", None)
+        if reliability is None:
+            if not self._redis_warned:
+                logger.warning(
+                    "inhibit_no_reliability_tracker",
+                    extra={"series_id": series_id},
+                )
+                self._redis_warned = True
+            return ctx.with_field(
+                inhibition_states=[],
+                mediated_weights=ctx.plasticity_weights,
             )
 
-        # Compute inhibition states
-        # Fallback to equal weights if plasticity_weights not available yet
-        weights = ctx.plasticity_weights or {p.engine_name: 1.0 / len(ctx.perceptions) for p in (ctx.perceptions or [])}
-        inh_states = orchestrator._inhibition.compute(
-            ctx.perceptions,
-            weights,
-            ctx.error_dict,
-            series_id=ctx.series_id,
-            signal_z_score=signal_z_score,
-        )
+        weights = ctx.plasticity_weights or {}
+        perceptions = ctx.perceptions or []
+        states: List[InhibitionState] = []
+        now = time.monotonic()
 
-        # Durante estabilización: reducir supresión al 50%
-        if in_stabilization:
-            from ...analysis.types import InhibitionState
-            inh_states = [
-                InhibitionState(
-                    engine_name=s.engine_name,
-                    base_weight=s.base_weight,
-                    inhibited_weight=s.base_weight * 0.5 + s.inhibited_weight * 0.5,
-                    inhibition_reason=f"stabilization_gate:{s.inhibition_reason}",
-                    suppression_factor=s.suppression_factor * 0.5,
+        for p in perceptions:
+            eng = p.engine_name
+            bw = weights.get(eng, 0.0)
+            key = (series_id, eng)
+
+            # Check Beta-Bernoulli reliability
+            reliable = reliability.is_reliable(series_id, eng)
+
+            with self._lock:
+                # Load previous suppression from Redis on first access
+                if key not in self._prev_suppression:
+                    rkey = _redis_suppression_key(series_id, eng)
+                    rval = _load_suppression_from_redis(redis, rkey)
+                    if rval is not None:
+                        self._prev_suppression[key] = rval
+                        self._last_update[key] = now
+
+                # Apply decay to previous suppression
+                if key in self._prev_suppression:
+                    elapsed = now - self._last_update.get(key, now)
+                    prev = self._apply_decay(self._prev_suppression[key], elapsed)
+                else:
+                    prev = 0.0
+
+                # Compute instant suppression from reliability
+                if reliable:
+                    instant = 0.0
+                    reason = "none"
+                else:
+                    p_broken = reliability.p_broken(series_id, eng)
+                    instant = min(p_broken, 0.95)
+                    reason = f"unreliable p_broken={p_broken:.3f}"
+
+                # EMA smoothing
+                smoothed = (
+                    (1.0 - self._suppression_smoothing) * prev
+                    + self._suppression_smoothing * instant
                 )
-                for s in inh_states
-            ]
 
-        # CRIT-2 FIX: Use resolved weights directly instead of non-existent _weight_mediator
-        mediated_weights = ctx.plasticity_weights
+                # Update in-memory state
+                self._prev_suppression[key] = smoothed
+                self._last_update[key] = now
 
-        # Update explanation builder
-        if ctx.explanation and hasattr(ctx.explanation, "set_inhibition"):
-            ctx.explanation.set_inhibition(inh_states, mediated_weights)
+                # LRU eviction
+                if len(self._prev_suppression) >= self._max_entries:
+                    oldest = min(self._last_update, key=self._last_update.get)
+                    self._prev_suppression.pop(oldest, None)
+                    self._last_update.pop(oldest, None)
+
+            # Persist to Redis
+            rkey = _redis_suppression_key(series_id, eng)
+            _save_suppression_to_redis(redis, rkey, smoothed)
+
+            inhibited = bw * (1.0 - smoothed)
+
+            states.append(InhibitionState(
+                engine_name=eng,
+                base_weight=bw,
+                inhibited_weight=inhibited,
+                inhibition_reason=reason,
+                suppression_factor=smoothed,
+            ))
+
+        if not redis and not self._redis_warned:
+            logger.warning(
+                "inhibit_no_redis_fallback_in_memory",
+                extra={"series_id": series_id},
+            )
+            self._redis_warned = True
 
         return ctx.with_field(
-            inhibition_states=inh_states,
-            mediated_weights=mediated_weights,
+            inhibition_states=states,
+            mediated_weights=ctx.plasticity_weights,
         )

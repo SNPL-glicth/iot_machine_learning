@@ -1,55 +1,76 @@
-"""Gradual Drift Response — conditional severity-based response.
+"""Gradual drift response for BayesianWeightTracker.
 
-Replaces blind amnesia with a statistically principled approach:
-- Mild drift: gradual decay to preserve learned structure
-- Severe drift: partial reset blending old priors with defaults
-
-Preserves prior structure using Bayesian blending instead of
-simple multiplicative decay.
+Consolidates: drift_response.py, drift_strategies.py.
 """
 
 from __future__ import annotations
 
 from typing import Dict, Optional
 
-from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
-
-from .drift_strategies import (
-    _apply_gradual_decay,
-    _apply_mild_drift_response,
-    _apply_severe_drift_response,
-)
+from .updater import GaussianPrior
 
 
-# Severity thresholds for conditional response
 _MILD_DRIFT_THRESHOLD: float = 0.7
 _SEVERE_DRIFT_THRESHOLD: float = 1.5
 
 
-class GradualDriftResponse:
-    """Handles concept drift via conditional severity-based response.
+def _apply_gradual_decay(
+    accuracies: Dict[str, float],
+    priors: Dict[str, GaussianPrior],
+    decay_factor: float,
+    variance_expansion: float,
+) -> tuple[Dict[str, float], Dict[str, GaussianPrior]]:
+    decayed = {k: v * decay_factor for k, v in accuracies.items()}
+    expanded = {
+        k: GaussianPrior(mu_0=v.mu_0 * decay_factor, sigma2_0=v.sigma2_0 * variance_expansion)
+        for k, v in priors.items()
+    }
+    return decayed, expanded
 
-    Attributes:
-        decay_factor: Multiplier for accuracy (0.5 = halve weights)
-        variance_expansion: Multiplier for σ² (2.0 = double uncertainty)
-    """
+
+def _apply_mild_drift_response(
+    accuracies: Dict[str, float],
+    priors: Dict[str, GaussianPrior],
+) -> tuple[Dict[str, float], Dict[str, GaussianPrior]]:
+    decayed = {k: v * 0.8 for k, v in accuracies.items()}
+    expanded = {
+        k: GaussianPrior(mu_0=v.mu_0 * 0.8, sigma2_0=v.sigma2_0 * 1.5)
+        for k, v in priors.items()
+    }
+    return decayed, expanded
+
+
+def _apply_severe_drift_response(
+    accuracies: Dict[str, float],
+    priors: Dict[str, GaussianPrior],
+    decay_factor: float,
+    variance_expansion: float,
+) -> tuple[Dict[str, float], Dict[str, GaussianPrior]]:
+    decayed = {k: v * decay_factor for k, v in accuracies.items()}
+    expanded = {
+        k: GaussianPrior(
+            mu_0=0.5 * v.mu_0 * decay_factor + 0.5 * 0.5,
+            sigma2_0=v.sigma2_0 * variance_expansion * 3.0,
+        )
+        for k, v in priors.items()
+    }
+    return decayed, expanded
+
+
+class GradualDriftResponse:
+    """Conditional severity-based drift response."""
 
     def __init__(
         self,
         decay_factor: float = 0.5,
         variance_expansion: float = 2.0,
     ) -> None:
-        """Initialize drift response.
-
-        Args:
-            decay_factor: Weight decay ∈ (0, 1). 0.5 = halve, 0.8 = gentle
-            variance_expansion: Uncertainty increase ≥ 1.0. 2.0 = double σ²
-        """
         if not 0.0 < decay_factor < 1.0:
             raise ValueError(f"decay_factor must be in (0,1), got {decay_factor}")
         if variance_expansion < 1.0:
-            raise ValueError(f"variance_expansion must be ≥1.0, got {variance_expansion}")
-
+            raise ValueError(
+                f"variance_expansion must be >= 1.0, got {variance_expansion}"
+            )
         self._decay = decay_factor
         self._expansion = variance_expansion
 
@@ -59,43 +80,17 @@ class GradualDriftResponse:
         priors: Dict[str, GaussianPrior],
         drift_severity: Optional[float] = None,
     ) -> tuple[Dict[str, float], Dict[str, GaussianPrior]]:
-        """Apply conditional drift response based on severity.
-
-        Statistical rationale:
-        - No severity (None): backward-compatible gradual decay
-        - Mild drift (severity < 1.5): gentle decay (factor 0.8), mild
-          variance expansion (1.5×). Preserves most learned structure.
-        - Severe drift (severity ≥ 1.5): partial reset via Bayesian blending
-          of old priors with default priors (blend alpha = 0.5), strong
-          variance expansion (3.0×) to rapidly admit new data.
-
-        Args:
-            accuracies: Current accuracy dict {engine: accuracy}
-            priors: Current priors dict {engine: GaussianPrior}
-            drift_severity: Normalized drift severity ≥ 0. None triggers
-                backward-compatible default decay.
-
-        Returns:
-            (decayed_accuracies, expanded_priors)
-        """
         if drift_severity is None:
-            return _apply_gradual_decay(accuracies, priors, self._decay, self._expansion)
+            return _apply_gradual_decay(
+                accuracies, priors, self._decay, self._expansion,
+            )
         if drift_severity >= _SEVERE_DRIFT_THRESHOLD:
-            return _apply_severe_drift_response(accuracies, priors, self._decay, self._expansion)
+            return _apply_severe_drift_response(
+                accuracies, priors, self._decay, self._expansion,
+            )
         return _apply_mild_drift_response(accuracies, priors)
 
     def should_apply_decay(
-        self,
-        drift_magnitude: float,
-        threshold: float = 0.7,
+        self, drift_magnitude: float, threshold: float = 0.7,
     ) -> bool:
-        """Determine if decay should be applied.
-
-        Args:
-            drift_magnitude: Drift score from detector
-            threshold: Minimum magnitude to trigger decay
-
-        Returns:
-            True if decay should be applied
-        """
         return drift_magnitude >= threshold

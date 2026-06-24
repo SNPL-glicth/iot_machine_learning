@@ -45,34 +45,6 @@ try:
 except (ImportError, ModuleNotFoundError):
     CognitiveMemoryRegistry = None  # type: ignore[assignment,misc]
 
-try:
-    from ..neural import HybridNeuralEngine
-except (ImportError, ModuleNotFoundError):
-    HybridNeuralEngine = None  # type: ignore[assignment,misc]
-
-try:
-    from ..decision import ContextualDecisionEngine
-except (ImportError, ModuleNotFoundError):
-    ContextualDecisionEngine = None  # type: ignore[assignment,misc]
-
-try:
-    from ..universal.analysis.pattern_interpreter import PatternInterpreter
-except (ImportError, ModuleNotFoundError):
-    PatternInterpreter = None  # type: ignore[assignment,misc]
-
-try:
-    from ..dynamic import RollingWindowEngine, DynamicFeaturePipeline
-except (ImportError, ModuleNotFoundError):
-    RollingWindowEngine = None  # type: ignore[assignment,misc]
-    DynamicFeaturePipeline = None  # type: ignore[assignment,misc]
-
-try:
-    from ..regime import RegimeDetectionPipeline, OperationalRegimeClassifier
-except (ImportError, ModuleNotFoundError):
-    RegimeDetectionPipeline = None  # type: ignore[assignment,misc]
-    OperationalRegimeClassifier = None  # type: ignore[assignment,misc]
-
-
 class MetaCognitiveOrchestrator(PredictionEngine):
     """Orchestrates multiple engines with cognitive reasoning.
 
@@ -111,11 +83,6 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         metrics_collector: Optional[Any] = None,
         memory_health_monitor: Optional[Any] = None,
         memory_registry: Optional[Any] = None,
-        neural_engine: Optional[Any] = None,
-        decision_engine: Optional[Any] = None,
-        pattern_interpreter: Optional[Any] = None,
-        rolling_window_engine: Optional[Any] = None,
-        regime_detection_pipeline: Optional[Any] = None,
     ) -> None:
         if not engines:
             raise ValueError("At least one engine required")
@@ -250,31 +217,6 @@ class MetaCognitiveOrchestrator(PredictionEngine):
         self._memory_registry = memory_registry
         if CognitiveMemoryRegistry is not None and self._memory_registry is None:
             self._memory_registry = CognitiveMemoryRegistry()
-        
-        # Neural components (High impact)
-        self._neural_engine = neural_engine
-        if HybridNeuralEngine is not None and self._neural_engine is None:
-            self._neural_engine = HybridNeuralEngine()
-        
-        # Decision components (High impact)
-        self._decision_engine = decision_engine
-        if ContextualDecisionEngine is not None and self._decision_engine is None:
-            self._decision_engine = ContextualDecisionEngine()
-        
-        # Pattern interpreter components (Medium-high impact)
-        self._pattern_interpreter = pattern_interpreter
-        if PatternInterpreter is not None and self._pattern_interpreter is None:
-            self._pattern_interpreter = PatternInterpreter()
-        
-        # Dynamic components (Medium-high impact)
-        self._rolling_window_engine = rolling_window_engine
-        if RollingWindowEngine is not None and self._rolling_window_engine is None:
-            self._rolling_window_engine = RollingWindowEngine()
-        
-        # Regime detection components (Medium-high impact)
-        self._regime_detection_pipeline = regime_detection_pipeline
-        if RegimeDetectionPipeline is not None and self._regime_detection_pipeline is None:
-            self._regime_detection_pipeline = RegimeDetectionPipeline()
         
     @property
     def name(self) -> str:

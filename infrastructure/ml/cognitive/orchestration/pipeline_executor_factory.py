@@ -23,6 +23,7 @@ from typing import Any, Optional
 
 from .pipeline_executor import PipelineExecutor
 from ..compliance import ComplianceExporter
+from ..sanitize import SanitizePhase
 from .phases.action_guard_phase import ActionGuardPhase
 from .phases.boundary_check_phase import BoundaryCheckPhase
 from .phases.coherence_check_phase import CoherenceCheckPhase
@@ -32,6 +33,7 @@ from .phases.explain_phase import ExplainPhase
 from .phases.narrative_unification_phase import NarrativeUnificationPhase
 from .phases.perceive_phase import PerceivePhase
 from .phases.predict_phase import PredictPhase
+from .phases.prediction_readiness_gate import PredictionReadinessGate
 from .phases.adapt_phase import AdaptPhase
 from .phases.inhibit_phase import InhibitPhase
 from .phases.fuse_phase import FusePhase
@@ -64,12 +66,14 @@ class PipelineExecutorFactory:
         flags = flags_snapshot or get_feature_flags()
 
         phases = [
+            SanitizePhase(),
+            BoundaryCheckPhase(),
+            PredictionReadinessGate(),
             PerceivePhase(),
             PredictPhase(),
             FusePhase(),
             InhibitPhase(),
             AdaptPhase(),
-            BoundaryCheckPhase(),
         ]
 
         # Fases opcionales — instanciar solo si flag activo (PIPE-3)

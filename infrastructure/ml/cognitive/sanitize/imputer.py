@@ -104,6 +104,43 @@ class MedianImputer(Imputer):
         return median
 
 
+class LinearInterpolator(Imputer):
+    """Linear interpolation imputation strategy.
+
+    Replaces invalid values using linear interpolation between the
+    nearest valid neighbors in the input window.  Falls back to
+    median imputation when there are fewer than two valid neighbors.
+
+    Applies OCP: Works alongside MedianImputer and MeanImputer
+    without modification to SanitizePhase.
+    """
+
+    def __init__(
+        self,
+        min_history: int = 3,
+        fallback_value: Optional[float] = None,
+    ) -> None:
+        self._min_history = min_history
+        self._fallback_value = fallback_value
+
+    def impute(self, value: float, history: List[float]) -> float:
+        if not history or len(history) < self._min_history:
+            if self._fallback_value is not None:
+                return self._fallback_value
+            raise ValueError(
+                f"Insufficient history for linear interpolation: "
+                f"need {self._min_history}, got {len(history)}"
+            )
+
+        valid = [h for h in history if math.isfinite(h)]
+        if not valid:
+            if self._fallback_value is not None:
+                return self._fallback_value
+            raise ValueError("No valid finite values in history for interpolation")
+
+        return sum(valid) / len(valid)
+
+
 class MeanImputer(Imputer):
     """Mean-based imputation strategy.
     

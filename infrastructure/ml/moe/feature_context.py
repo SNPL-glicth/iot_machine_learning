@@ -27,6 +27,11 @@ class FeatureContext:
     relative_deviation: float = 0.0
     equipment_class: str = "GENERIC"
     event_context: Optional["EventContext"] = None
+    seasonal_strength: float = 0.0
+    dominant_period: int = 0
+    regime_confidence: float = 0.5
+    cross_regime_incoherence: bool = False
+    regime_stability_score: float = 0.5
 
     @classmethod
     def from_structural_analysis(
@@ -36,8 +41,10 @@ class FeatureContext:
         sensor_profile: Optional["SensorProfile"] = None,
         relative_deviation: float = 0.0, equipment_class: str = "GENERIC",
         event_context: Optional["EventContext"] = None,
+        seasonal_strength: float = 0.0, dominant_period: int = 0,
+        regime_confidence: float = 0.5, cross_regime_incoherence: bool = False,
+        regime_stability_score: float = 0.5,
     ) -> "FeatureContext":
-        """Factory desde campos del pipeline cognitivo."""
         if hampel_outlier_mask is None:
             hampel_outlier_mask = []
         return cls(
@@ -47,6 +54,10 @@ class FeatureContext:
             spatial_correlation_score=spatial_correlation_score,
             sensor_profile=sensor_profile, relative_deviation=relative_deviation,
             equipment_class=equipment_class, event_context=event_context,
+            seasonal_strength=seasonal_strength, dominant_period=dominant_period,
+            regime_confidence=regime_confidence,
+            cross_regime_incoherence=cross_regime_incoherence,
+            regime_stability_score=regime_stability_score,
         )
 
     @classmethod
@@ -56,8 +67,10 @@ class FeatureContext:
         hampel_outlier_mask: List[bool] = None, spatial_correlation_score: float = 0.0,
         sensor_profile: Optional["SensorProfile"] = None,
         event_context: Optional["EventContext"] = None,
+        seasonal_strength: float = 0.0, dominant_period: int = 0,
+        regime_confidence: float = 0.5, cross_regime_incoherence: bool = False,
+        regime_stability_score: float = 0.5,
     ) -> "FeatureContext":
-        """Factory enriquecida con SensorProfile."""
         rd = 0.0
         ec = "GENERIC"
         if sensor_profile is not None:
@@ -70,11 +83,14 @@ class FeatureContext:
             spatial_correlation_score=spatial_correlation_score,
             sensor_profile=sensor_profile, relative_deviation=rd, equipment_class=ec,
             event_context=event_context,
+            seasonal_strength=seasonal_strength, dominant_period=dominant_period,
+            regime_confidence=regime_confidence,
+            cross_regime_incoherence=cross_regime_incoherence,
+            regime_stability_score=regime_stability_score,
         )
 
     @classmethod
     def empty(cls) -> "FeatureContext":
-        """Factory para serie vacía o insuficiente."""
         return cls(
             regime="unknown", mean=0.0, std=0.0, slope=0.0, curvature=0.0,
             noise_ratio=0.0, stability=0.0, hampel_outlier_mask=[],

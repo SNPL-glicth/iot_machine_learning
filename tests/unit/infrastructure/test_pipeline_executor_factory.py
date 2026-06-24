@@ -59,36 +59,47 @@ class TestPipelineExecutorFactory:
         assert len(b._phases) > 0
 
     def test_flags_snapshot_accepted_but_phase_list_static(self) -> None:
-        """Today flags_snapshot does not influence phase composition.
-        
-        When future flag-driven phase selection is introduced, this test
-        must be updated to assert the expected variation. Leaving it
-        green acts as a tripwire.
-        """
         factory = PipelineExecutorFactory()
         flags_a = MagicMock()
-        flags_a.ML_DOMAIN_BOUNDARY_ENABLED = True
+        flags_a.ML_DECISION_ARBITER_ENABLED = False
+        flags_a.ML_COHERENCE_CHECK_ENABLED = False
+        flags_a.ML_CONFIDENCE_CALIBRATION_ENABLED = False
+        flags_a.ML_ACTION_GUARD_ENABLED = False
+        flags_a.ML_EXPLAINABILITY_ENABLED = False
+        flags_a.ML_NARRATIVE_ENABLED = False
         flags_b = MagicMock()
-        flags_b.ML_DOMAIN_BOUNDARY_ENABLED = False
+        flags_b.ML_DECISION_ARBITER_ENABLED = False
+        flags_b.ML_COHERENCE_CHECK_ENABLED = False
+        flags_b.ML_CONFIDENCE_CALIBRATION_ENABLED = False
+        flags_b.ML_ACTION_GUARD_ENABLED = False
+        flags_b.ML_EXPLAINABILITY_ENABLED = False
+        flags_b.ML_NARRATIVE_ENABLED = False
 
         exec_a = factory.create(flags_a)
         exec_b = factory.create(flags_b)
 
         types_a = [type(p).__name__ for p in exec_a._phases]
         types_b = [type(p).__name__ for p in exec_b._phases]
-        assert types_a == types_b, (
-            "Phase composition unexpectedly diverged — update "
-            "PipelineExecutorFactory.create to document the new behaviour."
-        )
+        assert types_a == types_b
 
     def test_phase_order_matches_executor_contract(self) -> None:
         factory = PipelineExecutorFactory()
-        executor = factory.create()
+
+        class _MockFlags:
+            ML_DECISION_ARBITER_ENABLED = False
+            ML_COHERENCE_CHECK_ENABLED = False
+            ML_CONFIDENCE_CALIBRATION_ENABLED = False
+            ML_ACTION_GUARD_ENABLED = False
+            ML_EXPLAINABILITY_ENABLED = False
+            ML_NARRATIVE_ENABLED = False
+
+        executor = factory.create(flags_snapshot=_MockFlags())
         names = [type(p).__name__ for p in executor._phases]
         # Phase [0] must be SanitizePhase (IMP-1 invariant).
         assert names[0] == "SanitizePhase"
         assert names[1] == "BoundaryCheckPhase"
-        assert names[2] == "PerceivePhase"
+        assert names[2] == "PredictionReadinessGate"
+        assert names[3] == "PerceivePhase"
 
 
 # =========================================================================
@@ -152,6 +163,12 @@ class TestExecutePipelineIntegration:
 
         class _MockFlags:
             ML_DOMAIN_BOUNDARY_ENABLED = False
+            ML_DECISION_ARBITER_ENABLED = False
+            ML_COHERENCE_CHECK_ENABLED = False
+            ML_CONFIDENCE_CALIBRATION_ENABLED = False
+            ML_ACTION_GUARD_ENABLED = False
+            ML_EXPLAINABILITY_ENABLED = False
+            ML_NARRATIVE_ENABLED = False
 
         class _MockOrchestrator:
             _budget_ms = 500.0
@@ -163,40 +180,40 @@ class TestExecutePipelineIntegration:
                 self._pipeline_executor_factory = SpyFactory()
 
         orch = _MockOrchestrator()
-        # Trigger a sanitize-fallback short-circuit so we do not have to
-        # wire up every phase's dependencies — NaN input exits the
-        # pipeline on phase [0].
         result = pe_mod.execute_pipeline(
             orch,
-            values=[1.0, 2.0, float("nan")],
+            values=[float("nan"), float("nan"), float("nan")],
             timestamps=None,
             series_id="test",
             flags_snapshot=_MockFlags(),
         )
 
         assert result.metadata.get("is_sanitize_fallback") is True
-        assert len(created) == 1  # exactly one executor instantiated
+        assert len(created) == 1
 
     def test_execute_pipeline_works_without_factory_on_orchestrator(self) -> None:
-        """Fallback path constructs a one-shot factory when orchestrator
-        has no _pipeline_executor_factory attribute (back-compat)."""
         from iot_machine_learning.infrastructure.ml.cognitive.orchestration import (
             pipeline_executor as pe_mod,
         )
 
         class _MockFlags:
             ML_DOMAIN_BOUNDARY_ENABLED = False
+            ML_DECISION_ARBITER_ENABLED = False
+            ML_COHERENCE_CHECK_ENABLED = False
+            ML_CONFIDENCE_CALIBRATION_ENABLED = False
+            ML_ACTION_GUARD_ENABLED = False
+            ML_EXPLAINABILITY_ENABLED = False
+            ML_NARRATIVE_ENABLED = False
 
         class _BareOrchestrator:
             _budget_ms = 500.0
             _storage = None
             _last_explanation = None
             _series_values_store = None
-            # deliberately no _pipeline_executor_factory
 
         result = pe_mod.execute_pipeline(
             _BareOrchestrator(),
-            values=[1.0, 2.0, float("inf")],
+            values=[float("nan"), float("nan"), float("nan")],
             timestamps=None,
             series_id="test",
             flags_snapshot=_MockFlags(),

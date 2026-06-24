@@ -9,11 +9,14 @@ from .bounds_provider import (
     SeriesValuesBoundsProvider,
 )
 from .cusum import detect_ramp
+from .imputer import LinearInterpolator, MedianImputer
 from .phase import SanitizeConfig, SanitizePhase
 
 __all__ = [
     "BoundsProvider",
+    "LinearInterpolator",
     "LocalWindowBoundsProvider",
+    "MedianImputer",
     "SanitizeConfig",
     "SanitizePhase",
     "SeriesValuesBoundsProvider",

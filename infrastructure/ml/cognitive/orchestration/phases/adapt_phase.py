@@ -6,7 +6,7 @@ Weight resolution and plasticity adaptation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from . import PipelineContext
@@ -73,24 +73,21 @@ class AdaptPhase:
         max_cache_entries: int = 1000,
         cache_ttl_seconds: float = 60.0,
         feedback_loop_manager: Optional[Any] = None,
+        natural_decay_interval: int = 50,
+        natural_decay_factor: float = 0.95,
     ) -> None:
-        """Initialize AdaptPhase with instance-scoped weight cache.
-        
-        Args:
-            max_cache_entries: Maximum number of cached weight entries
-            cache_ttl_seconds: Time-to-live for cache entries
-            feedback_loop_manager: Optional FeedbackLoopManager instance
-        """
         self._weight_cache = WeightCache(
             max_entries=max_cache_entries,
             ttl_seconds=cache_ttl_seconds
         )
-        
-        # Initialize FeedbackLoopManager (Phase 3C)
+        self._natural_decay_interval = natural_decay_interval
+        self._natural_decay_factor = natural_decay_factor
+        self._prediction_counters: Dict[str, int] = {}
+
         self._feedback_loop_manager = feedback_loop_manager
         if FeedbackLoopManager is not None and self._feedback_loop_manager is None:
             self._feedback_loop_manager = FeedbackLoopManager()
-        
+
         logger.debug(
             "adapt_phase_initialized",
             extra={
@@ -151,6 +148,24 @@ class AdaptPhase:
             orchestrator._plasticity is not None and
             orchestrator._plasticity.has_history(ctx.regime, series_id=ctx.series_id)
         )
+
+        # Natural decay: every N predictions without feedback, reduce confidence
+        if orchestrator._plasticity is not None:
+            counter = self._prediction_counters.get(ctx.series_id, 0) + 1
+            self._prediction_counters[ctx.series_id] = counter
+            if counter >= self._natural_decay_interval:
+                orchestrator._plasticity.apply_natural_decay(
+                    ctx.series_id, ctx.regime,
+                )
+                self._prediction_counters[ctx.series_id] = 0
+                logger.debug(
+                    "natural_decay_applied",
+                    extra={
+                        "series_id": ctx.series_id,
+                        "regime": ctx.regime,
+                        "decay_factor": self._natural_decay_factor,
+                    },
+                )
 
         # Update explanation builder if available
         if ctx.explanation and hasattr(ctx.explanation, 'set_adaptation'):

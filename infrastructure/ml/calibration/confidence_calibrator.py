@@ -1,176 +1,142 @@
-"""Confidence calibrator — temperature scaling for anomaly scores.
+"""Confidence calibrator — temperature scaling for confidence values [0, 1].
 
-Single responsibility: convert raw anomaly scores into calibrated probabilities
-using temperature-scaled sigmoid transformation.
+Single responsibility: convert raw confidence scores into calibrated probabilities
+using temperature‑scaled sigmoid centred at 0.5.
 
-Supports regime-aware temperature adjustment for adaptive calibration.
+Formula (Platt scaling generalised):
+    calibrated = sigmoid((confidence - 0.5) / T)
+    where sigmoid(x) = 1 / (1 + exp(-x))
+
+T > 1 → flatter distribution (more uncertainty)
+T < 1 → sharper distribution (more certainty)
+
+Supports:
+  * data_quality_score boosting of temperature (low quality → wider uncertainty)
+  * floor=0.30, ceiling=0.95
+  * regime‑aware base temperature
 """
 
 from __future__ import annotations
 
 import logging
 import math
-from typing import Optional, Dict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 from core.parameters.numerical_constants import CONFIDENCE
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class CalibratedConfidence:
+    calibrated: float
+    raw: float
+    penalty_applied: float
+    reasons: List[str] = field(default_factory=list)
+
+
 class ConfidenceCalibrator:
+    """Calibrates confidence [0, 1] using temperature‑scaled sigmoid.
+
+    FLOOR / CEILING (unified):
+      * floor=0.30  – matches CONFIDENCE.MIN_CONFIDENCE
+      * ceiling=0.95 – matches CONFIDENCE.MAX_CONFIDENCE
+
+    DATA QUALITY ADJUSTMENT:
+      * data_quality < 0.5 → temperature × 1.3
+      * data_quality < 0.3 → temperature × 1.6
     """
-    Calibrates raw anomaly scores into probabilities using temperature scaling.
 
-    Uses sigmoid transformation with configurable temperature parameter:
-        calibrated = 1 / (1 + exp(-score / temperature))
+    FLOOR: float = 0.30
+    CEILING: float = 0.95
 
-    Higher temperature → smoother probabilities (less confident)
-    Lower temperature → sharper probabilities (more confident)
+    REGIME_TEMPERATURES: Dict[str, float] = {
+        "STABLE": CONFIDENCE.TEMP_STABLE,
+        "TRENDING": CONFIDENCE.TEMP_TRENDING,
+        "VOLATILE": CONFIDENCE.TEMP_VOLATILE,
+        "NOISY": CONFIDENCE.TEMP_NOISY,
+        "DEFAULT": CONFIDENCE.TEMP_DEFAULT,
+    }
 
-    Supports regime-aware temperature adjustment:
-    - VOLATILE regime → higher temperature (more conservative)
-    - STABLE regime → lower temperature (more confident)
-
-    CUÁNDO USAR ESTE MÉTODO:
-    - Anomaly scores: para scores de anomalía en [0, +inf), NO para confidence
-    - Post-detection: calibración probabilística DESPUÉS de detección de anomalías
-    - Regime-aware: cuando se conoce el régimen para ajuste adaptativo
-    - NO usar para: confidence values en [0, 1] (usar core/tuning/temperature_scaling.py)
-    - NO usar para: pre-decisión por calidad de datos (usar domain/services/confidence_calibrator.py)
-
-    DIFERENCIA con otros calibradores:
-    - Este módulo: sigmoid para anomaly scores [0, +inf)
-    - core/tuning/temperature_scaling.py: sigmoid centrado para confidence [0, 1]
-    - domain/services/confidence_calibrator.py: penalidades aditivas para calidad de datos
-
-    FÓRMULA DE TEMPERATURA (DIFERENCIA INTENCIONAL):
-    - Este módulo: sigmoid(score / T) donde score ∈ [0, +inf)
-      * NO centra en 0.5 porque anomaly scores no tienen punto medio natural
-      * score=0 → calibrated≈0.5, score→∞ → calibrated→1.0
-    - TemperatureScaler: sigmoid((c - 0.5) / T) donde c ∈ [0, 1]
-      * Centra en 0.5 porque confidence tiene punto medio natural
-      * c=0.5 → calibrated=0.5, c=1.0 → calibrated>0.5
-
-    Attributes:
-        _base_temperature: Default temperature for calibration.
-        _regime_temperatures: Per-regime temperature overrides.
-    """
-    
     def __init__(
         self,
         temperature: float = CONFIDENCE.TEMP_DEFAULT,
         regime_temperatures: Optional[Dict[str, float]] = None,
     ) -> None:
-        """Initialize confidence calibrator.
-        
-        Args:
-            temperature: Base temperature for sigmoid scaling. Defaults to CONFIDENCE.TEMP_DEFAULT.
-            regime_temperatures: Optional per-regime temperature overrides.
-                If None, uses CONFIDENCE.TEMP_* values.
-                Example: {"VOLATILE": 2.0, "STABLE": 1.2}
-        
-        Raises:
-            ValueError: If temperature <= 0.
-        """
         if temperature <= 0:
             raise ValueError(f"temperature must be > 0, got {temperature}")
-        
         self._base_temperature = temperature
-        # Use CONFIDENCE singleton if no regime_temperatures provided
-        self._regime_temperatures = regime_temperatures or {
-            "STABLE": CONFIDENCE.TEMP_STABLE,
-            "TRENDING": CONFIDENCE.TEMP_TRENDING,
-            "VOLATILE": CONFIDENCE.TEMP_VOLATILE,
-            "NOISY": CONFIDENCE.TEMP_NOISY,
-        }
-    
+        if regime_temperatures is not None:
+            self._regime_temperatures = regime_temperatures
+
     def calibrate(
         self,
         score: float,
         regime: Optional[str] = None,
-    ) -> float:
-        """Calibrate raw score into probability using temperature scaling.
-        
+        data_quality: float = 1.0,
+    ) -> CalibratedConfidence:
+        """Calibrate confidence score.
+
         Args:
-            score: Raw anomaly score [0, +inf).
-            regime: Optional regime for temperature adjustment.
-        
+            score: Raw confidence [0, 1].
+            regime: Optional regime name for temperature override.
+            data_quality: Data quality score [0, 1] from SanitizePhase.
+
         Returns:
-            Calibrated confidence [0.0, 1.0].
+            CalibratedConfidence with audit trail.
         """
-        # Handle edge cases
+        reasons: List[str] = []
+
         if not math.isfinite(score):
-            logger.warning(
-                "confidence_calibration_invalid_score",
-                extra={
-                    "event": "WARNING",
-                    "score": score,
-                    "action_taken": "return_zero",
-                },
+            logger.warning("confidence_calibration_invalid_score", extra={"score": score})
+            return CalibratedConfidence(
+                calibrated=self.FLOOR,
+                raw=score,
+                penalty_applied=0.0,
+                reasons=["invalid_score"],
             )
-            return 0.0
-        
-        # Select temperature based on regime
+
         temperature = self._get_temperature(regime)
-        
-        # Apply temperature-scaled sigmoid
-        try:
-            # sigmoid(x) = 1 / (1 + exp(-x))
-            # temperature scaling: x' = x / T
-            scaled_score = score / temperature
-            
-            # Numerical stability: clip to avoid overflow
-            # exp(-x) overflows when x < -700
-            # exp(x) overflows when x > 700
-            scaled_score = max(-700.0, min(700.0, scaled_score))
-            
-            calibrated = 1.0 / (1.0 + math.exp(-scaled_score))
-            
-            logger.debug(
-                "confidence_calibration",
-                extra={
-                    "event": "CALIBRATION",
-                    "raw_score": round(score, 4),
-                    "calibrated_confidence": round(calibrated, 4),
-                    "temperature": temperature,
-                    "regime": regime,
-                },
-            )
-            
-            return calibrated
-        
-        except Exception as e:
-            logger.error(
-                "confidence_calibration_failed",
-                extra={
-                    "event": "CALIBRATION_ERROR",
-                    "error": str(e),
-                    "score": score,
-                    "temperature": temperature,
-                    "action_taken": "return_zero",
-                },
-            )
-            return 0.0
-    
+
+        # Data quality adjustment
+        if data_quality < 0.3:
+            temperature *= 1.6
+            reasons.append(f"data_quality={data_quality:.3f} < 0.3 → T×1.6")
+        elif data_quality < 0.5:
+            temperature *= 1.3
+            reasons.append(f"data_quality={data_quality:.3f} < 0.5 → T×1.3")
+
+        # sigmoid((c - 0.5) / T)
+        x = (score - 0.5) / temperature
+        x = max(-700.0, min(700.0, x))
+        calibrated = 1.0 / (1.0 + math.exp(-x))
+
+        raw = score
+        calibrated = max(self.FLOOR, min(self.CEILING, calibrated))
+
+        if calibrated < raw:
+            reasons.append(f"temperature_scaling: T={temperature:.3f}")
+
+        logger.debug(
+            "confidence_calibration",
+            extra={
+                "raw": round(raw, 4),
+                "calibrated": round(calibrated, 4),
+                "temperature": round(temperature, 4),
+                "regime": regime,
+                "data_quality": round(data_quality, 4),
+            },
+        )
+
+        return CalibratedConfidence(
+            calibrated=calibrated,
+            raw=raw,
+            penalty_applied=raw - calibrated,
+            reasons=reasons,
+        )
+
     def _get_temperature(self, regime: Optional[str]) -> float:
-        """Get temperature for given regime.
-        
-        Args:
-            regime: Regime name (e.g., "VOLATILE", "STABLE").
-        
-        Returns:
-            Temperature value.
-        """
-        if regime and regime in self._regime_temperatures:
-            return self._regime_temperatures[regime]
+        if regime and regime in self.REGIME_TEMPERATURES:
+            return self.REGIME_TEMPERATURES[regime]
         return self._base_temperature
-    
-    @property
-    def base_temperature(self) -> float:
-        """Base temperature value."""
-        return self._base_temperature
-    
-    @property
-    def regime_temperatures(self) -> Dict[str, float]:
-        """Per-regime temperature overrides."""
-        return self._regime_temperatures.copy()

@@ -69,27 +69,30 @@ class PipelineContext:
     is_fallback: bool = False
     fallback_reason: Optional[str] = None
     
+    # PredictionReadinessGate output
+    data_quality_score: float = 1.0
+    max_action: str = "PREDICT"
+
+    # Regime enrichment from PerceivePhase
+    regime_confidence: float = 0.5
+    cross_regime_incoherence: bool = False
+
+    # Drift enrichment from DriftDetectionPhase
+    drift_detected: bool = False
+    drift_magnitude: float = 0.0
+    drift_type: Optional[str] = None
+    drift_cause: Optional[str] = None
+    condition_indicator: Optional[Dict[str, Any]] = None
+
+    # Causal chain from CausalPhase
+    causal_events: List[Dict[str, Any]] = field(default_factory=list)
+
     # Observability components (Phase 3C)
     metrics_collector: Optional[Any] = None
     memory_health_monitor: Optional[Any] = None
     
     # Memory components (Phase 3A)
     memory_registry: Optional[Any] = None
-    
-    # Neural components (High impact)
-    neural_engine: Optional[Any] = None
-    
-    # Decision components (High impact)
-    decision_engine: Optional[Any] = None
-    
-    # Pattern interpreter components (Medium-high impact)
-    pattern_interpreter: Optional[Any] = None
-    
-    # Dynamic components (Medium-high impact)
-    rolling_window_engine: Optional[Any] = None
-    
-    # Regime detection components (Medium-high impact)
-    regime_detection_pipeline: Optional[Any] = None
     
     def with_field(self, **kwargs) -> PipelineContext:
         """Update fields in place and return self for backward compatibility."""
@@ -110,11 +113,6 @@ def create_initial_context(
     metrics_collector = getattr(orchestrator, '_metrics_collector', None)
     memory_health_monitor = getattr(orchestrator, '_memory_health_monitor', None)
     memory_registry = getattr(orchestrator, '_memory_registry', None)
-    neural_engine = getattr(orchestrator, '_neural_engine', None)
-    decision_engine = getattr(orchestrator, '_decision_engine', None)
-    pattern_interpreter = getattr(orchestrator, '_pattern_interpreter', None)
-    rolling_window_engine = getattr(orchestrator, '_rolling_window_engine', None)
-    regime_detection_pipeline = getattr(orchestrator, '_regime_detection_pipeline', None)
     return PipelineContext(
         orchestrator=orchestrator,
         values=values,
@@ -125,9 +123,4 @@ def create_initial_context(
         metrics_collector=metrics_collector,
         memory_health_monitor=memory_health_monitor,
         memory_registry=memory_registry,
-        neural_engine=neural_engine,
-        decision_engine=decision_engine,
-        pattern_interpreter=pattern_interpreter,
-        rolling_window_engine=rolling_window_engine,
-        regime_detection_pipeline=regime_detection_pipeline,
     )

@@ -1,11 +1,15 @@
 """Fuse Phase — MED-1 Refactoring.
 
-Weighted fusion and spatial correction.
+Weighted fusion and spatial correction.  Emits quality metrics:
+  * engine_spread                 – std of pre‑Hampel predicted values
+  * engines_rejected              – count of Hampel‑rejected engines
+  * spatial_correction_magnitude  – absolute change from spatial correction
 """
 
 from __future__ import annotations
 
 import logging
+import math
 import os
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
@@ -23,6 +27,16 @@ if TYPE_CHECKING:
     from ...analysis.types import EnginePerception, InhibitionState
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_std(values: List[float]) -> float:
+    """Population standard deviation."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean = sum(values) / n
+    variance = sum((v - mean) ** 2 for v in values) / n
+    return math.sqrt(variance)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -197,6 +211,13 @@ class FusePhase:
     def execute(self, ctx: PipelineContext) -> PipelineContext:
         """Execute fusion phase."""
         orchestrator = ctx.orchestrator
+
+        # ── Quality metrics: pre‑Hampel engine spread ──────────────
+        raw_values = [
+            p.predicted_value for p in (ctx.perceptions or [])
+            if hasattr(p, 'predicted_value') and p.predicted_value is not None
+        ]
+        engine_spread = _compute_std(raw_values) if len(raw_values) > 1 else 0.0
         
         # IMP-2: pre-fusion Hampel outlier filter.
         filtered_perceptions, filtered_states, fusion_flags, hampel_diag = (
@@ -205,6 +226,9 @@ class FusePhase:
             )
         )
         
+        # ── Quality metrics: engines rejected by Hampel ────────────
+        engines_rejected = len(hampel_diag.get("rejected", [])) if hampel_diag else 0
+
         # Perform fusion
         fused_result = orchestrator._fusion.fuse(
             filtered_perceptions,
@@ -230,10 +254,12 @@ class FusePhase:
                 },
             )
         
-        # Apply spatial correction
+        # ── Quality metrics: spatial correction magnitude ──────────
+        fused_val_before_spatial = fused_val
         fused_val = _apply_spatial_correction(
             fused_val, ctx.neighbors, ctx.neighbor_values, self._config
         )
+        spatial_correction_magnitude = abs(fused_val - fused_val_before_spatial)
         
         # Field smoothing via correlation port
         if orchestrator._correlation_port and ctx.neighbors:
@@ -242,6 +268,25 @@ class FusePhase:
         # Determine fusion method (from filtered perceptions, post-Hampel)
         method = "weighted_average" if len(filtered_perceptions) > 1 else "single_engine"
         
+        # ── Store quality metrics in metadata ──────────────────────
+        ctx.metadata["engine_spread"] = round(engine_spread, 4)
+        ctx.metadata["engines_rejected"] = engines_rejected
+        ctx.metadata["spatial_correction_magnitude"] = round(spatial_correction_magnitude, 4)
+
+        # High engine spread → cap max_action to INVESTIGATE
+        profile_std = ctx.profile.std if ctx.profile else 0.0
+        if profile_std > 0.0 and engine_spread > 2.0 * profile_std:
+            ctx.max_action = "INVESTIGATE"
+            logger.info(
+                "engine_spread_capped",
+                extra={
+                    "series_id": ctx.series_id,
+                    "engine_spread": round(engine_spread, 4),
+                    "profile_std": round(profile_std, 4),
+                    "max_action": "INVESTIGATE",
+                },
+            )
+
         # Update explanation builder
         if ctx.explanation and hasattr(ctx.explanation, 'set_fusion'):
             ctx.explanation.set_fusion(
