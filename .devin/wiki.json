@@ -1,1 +1,298 @@
-The content has been copied to your clipboard. Please paste it here to complete the file creation.
+    "content": ""
+    }
+  ],
+  "pages": [
+    {
+      "title": "ZENIN IoT ML Engine — Overview",
+      "purpose": "High-level introduction to ZENIN: what it does, its architecture philosophy (Clean Architecture / Hexagonal), key capabilities (prediction, anomaly detection, compliance), and how the major subsystems relate. Links to all child sections for deeper exploration.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Getting Started & Configuration",
+      "purpose": "Setup instructions, environment variables, feature flags, Docker/Poetry deployment, and the .env.example reference. Covers how to enable/disable cognitive orchestration, plasticity, Weaviate memory, and other toggles.",
+      "parent": "ZENIN IoT ML Engine — Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Business Case & ROI",
+      "purpose": "Documents the industrial value proposition: lead time reduction, false positive rates, compliance auditability, and the tiered licensing model (Pilot / Growth / Enterprise).",
+      "parent": "ZENIN IoT ML Engine — Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Core Architecture",
+      "purpose": "Overview of the Clean Architecture layers (Domain, Application, Infrastructure), the Hexagonal (Ports & Adapters) pattern, and how data flows from raw sensor readings through the cognitive pipeline to a persisted prediction. Links to child pages for each layer.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Domain Layer — Entities, Ports & Services",
+      "purpose": "Detailed coverage of the domain layer: core entities (Reading, TimeSeriesWindow, SensorProfile, Prediction, EquipmentClass, IndustrialEvent), domain ports (StoragePort, AuditPort, PredictionPort, PlasticityPort, etc.), domain services (PredictionDomainService, AnomalyDomainService, ActionGuard, SignalCoherenceChecker), and value objects.",
+      "parent": "Core Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Application Layer — Use Cases & DTOs",
+      "purpose": "Covers the application use cases (PredictSensorValueUseCase, DetectAnomaliesUseCase, AnalyzePatternsUseCase, EvaluateThresholdsUseCase, SelectEngineUseCase), the mixin decomposition pattern, DTOs (PredictionDTO, DecisionOutput), and how the application layer orchestrates domain services without knowing infrastructure details.",
+      "parent": "Core Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Infrastructure Adapters & Persistence",
+      "purpose": "Covers the infrastructure layer: SQL Server persistence (ZeninDbConnection, dual-write storage, zenin_ml schema), Redis adapters (sliding window store, distributed window, TSDB adapter, circuit breaker), in-memory adapters, Weaviate cognitive memory adapter, and the sensor profile repositories.",
+      "parent": "Core Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Cognitive Orchestration Pipeline",
+      "purpose": "Overview of the 15-phase MetaCognitiveOrchestrator pipeline: how phases are sequenced, the PipelineContext immutability pattern, the PipelineExecutor, budget management, and fallback handling. Links to child pages for each major phase group.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Phases 1–5: Sanitize, Boundary, Seasonal, Perceive & Drift",
+      "purpose": "Detailed walkthrough of the early pipeline phases: data sanitization (NaN/Inf imputation, ±6σ clamping), boundary checking, FFT/STL seasonal decomposition, regime perception (STABLE/TRENDING/VOLATILE/NOISY), and Page-Hinkley drift detection.",
+      "parent": "Cognitive Orchestration Pipeline",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Phases 6–9: Predict, Adapt, Inhibit & Fuse",
+      "purpose": "Covers the core prediction phases: MoE engine execution (Predict), Bayesian weight adaptation (Adapt), InhibitionGate suppression logic (Inhibit), and the Hampel-filtered weighted fusion with spatial correction and temperature scaling (Fuse).",
+      "parent": "Cognitive Orchestration Pipeline",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Phases 10–15: Decision, Coherence, Calibration, Explain, ActionGuard & Narrative",
+      "purpose": "Covers the terminal pipeline phases: DecisionArbiter (8 amplifiers, 3 attenuators), coherence checking, confidence calibration (temperature scaling), ExplainPhase (CausalNarrativeBuilder, RUL enrichment), ActionGuard safety check, and NarrativeUnification for human-readable output.",
+      "parent": "Cognitive Orchestration Pipeline",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Bayesian Weight Tracker & Plasticity",
+      "purpose": "Deep dive into the BayesianWeightTracker: cold-start → blend → Bayesian update lifecycle, per-sensor Redis keys (namespace:series_id:regime), conjugate normal-normal updates, LRU eviction of regimes, WeightResolutionService, and the plasticity feedback loop via record_actual.",
+      "parent": "Cognitive Orchestration Pipeline",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Prediction Engines",
+      "purpose": "Overview of the prediction engine ecosystem: the PredictionEngine interface, EngineFactory, and the four primary engines (Kalman, Taylor, Statistical, Baseline). Links to child pages for each engine and the MoE system.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Kalman & Taylor Engines",
+      "purpose": "Technical details of the KalmanPredictionEngine (constant-velocity Kalman filter, kalman_cv_math, gain clamping, KALMAN_R/KALMAN_P epsilon constants) and TaylorPredictionEngine (polynomial Taylor expansion, least-squares fitting, derivative methods, coefficient cache, gap detection).",
+      "parent": "Prediction Engines",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Statistical, Baseline & Seasonal Engines",
+      "purpose": "Covers the StatisticalPredictionEngine (param optimizer, stateless design), BaselineMovingAverageEngine (always-present fallback), and SeasonalEngine (FFT/STL decomposition). Includes the adaptive ensemble and multivariate engine wrappers.",
+      "parent": "Prediction Engines",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Mixture of Experts (MoE) System",
+      "purpose": "Detailed coverage of the MoE architecture: MoERegistry (EquipmentClass × Regime weight tables), MoEGateway, ExpertDispatcher, gating strategies (contextual regime, sparse fusion, discrepancy-aware fusion), rollout bridge (A/B traffic splitting), industrial event detection, and the MoE prediction engine.",
+      "parent": "Prediction Engines",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Anomaly Detection",
+      "purpose": "Overview of the anomaly detection subsystem: VotingAnomalyDetector ensemble, the 8 sub-detectors, scoring functions, and the RUL (Remaining Useful Life) estimator. Links to child pages for detectors and RUL.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Sub-Detectors & Voting Ensemble",
+      "purpose": "Detailed coverage of each SubDetector implementation: ZScoreDetector (AdaptiveScaler, hysteresis), IQRDetector (Tukey fences, MAD fallback), RollingZScoreDetector (SEM-based drift), IsolationForestDetector (adaptive contamination, MATH-SEV-1 refitting), LOFDetector, VelocityZ/AccelerationZ, and ND variants. Covers the VotingEnsemble aggregation logic and voting_threshold tuning.",
+      "parent": "Anomaly Detection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "RUL (Remaining Useful Life) Estimator",
+      "purpose": "Covers the RUL subsystem: RULEstimator (deterioration_rate = drift × anomaly_score, reciprocal hours formula, 0.5–168h clamp), urgency levels (CRITICAL/MEDIUM/LOW), confidence levels based on consecutive_anomalies, RULNarrator (INTERVENCION URGENTE / ALERTA TEMPRANA), and integration with ExplainPhase via _REGIME_DRIFT_MAP.",
+      "parent": "Anomaly Detection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Benchmarks & Forensic Analysis",
+      "purpose": "Documents the NAB benchmark results on machine temperature data: grid search over voting_threshold, F1/AUC-PR metrics, forensic ablation study (engine contribution analysis), False Negative characterization (gradual anomaly failure mode), and the numerical_constants registry (EpsilonConfig, StatisticalThresholds, ConfidenceConfig, InhibitionThresholds).",
+      "parent": "Anomaly Detection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Data Ingestion & Stream Processing",
+      "purpose": "Overview of how sensor data enters the system: Redis Stream consumption, MQTT ingestion, the SlidingWindowStore, and the batch runner. Links to child pages for stream and batch paths.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Stream Consumer & Sliding Window Store",
+      "purpose": "Detailed coverage of ReadingsStreamConsumer (xreadgroup from readings:raw, at-least-once semantics, XACK), SlidingWindowStore (sharded LRU/TTL in-memory cache, distributed_adapter replication, eviction strategies), BackpressureController, cooldown logic (zenin:pred:cooldown:{sensor_id}), and the H-ML-8 optimization (avoiding double SQL queries).",
+      "parent": "Data Ingestion & Stream Processing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Batch Runner & Sensor Feedback Service",
+      "purpose": "Covers the MLBatchRunner (ThreadPoolExecutor-based parallel sensor processing, enterprise vs legacy path selection), SensorFeedbackService (predict-and-verify loop, PendingPredictionCache Redis fast-match, SQL fallback), BatchEnterpriseContainer DI wiring, OrchestratorPredictionAdapter (shared thread pool, timeout/fallback logic), and the ZeninMLOnly dual-write storage strategy.",
+      "parent": "Data Ingestion & Stream Processing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "API Layer",
+      "purpose": "Overview of the FastAPI application: entry point (ml_service/main.py), router organization, authentication, and the main endpoint groups. Links to child pages for prediction API and observability.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Prediction & Cognitive API Endpoints",
+      "purpose": "Detailed reference for the REST API: POST /api/v1/predict, POST /api/v1/detect-anomalies, POST /api/v1/analyze-document, cognitive routes (routes_cognitive.py), batch routes (routes_batch.py), governance routes, async prediction routes, query routes, and Pydantic schema definitions.",
+      "parent": "API Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Authentication, Rate Limiting & Security",
+      "purpose": "Covers API key verification (api_key_verifier.py), rate limiter (RateLimiter, RateLimitConfig, @rate_limit_series decorator, series_id-level DoS protection), access control, input validation, secret redaction, Redis namespace isolation, and HMAC-SHA256 compliance signing.",
+      "parent": "API Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Observability, Metrics & Health",
+      "purpose": "Covers Prometheus metrics export (/metrics endpoint), metric types (zenin_predictions_total, zenin_plasticity_weights, zenin_circuit_breaker_state, zenin_concept_drift_score), health check endpoints (/health/live, /health/ready, /health), structured JSON logging with correlation IDs, A/B testing metrics, and the routes_observability router.",
+      "parent": "API Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Resilience, Compliance & Governance",
+      "purpose": "Overview of enterprise-grade stability and auditability features: circuit breaker, compliance exporter, and feature activation. Links to child pages.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Circuit Breaker, Resilience Patterns & Warmup",
+      "purpose": "Covers the @protected circuit breaker decorator (CLOSED/OPEN/HALF_OPEN states, exponential backoff), amnesic mode (RAM-only fallback when persistence fails), the warmup sequence (ml_service/warmup.py), FeatureActivator (whitelist-based progressive rollout, ML_BATCH_ENTERPRISE_SENSORS), and the controlled activation module.",
+      "parent": "Resilience, Compliance & Governance",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Compliance Exporter & Audit Trail",
+      "purpose": "Covers the ComplianceExporter (append-only NDJSON log, HMAC-SHA256 signing, canonicalization), AuditPort interface, AuditLogger, ReasoningTrace structure, compliance record schema, HMAC key manager, and how the AssemblyPhase integrates compliance export non-blockingly.",
+      "parent": "Resilience, Compliance & Governance",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
