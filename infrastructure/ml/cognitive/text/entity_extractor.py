@@ -32,8 +32,11 @@ def extract_entities(analysis_result: Any) -> tuple[list, int]:
     if not entities and hasattr(analysis_result, "explanation"):
         explanation = analysis_result.explanation
         if hasattr(explanation, "to_dict"):
-            exp_dict = explanation.to_dict()
-            entities = exp_dict.get("entities", [])
+            try:
+                exp_dict = explanation.to_dict()
+                entities = exp_dict.get("entities", [])
+            except Exception:
+                entities = []
 
     if not word_count and hasattr(analysis_result, "metadata"):
         meta = analysis_result.metadata
