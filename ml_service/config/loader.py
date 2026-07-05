@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 from .flags import FeatureFlags
 from .parsers import parse_bool
@@ -43,6 +42,8 @@ def load_from_env() -> FeatureFlags:
         "ML_COGNITIVE_MEMORY_ASYNC",
         "ML_ENABLE_MEMORY_RECALL",
         "ML_ENABLE_DECISION_ENGINE",
+        "ML_ENABLE_TEXT_ANALYSIS",
+        "ML_ENABLE_TEXT_PERCEPTION",
         "ML_STREAM_PREDICTIONS_ENABLED",
     ):
         env_val = os.environ.get(key)
@@ -112,7 +113,7 @@ def load_from_env() -> FeatureFlags:
 
 
 # --- Singleton global (lazy) ---
-_global_flags: Optional[FeatureFlags] = None
+_global_flags: FeatureFlags | None = None
 
 
 def get_feature_flags() -> FeatureFlags:
