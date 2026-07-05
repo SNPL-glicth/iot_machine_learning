@@ -82,12 +82,22 @@ def format_conclusion(
     urgency_score: float = entities.get("urgency_score", 0.0)
     sentiment_label: str = entities.get("sentiment_label", "neutral")
 
-    entity_line = f"{word_count} words"
-    if entity_list:
-        entity_line += f". Entities: {', '.join(entity_list[:5])}"
-    parts.append(entity_line)
+    # Solo incluir métricas de texto cuando el input es TEXT
+    # (evita mostrar "Sentiment: neutral" engañoso para datos numéricos)
+    _is_text = False
+    if hasattr(analysis_result, 'input_type'):
+        _raw = analysis_result.input_type
+        if hasattr(_raw, 'value'):
+            _is_text = _raw.value == "text"
+        else:
+            _is_text = str(_raw) == "text"
 
-    parts.append(f"Urgency: {urgency_score:.2f} | Sentiment: {sentiment_label}")
+    if _is_text:
+        entity_line = f"{word_count} words"
+        if entity_list:
+            entity_line += f". Entities: {', '.join(entity_list[:5])}"
+        parts.append(entity_line)
+        parts.append(f"Urgency: {urgency_score:.2f} | Sentiment: {sentiment_label}")
     
     # Add pattern interpretation if pre-computed by caller
     pattern_text: Optional[str] = entities.get("pattern_text")
