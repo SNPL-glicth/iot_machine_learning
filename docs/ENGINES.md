@@ -1,6 +1,6 @@
 # ZENIN Engines — Deep Architecture Reference
 
-**Última actualización:** 2026-06-20
+**Última actualización:** 2026-07-03
 
 This document describes **every engine** in ZENIN: how it works, what it predicts, where it plugs into the pipeline, and how it complements other engines. If you are extending ZENIN or debugging predictions, start here.
 
@@ -536,25 +536,13 @@ The brain of ZENIN. Takes a sensor window, runs it through 25+ pipeline phases a
 
 ### TextCognitiveEngine
 
-**File:** `infrastructure/ml/cognitive/text/engine.py`
+**File:** Referenced via `iot_machine_learning.infrastructure.ml.cognitive.text` (módulo no presente en el sistema de archivos actual)
 
 **What it does:**
 Deep cognitive analysis for text documents — sentiment, urgency, readability, semantic search, and decision classification.
 
-**Pipeline phases (same interface as MetaCognitiveOrchestrator):**
-
-| Phase | What happens |
-|-------|-------------|
-| **PERCEIVE** | Build signal profile from pre-computed text metrics (sentiment, urgency, readability scores) |
-| **ANALYZE** | Map sub-analyzer scores to `EnginePerception[]` |
-| **REMEMBER** | Recall similar past documents from cognitive memory (Weaviate) |
-| **REASON** | Inhibit unreliable engines, fuse, classify severity |
-| **EXPLAIN** | Assemble `Explanation` domain object |
-
-**Key design principle:** No imports from `ml_service`. It receives pre-computed scores via `TextAnalysisInput`.
-
 **Integration:**
-- Called by `DocumentAnalyzer` in the ML Service
+- Called by `DocumentAnalyzer` via `ml_service/api/services/analyzers/text_analyzer.py`
 - Input comes from text analyzers (sentiment, urgency, readability) that run BEFORE the cognitive engine
 - Output is an `Explanation` with severity, confidence, and reasoning trace
 - Results are stored in `zenin_docs.analysis_results`
@@ -563,6 +551,8 @@ Deep cognitive analysis for text documents — sentiment, urgency, readability, 
 - Works on text metrics, not numeric time-series
 - Memory phase recalls similar documents, not past sensor readings
 - Domain-agnostic: works for logs, contracts, reports, trading notes
+
+**Nota:** El módulo `cognitive/text/` no se encuentra en el árbol de directorios actual. Las importaciones existen en código (ej. `text_analyzer.py`), pero los archivos fuente del motor no están presentes en el disco.
 
 ---
 
@@ -859,7 +849,7 @@ if regime == "my_regime":
 | Kalman | `infrastructure/ml/engines/kalman/engine.py` |
 | Ensemble (deprecated) | `infrastructure/ml/engines/ensemble/predictor.py` |
 | MetaCognitiveOrchestrator | `infrastructure/ml/cognitive/orchestration/orchestrator.py` |
-| TextCognitiveEngine | `infrastructure/ml/cognitive/text/engine.py` |
+| TextCognitiveEngine | `ml_service/api/services/analyzers/text_analyzer.py` (módulo fuente no presente en disco) |
 | PredictionEngine interface | `infrastructure/ml/interfaces.py` |
 | Engine selection logic | `application/use_cases/select_engine.py` |
 | HybridNeuralEngine | `infrastructure/ml/cognitive/neural/hybrid_engine.py` |

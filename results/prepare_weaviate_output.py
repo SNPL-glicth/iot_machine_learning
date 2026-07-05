@@ -8,16 +8,19 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import json
+import os
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Cargar dataset
-file_path = '/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/Información Chiller y CA - ZENIN.xlsx'
+file_path = os.path.join(_SCRIPT_DIR, 'Información Chiller y CA - ZENIN.xlsx')
 xl = pd.ExcelFile(file_path)
 df_chiller = pd.read_excel(xl, sheet_name='Chiller')
 df_ca = pd.read_excel(xl, sheet_name='CA')
 
 # Cargar anomalías detectadas
-chiller_anomalies = pd.read_csv('/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/chiller_with_anomalies.csv', index_col=0, parse_dates=True)
-ca_anomalies = pd.read_csv('/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/ca_with_anomalies.csv', index_col=0, parse_dates=True)
+chiller_anomalies = pd.read_csv(os.path.join(_SCRIPT_DIR, 'chiller_with_anomalies.csv'), index_col=0, parse_dates=True)
+ca_anomalies = pd.read_csv(os.path.join(_SCRIPT_DIR, 'ca_with_anomalies.csv'), index_col=0, parse_dates=True)
 
 print("\n" + "="*80)
 print("PREPARACIÓN DE SALIDA COGNITIVA PARA WEAVIATE")
@@ -144,7 +147,7 @@ weaviate_output = {
     "summaries": all_summaries
 }
 
-with open('/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/weaviate_ready_output.json', 'w', encoding='utf-8') as f:
+with open(os.path.join(_SCRIPT_DIR, 'weaviate_ready_output.json'), 'w', encoding='utf-8') as f:
     json.dump(weaviate_output, f, ensure_ascii=False, indent=2)
 
 print(f"\nTotal de resúmenes generados: {len(all_summaries)}")
@@ -157,7 +160,7 @@ print(f"\nSalida guardada en: weaviate_ready_output.json")
 print("Formato listo para ingestión en Weaviate con embeddings.")
 
 # Guardar también versión simplificada para referencia rápida
-with open('/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/weaviate_summaries_readable.txt', 'w', encoding='utf-8') as f:
+with open(os.path.join(_SCRIPT_DIR, 'weaviate_summaries_readable.txt'), 'w', encoding='utf-8') as f:
     f.write("RESÚMENES SEMÁNTICOS PARA WEAVIATE\n")
     f.write("="*80 + "\n\n")
     

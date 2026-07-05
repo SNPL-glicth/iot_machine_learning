@@ -1,6 +1,6 @@
 ## Development Guide
 
-**Última actualización:** 2026-06-23
+**Última actualización:** 2026-07-03
 
 ### Adding a New Prediction Engine
 

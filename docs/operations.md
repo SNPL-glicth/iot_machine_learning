@@ -1,6 +1,6 @@
 ## Monitoring & Observability
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-07-03
 
 ### Prometheus Metrics
 

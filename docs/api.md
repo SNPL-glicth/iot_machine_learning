@@ -1,6 +1,6 @@
 ## API Reference
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-07-03
 
 > For complete Pydantic schema definitions, see `ml_service/api/schemas.py`.
 

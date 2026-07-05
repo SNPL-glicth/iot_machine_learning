@@ -1,6 +1,6 @@
 # Detección de Anomalías — Ensemble Voting v2.0
 
-**Última actualización:** 2026-06-23
+**Última actualización:** 2026-07-03
 **Archivo fuente:** `infrastructure/ml/anomaly/`
 **CHANGELOG:** `infrastructure/ml/anomaly/CHANGELOG.md`
 

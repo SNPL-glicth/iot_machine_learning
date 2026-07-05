@@ -17,8 +17,11 @@ warnings.filterwarnings('ignore')
 
 plt.style.use('seaborn-v0_8')
 
+import os
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Cargar dataset
-file_path = '/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/Información Chiller y CA - ZENIN.xlsx'
+file_path = os.path.join(_SCRIPT_DIR, 'Información Chiller y CA - ZENIN.xlsx')
 xl = pd.ExcelFile(file_path)
 df_chiller = pd.read_excel(xl, sheet_name='Chiller')
 df_ca = pd.read_excel(xl, sheet_name='CA')
@@ -186,7 +189,7 @@ def test_models(df_pivot, sheet_name):
     
     # Guardar anomalías detectadas
     df_clean['iso_anomaly'] = iso_pred == -1
-    df_clean.to_csv(f'/home/nicolas/Documentos/Iot_System/{sheet_name.lower()}_with_anomalies.csv')
+    df_clean.to_csv(os.path.join(_SCRIPT_DIR, f'{sheet_name.lower()}_with_anomalies.csv'))
     print(f"\nDatos con anomalías guardados: {sheet_name.lower()}_with_anomalies.csv")
 
 test_models(chiller_pivot, 'Chiller')

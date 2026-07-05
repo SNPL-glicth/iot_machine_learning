@@ -1,6 +1,6 @@
 # Plasticidad y Aprendizaje Adaptativo
 
-**Última actualización:** 2026-05-17
+**Última actualización:** 2026-07-03
 
 ---
 

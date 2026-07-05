@@ -1,5 +1,7 @@
 # ZENIN ML Service — Quickstart Guide
 
+**Última actualización:** 2026-07-03
+
 ## Prerequisites
 
 - Python 3.10+

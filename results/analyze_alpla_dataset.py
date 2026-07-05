@@ -21,8 +21,11 @@ warnings.filterwarnings('ignore')
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
+import os
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Cargar dataset
-file_path = '/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/Información Chiller y CA - ZENIN.xlsx'
+file_path = os.path.join(_SCRIPT_DIR, 'Información Chiller y CA - ZENIN.xlsx')
 xl = pd.ExcelFile(file_path)
 print(f"Sheet names: {xl.sheet_names}")
 
@@ -128,7 +131,7 @@ print("\n" + "="*80)
 print("GUARDANDO INFORMACIÓN DEL DATASET")
 print("="*80)
 
-with open('/home/nicolas/Documentos/Iot_System/iot_machine_learning/Datos/dataset_profile.txt', 'w') as f:
+with open(os.path.join(_SCRIPT_DIR, 'dataset_profile.txt'), 'w') as f:
     f.write("DATASET ALPLA - PERFILADO\n")
     f.write("="*80 + "\n\n")
     

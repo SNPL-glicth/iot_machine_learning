@@ -5,54 +5,54 @@ SHEET: CHILLER
 Shape: (5568, 5)
 Columnas: ['Fecha', 'Equipo', 'Valor', 'Parámetro', 'UM']
 Tipos:
-Fecha        datetime64[us]
-Equipo                  str
+Fecha        datetime64[ns]
+Equipo       datetime64[ns]
 Valor               float64
-Parámetro               str
-UM                      str
+Parámetro    datetime64[ns]
+UM           datetime64[ns]
 dtype: object
 Valores nulos:
-Fecha        0
-Equipo       0
-Valor        0
-Parámetro    0
-UM           0
+Fecha           0
+Equipo       5568
+Valor           0
+Parámetro    5568
+UM           5568
 dtype: int64
 Estadísticas:
-                            Fecha         Valor
-count                        5568  5.568000e+03
-mean   2025-08-05 20:19:39.310344  6.749249e+05
-min           2025-01-02 00:00:00  0.000000e+00
-25%           2025-04-14 18:00:00  1.160000e+01
-50%           2025-07-31 00:00:00  2.430000e+02
-75%           2025-12-01 00:00:00  4.512000e+03
-max           2026-03-21 00:00:00  5.912452e+08
-std                           NaN  8.491286e+06
+                               Fecha Equipo         Valor Parámetro   UM
+count                           5568      0  5.568000e+03         0    0
+mean   2025-08-05 20:19:39.310344704    NaT  6.749249e+05       NaT  NaT
+min              2025-01-02 00:00:00    NaT  0.000000e+00       NaT  NaT
+25%              2025-04-14 18:00:00    NaT  1.160000e+01       NaT  NaT
+50%              2025-07-31 00:00:00    NaT  2.430000e+02       NaT  NaT
+75%              2025-12-01 00:00:00    NaT  4.512000e+03       NaT  NaT
+max              2026-03-21 00:00:00    NaT  5.912452e+08       NaT  NaT
+std                              NaN    NaN  8.491286e+06       NaN  NaN
 
 SHEET: CA
 Shape: (4567, 5)
 Columnas: ['Fecha', 'Equipo', 'Valor', 'Parámetro', 'UM']
 Tipos:
-Fecha        datetime64[us]
-Equipo                  str
+Fecha        datetime64[ns]
+Equipo       datetime64[ns]
 Valor               float64
-Parámetro               str
-UM                      str
+Parámetro    datetime64[ns]
+UM           datetime64[ns]
 dtype: object
 Valores nulos:
-Fecha        0
-Equipo       0
-Valor        0
-Parámetro    0
-UM           0
+Fecha           0
+Equipo       4567
+Valor           0
+Parámetro    4567
+UM           4567
 dtype: int64
 Estadísticas:
-                            Fecha          Valor
-count                        4567    4567.000000
-mean   2025-08-11 09:53:24.291657   16569.347865
-min           2025-01-02 00:00:00       0.000000
-25%           2025-03-29 00:00:00      27.000000
-50%           2025-08-21 00:00:00      48.000000
-75%           2025-12-09 00:00:00      82.500000
-max           2026-05-30 00:00:00  900052.000000
-std                           NaN   40865.657778
+                               Fecha Equipo          Valor Parámetro   UM
+count                           4567      0    4567.000000         0    0
+mean   2025-08-11 09:53:24.291657472    NaT   16569.347865       NaT  NaT
+min              2025-01-02 00:00:00    NaT       0.000000       NaT  NaT
+25%              2025-03-29 00:00:00    NaT      27.000000       NaT  NaT
+50%              2025-08-21 00:00:00    NaT      48.000000       NaT  NaT
+75%              2025-12-09 00:00:00    NaT      82.500000       NaT  NaT
+max              2026-05-30 00:00:00    NaT  900052.000000       NaT  NaT
+std                              NaN    NaN   40865.657778       NaN  NaN

@@ -221,4 +221,4 @@ assert mae_fusion <= worst_single * 1.3
 
 ## Última actualización
 
-2026-05-13 - Metodología basada en evidencia verificada en código fuente. Estimaciones conservadoras derivadas de componentes técnicos implementados.
+2026-07-03 — Metodología basada en evidencia verificada en código fuente. Estimaciones conservadoras derivadas de componentes técnicos implementados.

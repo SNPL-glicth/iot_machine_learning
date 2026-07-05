@@ -23,11 +23,14 @@ except ImportError:
 
 # Prometheus metric: pipeline phase duration
 if Histogram is not None:
-    PIPELINE_PHASE_DURATION = Histogram(
-        "zenin_pipeline_phase_duration_seconds",
-        "Duración de cada fase del pipeline cognitivo",
-        ["phase_name"]
-    )
+    try:
+        PIPELINE_PHASE_DURATION = Histogram(
+            "zenin_pipeline_phase_duration_seconds",
+            "Duración de cada fase del pipeline cognitivo",
+            ["phase_name"],
+        )
+    except ValueError:
+        PIPELINE_PHASE_DURATION = None
 else:
     PIPELINE_PHASE_DURATION = None
 

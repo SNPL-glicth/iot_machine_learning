@@ -1,6 +1,6 @@
 # Drift Detection y Adaptación del Sistema
 
-**Última actualización:** 2026-05-12
+**Última actualización:** 2026-07-03
 **Archivo fuente:** `infrastructure/ml/cognitive/orchestration/phases/drift_detection_phase.py`
 
 ---

@@ -1,6 +1,6 @@
 ## Configuration
 
-**Última actualización:** 2026-06-23
+**Última actualización:** 2026-07-03
 
 ### Feature Flags Reference
 
