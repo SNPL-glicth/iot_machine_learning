@@ -44,6 +44,7 @@ class CognitiveConfig(BaseModel):
     # --- Text Analysis Pipeline ---
     ML_ENABLE_TEXT_ANALYSIS: bool = False  # Master switch for TextCognitiveEngine
     ML_ENABLE_TEXT_PERCEPTION: bool = False  # Enable text perception collection
+    ML_ENABLE_GRAPHQL_API: bool = False  # Enable /graphql endpoint (Strawberry-GraphQL)
 
     # --- Hybrid Embeddings (Text Entity Extraction) ---
     ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # Master switch

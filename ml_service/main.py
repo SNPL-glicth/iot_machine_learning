@@ -69,6 +69,15 @@ try:
 except ImportError:
     pass
 
+try:
+    from .config.loader import get_feature_flags
+    _flags = get_feature_flags()
+    if _flags.ML_ENABLE_GRAPHQL_API:
+        from .api.routes_graphql import router as graphql_router
+        app.include_router(graphql_router, prefix="/graphql")
+except Exception:
+    pass
+
 
 @app.get("/")
 async def root():
