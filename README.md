@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  <a href="#pipeline"><img src="https://img.shields.io/badge/15%20Fases%20ML-00D4C8?style=flat-square"/></a>
+  <a href="#pipeline"><img src="https://img.shields.io/badge/25%2B%20Fases%20ML-00D4C8?style=flat-square"/></a>
   <a href="#moe"><img src="https://img.shields.io/badge/MoE%20Bayesiano-00D4C8?style=flat-square"/></a>
   <a href="#audit"><img src="https://img.shields.io/badge/HMAC--SHA256-00D4C8?style=flat-square"/></a>
   <a href="#anomaly"><img src="https://img.shields.io/badge/7%20Detectores%20v2.0-00D4C8?style=flat-square"/></a>
@@ -219,6 +219,9 @@ Cada prediccion genera un registro NDJSON firmado:
 | **Rate limiter** | Proteccion DoS por serie, configurable |
 | **Rollout progresivo** | `FeatureActivator` con whitelist `ML_BATCH_ENTERPRISE_SENSORS` |
 | **RUL Estimator** | Estimacion de vida util residual con modelos de regresion |
+| **TextCognitiveEngine** | Pipeline texto completo: analyzers, chunking, patterns, entity extraction, conclusion, severity, cognitive fusion, GraphQL endpoint, 7 feature flags (todos false por defecto) |
+| **GraphQL Endpoint** | `/graphql` via Strawberry-GraphQL, gateado por `ML_ENABLE_GRAPHQL_API`, agnostico a tipo de serie temporal |
+| **Entity Extraction** | `RegexEntityExtractor` (6 patrones: EQUIPMENT, METRIC, ALERT, TEMPORAL, LOCATION, OPERATIONAL) + `HybridEntityDetector` con Weaviate server-side opcional |
 | **Cognitive Memory** | Weaviate para memoria episodica y semantica (feature flag) |
 
 ---
@@ -227,7 +230,6 @@ Cada prediccion genera un registro NDJSON firmado:
 
 | Capacidad | Estado |
 |-----------|--------|
-| `TextCognitiveEngine` | Verificado en codigo, no integrado en pipeline numerico |
 | `HybridNeuralEngine` | Verificado en codigo, no integrado en pipeline numerico |
 | `CognitiveMemory / Weaviate` | `ML_ENABLE_COGNITIVE_MEMORY=false` por defecto |
 | `SNNLayer con STDP` | Implementado en `cognitive/neural/snn/`, no integrado en pipeline activo |
@@ -333,6 +335,8 @@ curl -X POST http://localhost:8002/predict \
 4. **Taylor floor 0.30 → 0.50** — elevado para datos industriales
 5. **Anomaly v1.0 adaptativo** — pesos recalculados silenciosamente causaban inestabilidad (v2.0 eliminó pesos adaptativos)
 6. **Drift coupling en anomalía** — sobreescribía pesos configurados sin advertencia (eliminado en v2.0)
+7. **Conclusion engañosa para inputs no-TEXT** — `format_conclusion()` mostraba "Sentiment: neutral" en analysis numéricos; fixeado chequeando `input_type` antes de incluir líneas de Urgency/Sentiment/Entities
+8. **Entity dedup case-insensitive** — regex EQUIPMENT retornaba "comp" y "COMP" como entidades separadas; fixeado con pase final de consolidación en `RegexEntityExtractor`
 
 ---
 
@@ -357,60 +361,84 @@ curl -X POST http://localhost:8002/predict \
 
 ```
 iot_machine_learning/
+├── core/                         # Governance: ensemble, drift coupling, parameters, tuning, statistical
 ├── domain/                       # Entidades, puertos, politicas — zero infra deps
-│   ├── entities/                 # Value objects frozen (Prediction, Anomaly, Explanation...)
+│   ├── entities/                 # 34+ value objects frozen (Anomaly, Decision, Prediction...)
 │   ├── ports/                    # 23 interfaces (StoragePort, AuditPort, CognitivePort...)
 │   ├── services/                 # 33 servicios de dominio (anomaly, actions, cognitive, prediction...)
-│   ├── policies/                 # ActionBuilders, ContextPolicy, ThresholdPolicy
-│   ├── tools/                    # Tool registry, executors, guards
-│   ├── validators/               # DataSanitizer, InputGuard, validadores numericos
-│   └── value_objects/            # EquipmentClass, IndustrialEvent, SensorProfile
+│   ├── policies/                 # ActionBuilders, ContextPolicy, ThresholdPolicy, TextPolicy
+│   ├── tools/                    # Tool registry, executors, guards, metrics, models
+│   ├── validators/               # DataSanitizer, InputGuard, validadores numericos/temporales
+│   └── value_objects/            # EquipmentClass, IndustrialEvent, PlasticityScope, SeriesId
 ├── application/
-│   ├── use_cases/                # 7 casos de uso (predict, detect anomalies, analyze patterns...)
+│   ├── use_cases/                # Casos de uso (predict, detect anomalies, analyze patterns...)
 │   ├── services/                 # DecisionService
 │   ├── evaluation/               # Dataset evaluation, metrics, quality scoring
 │   ├── explainability/           # ExplanationRenderer
 │   └── semantic_extraction/      # Entity prioritizer
 ├── infrastructure/
 │   ├── ml/
-│   │   ├── cognitive/            # Pipeline 25+ fases + BayesianWeightTracker
+│   │   ├── cognitive/            # Pipeline 25+ fases + BayesianWeightTracker (32 subdirs)
 │   │   │   ├── orchestration/    # MetaCognitiveOrchestrator + 25+ phase files
 │   │   │   ├── bayesian_weight_tracker/  # 33 archivos — per-sensor learning
 │   │   │   ├── fusion/           # WeightedFusion, HampelFilter adaptativo
-│   │   │   ├── inhibition/       # InhibitionGate + AdaptiveConfig
+│   │   │   ├── inhibition/       # InhibitionGate + AdaptiveConfig + SmartRules
 │   │   │   ├── drift/            # Page-Hinkley, ADWIN, ErrorDriftDetector
-│   │   │   ├── plasticity/       # PlasticityTracker, AdvancedPlasticityCoordinator
+│   │   │   ├── plasticity/       # AdvancedPlasticityCoordinator
 │   │   │   ├── narrative/        # Generacion de narrativa (embedding network)
 │   │   │   ├── compliance/       # HMAC-SHA256, ComplianceExporter
-│   │   │   ├── neural/           # HybridEngine, SNN, attention
-│   │   │   └── ... +20 subdirs
-│   │   ├── engines/              # Taylor, Statistical, Baseline, Kalman, LightGBM
-│   │   ├── anomaly/              # VotingAnomalyDetector v2.0 + 7 detectores
-│   │   ├── moe/                  # MoE: registry, gating tree, experts, fusion, rollout
+│   │   │   ├── neural/           # HybridEngine, SNN con STDP, attention, classical
+│   │   │   ├── decision/         # ContextualDecisionEngine + strategies
+
+│   │   │   ├── universal/        # UniversalCognitiveEngine (analysis, comparative, validation)
+│   │   │   ├── seasonal/         # FFT + STL descomposicion estacional
+│   │   │   ├── sanitize/         # Imputacion, CUSUM, bounds provider
+│   │   │   ├── perception/       # SignalAnalyzer, phase setters
+│   │   │   ├── memory/           # Memoria cognitiva Weaviate
+│   │   │   ├── causal/           # Analisis causal entre series
+│   │   │   ├── explainability/   # Explicabilidad
+│   │   │   ├── reliability/      # Confiabilidad de motores
+│   │   │   ├── monitoring/       # Engine health monitor
+│   │   │   ├── regime/           # Deteccion de regimenes operativos
+│   │   │   ├── analysis/         # SignalAnalyzer, tipos de analisis
+│   │   │   ├── explanation/      # Explanation builder
+│   │   │   ├── series_values/    # Almacenamiento de valores de serie
+│   │   │   ├── hyperparameters/  # Adaptacion de hiperparametros
+│   │   │   ├── dynamic/          # Features dinamicos
+│   │   │   ├── error_store/      # Almacen de errores
+│   │   │   ├── observability/    # Observabilidad
+│   │   │   ├── utils/            # Utilidades
+│   │   │   └── ... +5 subdirs
+│   │   ├── engines/              # Taylor, Statistical, Baseline, Kalman, LightGBM, Seasonal, Multivariate, AdaptiveEnsemble
+│   │   ├── anomaly/              # VotingAnomalyDetector v2.0 + 7 detectores + RUL
+│   │   ├── moe/                  # MoE: gateway, gating tree, experts, sparse fusion, rollout (20 subdirs)
 │   │   ├── inference/            # Bayesiana (prior, likelihood, posterior, NaiveBayes) + MLE
-│   │   ├── optimization/         # Convexa (gradient, L-BFGS) + No convexa (genetic, PSO)
+│   │   ├── optimization/         # Convexa (gradient, L-BFGS, Newton) + No convexa (genetic, PSO, SA)
 │   │   ├── filters/              # Kalman, EMA, Median, FilterChain
-│   │   ├── patterns/             # ChangePoint, DeltaSpike, RegimeDetector
 │   │   ├── calibration/          # ConfidenceCalibrator
 │   │   ├── explainability/       # FeatureImportance
 │   │   └── benchmark/            # BenchmarkRunner, DatasetLoader, Metrics
 │   ├── adapters/                 # SQL, Weaviate, MLflow, CognitiveMemory, IOT
-│   ├── persistence/              # SQL Server, Redis, Weaviate (vector)
+│   ├── persistence/              # SQL Server, Redis, Weaviate (vector), sliding window, circuit breaker
 │   ├── resilience/               # CircuitBreaker
-│   ├── security/                 # AccessControl, AuditLogger, AuthProvider, RateLimiter
-│   └── config/                   # MoE factory
+│   ├── security/                 # AccessControl, AuditLogger, AuthProvider, RateLimiter, Namespace
+│   ├── config/                   # MoE factory
+│   ├── repositories/             # SensorProfile, Prediction, Threshold repos
+│   ├── redis/                    # Redis key management, ops collections
+│   └── weaviate/                 # Schema JSON (7 clases), setup
 ├── ml_service/                   # FastAPI app, runners, metrics, workers, governance
 │   ├── api/                      # 9 route files, schemas, dependencies
-│   ├── runners/                  # Batch, Stream, CLI, Worker
+│   ├── runners/                  # Batch, Stream, CLI, Worker + common services
 │   ├── metrics/                  # A/B testing, prometheus, observability
-│   ├── config/                   # Feature flags (40+), ML config
+│   ├── config/                   # Feature flags (40+), ML/cognitive/decision configs
 │   ├── workers/                  # Queue poller, job processor
 │   ├── orchestrator/             # PredictionOrchestrator
 │   ├── warmup.py                 # Precarga de modelos al iniciar
 │   └── governance_initializer.py # 9-componentes de governance
-├── core/                         # Ensemble, drift, parameters, tuning, statistical
-├── benchmarks/                   # NAB, memory, explainability, forensic
-└── tests/                        # 3,600+ tests (unit, integration, load, stress, property)
+├── benchmarks/                   # NAB, memory, explainability, forensic ensemble
+├── scripts/                      # Utilidades: benchmark, training extraction
+├── results/                      # ALPLA dataset analysis (CSVs, PNGs, JSON)
+└── tests/                        # 3,600+ tests (unit, integration, load, stress, property, domain, RUL)
 ```
 
 ---

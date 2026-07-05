@@ -88,7 +88,36 @@ Engine health monitoring
 - `engine_health_monitor.py` (240 lines) — Auto-inhibition by health
 
 ### 📁 text/
-Text-specific cognitive engine (18 files)
+Text-specific cognitive engine — módulo completo de analisis de texto.
+
+**Contratos confirmados por callers (reconstrucción fiel):**
+- `TextAnalysisInput` — 25+ campos de scores pre-computados
+- `TextAnalysisContext` — document_id, tenant_id, filename, weaviate_url
+- `TextCognitiveEngine.analyze(inp, ctx)` → analysis dict + Explanation + confidence
+- `cognitive/analyzers/` — 6 sub-analyzers: sentiment, urgency, readability, structural, text_structure, patterns
+
+**Diseño nuevo (sin original disponible por corrupción de git):**
+- `TextCognitiveEngine._build_perceptions` / `_fuse` — weighted average fusion 5 engines
+- `conclusion_builder.py` — construcción de conclusión human-readable
+- `severity_mapper.py` — mapeo de severidad por umbrales
+- `semantic_extraction/composite_entity_extractor.py` — `RegexEntityExtractor` con 6 patrones (EQUIPMENT, METRIC, ALERT, TEMPORAL, LOCATION, OPERATIONAL)
+- `embeddings/__init__.py` — `HybridEntityDetector` (regex passthrough o Weaviate server-side)
+- `entity_extractor.py` — facade de extracción
+
+**Feature flags (todos false por defecto):**
+- `ML_ENABLE_TEXT_ANALYSIS` — Master switch TextCognitiveEngine
+- `ML_ENABLE_TEXT_PERCEPTION` — Percepción de sentimiento/urgencia en pipeline universal
+- `ML_ENABLE_HYBRID_EMBEDDINGS` — HybridEntityDetector (false=regex, true=+Weaviate)
+- `ML_ENABLE_GRAPHQL_API` — Endpoint /graphql (Strawberry-GraphQL)
+- `ML_HYBRID_ENTITY_THRESHOLD` — Umbral de similitud semántica (default 0.3)
+- `ML_HYBRID_EMBEDDING_DIMENSION` — Dimensión embedding (default 128)
+- `ML_HYBRID_ENTROPY_THRESHOLD` — Umbral de entropía (default 0.5)
+- `ML_HYBRID_PHRASE_MIN_PERSISTENCE` — Persistencia mínima de frase (default 2)
+
+**Bug preexistente fixeado:** `conclusion_formatter.py` ya no muestra "Sentiment: neutral" engañoso para inputs no-TEXT (commit 5a1565d).
+
+**Endpoints externos:**
+- `/graphql` (Strawberry-GraphQL) — agnóstico a tipo de serie temporal; resolver semi-delgado: TEXT computa scores reales, NUMERIC pasa pre_computed_scores vacío
 
 ### 📁 universal/
 Universal cognitive engines (14 files)
@@ -228,7 +257,16 @@ cognitive/
 ├── hyperparameters/
 ├── observability/
 ├── reliability/
-├── text/                          ← Text engine (18 files)
+├── text/                          ← TextCognitiveEngine + analyzers + entity extraction + embeddings
+│   ├── __init__.py                ← TextCognitiveEngine, TextAnalysisInput, TextAnalysisContext
+│   ├── analyzers/                 ← 6 sub-analyzers (sentiment, urgency, readability, structural, text_structure, patterns)
+│   ├── text_chunker.py            ← Chunking de texto largo
+│   ├── text_pattern.py            ← Detección de patrones de texto
+│   ├── conclusion_builder.py      ← Construcción de conclusión human-readable
+│   ├── severity_mapper.py         ← Mapeo de severidad
+│   ├── entity_extractor.py        ← Facade de extracción de entidades
+│   ├── semantic_extraction/       ← RegexEntityExtractor (6 patrones, dedup case-insensitive)
+│   └── embeddings/                ← HybridEntityDetector (regex passthrough o Weaviate server-side)
 └── universal/                     ← Universal engines (14 files)
 ```
 

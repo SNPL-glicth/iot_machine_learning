@@ -73,4 +73,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (Future changes will be documented here)
+- **TextCognitiveEngine completo** — Reconstrucción de `infrastructure/ml/cognitive/text/` con 7 módulos:
+  - 6 sub-analyzers: sentiment, urgency, readability, structural, text_structure, patterns
+  - Fusión cognitiva ponderada (5 engines) con cálculo de confianza por entropía normalizada
+  - `RegexEntityExtractor` — 6 patrones de entidades (EQUIPMENT, METRIC, ALERT, TEMPORAL, LOCATION, OPERATIONAL)
+  - `HybridEntityDetector` — regex passthrough o Weaviate server-side text2vec (gateado por flag)
+  - Stream endpoint `/graphql` via Strawberry-GraphQL (agnóstico a tipo de serie temporal)
+- **8 feature flags** — `ML_ENABLE_TEXT_ANALYSIS`, `ML_ENABLE_TEXT_PERCEPTION`, `ML_ENABLE_HYBRID_EMBEDDINGS`, `ML_ENABLE_GRAPHQL_API` + 4 flags híbridos (todos false por defecto)
+
+### Fixed
+- **Conclusion engañosa para inputs no-TEXT** — `format_conclusion()` mostraba "Sentiment: neutral" en análisis numéricos; ahora chequea `input_type` antes de incluir líneas de Urgency/Sentiment/Entities (`conclusion_formatter.py`)
+- **Entity dedup case-insensitive** — regex EQUIPMENT retornaba "comp" y "COMP" como entidades separadas; fixeado con pase final de consolidación en `RegexEntityExtractor` + `_extract_entities_regex` en GraphQL resolver
+- **ML_ENABLE_HYBRID_EMBEDDINGS default True → False** — era dead config; el módulo `embeddings/` nunca existió hasta ahora, el flag True siempre caía a ImportError
