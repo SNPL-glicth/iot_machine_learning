@@ -40,7 +40,11 @@ def build_conclusion(
         "urgency_score": urgency_score,
         "sentiment_label": sentiment_label,
     }
-    return format_conclusion(analysis_result, entities_dict, comparison_result)
+    recall_ctx = getattr(analysis_result, 'recall_context', None)
+    return format_conclusion(
+        analysis_result, entities_dict, comparison_result,
+        recall_context=recall_ctx,
+    )
 
 
 def build_output_dict(

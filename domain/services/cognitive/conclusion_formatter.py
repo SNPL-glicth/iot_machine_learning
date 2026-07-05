@@ -15,6 +15,7 @@ def format_conclusion(
     analysis_result,
     entities: Dict[str, Any],
     comparison_result: Optional[object] = None,
+    recall_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Format conclusion directly from UniversalResult fields.
 
@@ -113,6 +114,15 @@ def format_conclusion(
     if comparison_result and hasattr(comparison_result, 'delta_conclusion'):
         parts.append(f"\n{comparison_result.delta_conclusion}")
     
+    # Add semantic recall context if available
+    if recall_context and recall_context.get("has_context"):
+        n_matches = recall_context.get("n_matches", 0)
+        top_score = recall_context.get("top_score", 0.0)
+        parts.append(
+            f"Semantic recall: {n_matches} similar documents "
+            f"(max certainty: {top_score:.3f})."
+        )
+
     # Add Monte Carlo if available
     if hasattr(analysis_result, 'explanation') and analysis_result.explanation:
         # Handle both Explanation types (with and without to_dict)
