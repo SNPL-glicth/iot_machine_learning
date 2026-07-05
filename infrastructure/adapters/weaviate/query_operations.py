@@ -11,6 +11,37 @@ from .http_client import post_json
 logger = logging.getLogger(__name__)
 
 
+_WHERE_ENUM_VALUES = {"Equal", "NotEqual", "LessThan", "LessThanEqual",
+                      "GreaterThan", "GreaterThanEqual", "Like", "And", "Or",
+                      "WithinGeoRange"}
+
+
+def _to_graphql_input(value: Any) -> str:
+    """Recursively convert a Python value to GraphQL input object syntax.
+
+    Handles dict → GraphQL input object ``{key: value}``,
+    list → ``[value, ...]``, strings → ``"value"``,
+    bool/int/float → literal, known enums → unquoted identifier.
+    """
+    if isinstance(value, dict):
+        parts = []
+        for k, v in value.items():
+            parts.append(f"{k}: {_to_graphql_input(v)}")
+        return "{" + ", ".join(parts) + "}"
+    if isinstance(value, list):
+        parts = [_to_graphql_input(v) for v in value]
+        return "[" + ", ".join(parts) + "]"
+    if isinstance(value, str):
+        if value in _WHERE_ENUM_VALUES:
+            return value
+        return json.dumps(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    return str(value)
+
+
 def graphql_near_text(
     graphql_url: str,
     class_name: str,
@@ -52,8 +83,7 @@ def graphql_near_text(
 
     where_clause = ""
     if where_filter:
-        where_json = json.dumps(where_filter, default=str)
-        where_clause = f", where: {where_json}"
+        where_clause = f", where: {_to_graphql_input(where_filter)}"
 
     query = (
         "{ Get { "

@@ -51,7 +51,7 @@ class RememberPhase:
                     if results:
                         recall_ctx = {
                             "n_matches": len(results),
-                            "top_score": round(results[0].score, 3) if results else 0.0,
+                            "top_score": round(results[0].certainty, 3) if results else 0.0,
                             "has_context": True,
                         }
             except Exception as e:

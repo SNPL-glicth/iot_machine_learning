@@ -22,14 +22,55 @@ import logging
 
 from sqlalchemy.engine import Connection
 
+from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
 from ...domain.ports.storage_port import StoragePort
 from ...ml_service.config.feature_flags import FeatureFlags
+from ..persistence.sql.storage import SqlServerStorageAdapter
 from .cognitive_storage_decorator import CognitiveStorageDecorator
 from .null_cognitive import NullCognitiveAdapter
-from ..persistence.sql.storage import SqlServerStorageAdapter
 from .weaviate import WeaviateCognitiveAdapter
 
 logger = logging.getLogger(__name__)
+
+
+def build_cognitive_memory(
+    flags: FeatureFlags,
+) -> CognitiveMemoryPort | None:
+    """Build a ``CognitiveMemoryPort`` from feature flags.
+
+    Reusable by any caller that needs the cognitive memory adapter
+    (e.g. ``document_analyzer_factory``, ``routes_cognitive``).
+
+    Args:
+        flags: Feature flags.
+
+    Returns:
+        ``WeaviateCognitiveAdapter`` if ``ML_ENABLE_COGNITIVE_MEMORY`` is
+        ``True`` **and** ``ML_COGNITIVE_MEMORY_URL`` is set.
+        Returns ``None`` when memory is disabled or the URL is empty
+        (exact same behaviour as the current hardcoded ``None``).
+    """
+    if not flags.ML_ENABLE_COGNITIVE_MEMORY:
+        return None
+
+    url = flags.ML_COGNITIVE_MEMORY_URL
+    if not url:
+        logger.warning(
+            "cognitive_memory_enabled_but_no_url",
+            extra={
+                "info": (
+                    "ML_COGNITIVE_MEMORY_URL is empty — "
+                    "falling back to None (no recall)"
+                ),
+            },
+        )
+        return None
+
+    return WeaviateCognitiveAdapter(
+        base_url=url,
+        enabled=True,
+        dry_run=flags.ML_COGNITIVE_MEMORY_DRY_RUN,
+    )
 
 
 def build_storage(
