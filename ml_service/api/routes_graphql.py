@@ -78,17 +78,45 @@ class AnalysisResult:
 # ── Resolver ────────────────────────────────────────────────────────
 
 def _extract_entities_regex(text: str) -> list[str]:
-    """Fallback regex entity extraction (same as universal_bridge.py)."""
+    """Fallback regex entity extraction — full match + case-insensitive dedup."""
     import re
-    result = []
-    result.extend(re.findall(r'\b\d+\s*°[CF]\b', text))
-    result.extend(re.findall(r'\b(NODE|TMP|SERVER|ROUTER|SWITCH)-\w+\b', text))
-    result.extend(re.findall(
-        r'\b(COMP|VLV|MOT|PUMP|CMP|BLR|GEN|TX|HV)[-]?[A-Z0-9]+\b', text, re.IGNORECASE
-    ))
-    result.extend(re.findall(r'\$[\d,]+(?:\.\d{2})?|\b\d{1,3}(?:,\d{3})+\s*(?:USD|EUR|USD\$|\$)\b', text))
-    result.extend(re.findall(r'\b\d+%\b', text))
-    result.extend(re.findall(r'\bSLA\s+\d+\.?\d*%?\b', text))
+    seen: set[str] = set()
+    result: list[str] = []
+
+    def _add(raw: str) -> None:
+        key = raw.upper().replace("-", "").replace(" ", "")
+        if key not in seen:
+            seen.add(key)
+            result.append(raw)
+
+    for m in re.finditer(r'\b\d+\s*°[CF]\b', text):
+        _add(m.group())
+
+    for m in re.finditer(r'\b(NODE|TMP|SERVER|ROUTER|SWITCH)-\w+\b', text):
+        _add(m.group())
+
+    _EQUIPMENT = re.compile(
+        r'\b(COMP|VLV|MOT|PUMP|CMP|BLR|GEN|TX|HV)[-]?[A-Z0-9]+\b',
+        re.IGNORECASE,
+    )
+    for m in _EQUIPMENT.finditer(text):
+        raw = m.group()
+        suffix = raw[len(m.group(1)):].lstrip("-")
+        if suffix.isalpha() and len(suffix) > 3:
+            continue
+        _add(raw)
+
+    for m in re.finditer(
+        r'\$[\d,]+(?:\.\d{2})?|\b\d{1,3}(?:,\d{3})+\s*(?:USD|EUR|USD\$|\$)\b', text
+    ):
+        _add(m.group())
+
+    for m in re.finditer(r'\b\d+%\b', text):
+        _add(m.group())
+
+    for m in re.finditer(r'\bSLA\s+\d+\.?\d*%?\b', text, re.IGNORECASE):
+        _add(m.group())
+
     return result
 
 

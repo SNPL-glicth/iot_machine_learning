@@ -237,6 +237,18 @@ class RegexEntityExtractor(EntityExtractorPort):
                 confidence=0.4,
             ))
 
+        # Final case-insensitive dedup — normaliza a una sola forma (mantiene
+        # la primera aparición con su casing original).
+        final: list[SemanticEntity] = []
+        seen_final: set[str] = set()
+        for entity in entities:
+            key = (entity.text or "").upper().replace("-", "").replace(" ", "")
+            if key in seen_final:
+                continue
+            seen_final.add(key)
+            final.append(entity)
+        entities = final
+
         elapsed = (time.monotonic() - t0) * 1000
         domain = domain_hint or self._domain
 
