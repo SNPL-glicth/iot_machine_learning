@@ -47,7 +47,7 @@ class CognitiveConfig(BaseModel):
     ML_ENABLE_GRAPHQL_API: bool = False  # Enable /graphql endpoint (Strawberry-GraphQL)
 
     # --- Hybrid Embeddings (Text Entity Extraction) ---
-    ML_ENABLE_HYBRID_EMBEDDINGS: bool = True  # Master switch
+    ML_ENABLE_HYBRID_EMBEDDINGS: bool = False  # Master switch
     ML_HYBRID_EMBEDDING_DIMENSION: int = 128
     ML_HYBRID_ENTROPY_THRESHOLD: float = 0.5
     ML_HYBRID_PHRASE_MIN_PERSISTENCE: int = 2

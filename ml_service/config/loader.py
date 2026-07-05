@@ -45,6 +45,7 @@ def load_from_env() -> FeatureFlags:
         "ML_ENABLE_TEXT_ANALYSIS",
         "ML_ENABLE_TEXT_PERCEPTION",
         "ML_ENABLE_GRAPHQL_API",
+        "ML_ENABLE_HYBRID_EMBEDDINGS",
         "ML_STREAM_PREDICTIONS_ENABLED",
     ):
         env_val = os.environ.get(key)
