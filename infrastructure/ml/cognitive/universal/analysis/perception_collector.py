@@ -70,9 +70,44 @@ class UniversalPerceptionCollector:
         self,
         scores: Dict[str, Any],
     ) -> List[EnginePerception]:
-        """Delegate to text perception logic."""
-        # text_perception_collector.py deleted - return empty list
-        return []
+        """Build text perceptions if ML_ENABLE_TEXT_PERCEPTION is True."""
+        from ml_service.config.feature_flags import get_feature_flags
+        flags = get_feature_flags()
+        if not flags.ML_ENABLE_TEXT_PERCEPTION:
+            return []
+
+        sentiment_score = scores.get("sentiment_score", 0.0)
+        sentiment_label = scores.get("sentiment_label", "neutral")
+        sentiment_magnitude = min(1.0, abs(sentiment_score))
+
+        urgency_score = scores.get("urgency_score", 0.0)
+        urgency_severity = scores.get("urgency_severity", "info")
+        urgency_confidence = (
+            0.9 if urgency_severity == "critical"
+            else 0.6 if urgency_severity == "warning"
+            else 0.3
+        )
+
+        return [
+            EnginePerception(
+                engine_name="text_sentiment",
+                predicted_value=sentiment_magnitude,
+                confidence=sentiment_magnitude,
+                metadata={
+                    "label": sentiment_label,
+                    "score": sentiment_score,
+                },
+            ),
+            EnginePerception(
+                engine_name="text_urgency",
+                predicted_value=min(1.0, urgency_score),
+                confidence=urgency_confidence,
+                metadata={
+                    "severity": urgency_severity,
+                    "total_hits": scores.get("urgency_total_hits", 0),
+                },
+            ),
+        ]
 
     def _collect_numeric(
         self,

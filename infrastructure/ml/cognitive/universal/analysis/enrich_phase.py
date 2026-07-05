@@ -15,10 +15,9 @@ from iot_machine_learning.domain.entities.semantic_extraction import (
 )
 from iot_machine_learning.domain.ports.semantic_extraction_port import EntityExtractorPort
 
-# text/ module deleted - semantic extraction removed
-# from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import (
-#     ExtractorFactory,
-# )
+from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction import (
+    ExtractorFactory,
+)
 
 from .types import InputType
 
