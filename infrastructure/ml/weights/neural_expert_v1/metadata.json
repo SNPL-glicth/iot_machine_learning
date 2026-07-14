@@ -1,0 +1,425 @@
+{
+  "Chiller_Caudal\u00edmetro 5": {
+    "trained_at": 1783989854.3219016,
+    "n_points": 312,
+    "final_loss": 0.895296,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Consumo de energ\u00eda sin restabecim. RTAE 5": {
+    "trained_at": 1783989854.8065407,
+    "n_points": 312,
+    "final_loss": 1.107146,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 N\u00famero de arranques del compresor": {
+    "trained_at": 1783989855.3086483,
+    "n_points": 306,
+    "final_loss": 0.793923,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Presi\u00f3n del refrigerante del condensador": {
+    "trained_at": 1783989855.8064425,
+    "n_points": 306,
+    "final_loss": 1.108358,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Presi\u00f3n del refrigerante del evaporador": {
+    "trained_at": 1783989856.3216286,
+    "n_points": 306,
+    "final_loss": 1.04118,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Temperatura de saturaci\u00f3n del refrigerante del condensador": {
+    "trained_at": 1783989856.7861156,
+    "n_points": 306,
+    "final_loss": 1.110362,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Temperatura de saturaci\u00f3n del refrigerante del evaporador": {
+    "trained_at": 1783989857.256107,
+    "n_points": 306,
+    "final_loss": 0.960125,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Tiempo de operaci\u00f3n del compresor": {
+    "trained_at": 1783989857.738255,
+    "n_points": 306,
+    "final_loss": 0.982221,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 N\u00famero de arranques del compresor": {
+    "trained_at": 1783989858.2240345,
+    "n_points": 310,
+    "final_loss": 1.096288,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Presi\u00f3n del refrigerante del condensador": {
+    "trained_at": 1783989858.6536796,
+    "n_points": 310,
+    "final_loss": 1.049538,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Presi\u00f3n del refrigerante del evaporador": {
+    "trained_at": 1783989859.1389291,
+    "n_points": 310,
+    "final_loss": 0.921809,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Temperatura de saturaci\u00f3n de refrigerante de evaporador": {
+    "trained_at": 1783989859.7375333,
+    "n_points": 310,
+    "final_loss": 0.929004,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Temperatura de saturaci\u00f3n de refrigerante del condensador": {
+    "trained_at": 1783989860.317224,
+    "n_points": 310,
+    "final_loss": 0.982997,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Tiempo de operaci\u00f3n del compresor": {
+    "trained_at": 1783989860.791612,
+    "n_points": 310,
+    "final_loss": 0.855254,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Punto de ajuste activo de agua helada": {
+    "trained_at": 1783989861.2854125,
+    "n_points": 312,
+    "final_loss": 1.132356,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura de entrada de agua": {
+    "trained_at": 1783989861.771383,
+    "n_points": 312,
+    "final_loss": 1.05395,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura de salida de agua": {
+    "trained_at": 1783989862.2693717,
+    "n_points": 312,
+    "final_loss": 1.116155,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura del medio ambiente": {
+    "trained_at": 1783989862.7708175,
+    "n_points": 312,
+    "final_loss": 1.002357,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Horas de carga": {
+    "trained_at": 1783989863.2487526,
+    "n_points": 353,
+    "final_loss": 1.093625,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Horas de servicio": {
+    "trained_at": 1783989863.8191774,
+    "n_points": 353,
+    "final_loss": 0.601356,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de agua de entrada de la bomba": {
+    "trained_at": 1783989864.3152156,
+    "n_points": 143,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de agua de salida de la bomba": {
+    "trained_at": 1783989864.528089,
+    "n_points": 143,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 1a etapa": {
+    "trained_at": 1783989864.7185607,
+    "n_points": 143,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 2a etapa": {
+    "trained_at": 1783989864.953015,
+    "n_points": 143,
+    "final_loss": 1.135155,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 3a etapa": {
+    "trained_at": 1783989865.1969225,
+    "n_points": 143,
+    "final_loss": 0.995231,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de regulaci\u00f3n": {
+    "trained_at": 1783989865.4534702,
+    "n_points": 143,
+    "final_loss": 1.005525,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n del aceite": {
+    "trained_at": 1783989865.7033136,
+    "n_points": 143,
+    "final_loss": 1.053125,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n del tanque pulm\u00f3n": {
+    "trained_at": 1783989865.9848557,
+    "n_points": 143,
+    "final_loss": 1.071631,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura ambiente": {
+    "trained_at": 1783989866.2326076,
+    "n_points": 143,
+    "final_loss": 0.952944,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de agua a la entrada del compresor": {
+    "trained_at": 1783989866.4779444,
+    "n_points": 143,
+    "final_loss": 1.060153,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de agua a la salida del compresor": {
+    "trained_at": 1783989866.7135649,
+    "n_points": 143,
+    "final_loss": 1.04522,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 1a etapa": {
+    "trained_at": 1783989866.9396598,
+    "n_points": 143,
+    "final_loss": 1.075666,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 2a etapa": {
+    "trained_at": 1783989867.182259,
+    "n_points": 143,
+    "final_loss": 1.111566,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 3a etapa": {
+    "trained_at": 1783989867.438535,
+    "n_points": 143,
+    "final_loss": 1.058542,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aspiraci\u00f3n de 2a etapa": {
+    "trained_at": 1783989867.6807609,
+    "n_points": 143,
+    "final_loss": 1.103174,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aspiraci\u00f3n de 3a etapa": {
+    "trained_at": 1783989867.9231637,
+    "n_points": 143,
+    "final_loss": 1.064938,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado libre": {
+    "trained_at": 1783989868.1695802,
+    "n_points": 143,
+    "final_loss": 0.997891,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado motor": {
+    "trained_at": 1783989868.4212604,
+    "n_points": 143,
+    "final_loss": 1.008302,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado polea": {
+    "trained_at": 1783989868.664166,
+    "n_points": 143,
+    "final_loss": 1.040455,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de cruceta horizontal": {
+    "trained_at": 1783989868.91835,
+    "n_points": 143,
+    "final_loss": 1.140657,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de cruceta vertical": {
+    "trained_at": 1783989869.159225,
+    "n_points": 143,
+    "final_loss": 1.097626,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del aceite": {
+    "trained_at": 1783989869.4128876,
+    "n_points": 143,
+    "final_loss": 1.121803,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del estator": {
+    "trained_at": 1783989869.7052429,
+    "n_points": 143,
+    "final_loss": 1.070031,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del punto de roc\u00edo del secador": {
+    "trained_at": 1783989869.943084,
+    "n_points": 143,
+    "final_loss": 1.103062,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del rodamiento del motor lado flecha": {
+    "trained_at": 1783989870.2684348,
+    "n_points": 143,
+    "final_loss": 1.070945,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del rodamiento del motor lado ventilador": {
+    "trained_at": 1783989870.5462837,
+    "n_points": 143,
+    "final_loss": 1.035407,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del tanque pulm\u00f3n": {
+    "trained_at": 1783989870.8612888,
+    "n_points": 143,
+    "final_loss": 1.028865,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  }
+}

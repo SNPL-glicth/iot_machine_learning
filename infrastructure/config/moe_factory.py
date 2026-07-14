@@ -31,9 +31,16 @@ from iot_machine_learning.infrastructure.ml.moe.expert_wrappers.engine_adapter i
     create_statistical_expert,
     create_taylor_expert,
 )
+from iot_machine_learning.infrastructure.ml.moe.experts.neural_expert import (
+    create_neural_expert,
+)
 from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
 
 logger = logging.getLogger(__name__)
+
+
+def _is_neural_enabled() -> bool:
+    return os.environ.get("ML_ENABLE_NEURAL_EXPERT", "").lower() == "true"
 
 
 def create_moe_gateway(
@@ -118,6 +125,17 @@ def create_moe_gateway(
             logger.info("moe_expert_registered", extra={"expert": "kalman"})
     except Exception as exc:
         logger.warning("moe_kalman_expert_failed", extra={"error": str(exc)})
+
+    # Neural expert (experimental, solo si flag activo)
+    if _is_neural_enabled():
+        try:
+            neural_expert = create_neural_expert()
+            registry.register("neural", neural_expert, neural_expert.capabilities)
+            expert_count += 1
+            if enable_logging:
+                logger.info("moe_expert_registered", extra={"expert": "neural"})
+        except Exception as exc:
+            logger.warning("moe_neural_expert_failed", extra={"error": str(exc)})
 
     # Validar que al menos tenemos un experto
     if expert_count == 0:
@@ -214,6 +232,14 @@ def create_moe_engine(
     _try_register("statistical", create_statistical_expert, "statistical")
     _try_register("taylor", create_taylor_expert, "taylor")
     _try_register("kalman", create_kalman_expert, "kalman")
+
+    if _is_neural_enabled():
+        try:
+            neural_expert = create_neural_expert()
+            registry.register("neural", neural_expert, neural_expert.capabilities)
+            expert_count += 1
+        except Exception as exc:
+            logger.debug("moe_neural_expert_skipped", extra={"error": str(exc)})
 
     if expert_count == 0:
         logger.warning("moe_engine_no_experts")

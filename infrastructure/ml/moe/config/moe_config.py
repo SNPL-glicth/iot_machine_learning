@@ -29,28 +29,32 @@ import os
 # Suma de pesos por régimen puede ser != 1.0; se normalizan internamente.
 DEFAULT_REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
     "stable": {
-        "baseline": 0.80,
-        "statistical": 0.15,
+        "baseline": 0.76,      # reduced from 0.80 to make room
+        "statistical": 0.14,    # reduced from 0.15
         "taylor": 0.05,
         "kalman": 0.00,
+        "neural": 0.05,         # initial minimum weight
     },
     "trending": {
         "baseline": 0.05,
-        "statistical": 0.55,
+        "statistical": 0.50,    # reduced from 0.55
         "taylor": 0.35,
         "kalman": 0.05,
+        "neural": 0.05,         # initial minimum weight
     },
     "volatile": {
         "baseline": 0.05,
         "statistical": 0.25,
-        "taylor": 0.50,
+        "taylor": 0.45,         # reduced from 0.50
         "kalman": 0.20,
+        "neural": 0.05,         # initial minimum weight
     },
     "noisy": {
         "baseline": 0.10,
         "statistical": 0.20,
         "taylor": 0.20,
-        "kalman": 0.50,
+        "kalman": 0.45,         # reduced from 0.50
+        "neural": 0.05,         # initial minimum weight
     },
 }
 

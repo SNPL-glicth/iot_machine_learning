@@ -159,7 +159,7 @@ class MoEPredictionEngine(PredictionEngine):
                 shadow_metadata = {"shadow_gating": {"error": str(exc)}}
 
         # 2. Dispatch: ejecutar expertos seleccionados
-        window = self._make_window(values, timestamps)
+        window = self._make_window(values, timestamps, series_id)
         expert_outputs = self._dispatcher.dispatch(selected_experts, window)
 
         # Si no hay outputs válidos, fallback
@@ -398,16 +398,18 @@ class MoEPredictionEngine(PredictionEngine):
     def _make_window(
         values: List[float],
         timestamps: Optional[List[float]],
+        series_id: Optional[str] = None,
     ) -> SensorWindow:
         from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorWindow, Reading,
         )
+        sid = series_id or "moe"
         ts = timestamps if timestamps is not None else list(range(len(values)))
         readings = [
-            Reading(series_id="moe", value=v, timestamp=t)
+            Reading(series_id=sid, value=v, timestamp=t)
             for v, t in zip(values, ts)
         ]
-        return SensorWindow(series_id="moe", readings=readings)
+        return SensorWindow(series_id=sid, readings=readings)
 
     @staticmethod
     def _make_dummy_window(n_points: int) -> SensorWindow:

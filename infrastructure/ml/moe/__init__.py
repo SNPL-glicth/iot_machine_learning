@@ -60,6 +60,10 @@ from .expert_wrappers.engine_adapter import (
     create_statistical_expert,
     create_taylor_expert,
 )
+from .experts.neural_expert import (
+    NeuralExpert,
+    create_neural_expert,
+)
 
 __all__ = [
     # Core
@@ -96,6 +100,8 @@ __all__ = [
     "create_baseline_expert",
     "create_statistical_expert",
     "create_taylor_expert",
+    "NeuralExpert",
+    "create_neural_expert",
 ]
 
 __version__ = "1.0.0"

@@ -7,7 +7,7 @@
       "MoEPredictionEngine: detección de régimen multi-factor (R², OLS, autocorr)",
       "Clasificación de régimen: noisy > trending > volatile > stable"
     ],
-    "generated_at": "2026-06-25T08:32:00.408807",
+    "generated_at": "2026-07-05T14:34:14.312716",
     "dataset": "ALPLA Industrial (Chiller + Air Compressor)",
     "total_parameters_analyzed": 47
   },
@@ -42,9 +42,9 @@
         }
       },
       "prediction": {
-        "value": 121.2,
-        "fused_confidence": 0.5,
-        "raw_confidence": 0.5,
+        "value": 127.3246,
+        "fused_confidence": 0.2675,
+        "raw_confidence": 0.2675,
         "trend": "down"
       },
       "penalties": {
@@ -53,9 +53,9 @@
         "signal": 0.6
       },
       "metrics": {
-        "mae": 87.9667,
-        "rmse": 90.842,
-        "mape_pct": 41.22
+        "mae": 81.842,
+        "rmse": 84.925,
+        "mape_pct": 38.25
       },
       "anomaly_rate": 0.0513
     },
@@ -2234,13 +2234,13 @@
       "kalman": 5,
       "baseline": 12
     },
-    "avg_fused_confidence": 0.5554,
+    "avg_fused_confidence": 0.5504,
     "avg_penalties": {
       "discrepancy": 1.0,
       "entropy": 0.7659,
       "signal": 0.7177
     },
-    "avg_mae": 17120.3072,
-    "conclusion": "Se analizaron 47 parámetros del dataset ALPLA. Distribución de regímenes: {'volatile': '64%', 'stable': '26%', 'noisy': '11%'}. Expertos seleccionados: {'taylor': '64%', 'baseline': '26%', 'kalman': '11%'}. Confianza promedio moderada (0.56). Penalizaciones activas: incertidumbre en routing (0.77); ruido en señal (0.72). Las mejoras implementadas (ajustes sigmoide acotados, penalización por discrepancia/entropía/ruido, detección multi-factor de régimen) permiten una selección más precisa del experto y una confianza más realista."
+    "avg_mae": 17120.1769,
+    "conclusion": "Se analizaron 47 parámetros del dataset ALPLA. Distribución de regímenes: {'volatile': '64%', 'stable': '26%', 'noisy': '11%'}. Expertos seleccionados: {'taylor': '64%', 'baseline': '26%', 'kalman': '11%'}. Confianza promedio moderada (0.55). Penalizaciones activas: incertidumbre en routing (0.77); ruido en señal (0.72). Las mejoras implementadas (ajustes sigmoide acotados, penalización por discrepancia/entropía/ruido, detección multi-factor de régimen) permiten una selección más precisa del experto y una confianza más realista."
   }
 }

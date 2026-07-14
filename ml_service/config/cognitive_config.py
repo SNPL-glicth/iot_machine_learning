@@ -53,6 +53,9 @@ class CognitiveConfig(BaseModel):
     ML_HYBRID_PHRASE_MIN_PERSISTENCE: int = 2
     ML_HYBRID_ENTITY_THRESHOLD: float = 0.3
 
+    # --- Neural Expert (MoE) ---
+    ML_ENABLE_NEURAL_EXPERT: bool = False  # Master switch for NeuralExpert in MoE
+
     # --- Cognitive Memory (Weaviate) ---
     ML_ENABLE_COGNITIVE_MEMORY: bool = False
     ML_COGNITIVE_MEMORY_DRY_RUN: bool = True
