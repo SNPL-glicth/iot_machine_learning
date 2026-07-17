@@ -14,7 +14,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
+from typing import Dict, List, Optional
+
 from ..entities.anomaly import AnomalyResult
+from ..entities.patterns.pattern_result import PatternResult
 from ..entities.prediction import Prediction
 from ..entities.sensor_reading import SensorReading, SensorWindow
 from ..entities.time_series import TimeSeries
@@ -190,3 +193,38 @@ class StoragePort(ABC):
         """
         sensor_id = safe_series_id_to_int(series_id)
         return self.get_sensor_metadata(sensor_id)
+
+    # ── Cognitive-only saves (no SQL backend required) ─────────────────
+
+    def save_pattern(self, pattern: PatternResult) -> int:
+        """Persiste un patrón de comportamiento en memoria cognitiva.
+
+        Default implementation: no-op, returns -1.
+        Override in CognitiveStorageDecorator for dual-write.
+
+        Args:
+            pattern: Patrón de comportamiento detectado.
+
+        Returns:
+            ID en memoria cognitiva, o -1 si no hay backend.
+        """
+        return -1
+
+    def save_decision(
+        self,
+        decision_data: Dict[str, object],
+        source_record_id: int,
+    ) -> int:
+        """Persiste una decisión en memoria cognitiva.
+
+        Default implementation: no-op, returns -1.
+        Override in CognitiveStorageDecorator for dual-write.
+
+        Args:
+            decision_data: Datos de la decisión.
+            source_record_id: ID del registro origen.
+
+        Returns:
+            ID en memoria cognitiva, o -1 si no hay backend.
+        """
+        return -1

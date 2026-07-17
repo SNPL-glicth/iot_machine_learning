@@ -37,9 +37,10 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ...domain.entities.anomaly import AnomalyResult
+from ...domain.entities.patterns.pattern_result import PatternResult
 from ...domain.entities.prediction import Prediction
 from ...domain.entities.sensor_reading import SensorWindow
 from ...domain.entities.time_series import TimeSeries
@@ -199,6 +200,40 @@ class CognitiveStorageDecorator(StoragePort):
             event_code="ANOMALY_DETECTED",
             behavior_pattern="",
             operational_context=context_str,
+            domain_name="iot",
+        )
+
+        return record_id
+
+    # ------------------------------------------------------------------
+    # Cognitive-only dual-write: no SQL backend required
+    # ------------------------------------------------------------------
+
+    def save_pattern(self, pattern: PatternResult) -> int:
+        """Fire cognitive remember_pattern (no SQL backend for patterns)."""
+        record_id = self._inner.save_pattern(pattern)
+
+        self._fire_cognitive(
+            "remember_pattern",
+            pattern,
+            source_record_id=record_id,
+            domain_name="iot",
+        )
+
+        return record_id
+
+    def save_decision(
+        self,
+        decision_data: Dict[str, Any],
+        source_record_id: int,
+    ) -> int:
+        """Fire cognitive remember_decision (no SQL backend for decisions)."""
+        record_id = self._inner.save_decision(decision_data, source_record_id)
+
+        self._fire_cognitive(
+            "remember_decision",
+            decision_data,
+            source_record_id=record_id,
             domain_name="iot",
         )
 

@@ -1,0 +1,56 @@
+{
+  "dataset": "UCI AI4I 2020 Predictive Maintenance Dataset",
+  "window_size": 50,
+  "total_points": 10000,
+  "total_anomaly_points": 339,
+  "results": [
+    {
+      "name": "Z-score (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.5945,
+      "auc_pr": 0.043,
+      "elapsed_s": 0.0,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 339
+    },
+    {
+      "name": "IQR (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.5852,
+      "auc_pr": 0.0413,
+      "elapsed_s": 0.0,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 339
+    },
+    {
+      "name": "Rolling Z-score",
+      "f1": 0.0243,
+      "precision": 0.039,
+      "recall": 0.0177,
+      "auc_roc": 0.5247,
+      "auc_pr": 0.0362,
+      "elapsed_s": 0.34,
+      "anomalies_detected": 154,
+      "false_positives": 148,
+      "false_negatives": 333
+    },
+    {
+      "name": "ZENIN VotingEnsemble",
+      "f1": 0.0611,
+      "precision": 0.042,
+      "recall": 0.1121,
+      "auc_roc": 0.5812,
+      "auc_pr": 0.0448,
+      "elapsed_s": 122.67,
+      "anomalies_detected": 905,
+      "false_positives": 867,
+      "false_negatives": 301
+    }
+  ]
+}

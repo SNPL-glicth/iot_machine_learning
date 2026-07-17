@@ -1,0 +1,57 @@
+{
+  "dataset": "NASA C-MAPSS FD001 (Turbofan Engine Degradation)",
+  "window_size": 30,
+  "detection_threshold": 0.7,
+  "total_points": 42273,
+  "total_anomaly_points": 100,
+  "results": [
+    {
+      "name": "Z-score (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.8829,
+      "auc_pr": 0.0092,
+      "elapsed_s": 0.0,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 100
+    },
+    {
+      "name": "IQR (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.8391,
+      "auc_pr": 0.0067,
+      "elapsed_s": 0.01,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 100
+    },
+    {
+      "name": "Rolling Z-score",
+      "f1": 0.0046,
+      "precision": 0.0025,
+      "recall": 0.03,
+      "auc_roc": 0.4939,
+      "auc_pr": 0.0023,
+      "elapsed_s": 1.49,
+      "anomalies_detected": 1210,
+      "false_positives": 1207,
+      "false_negatives": 97
+    },
+    {
+      "name": "ZENIN VotingEnsemble",
+      "f1": 0.005,
+      "precision": 0.0025,
+      "recall": 0.98,
+      "auc_roc": 0.6543,
+      "auc_pr": 0.0041,
+      "elapsed_s": 394.88,
+      "anomalies_detected": 38925,
+      "false_positives": 38827,
+      "false_negatives": 2
+    }
+  ]
+}

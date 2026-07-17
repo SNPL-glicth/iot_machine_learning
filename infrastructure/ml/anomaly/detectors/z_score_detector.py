@@ -101,6 +101,10 @@ class ZScoreDetector(SubDetector):
 
     def train(self, values: List[float], **kwargs: object) -> None:
         self._stats = compute_training_stats(values)
+        self._value_history.clear()
+        self._rolling_std_history.clear()
+        if hasattr(self, '_ema_mean'):
+            del self._ema_mean
         if self._stats and self._adaptive:
             self._rolling_std_history.append(self._stats.std)
 

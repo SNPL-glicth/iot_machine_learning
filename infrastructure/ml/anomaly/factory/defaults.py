@@ -18,6 +18,7 @@ from ..detectors import (
     IQRDetector,
     IsolationForestDetector,
     LOFDetector,
+    RollingZScoreDetector,
     VelocityZDetector,
     ZScoreDetector,
 )
@@ -47,6 +48,10 @@ def create_default_detectors(
             upper=config.z_vote_upper,
         ),
         IQRDetector(),
+        RollingZScoreDetector(
+            long_window=config.min_training_points,
+            short_window=max(5, config.min_training_points // 10),
+        ),
         IsolationForestDetector(
             contamination=config.contamination,
             n_estimators=config.n_estimators,

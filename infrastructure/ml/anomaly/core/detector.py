@@ -119,14 +119,16 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         if window.is_empty or window.last_value is None:
             return AnomalyResult.normal(series_id=str(window.sensor_id))
 
+        vote_kwargs = build_vote_context(window, self._temporal_stats)
+
         value = window.last_value
         if self._scaler is not None:
             try:
                 value = self._scaler.transform(np.array([[value]])).flatten()[0]
+                if "nd_features" in vote_kwargs:
+                    vote_kwargs["nd_features"][0, 0] = value
             except Exception as exc:
                 logger.warning("scaler_transform_failed", extra={"error": str(exc)})
-
-        vote_kwargs = build_vote_context(window, self._temporal_stats)
         votes: Dict[str, float] = {}
         for detector in self._sub_detectors:
             if not detector.is_trained:
@@ -142,7 +144,7 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
                 )
 
         final_score = self._strategy.combine(votes)
-        is_anomaly = self._strategy.is_anomaly(final_score)
+        is_anomaly = self._strategy.is_anomaly(final_score, votes=votes)
         confidence = self._strategy.confidence(votes)
         severity = ThresholdPolicy.default().classify_score(final_score)
 

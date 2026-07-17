@@ -152,31 +152,6 @@ class TimeSeriesWindow:
         except ValueError:
             return 0
 
-
-@dataclass(init=False, frozen=True, slots=True)
-class SensorWindow(TimeSeriesWindow):
-    """@deprecated Legacy alias for TimeSeriesWindow. Use TimeSeriesWindow directly."""
-    pass
-
-    @property
-    def is_empty(self) -> bool:
-        """``True`` si no hay lecturas."""
-        return len(self.readings) == 0
-
-    @property
-    def last_value(self) -> Optional[float]:
-        """Último valor de la ventana, o ``None`` si está vacía."""
-        if self.readings:
-            return self.readings[-1].value
-        return None
-
-    @property
-    def last_timestamp(self) -> Optional[float]:
-        """Último timestamp, o ``None`` si está vacía."""
-        if self.readings:
-            return self.readings[-1].timestamp
-        return None
-
     @property
     def time_span_seconds(self) -> float:
         """Duración total de la ventana en segundos."""
@@ -232,3 +207,28 @@ class SensorWindow(TimeSeriesWindow):
             timestamps=self.timestamps,
             series_id=str(self.series_id),
         )
+
+
+@dataclass(init=False, frozen=True)
+class SensorWindow(TimeSeriesWindow):
+    """@deprecated Legacy alias for TimeSeriesWindow. Use TimeSeriesWindow directly."""
+    pass
+
+    @property
+    def is_empty(self) -> bool:
+        """``True`` si no hay lecturas."""
+        return len(self.readings) == 0
+
+    @property
+    def last_value(self) -> Optional[float]:
+        """Último valor de la ventana, o ``None`` si está vacía."""
+        if self.readings:
+            return self.readings[-1].value
+        return None
+
+    @property
+    def last_timestamp(self) -> Optional[float]:
+        """Último timestamp, o ``None`` si está vacía."""
+        if self.readings:
+            return self.readings[-1].timestamp
+        return None

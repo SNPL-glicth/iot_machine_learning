@@ -421,5 +421,428 @@
     "hidden_size": 6,
     "epochs": 300,
     "lr": 0.001
+  },
+  "Chiller_Caudal\u00edmetro 5_split80": {
+    "trained_at": 1783990968.3337457,
+    "n_points": 249,
+    "final_loss": 0.861956,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Consumo de energ\u00eda sin restabecim. RTAE 5_split80": {
+    "trained_at": 1783990968.746229,
+    "n_points": 249,
+    "final_loss": 1.117194,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 N\u00famero de arranques del compresor_split80": {
+    "trained_at": 1783990969.2291455,
+    "n_points": 244,
+    "final_loss": 0.802535,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Presi\u00f3n del refrigerante del condensador_split80": {
+    "trained_at": 1783990969.6171184,
+    "n_points": 244,
+    "final_loss": 0.982342,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Presi\u00f3n del refrigerante del evaporador_split80": {
+    "trained_at": 1783990970.1179655,
+    "n_points": 244,
+    "final_loss": 1.075384,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Temperatura de saturaci\u00f3n del refrigerante del condensador_split80": {
+    "trained_at": 1783990970.54184,
+    "n_points": 244,
+    "final_loss": 1.115087,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Temperatura de saturaci\u00f3n del refrigerante del evaporador_split80": {
+    "trained_at": 1783990971.0499723,
+    "n_points": 244,
+    "final_loss": 0.959818,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.1 Tiempo de operaci\u00f3n del compresor_split80": {
+    "trained_at": 1783990971.4184637,
+    "n_points": 244,
+    "final_loss": 0.934393,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 N\u00famero de arranques del compresor_split80": {
+    "trained_at": 1783990971.8550487,
+    "n_points": 248,
+    "final_loss": 1.106157,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Presi\u00f3n del refrigerante del condensador_split80": {
+    "trained_at": 1783990972.2447526,
+    "n_points": 248,
+    "final_loss": 1.056728,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Presi\u00f3n del refrigerante del evaporador_split80": {
+    "trained_at": 1783990972.7825928,
+    "n_points": 248,
+    "final_loss": 0.919818,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Temperatura de saturaci\u00f3n de refrigerante de evaporador_split80": {
+    "trained_at": 1783990973.4094913,
+    "n_points": 248,
+    "final_loss": 0.928445,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Temperatura de saturaci\u00f3n de refrigerante del condensador_split80": {
+    "trained_at": 1783990973.8576896,
+    "n_points": 248,
+    "final_loss": 0.917196,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Cto.2 Tiempo de operaci\u00f3n del compresor_split80": {
+    "trained_at": 1783990974.372042,
+    "n_points": 248,
+    "final_loss": 0.547086,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Punto de ajuste activo de agua helada_split80": {
+    "trained_at": 1783990974.8096085,
+    "n_points": 249,
+    "final_loss": 1.159524,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura de entrada de agua_split80": {
+    "trained_at": 1783990975.1469374,
+    "n_points": 249,
+    "final_loss": 1.073252,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura de salida de agua_split80": {
+    "trained_at": 1783990975.5038574,
+    "n_points": 249,
+    "final_loss": 1.104464,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "Chiller_Temperatura del medio ambiente_split80": {
+    "trained_at": 1783990975.8645663,
+    "n_points": 249,
+    "final_loss": 0.963224,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Horas de carga_split80": {
+    "trained_at": 1783990976.4121876,
+    "n_points": 282,
+    "final_loss": 1.100182,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Horas de servicio_split80": {
+    "trained_at": 1783990976.8833902,
+    "n_points": 282,
+    "final_loss": 0.563237,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de agua de entrada de la bomba_split80": {
+    "trained_at": 1783990977.3021631,
+    "n_points": 114,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de agua de salida de la bomba_split80": {
+    "trained_at": 1783990977.4328954,
+    "n_points": 114,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 1a etapa_split80": {
+    "trained_at": 1783990977.5742333,
+    "n_points": 114,
+    "final_loss": 0.0,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 2a etapa_split80": {
+    "trained_at": 1783990977.7431629,
+    "n_points": 114,
+    "final_loss": 1.153014,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de aire a la descarga de 3a etapa_split80": {
+    "trained_at": 1783990977.91165,
+    "n_points": 114,
+    "final_loss": 0.914324,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n de regulaci\u00f3n_split80": {
+    "trained_at": 1783990978.101635,
+    "n_points": 114,
+    "final_loss": 0.996205,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n del aceite_split80": {
+    "trained_at": 1783990978.2898347,
+    "n_points": 114,
+    "final_loss": 1.066551,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Presi\u00f3n del tanque pulm\u00f3n_split80": {
+    "trained_at": 1783990978.478805,
+    "n_points": 114,
+    "final_loss": 1.166713,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura ambiente_split80": {
+    "trained_at": 1783990978.744591,
+    "n_points": 114,
+    "final_loss": 0.916648,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de agua a la entrada del compresor_split80": {
+    "trained_at": 1783990978.9959662,
+    "n_points": 114,
+    "final_loss": 1.053089,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de agua a la salida del compresor_split80": {
+    "trained_at": 1783990979.2594013,
+    "n_points": 114,
+    "final_loss": 1.046157,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 1a etapa_split80": {
+    "trained_at": 1783990979.496668,
+    "n_points": 114,
+    "final_loss": 1.044249,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 2a etapa_split80": {
+    "trained_at": 1783990979.7098725,
+    "n_points": 114,
+    "final_loss": 1.062858,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aire a la descarga 3a etapa_split80": {
+    "trained_at": 1783990979.928224,
+    "n_points": 114,
+    "final_loss": 1.043462,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aspiraci\u00f3n de 2a etapa_split80": {
+    "trained_at": 1783990980.1487222,
+    "n_points": 114,
+    "final_loss": 1.090877,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de aspiraci\u00f3n de 3a etapa_split80": {
+    "trained_at": 1783990980.3761208,
+    "n_points": 114,
+    "final_loss": 1.047353,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado libre_split80": {
+    "trained_at": 1783990980.6099317,
+    "n_points": 114,
+    "final_loss": 0.911328,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado motor_split80": {
+    "trained_at": 1783990980.8527982,
+    "n_points": 114,
+    "final_loss": 1.034029,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de chumacera lado polea_split80": {
+    "trained_at": 1783990981.1119344,
+    "n_points": 114,
+    "final_loss": 1.056679,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de cruceta horizontal_split80": {
+    "trained_at": 1783990981.3801131,
+    "n_points": 114,
+    "final_loss": 1.063664,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura de cruceta vertical_split80": {
+    "trained_at": 1783990981.6109502,
+    "n_points": 114,
+    "final_loss": 1.089052,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del aceite_split80": {
+    "trained_at": 1783990981.8233037,
+    "n_points": 114,
+    "final_loss": 1.060592,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del estator_split80": {
+    "trained_at": 1783990982.0428932,
+    "n_points": 114,
+    "final_loss": 1.098461,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del punto de roc\u00edo del secador_split80": {
+    "trained_at": 1783990982.2730496,
+    "n_points": 114,
+    "final_loss": 1.122202,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del rodamiento del motor lado flecha_split80": {
+    "trained_at": 1783990982.4811332,
+    "n_points": 114,
+    "final_loss": 1.03579,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del rodamiento del motor lado ventilador_split80": {
+    "trained_at": 1783990982.7257063,
+    "n_points": 114,
+    "final_loss": 1.014314,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
+  },
+  "CA_Temperatura del tanque pulm\u00f3n_split80": {
+    "trained_at": 1783990982.946489,
+    "n_points": 114,
+    "final_loss": 0.945783,
+    "input_size": 10,
+    "hidden_size": 6,
+    "epochs": 300,
+    "lr": 0.001
   }
 }

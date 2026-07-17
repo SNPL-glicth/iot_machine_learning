@@ -38,7 +38,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from core.parameters.numerical_constants import STAT_THRESHOLDS
+from core.parameters.numerical_constants import STAT_THRESHOLDS, EPSILON
 from core.drift.adaptive_strategy import (
     AdaptiveScaler,
     UnifiedAdaptiveConfig,
@@ -106,6 +106,8 @@ class IQRDetector(SubDetector):
 
     def train(self, values: List[float], **kwargs: object) -> None:
         self._stats = compute_training_stats(values)
+        self._value_history.clear()
+        self._rolling_iqr_history.clear()
         if self._stats and self._adaptive:
             self._rolling_iqr_history.append(self._stats.iqr)
 

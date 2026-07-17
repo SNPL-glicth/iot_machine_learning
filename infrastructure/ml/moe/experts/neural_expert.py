@@ -266,13 +266,23 @@ class NeuralExpert(ExpertPort):
     def estimate_latency_ms(self, n_points: int) -> float:
         return 5.0 + (n_points * 0.1)
 
-    def warmup(self, series_id: str, values: list[float]) -> bool:
-        """Pre-train model for a series_id using ALL available values.
+    def warmup(self, series_id: str, values: list[float], train_fraction: float = 1.0) -> bool:
+        """Pre-train model for a series_id.
+
+        Args:
+            series_id: Unique identifier for the time series.
+            values: Training data (full or partial series).
+            train_fraction: If < 1.0, uses only the first
+                ``train_fraction * len(values)`` points (cronological head).
+                Default 1.0 = use all values (legacy behavior).
 
         Call once before the sliding-window loop so that predict()
         only does inference (no retraining overhead).
         Returns True if training succeeded.
         """
+        if train_fraction < 1.0:
+            n_train = max(self._input_size + 2, int(len(values) * train_fraction))
+            values = values[:n_train]
         if self._load_weights(series_id):
             return True
         X, y, mean, std = _build_training_data(values, self._input_size)

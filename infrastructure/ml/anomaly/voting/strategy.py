@@ -26,7 +26,14 @@ class VotingStrategy:
             self._default_weight,
         )
 
-    def is_anomaly(self, score: float) -> bool:
+    def is_anomaly(self, score: float, votes: Optional[Dict[str, Optional[float]]] = None) -> bool:
+        if votes is not None:
+            fired_weight = sum(
+                self._weights[m] for m, v in votes.items()
+                if m in self._weights and v is not None and v > 0.0
+            )
+            effective_threshold = max(self._threshold * fired_weight, self._threshold * 0.6)
+            return score >= effective_threshold
         return score >= self._threshold
 
     def confidence(self, votes: Dict[str, Optional[float]]) -> float:

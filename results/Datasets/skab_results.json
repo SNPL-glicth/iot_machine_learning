@@ -1,0 +1,56 @@
+{
+  "dataset": "SKAB (Skoltech Anomaly Benchmark)",
+  "window_size": 50,
+  "total_points": 5937,
+  "total_anomaly_points": 2039,
+  "results": [
+    {
+      "name": "Z-score (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.7145,
+      "auc_pr": 0.4495,
+      "elapsed_s": 0.0,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 2039
+    },
+    {
+      "name": "IQR (global)",
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "auc_roc": 0.7016,
+      "auc_pr": 0.4433,
+      "elapsed_s": 0.0,
+      "anomalies_detected": 0,
+      "false_positives": 0,
+      "false_negatives": 2039
+    },
+    {
+      "name": "Rolling Z-score",
+      "f1": 0.0162,
+      "precision": 0.3091,
+      "recall": 0.0083,
+      "auc_roc": 0.6348,
+      "auc_pr": 0.4068,
+      "elapsed_s": 0.27,
+      "anomalies_detected": 55,
+      "false_positives": 38,
+      "false_negatives": 2022
+    },
+    {
+      "name": "ZENIN VotingEnsemble",
+      "f1": 0.1136,
+      "precision": 0.3538,
+      "recall": 0.0677,
+      "auc_roc": 0.8187,
+      "auc_pr": 0.6743,
+      "elapsed_s": 87.78,
+      "anomalies_detected": 390,
+      "false_positives": 252,
+      "false_negatives": 1901
+    }
+  ]
+}
