@@ -39,10 +39,18 @@ class MultiplicativeMoEGating:
     def evaluate_and_veto(
         self, 
         trajectories: list[Trajectory], 
-        jury: Sequence[ExpertJuryPort]
+        jury: Sequence[ExpertJuryPort],
+        lambda_t: float = 0.0,
+        phi_ritmo: float = 0.0,
     ) -> ValidationResult:
         """
         Evaluate all trajectories through MoE jury with hard-gating veto.
+        
+        Args:
+            trajectories: Candidate trajectories from Module 2
+            jury: Expert jury for evaluation
+            lambda_t: Exploration factor from Module 2 (0.0-1.0)
+            phi_ritmo: Phi_Ritmo coherence score from chosen trajectory
         
         Returns:
             ValidationResult with chosen trajectory or veto details
@@ -87,6 +95,8 @@ class MultiplicativeMoEGating:
                     threshold=0.0,
                     reason="All trajectories vetoed"
                 ),
+                lambda_t=lambda_t,
+                phi_ritmo=phi_ritmo,
             )
         
         # Calculate action envelope from confidence
@@ -100,6 +110,8 @@ class MultiplicativeMoEGating:
             veto_details=None,
             all_scores=best_all_scores,
             variance_penalty=variance,
+            lambda_t=lambda_t,
+            phi_ritmo=phi_ritmo,
         )
     
     def _check_critical_veto(

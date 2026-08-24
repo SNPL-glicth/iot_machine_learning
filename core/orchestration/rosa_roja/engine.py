@@ -23,6 +23,7 @@ from .domain.ml_taxonomy import (
 )
 from .domain.state_machine import StateMachine, PipelineState
 from .domain.state_persistence import STATE_SCHEMA_VERSION
+from .domain.validation import ValidationResult
 from .modules.module1_ingestion import MahalanobisFilter
 from .modules.rhythm_generator import RhythmTrajectoryGenerator
 from .modules.module3_moe_gating import MultiplicativeMoEGating
@@ -202,9 +203,49 @@ class RosaRojaEngine:
             return ExecutionPlan.HOLD(reason="Insufficient_Trajectory_Density")
 
         # 5. Module 3: MoE Coherence, Critical Veto & Variance Penalty
+        # Get lambda_t from rhythm generator (exploration factor)
+        lambda_t = self._rhythm._compute_lambda(
+            self._rhythm._theta_manager.compute_entropy(self._rhythm._latest_state_key),
+            current_drift
+        )
+        
+        # Get phi_ritmo from chosen trajectory (will be computed in gating)
+        # We need to pass the coherence_score from trajectories
         validation = self._gating.evaluate_and_veto(
             trajectories=top_k_trajectories,
-            jury=self._jury
+            jury=self._jury,
+            lambda_t=lambda_t,
+            phi_ritmo=top_k_trajectories[0].coherence_score if top_k_trajectories else 0.0,
+        )
+        
+# MASTER EQUATION BRIDGE:
+        # Phi_MoE = Phi_MoE_base * (1 - lambda_t * (1 - Phi_Ritmo))
+        # This smoothly interpolates:
+        # - lambda_t=0 (exploitation): Phi_MoE = Phi_MoE_base (full confidence)
+        # - lambda_t=1 (exploration): Phi_MoE = Phi_MoE_base * Phi_Ritmo
+        # - Phi_Ritmo=1: Phi_MoE = Phi_MoE_base (trajectory perfectly coherent)
+        # - Phi_Ritmo=0: Phi_MoE = Phi_MoE_base * (1 - lambda_t) (trajectory incoherent)
+        phi_moe_base = validation.global_confidence
+        phi_ritmo = validation.chosen_trajectory.coherence_score if validation.chosen_trajectory else 0.0
+        lambda_t_clamped = max(0.0, min(1.0, lambda_t))
+        
+        # Master Equation: Phi_MoE = Phi_MoE_base * (1 - lambda_t * (1 - Phi_Ritmo))
+        phi_moe_final = phi_moe_base * (1.0 - lambda_t_clamped * (1.0 - phi_ritmo))
+        
+        # Clamp to valid range
+        phi_moe_final = max(0.0, min(1.0, phi_moe_final))
+        
+        # Update validation with final Phi_MoE
+        validation = ValidationResult(
+            chosen_trajectory=validation.chosen_trajectory,
+            global_confidence=phi_moe_final,
+            envelope=validation.envelope,
+            veto_triggered=validation.veto_triggered,
+            veto_details=validation.veto_details,
+            all_scores=validation.all_scores,
+            variance_penalty=validation.variance_penalty,
+            lambda_t=validation.lambda_t,
+            phi_ritmo=phi_ritmo,
         )
         
         if validation.veto_triggered or validation.chosen_trajectory is None:
@@ -222,6 +263,46 @@ class RosaRojaEngine:
                     }
                     if validation.veto_details else {}
                 )
+            )
+        
+        # Build decision trace for ISO 22989 traceability
+        telemetry_hash = self._compute_telemetry_hash(delta_state, delta_time)
+        # Compute sum_w_c from expert scores (matching jury order)
+        if validation.all_scores and self._jury:
+            score_list = [validation.all_scores.get(e.name, 0.0) for e in self._jury]
+            weight_list = [e.weight for e in self._jury]
+            sum_w_c = float(np.average(score_list, weights=weight_list)) if score_list else 0.0
+        else:
+            sum_w_c = 0.0
+        decision_trace = {
+            "telemetry_hash": telemetry_hash,
+            "lambda_t": lambda_t_clamped,
+            "phi_ritmo": phi_ritmo,
+            "expert_confidences": validation.all_scores,
+            "sum_w_c": float(sum_w_c),
+            "phi_moe": phi_moe_final,
+            "gamma_exec": 0.5,  # Threshold for EXECUTE
+            "geometric_threshold": -0.1,  # For EMERGENCY_FLUSH
+        }
+        
+        # Update envelope with decision_trace
+        envelope = validation.envelope
+        if envelope is not None:
+            envelope = ActionEnvelope(
+                magnitude=envelope.magnitude,
+                bounds=envelope.bounds,
+                max_steps=envelope.max_steps,
+                metadata={**envelope.metadata, "decision_trace": decision_trace}
+            )
+        
+        # 6. Build Final Orchestrated Execution Plan with Master Equation
+        action = self._determine_action(phi_moe_final, validation.chosen_trajectory)
+        
+        if action == "HOLD":
+            return ExecutionPlan.HOLD(reason="Phi_MoE_Below_Gamma_Exec")
+        elif action == "EMERGENCY_FLUSH":
+            return ExecutionPlan.EMERGENCY_FLUSH(
+                f"Geometric_Threshold_Breach_Phi_MoE_{phi_moe_final:.3f}"
             )
         
         # 6. Build Final Orchestrated Execution Plan
@@ -246,6 +327,40 @@ class RosaRojaEngine:
             envelope=envelope,
             invalidation_step=validation.chosen_trajectory.invalidation_step
         )
+
+    def _compute_telemetry_hash(self, delta_state: np.ndarray, delta_time: float) -> str:
+        """Compute SHA256 hash of input telemetry for ISO 22989 traceability."""
+        import hashlib
+        import struct
+        data = delta_state.tobytes() + struct.pack('<d', delta_time)
+        return hashlib.sha256(data).hexdigest()[:16]  # Truncated for readability
+
+    def _determine_action(self, phi_moe: float, trajectory) -> str:
+        """Determine action based on Master Equation output.
+        
+        Args:
+            phi_moe: Final Phi_MoE score from Master Equation
+            trajectory: Chosen trajectory for geometric threshold check
+            
+        Returns:
+            "EXECUTE", "HOLD", or "EMERGENCY_FLUSH"
+        """
+        gamma_exec = 0.5      # Threshold for EXECUTE
+        geometric_threshold = -0.1  # Only trigger on actual direction reversal (cos < 0)
+        
+        # Check geometric threshold (cos(theta_k) < geometric_threshold)
+        # Only trigger EMERGENCY_FLUSH on actual direction reversal or extreme sharpness
+        if trajectory is not None and hasattr(trajectory, 'movements') and len(trajectory.movements) > 1:
+            directions = trajectory.directions
+            if len(directions) > 1:
+                dir_dots = np.sum(directions[1:] * directions[:-1], axis=1)
+                min_cos_theta = float(np.min(dir_dots))
+                if min_cos_theta < geometric_threshold:
+                    return "EMERGENCY_FLUSH"
+        
+        if phi_moe >= gamma_exec:
+            return "EXECUTE"
+        return "HOLD"
 
     def _trigger_auto_regime_reset(self) -> None:
         """Automatic regime recovery: full reset of Module 1 covariance, boost exploration."""

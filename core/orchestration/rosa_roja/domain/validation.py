@@ -28,3 +28,5 @@ class ValidationResult:
     veto_details: Optional[VetoDetails] = None
     all_scores: dict = field(default_factory=dict)  # expert_name -> score
     variance_penalty: float = 0.0
+    lambda_t: float = 0.0              # Exploration factor from Module 2
+    phi_ritmo: float = 0.0             # Phi_Ritmo from chosen trajectory

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 from .trajectory import Trajectory
 
 
@@ -19,6 +19,17 @@ class ActionEnvelope:
     bounds: dict              # Arbitrary key-value bounds (stop, target, limits, etc.)
     max_steps: int            # Maximum steps/duration for this action
     metadata: dict            # Extension point for domain-specific data
+    decision_trace: Optional[dict] = None  # ISO 22989 traceability
+
+    def with_decision_trace(self, trace: dict) -> "ActionEnvelope":
+        """Return new envelope with decision trace attached."""
+        return ActionEnvelope(
+            magnitude=self.magnitude,
+            bounds=self.bounds,
+            max_steps=self.max_steps,
+            metadata=self.metadata,
+            decision_trace=trace,
+        )
 
 
 @dataclass(frozen=True, slots=True)
