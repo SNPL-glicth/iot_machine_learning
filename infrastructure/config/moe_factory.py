@@ -12,6 +12,7 @@ Uso:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 from iot_machine_learning.infrastructure.ml.moe import (
@@ -30,6 +31,7 @@ from iot_machine_learning.infrastructure.ml.moe.expert_wrappers.engine_adapter i
     create_kalman_expert,
     create_statistical_expert,
     create_taylor_expert,
+    create_rosa_roja_expert,
 )
 from iot_machine_learning.infrastructure.ml.moe.experts.neural_expert import (
     create_neural_expert,
@@ -37,6 +39,10 @@ from iot_machine_learning.infrastructure.ml.moe.experts.neural_expert import (
 from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
 
 logger = logging.getLogger(__name__)
+
+
+def _is_rosa_roja_enabled() -> bool:
+    return os.environ.get("ML_ENABLE_ROSA_ROJA_EXPERT", "").lower() == "true"
 
 
 def _is_neural_enabled() -> bool:
@@ -136,6 +142,17 @@ def create_moe_gateway(
                 logger.info("moe_expert_registered", extra={"expert": "neural"})
         except Exception as exc:
             logger.warning("moe_neural_expert_failed", extra={"error": str(exc)})
+
+    # Rosa Roja expert (challenger, solo si flag activo)
+    if _is_rosa_roja_enabled():
+        try:
+            rosa_roja_expert = create_rosa_roja_expert(enabled=True)
+            registry.register("rosa_roja", rosa_roja_expert, rosa_roja_expert.capabilities)
+            expert_count += 1
+            if enable_logging:
+                logger.info("moe_expert_registered", extra={"expert": "rosa_roja (challenger)"})
+        except Exception as exc:
+            logger.warning("moe_rosa_roja_expert_failed", extra={"error": str(exc)})
 
     # Validar que al menos tenemos un experto
     if expert_count == 0:
@@ -240,6 +257,15 @@ def create_moe_engine(
             expert_count += 1
         except Exception as exc:
             logger.debug("moe_neural_expert_skipped", extra={"error": str(exc)})
+
+    # Rosa Roja expert (challenger)
+    if _is_rosa_roja_enabled():
+        try:
+            rosa_roja_expert = create_rosa_roja_expert(enabled=True)
+            registry.register("rosa_roja", rosa_roja_expert, rosa_roja_expert.capabilities)
+            expert_count += 1
+        except Exception as exc:
+            logger.debug("moe_rosa_roja_expert_skipped", extra={"error": str(exc)})
 
     if expert_count == 0:
         logger.warning("moe_engine_no_experts")

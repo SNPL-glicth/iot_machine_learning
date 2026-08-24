@@ -247,3 +247,28 @@ def create_kalman_expert(engine: PredictionPort) -> EngineExpertAdapter:
         ),
         name_override="kalman",
     )
+
+
+def create_rosa_roja_expert(
+    engine: Optional[object] = None,
+    min_history_points: int = 50,
+    enabled: bool = True,
+) -> "RosaRojaExpert":
+    """Factory para experto Rosa Roja (challenger).
+    
+    Args:
+        engine: Optional RosaRojaEngine instance. If None, runs in unavailable mode.
+        min_history_points: Minimum data points required.
+        enabled: Feature flag.
+        
+    Returns:
+        RosaRojaExpert instance.
+    """
+    # Import here to avoid circular dependency
+    from iot_machine_learning.infrastructure.ml.moe.experts.rosa_roja_expert import RosaRojaExpert
+    
+    return RosaRojaExpert(
+        engine=engine,
+        min_history_points=min_history_points,
+        enabled=enabled,
+    )

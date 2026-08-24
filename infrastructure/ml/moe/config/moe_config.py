@@ -29,32 +29,36 @@ import os
 # Suma de pesos por régimen puede ser != 1.0; se normalizan internamente.
 DEFAULT_REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
     "stable": {
-        "baseline": 0.76,      # reduced from 0.80 to make room
-        "statistical": 0.14,    # reduced from 0.15
+        "baseline": 0.70,      # reduced to make room for rosa_roja
+        "statistical": 0.12,    # reduced
         "taylor": 0.05,
         "kalman": 0.00,
-        "neural": 0.05,         # initial minimum weight
+        "neural": 0.05,
+        "rosa_roja": 0.08,      # challenger weight
     },
     "trending": {
         "baseline": 0.05,
-        "statistical": 0.50,    # reduced from 0.55
-        "taylor": 0.35,
+        "statistical": 0.45,    # reduced
+        "taylor": 0.30,         # reduced
         "kalman": 0.05,
-        "neural": 0.05,         # initial minimum weight
+        "neural": 0.05,
+        "rosa_roja": 0.10,      # challenger weight
     },
     "volatile": {
         "baseline": 0.05,
-        "statistical": 0.25,
-        "taylor": 0.45,         # reduced from 0.50
-        "kalman": 0.20,
-        "neural": 0.05,         # initial minimum weight
+        "statistical": 0.22,    # reduced
+        "taylor": 0.40,         # reduced
+        "kalman": 0.18,         # reduced
+        "neural": 0.05,
+        "rosa_roja": 0.10,      # challenger weight
     },
     "noisy": {
-        "baseline": 0.10,
-        "statistical": 0.20,
-        "taylor": 0.20,
-        "kalman": 0.45,         # reduced from 0.50
-        "neural": 0.05,         # initial minimum weight
+        "baseline": 0.08,
+        "statistical": 0.18,    # reduced
+        "taylor": 0.18,         # reduced
+        "kalman": 0.42,         # reduced
+        "neural": 0.05,
+        "rosa_roja": 0.09,      # challenger weight
     },
 }
 
