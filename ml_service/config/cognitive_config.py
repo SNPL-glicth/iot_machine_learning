@@ -55,6 +55,10 @@ class CognitiveConfig(BaseModel):
 
     # --- Neural Expert (MoE) ---
     ML_ENABLE_NEURAL_EXPERT: bool = False  # Master switch for NeuralExpert in MoE
+    
+    # --- Rosa Roja Expert (MoE Challenger) ---
+    ML_ENABLE_ROSA_ROJA_EXPERT: bool = False  # Master switch for RosaRojaExpert in MoE (OFF by default)
+    ML_ROSA_ROJA_MIN_HISTORY: int = 50  # Minimum data points for Rosa Roja expert
 
     # --- Cognitive Memory (Weaviate) ---
     ML_ENABLE_COGNITIVE_MEMORY: bool = False

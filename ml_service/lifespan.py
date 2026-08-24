@@ -156,7 +156,7 @@ async def lifespan(app: FastAPI):
 
     # Rosa Roja Engine initialization
     try:
-        from .rosa_roja_factory import init_rosa_roja_in_app
+        from .rosa_roja_factory import init_rosa_roja_in_app, register_rosa_roja_in_moe_registry
         rosa_roja_config = {
             "device_id": os.environ.get("ROSA_ROJA_DEVICE_ID", "device_01"),
             "drift_detector_type": os.environ.get("ROSA_ROJA_DRIFT_TYPE", "page_hinkley"),
@@ -164,9 +164,25 @@ async def lifespan(app: FastAPI):
             "max_random_walk_steps": int(os.environ.get("ROSA_ROJA_MAX_WALK_STEPS", "50")),
             "top_k": int(os.environ.get("ROSA_ROJA_TOP_K", "3")),
             "oversample_factor": int(os.environ.get("ROSA_ROJA_OVERSAMPLE", "2")),
+            # MoE expert adapter (challenger mode - OFF by default)
+            "rosa_roja_moe_enabled": os.environ.get("ML_ENABLE_ROSA_ROJA_EXPERT", "false").lower() == "true",
+            "rosa_roja_min_history": int(os.environ.get("ML_ROSA_ROJA_MIN_HISTORY", "50")),
         }
         init_rosa_roja_in_app(app, rosa_roja_config)
         logger.info("[ML-SERVICE] Rosa Roja engine initialized")
+        
+        # Register Rosa Roja as MoE expert challenger (feature-flagged)
+        try:
+            moe_engine = getattr(app.state, "moe_engine", None)
+            if moe_engine and hasattr(moe_engine, "_registry"):
+                rr_engine = getattr(app.state, "rosa_roja", None)
+                if rr_engine:
+                    success = register_rosa_roja_in_moe_registry(rr_engine, moe_engine._registry)
+                    if success:
+                        logger.info("[ML-SERVICE] Rosa Roja registered as MoE challenger expert")
+        except Exception as e:
+            logger.debug("[ML-SERVICE] Rosa Roja MoE registration skipped: %s", e)
+            
     except Exception as e:
         logger.warning("[ML-SERVICE] Rosa Roja initialization failed: %s", e)
         app.state.rosa_roja = None

@@ -2,6 +2,7 @@
 
 Creates and configures the complete Rosa Roja engine with IoT-specific
 adapters for experts, drift sensors, and actuators.
+Also provides MoE expert adapter for integration with ZENIN main pipeline.
 """
 
 from __future__ import annotations
@@ -24,6 +25,12 @@ from infrastructure.ml.adapters import (
     ActuatorType,
     MockActuatorClient,
 )
+# MoE expert adapter (challenger mode)
+try:
+    from infrastructure.ml.moe.experts.rosa_roja_expert import RosaRojaExpert
+    ROSA_ROJA_MOE_AVAILABLE = True
+except ImportError:
+    ROSA_ROJA_MOE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +343,77 @@ def create_rosa_roja_engine(config: Optional[Dict[str, Any]] = None) -> RosaRoja
     """Convenience function to create a Rosa Roja engine."""
     factory = RosaRojaEngineFactory(config)
     return factory.create_engine()
+
+
+def create_rosa_roja_moe_expert(
+    engine: Optional[RosaRojaEngine] = None,
+    config: Optional[Dict[str, Any]] = None,
+) -> Optional["RosaRojaExpert"]:
+    """Create Rosa Roja MoE expert adapter (challenger mode).
+    
+    This adapter wraps the Rosa Roja core engine as an ExpertPort
+    for integration with ZENIN main MoE pipeline.
+    
+    Args:
+        engine: Pre-created RosaRojaEngine instance (creates new if None)
+        config: Configuration dict with optional keys:
+            - min_history_points: Minimum data points required (default 50)
+            - enabled: Feature flag, default False (challenger mode)
+    
+    Returns:
+        RosaRojaExpert instance or None if not available/disabled.
+    """
+    if not ROSA_ROJA_MOE_AVAILABLE:
+        logger.debug("Rosa Roja MoE expert not available (missing dependencies)")
+        return None
+    
+    cfg = config or {}
+    enabled = cfg.get("rosa_roja_moe_enabled", False)  # OFF by default
+    
+    if not enabled:
+        logger.info("Rosa Roja MoE expert disabled (feature flag OFF)")
+        return None
+    
+    if engine is None:
+        engine = create_rosa_roja_engine(config)
+    
+    min_history = cfg.get("rosa_roja_min_history", 50)
+    
+    expert = RosaRojaExpert(
+        engine=engine,
+        min_history_points=min_history,
+        enabled=True,
+    )
+    
+    logger.info("Rosa Roja MoE expert adapter created (challenger mode)")
+    return expert
+
+
+def register_rosa_roja_in_moe_registry(engine: RosaRojaEngine, moe_registry) -> bool:
+    """Register Rosa Roja as expert in MoE registry.
+    
+    Args:
+        engine: RosaRojaEngine instance
+        moe_registry: ExpertRegistry instance (from MoE pipeline)
+    
+    Returns:
+        True if registered successfully.
+    """
+    expert = create_rosa_roja_moe_expert(engine=engine)
+    if expert is None:
+        return False
+    
+    try:
+        moe_registry.register(
+            expert_id="rosa_roja",
+            expert=expert,
+            force=True,
+        )
+        logger.info("Rosa Roja registered in MoE registry as challenger expert")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to register Rosa Roja in MoE registry: {e}")
+        return False
 
 
 def init_rosa_roja_in_app(app, config: Optional[Dict[str, Any]] = None) -> None:
