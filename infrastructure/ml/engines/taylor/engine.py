@@ -209,3 +209,24 @@ class TaylorPredictionEngine(PredictionEngine):
                     "error": round(abs(predicted - actual), 4),
                 },
             )
+
+    # ------------------------------------------------------------------
+    # Persistence (StatePersistable contract)
+    # ------------------------------------------------------------------
+
+    def export_state(self) -> dict:
+        """Serialize learning state (performance tracker statistics)."""
+        return {
+            "schema_version": 1,
+            "tracker": self._tracker.export_state() if self._tracker else None,
+        }
+
+    def import_state(self, payload: dict) -> None:
+        """Restore performance tracker statistics."""
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError("TaylorPredictionEngine payload missing schema_version")
+        if payload["schema_version"] != 1:
+            raise ValueError(f"Unsupported Taylor schema: {payload['schema_version']}")
+        tracker_state = payload.get("tracker")
+        if tracker_state is not None and self._tracker is not None:
+            self._tracker.import_state(tracker_state)

@@ -17,8 +17,8 @@ class MemoryEvent:
     separate from infrastructure concerns.
     """
     
-    sensor_id: int
-    sensor_type: str
+    series_id: int
+    series_type: str
     timestamp: float
     event_type: str
     semantic_text: str
@@ -30,8 +30,8 @@ class MemoryEvent:
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
-            "sensor_id": self.sensor_id,
-            "sensor_type": self.sensor_type,
+            "series_id": self.series_id,
+            "series_type": self.series_type,
             "timestamp": self.timestamp,
             "event_type": self.event_type,
             "semantic_text": self.semantic_text,

@@ -16,13 +16,12 @@ import random
 import statistics
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from iot_machine_learning.infrastructure.ml.engines import (
     BaselineMovingAverageEngine,
-    EngineFactory,
     KalmanPredictionEngine,
     StatisticalPredictionEngine,
     TaylorPredictionEngine,
@@ -195,7 +194,7 @@ def print_improvement_table(
         return
 
     print(f"\n{'=' * 60}")
-    print(f"Mejora de Kalman vs otros motores")
+    print("Mejora de Kalman vs otros motores")
     print(f"{'=' * 60}")
 
     for name, result in sorted(results.items()):

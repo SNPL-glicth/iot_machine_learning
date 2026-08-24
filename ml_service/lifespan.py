@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 _zenin_poller = None
 _governance_initializer = None
 _broker = None
+_rosa_roja_factory = None
 
 def _validate_prediction_paths() -> None:
     """INF-5: Guard against dual prediction paths (stream + batch runner)."""
@@ -153,10 +154,40 @@ async def lifespan(app: FastAPI):
         logger.warning("[ML-SERVICE] Warmup failed: %s", e)
         app.state.warmup = {"all_healthy": False, "error": str(e)}
 
+    # Rosa Roja Engine initialization
+    try:
+        from .rosa_roja_factory import init_rosa_roja_in_app
+        rosa_roja_config = {
+            "device_id": os.environ.get("ROSA_ROJA_DEVICE_ID", "device_01"),
+            "drift_detector_type": os.environ.get("ROSA_ROJA_DRIFT_TYPE", "page_hinkley"),
+            "quantization_decimals": int(os.environ.get("ROSA_ROJA_QUANTIZATION", "3")),
+            "max_random_walk_steps": int(os.environ.get("ROSA_ROJA_MAX_WALK_STEPS", "50")),
+            "top_k": int(os.environ.get("ROSA_ROJA_TOP_K", "3")),
+            "oversample_factor": int(os.environ.get("ROSA_ROJA_OVERSAMPLE", "2")),
+        }
+        init_rosa_roja_in_app(app, rosa_roja_config)
+        logger.info("[ML-SERVICE] Rosa Roja engine initialized")
+    except Exception as e:
+        logger.warning("[ML-SERVICE] Rosa Roja initialization failed: %s", e)
+        app.state.rosa_roja = None
+        app.state.actuator = None
+
     yield
 
     # Shutdown
     logger.info("[ML-SERVICE] Shutting down...")
+    
+    # Rosa Roja cleanup
+    global _rosa_roja_factory
+    if _rosa_roja_factory:
+        try:
+            actuator = _rosa_roja_factory.get_actuator_handler()
+            if actuator:
+                actuator.clear_emergency()
+            logger.info("[ML-SERVICE] Rosa Roja cleaned up")
+        except Exception as e:
+            logger.warning("[ML-SERVICE] Rosa Roja cleanup failed: %s", e)
+
     if _governance_initializer:
         try:
             _governance_initializer.shutdown()

@@ -166,3 +166,50 @@ class ADWINDetector:
         if len(self._window) == 0:
             return 0.0
         return self._total / len(self._window)
+
+    def get_drift_score(self) -> float:
+        """Returns normalized drift score based on current sub-window capacity ratio."""
+        if not hasattr(self, "_max_window_size") or self._max_window_size <= 0:
+            return 0.0
+        return min(1.0, float(len(self._window) / self._max_window_size))
+
+    # ------------------------------------------------------------------
+    # Persistence (StatePersistable contract)
+    # ------------------------------------------------------------------
+
+    STATE_SCHEMA_VERSION = 1
+
+    def export_state(self) -> dict:
+        """Serialize window contents and running statistics."""
+        return {
+            "schema_version": self.STATE_SCHEMA_VERSION,
+            "delta": self._delta,
+            "max_window_size": self._max_window_size,
+            "window": [float(v) for v in self._window],
+            "total": self._total,
+            "variance": self._variance,
+        }
+
+    def import_state(self, payload: dict) -> None:
+        """Restore window contents and running statistics."""
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError("ADWINDetector payload missing schema_version")
+        if payload["schema_version"] != self.STATE_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported ADWIN schema: {payload['schema_version']}")
+        window_raw = payload.get("window", [])
+        if not isinstance(window_raw, list):
+            raise ValueError("ADWIN payload 'window' must be a list")
+        max_window = int(payload.get("max_window_size", self._max_window_size))
+        if max_window != self._max_window_size:
+            raise ValueError(
+                f"ADWIN max_window_size mismatch: snapshot={max_window}, live={self._max_window_size}"
+            )
+        if len(window_raw) > self._max_window_size:
+            raise ValueError("ADWIN snapshot window exceeds capacity")
+        for value in window_raw:
+            float(value)  # Validate before mutating state.
+        self.reset()
+        for value in window_raw:
+            self._window.append(float(value))
+        self._total = float(payload.get("total", 0.0))
+        self._variance = float(payload.get("variance", 0.0))

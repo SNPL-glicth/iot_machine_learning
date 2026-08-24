@@ -1,9 +1,5 @@
-"""Statistical prediction engine — EMA/Holt-based forecasting.
+"""Statistical prediction engine package."""
 
-Components:
-    - StatisticalPredictionEngine: Double exponential smoothing (Holt's method)
-"""
-
-from .engine import StatisticalPredictionEngine
+from .statistical_engine import StatisticalPredictionEngine
 
 __all__ = ["StatisticalPredictionEngine"]

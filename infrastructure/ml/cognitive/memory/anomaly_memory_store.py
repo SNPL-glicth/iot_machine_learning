@@ -1,7 +1,7 @@
 """
 AnomalyMemoryStore for persisting operational memory in Weaviate.
 
-Basic implementation with similarity retrieval and metadata filters.
+Generic implementation with configurable class name and property mappings.
 """
 
 import time
@@ -14,13 +14,32 @@ logger = logging.getLogger(__name__)
 
 
 class AnomalyMemoryStore:
-    """Store for operational memory in Weaviate."""
+    """Generic store for operational memory in Weaviate.
+    
+    Configurable class name and property mappings for domain-agnostic usage.
+    """
+    
+    DEFAULT_CLASS_NAME = "OperationalMemory"
+    DEFAULT_PROPERTY_MAPPING = {
+        "series_id": "series_id",
+        "series_type": "series_type",
+        "timestamp": "timestamp",
+        "event_type": "event_type",
+        "semantic_text": "semantic_text",
+        "regime": "regime",
+        "anomaly_score": "anomaly_score",
+        "dynamic_features": "dynamic_features",
+        "metadata": "metadata",
+        "ttl": "ttl",
+    }
     
     def __init__(
         self,
         weaviate_client=None,
         embedding_model: str = "text-embedding-3-small",
         batch_size: int = 100,
+        class_name: str = DEFAULT_CLASS_NAME,
+        property_mapping: Optional[Dict[str, str]] = None,
     ):
         """
         Initialize memory store.
@@ -29,10 +48,14 @@ class AnomalyMemoryStore:
             weaviate_client: Weaviate client (optional, for testing)
             embedding_model: Embedding model to use
             batch_size: Batch size for operations
+            class_name: Weaviate class name for storing events
+            property_mapping: Mapping from MemoryEvent fields to Weaviate properties
         """
         self._client = weaviate_client
         self._embedding_model = embedding_model
         self._batch_size = batch_size
+        self._class_name = class_name
+        self._property_mapping = property_mapping or self.DEFAULT_PROPERTY_MAPPING
         self._enable_storage = True
     
     def store(self, event: MemoryEvent, ttl: int) -> Optional[str]:
@@ -54,25 +77,28 @@ class AnomalyMemoryStore:
             # Generate embedding
             embedding = self._generate_embedding(event.semantic_text)
             
+            # Build properties dict using configurable mapping
+            properties = {
+                self._property_mapping["series_id"]: event.series_id,
+                self._property_mapping["series_type"]: event.series_type,
+                self._property_mapping["timestamp"]: event.timestamp,
+                self._property_mapping["event_type"]: event.event_type,
+                self._property_mapping["semantic_text"]: event.semantic_text,
+                self._property_mapping["regime"]: event.regime,
+                self._property_mapping["anomaly_score"]: event.anomaly_score,
+                self._property_mapping["dynamic_features"]: event.dynamic_features,
+                self._property_mapping["metadata"]: event.metadata,
+                self._property_mapping["ttl"]: int(time.time()) + ttl,
+            }
+            
             # Store in Weaviate
             object_id = self._client.data_object.create(
-                class_name="OperationalMemory",
-                properties={
-                    "sensor_id": event.sensor_id,
-                    "sensor_type": event.sensor_type,
-                    "timestamp": event.timestamp,
-                    "event_type": event.event_type,
-                    "semantic_text": event.semantic_text,
-                    "regime": event.regime,
-                    "anomaly_score": event.anomaly_score,
-                    "dynamic_features": event.dynamic_features,
-                    "metadata": event.metadata,
-                    "ttl": int(time.time()) + ttl,
-                },
+                class_name=self._class_name,
+                properties=properties,
                 vector=embedding,
             )
             
-            logger.info(f"Stored event {object_id} for sensor {event.sensor_id}")
+            logger.info(f"Stored event {object_id} for series {event.series_id}")
             return object_id
             
         except Exception as e:
@@ -82,9 +108,9 @@ class AnomalyMemoryStore:
     def retrieve_similar(
         self,
         query_embedding: List[float],
-        sensor_id: Optional[int] = None,
+        series_id: Optional[int] = None,
         regime: Optional[str] = None,
-        sensor_type: Optional[str] = None,
+        series_type: Optional[str] = None,
         top_k: int = 5,
         time_window: Optional[tuple] = None,
     ) -> List[MemoryEvent]:
@@ -93,9 +119,9 @@ class AnomalyMemoryStore:
         
         Args:
             query_embedding: Query vector
-            sensor_id: Filter by sensor ID
+            series_id: Filter by series ID
             regime: Filter by regime
-            sensor_type: Filter by sensor type
+            series_type: Filter by series type
             top_k: Number of results
             time_window: (start, end) timestamp window
         
@@ -107,14 +133,14 @@ class AnomalyMemoryStore:
             return []
         
         try:
-            where_filter = self._build_filter(sensor_id, regime, sensor_type, time_window)
+            where_filter = self._build_filter(series_id, regime, series_type, time_window)
+            
+            # Build properties list from mapping values
+            properties_list = list(self._property_mapping.values())
             
             results = self._client.query.get(
-                class_name="OperationalMemory",
-                properties=[
-                    "sensor_id", "sensor_type", "timestamp", "event_type",
-                    "semantic_text", "regime", "anomaly_score", "dynamic_features", "metadata"
-                ],
+                class_name=self._class_name,
+                properties=properties_list,
                 near_vector={"vector": query_embedding},
                 where=where_filter,
                 limit=top_k,
@@ -141,9 +167,9 @@ class AnomalyMemoryStore:
             
             # Query expired events
             expired = self._client.query.get(
-                class_name="OperationalMemory",
+                class_name=self._class_name,
                 where={
-                    "path": ["ttl"],
+                    "path": [self._property_mapping["ttl"]],
                     "operator": "LessThan",
                     "valueInt": current_time,
                 },
@@ -185,43 +211,43 @@ class AnomalyMemoryStore:
     
     def _build_filter(
         self,
-        sensor_id: Optional[int],
+        series_id: Optional[int],
         regime: Optional[str],
-        sensor_type: Optional[str],
+        series_type: Optional[str],
         time_window: Optional[tuple],
     ) -> Optional[Dict[str, Any]]:
         """Build filter for Weaviate query."""
         filters = []
         
-        if sensor_id is not None:
+        if series_id is not None:
             filters.append({
-                "path": ["sensor_id"],
+                "path": [self._property_mapping["series_id"]],
                 "operator": "Equal",
-                "valueInt": sensor_id,
+                "valueInt": series_id,
             })
         
         if regime is not None:
             filters.append({
-                "path": ["regime"],
+                "path": [self._property_mapping["regime"]],
                 "operator": "Equal",
                 "valueString": regime,
             })
         
-        if sensor_type is not None:
+        if series_type is not None:
             filters.append({
-                "path": ["sensor_type"],
+                "path": [self._property_mapping["series_type"]],
                 "operator": "Equal",
-                "valueString": sensor_type,
+                "valueString": series_type,
             })
         
         if time_window is not None:
             filters.append({
-                "path": ["timestamp"],
+                "path": [self._property_mapping["timestamp"]],
                 "operator": "GreaterThan",
                 "valueNumber": time_window[0],
             })
             filters.append({
-                "path": ["timestamp"],
+                "path": [self._property_mapping["timestamp"]],
                 "operator": "LessThan",
                 "valueNumber": time_window[1],
             })
@@ -231,16 +257,18 @@ class AnomalyMemoryStore:
     def _result_to_event(self, result: Dict[str, Any]) -> MemoryEvent:
         """Convert Weaviate result to MemoryEvent."""
         props = result["properties"]
+        # Reverse mapping: Weaviate property -> MemoryEvent field
+        reverse_mapping = {v: k for k, v in self._property_mapping.items()}
         return MemoryEvent(
-            sensor_id=props["sensor_id"],
-            sensor_type=props["sensor_type"],
-            timestamp=props["timestamp"],
-            event_type=props["event_type"],
-            semantic_text=props["semantic_text"],
-            regime=props["regime"],
-            anomaly_score=props["anomaly_score"],
-            dynamic_features=props.get("dynamic_features", {}),
-            metadata=props.get("metadata", {}),
+            series_id=props[reverse_mapping["series_id"]],
+            series_type=props[reverse_mapping["series_type"]],
+            timestamp=props[reverse_mapping["timestamp"]],
+            event_type=props[reverse_mapping["event_type"]],
+            semantic_text=props[reverse_mapping["semantic_text"]],
+            regime=props[reverse_mapping["regime"]],
+            anomaly_score=props[reverse_mapping["anomaly_score"]],
+            dynamic_features=props.get(reverse_mapping["dynamic_features"], {}),
+            metadata=props.get(reverse_mapping["metadata"], {}),
         )
     
     def enable_storage(self, enabled: bool) -> None:

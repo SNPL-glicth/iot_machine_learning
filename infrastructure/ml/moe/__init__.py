@@ -38,9 +38,9 @@ from .rollout.rollout_bridge import RolloutPredictionPortBridge
 from .metrics.moe_alert_service import MoEAlertService
 from .feature_context import FeatureContext
 from .gating.strategy import GatingStrategy
-from .gating.contextual_regime import ContextualRegimeGating
+from .gating.contextual_regime_gating import ContextualRegimeGating
 from .fusion.discrepancy_aware import DiscrepancyAwareFusion
-from .engine.moe_prediction_engine import MoEPredictionEngine
+from .engine.moe_engine import MoEPredictionEngine
 from .ab.moe_ab_logger import MoEABLogger, ABLogEntry
 
 # Gating strategies

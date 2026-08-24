@@ -174,3 +174,39 @@ class KalmanPredictionEngine(PredictionEngine):
             return 0.0
         return sum(self._error_history) / len(self._error_history)
 
+    # ------------------------------------------------------------------
+    # Persistence (StatePersistable contract)
+    # ------------------------------------------------------------------
+
+    STATE_SCHEMA_VERSION = 1
+
+    def export_state(self) -> dict:
+        """Serialize learning state.
+
+        The CV Kalman filter itself is re-initialized from each predict
+        call's warmup window, so the only learned state is the error
+        history used for confidence calibration via recent_mae().
+        """
+        return {
+            "schema_version": self.STATE_SCHEMA_VERSION,
+            "warmup_size": self._warmup_size,
+            "horizon": self._horizon,
+            "q_scale": self._q_scale,
+            "error_history": [float(e) for e in self._error_history],
+        }
+
+    def import_state(self, payload: dict) -> None:
+        """Restore error history from an export_state payload."""
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError("KalmanPredictionEngine payload missing schema_version")
+        if payload["schema_version"] != self.STATE_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported Kalman schema: {payload['schema_version']}"
+            )
+        history_raw = payload.get("error_history", [])
+        if not isinstance(history_raw, list):
+            raise ValueError("Kalman payload 'error_history' must be a list")
+        self._error_history.clear()
+        for value in history_raw:
+            self._error_history.append(float(value))
+

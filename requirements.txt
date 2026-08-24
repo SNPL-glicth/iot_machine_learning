@@ -10,6 +10,7 @@ pydantic>=2.10.0,<3.0.0
 
 # --- Base de datos ---
 pyodbc>=5.2.0,<6.0.0          # SQL Server (zenin_db)
+pymysql>=1.1.0,<2.0.0         # MySQL (zenin_market)
 sqlalchemy>=2.0.0,<3.0.0
 
 # --- Cache y mensajería ---

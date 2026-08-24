@@ -10,6 +10,7 @@ Exporta estrategias de routing disponibles:
 from .base import GatingNetwork, GatingProbs, ContextVector
 from .regime_based import RegimeBasedGating, RegimeRoutingRule
 from .tree_gating import TreeGatingNetwork, TreeRoutingExplanation
+from .contextual_regime_gating import ContextualRegimeGating
 
 __all__ = [
     "GatingNetwork",
@@ -19,4 +20,5 @@ __all__ = [
     "RegimeRoutingRule",
     "TreeGatingNetwork",
     "TreeRoutingExplanation",
+    "ContextualRegimeGating",
 ]

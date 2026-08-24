@@ -161,3 +161,34 @@ class PageHinkleyDetector:
     def n_observations(self) -> int:
         """Number of observations processed."""
         return self._n
+
+    def get_drift_score(self) -> float:
+        """Returns normalized drift severity in [0.0, 1.0]."""
+        if not hasattr(self, "_config") or self._config.lambda_ <= 0:
+            return 0.0
+        return min(1.0, float(self._sum / self._config.lambda_))
+
+    # ------------------------------------------------------------------
+    # Persistence (StatePersistable contract)
+    # ------------------------------------------------------------------
+
+    STATE_SCHEMA_VERSION = 1
+
+    def export_state(self) -> dict:
+        """Serialize running statistics."""
+        return {
+            "schema_version": self.STATE_SCHEMA_VERSION,
+            "sum": self._sum,
+            "mean": self._mean,
+            "n": self._n,
+        }
+
+    def import_state(self, payload: dict) -> None:
+        """Restore running statistics."""
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError("PageHinkleyDetector payload missing schema_version")
+        if payload["schema_version"] != self.STATE_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported PageHinkley schema: {payload['schema_version']}")
+        self._sum = float(payload.get("sum", 0.0))
+        self._mean = float(payload.get("mean", 0.0))
+        self._n = int(payload.get("n", 0))

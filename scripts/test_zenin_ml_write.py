@@ -5,7 +5,6 @@ Ejecutar:
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add project root to path
@@ -18,8 +17,8 @@ from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 
-from infrastructure.persistence.sql.dual_write_storage import DualWriteStorageAdapter
 from domain.entities.prediction import Prediction, PredictionConfidence
+from infrastructure.persistence.sql.dual_write_storage import DualWriteStorageAdapter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,17 +26,17 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Prueba de escritura a zenin_ml.predictions."""
-    
+
     # 1. Conectar a DB
     connection_string = (
         "mssql+pyodbc://sa:Sandevistan2510@localhost:1434/zenin_db"
         "?driver=ODBC+Driver+18+for+SQL+Server"
         "&TrustServerCertificate=yes"
     )
-    
+
     logger.info("Conectando a zenin_db...")
     engine = create_engine(connection_string, echo=False)
-    
+
     with engine.connect() as conn:
         # 2. Verificar tablas
         logger.info("Verificando esquemas...")
@@ -50,10 +49,10 @@ def main():
             AND name = 'predictions'
             ORDER BY schema_name
         """))
-        
+
         for row in result:
             logger.info(f"  Tabla encontrada: {row[0]}.{row[1]}")
-        
+
         # 3. Crear predicción de prueba
         logger.info("\nCreando predicción de prueba...")
         prediction = Prediction(
@@ -73,32 +72,32 @@ def main():
                 "regime": "stable",
             },
         )
-        
+
         # 4. Escribir con dual-write adapter
         logger.info("Escribiendo con DualWriteStorageAdapter...")
         adapter = DualWriteStorageAdapter(conn, enable_zenin_ml=True)
-        
+
         try:
             legacy_id = adapter.save_prediction(prediction)
             logger.info(f"✓ Escritura exitosa! Legacy ID: {legacy_id}")
-            
+
             # 5. Verificar registros
             logger.info("\nVerificando registros...")
-            
+
             # dbo.predictions
             legacy_count = conn.execute(text("""
                 SELECT COUNT(*) FROM dbo.predictions
                 WHERE sensor_id = 999
             """)).scalar()
             logger.info(f"  dbo.predictions: {legacy_count} registros con sensor_id=999")
-            
+
             # zenin_ml.predictions
             zenin_count = conn.execute(text("""
                 SELECT COUNT(*) FROM zenin_ml.predictions
                 WHERE Metadata LIKE '%"sensor_id": 999%'
             """)).scalar()
             logger.info(f"  zenin_ml.predictions: {zenin_count} registros con sensor_id=999")
-            
+
             # Mostrar último registro zenin_ml
             zenin_latest = conn.execute(text("""
                 SELECT TOP 1
@@ -108,9 +107,9 @@ def main():
                 WHERE Metadata LIKE '%"sensor_id": 999%'
                 ORDER BY PredictedAt DESC
             """)).fetchone()
-            
+
             if zenin_latest:
-                logger.info(f"\n  Último registro zenin_ml:")
+                logger.info("\n  Último registro zenin_ml:")
                 logger.info(f"    Id: {zenin_latest[0]}")
                 logger.info(f"    SeriesId: {zenin_latest[1]}")
                 logger.info(f"    TenantId: {zenin_latest[2]}")
@@ -118,13 +117,13 @@ def main():
                 logger.info(f"    ConfidenceScore: {zenin_latest[4]}")
                 logger.info(f"    EngineName: {zenin_latest[5]}")
                 logger.info(f"    PredictedAt: {zenin_latest[6]}")
-            
+
             logger.info("\n✓ PRUEBA EXITOSA: Dual-write funcionando correctamente")
-            
+
         except Exception as exc:
             logger.error(f"✗ Error en dual-write: {exc}", exc_info=True)
             return 1
-    
+
     return 0
 
 

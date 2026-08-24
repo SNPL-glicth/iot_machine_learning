@@ -103,8 +103,7 @@ class TaylorPerformanceTracker:
         )
 
     def compute_confidence_adjustment(
-        self,
-        base_confidence: float,
+        self,        base_confidence: float,
         value_range: float,
     ) -> float:
         """Compute confidence adjustment based on historical error.
@@ -151,3 +150,42 @@ class TaylorPerformanceTracker:
         self._total_squared_error = 0.0
         self._total_absolute_error = 0.0
         self._n_samples = 0
+
+    # ------------------------------------------------------------------
+    # Persistence (StatePersistable contract)
+    # ------------------------------------------------------------------
+
+    STATE_SCHEMA_VERSION = 1
+
+    def export_state(self) -> dict:
+        """Serialize error history and cumulative statistics."""
+        return {
+            "schema_version": self.STATE_SCHEMA_VERSION,
+            "max_history": self._max_history,
+            "errors": [float(e) for e in self._errors],
+            "total_squared_error": self._total_squared_error,
+            "total_absolute_error": self._total_absolute_error,
+            "n_samples": self._n_samples,
+        }
+
+    def import_state(self, payload: dict) -> None:
+        """Restore error history and cumulative statistics."""
+        if not isinstance(payload, dict) or "schema_version" not in payload:
+            raise ValueError("TaylorPerformanceTracker payload missing schema_version")
+        if payload["schema_version"] != self.STATE_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported Taylor tracker schema: {payload['schema_version']}"
+            )
+        errors_raw = payload.get("errors", [])
+        if not isinstance(errors_raw, list):
+            raise ValueError("Taylor tracker payload 'errors' must be a list")
+        max_history = int(payload.get("max_history", self._max_history))
+        if max_history != self._max_history and len(errors_raw) > self._max_history:
+            # Keep the most recent errors that fit the live window.
+            errors_raw = errors_raw[-self._max_history:]
+        self._errors.clear()
+        for value in errors_raw:
+            self._errors.append(float(value))
+        self._total_squared_error = float(payload.get("total_squared_error", 0.0))
+        self._total_absolute_error = float(payload.get("total_absolute_error", 0.0))
+        self._n_samples = int(payload.get("n_samples", 0))

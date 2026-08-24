@@ -17,7 +17,7 @@ import pytest
 from iot_machine_learning.infrastructure.ml.engines.taylor.engine import (
     TaylorPredictionEngine,
 )
-from iot_machine_learning.infrastructure.ml.engines.statistical.engine import (
+from iot_machine_learning.infrastructure.ml.engines.statistical import (
     StatisticalPredictionEngine,
 )
 from iot_machine_learning.infrastructure.ml.engines.core.factory import (

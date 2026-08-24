@@ -176,3 +176,32 @@ class SemanticSearchResponse(BaseModel):
     """Response schema for semantic search."""
     results: List[SemanticSearchResultItem] = Field(default_factory=list, description="Resultados de búsqueda")
     total: int = Field(0, description="Total de resultados")
+
+
+# --- Rosa Roja Telemetry Streaming Schemas ---
+
+class TelemetryRequest(BaseModel):
+    """Request schema for real-time telemetry streaming endpoint."""
+    device_id: str = Field(..., description="Device identifier (e.g., chiller_01)")
+    timestamp: float = Field(..., description="Unix timestamp of the reading")
+    telemetry_vector: List[float] = Field(..., description="Multidimensional telemetry vector", min_length=1)
+
+
+class ActionEnvelopeResponse(BaseModel):
+    """Response schema for ActionEnvelope from Rosa Roja."""
+    magnitude: float = Field(description="Normalized action intensity [0, 1]")
+    bounds: Dict[str, float] = Field(description="Action bounds (stop_pct, target_pct, etc.)")
+    max_steps: int = Field(description="Maximum steps/duration for action")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Extension metadata")
+
+
+class TelemetryResponse(BaseModel):
+    """Response schema for telemetry streaming endpoint."""
+    device_id: str
+    action: str = Field(description="EXECUTE, HOLD, or EMERGENCY_FLUSH")
+    confidence: float = Field(description="Global confidence [0, 1]")
+    envelope: Optional[ActionEnvelopeResponse] = Field(None, description="Action parameters")
+    invalidation_step: Optional[int] = Field(None, description="Predicted trajectory invalidation step")
+    regime_alert: bool = Field(description="True if Module 1 detected regime change")
+    processing_time_ms: float = Field(description="Total processing time in milliseconds")
+    veto_details: Dict[str, Any] = Field(default_factory=dict, description="Veto information if HOLD")
