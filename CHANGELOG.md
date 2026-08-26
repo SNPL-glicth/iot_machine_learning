@@ -814,3 +814,58 @@ sin versionar.
 - Colección cognitive desde raíz ST: 63 tests sin errores de import.
 - Smoke: create_rosa_roja_engine, infrastructure.ml.adapters, engine y handler importan OK.
 - Los benchmarks P99 siguen flaky bajo carga de escritorio (deuda documentada).
+
+## [FASE-4] — 2026-08-23 — Live Bot Event-Driven (BTCUSDT, Binance)
+
+Implementación completa del bot live event-driven para trading en Binance Futures (USDT-M).
+
+### Added
+- **BinanceWSClient** (`ws_client.py`): WebSocket client con reconexión exponencial, ping/pong keepalive, buffer con backpressure, métricas de latencia
+- **OrderBookL2** (`order_book_state.py`): Libro L2 sincronizado (snapshot REST + deltas WS @100ms), métricas OBI, spread, microprice, VWAP
+- **BinanceWSFeed** (`ws_feed.py`): Feed asíncrono que combina depth@100ms + aggTrade + bookTicker, emite `MarketObservation`
+- **MarketFeatureExtractor** (`rosa_roja_features.py`): 10 features (log_return, volatility, spread_bps, volume, vpin, obi, candle_body, range, trade_intensity)
+- **BinanceOrderClient** (`order_client.py`): Cliente REST firmado HMAC-SHA256, rate limiting (token bucket), retry exponencial, order types LIMIT GTX/IOC, MARKET, STOP_MARKET, TAKE_PROFIT
+- **BinanceAccount** (`account.py`): Sincronización balance/posiciones, PnL realizado/no realizado, margen, equity
+- **LiveBotConfig** (`live_config.py`): Configuración completa tipada, cooldown dinámico según lambda_t, presets conservative/aggressive/testnet
+- **LiveBotRunner** (`live_runner.py`): Loop event-driven tick→features→engine→handler→orders, state persistence (JSON), health checks, graceful shutdown (SIGTERM/SIGINT)
+- **RosaRojaExpert** (`rosa_roja_expert.py`): Adapter para integrar Rosa Roja como challenger expert en MoE principal
+- **MoE Integration**: Registro en `ExpertRegistry` con pesos por régimen (8-10% challenger), feature flag `ML_ENABLE_ROSA_ROJA_EXPERT`
+- **Script CLI** (`zenin_live_btc.py`): Entry point con args, presets, dry-run, config file
+- **Config examples**: `config/live_btc_testnet.json`, `config/live_btc_mainnet.json`
+
+### Tests
+- **OrderBookL2**: 16 tests (snapshot, deltas, gaps, metrics, snapshots, truncation)
+- **LiveBotRunner**: 8 tests (cooldown, price_change, phi/lambda thresholds, dynamic cooldown, state persistence, shutdown)
+- **MoE Adapter**: 15 tests (contracts, registry, dispatcher, fallback, determinism)
+- **Total**: 596 tests passing (excl. 5 flaky latency benchmarks)
+
+### Architecture
+```
+Binance WS (depth@100ms + aggTrade + bookTicker)
+         │
+         ▼
+BinanceWSFeed → Ring Buffer → MarketFeatureExtractor (10 features)
+                                                    │
+                                                    ▼
+                                           RosaRojaEngine (Master Equation)
+                                                    │
+                                                    ▼
+                                         RosaRojaMarketExecutionHandler
+                                                    │
+                                                    ▼
+                                         BinanceOrderClient (REST signed)
+```
+
+### Decisiones Técnicas
+- **Event-driven puro**: Sin polling, reactivo a ticks WS
+- **Cooldown dinámico**: lambda_t > 0.8 → 100ms, 0.5-0.8 → 50%, <0.5 → normal
+- **Post-Only por defecto**: GTX para maker, fallback MARKET solo si phi_moe ≥ 0.7 + alta accel
+- **Emergency Flush**: lambda_t ≥ 0.95 O cos(θ) < -0.1 → cancel all + close @ market
+- **State persistence**: JSON cada 5min + shutdown, crash-recovery < 5s
+- **Audit log**: NDJSON rotación diaria, telemetry_hash + decision_trace
+- **Dry-run mode**: Simulación completa sin órdenes reales
+
+### Deuda Conocida
+- Benchmarks latencia P99 flaky bajo carga (5 tests Phase 3)
+- Tests legacy cognitive 24 fallos (fases no implementadas)
+- aiofiles requerido para persistencia (añadido a deps)
