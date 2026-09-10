@@ -109,7 +109,7 @@ class TestMahalanobisFilterSingularCovariance:
     """Test MahalanobisFilter handles singular covariance matrices."""
 
     def test_singular_covariance_no_crash(self):
-        from core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
+        from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
         import numpy as np
 
         # Create filter with small window

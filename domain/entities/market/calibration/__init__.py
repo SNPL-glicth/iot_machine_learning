@@ -77,6 +77,14 @@ from .pipeline import (
     wrap_predictor,
 )
 
+from .quantile_calibration import (
+    QuantileShift,
+    apply_quantile_shifts,
+    empirical_coverage,
+    fit_quantile_shift,
+    fit_quantile_shifts,
+)
+
 from .gate import (
     EvidenceGate,
     GateReason,
@@ -116,6 +124,12 @@ __all__ = [
     "compute_log_loss",
     "compute_wilson_lb",
     "compute_economic_edge",
+    # Quantile calibration (FASE 1)
+    "QuantileShift",
+    "apply_quantile_shifts",
+    "empirical_coverage",
+    "fit_quantile_shift",
+    "fit_quantile_shifts",
     # Split
     "train_val_test_split",
     # Render

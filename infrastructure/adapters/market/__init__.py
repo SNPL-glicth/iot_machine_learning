@@ -19,6 +19,7 @@ from .binance_adapter import BINANCE_PROFILE, BinanceAdapter
 from .binance.ws_client import BinanceWSClient, create_market_streams, ConnectionState
 from .binance.ws_feed import BinanceWSFeed, FeedStats
 from .binance.order_book_state import OrderBookL2, OrderBookMetrics, PriceLevel
+from .alpaca import AlpacaOrderClient, AlpacaAccount, AlpacaWSFeed, OrderRequest, OrderResponse, Position, AccountSnapshot
 from .csv_feed import HistoricalCsvFeed
 from .live_feed import GapDetected, LiveFeed, StateTransition
 from .live_fragment import (
@@ -46,6 +47,14 @@ __all__ = [
     "OrderBookL2",
     "OrderBookMetrics",
     "PriceLevel",
+    "AlpacaOrderClient",
+    "AlpacaAccount",
+    "AlpacaWSFeed",
+    "AlpacaLiveFeed",
+    "OrderRequest",
+    "OrderResponse",
+    "Position",
+    "AccountSnapshot",
     "HistoricalCsvFeed",
     "GapDetected",
     "LiveFeed",

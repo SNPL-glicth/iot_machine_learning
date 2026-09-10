@@ -7,8 +7,8 @@ import random
 import numpy as np
 import pytest
 
-from core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 
 
 def make_movement(delta, velocity: float = 1.0) -> Movement:

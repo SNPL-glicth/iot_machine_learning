@@ -64,8 +64,8 @@ def _run(symbol: str, predictor=None, *, strategy: str | None = None):
 def _baselines_section() -> str:
     from iot_machine_learning.domain.entities.market.replay import BASELINES
 
-    lines = ["1) BASELINES — NVDA 1h (todo el histórico)", ""]
-    header = f"{'baseline':<18}{'horizon':<8}{'dir%':>8}{'brier':>8}{'reward':>10}"
+    lines = ["1) BASELINES — NVDA 1h (todo el histórico)", "reward = puntaje interno, no USD", ""]
+    header = f"{'baseline':<18}{'horizon':<8}{'dir%':>8}{'brier':>8}{'reward*':>10}"
     lines.append(header)
     lines.append("-" * len(header))
     for predictor in BASELINES:

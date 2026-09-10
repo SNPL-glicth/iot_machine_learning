@@ -48,20 +48,28 @@ class MetricCollector:
 
     def totals(self):
         """Calcula métricas agregadas."""
+        return self.metrics()
+
+    def metrics(self, key: MetricKey | None = None):
+        """Calcula métricas agregadas, opcionalmente filtradas por clave."""
         from ..prediction.evaluation import evaluate_prediction
         from ..prediction.reward import RewardConfig, compute_reward
 
-        if not self._predictions:
+        scoped = self._predictions
+        if key is not None:
+            scoped = [p for p in self._predictions if p[0] == key]
+
+        if not scoped:
             return _EmptyMetrics()
 
-        n = len(self._predictions)
+        n = len(scoped)
         total_brier = 0.0
         total_mae = 0.0
         total_rmse_sq = 0.0
         direction_correct = 0
         total_reward = 0.0
 
-        for key, pred, outcome in self._predictions:
+        for key, pred, outcome in scoped:
             evaluation = evaluate_prediction(pred, outcome)
             reward = compute_reward(pred, outcome, evaluation, RewardConfig())
             prob = pred.probability_up

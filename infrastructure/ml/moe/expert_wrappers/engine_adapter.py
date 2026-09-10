@@ -8,11 +8,14 @@ Patrón Adapter: convierte interface de PredictionEngine a ExpertPort.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
 from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+
+if TYPE_CHECKING:
+    from iot_machine_learning.infrastructure.ml.moe.experts.rosa_roja_expert import RosaRojaExpert
 
 
 class EngineExpertAdapter(ExpertPort):
@@ -266,7 +269,14 @@ def create_rosa_roja_expert(
     """
     # Import here to avoid circular dependency
     from iot_machine_learning.infrastructure.ml.moe.experts.rosa_roja_expert import RosaRojaExpert
-    
+
+    if engine is None and enabled:
+        try:
+            from iot_machine_learning.infrastructure.ml.engines.core.factory import EngineFactory
+            engine = EngineFactory.create("rosa_roja")
+        except Exception:
+            engine = None
+
     return RosaRojaExpert(
         engine=engine,
         min_history_points=min_history_points,

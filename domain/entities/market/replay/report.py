@@ -175,7 +175,7 @@ class PerformanceReport:
             lines.append(
                 f"  Avg return error: {stat.avg_return_error * 100:.2f}%"
             )
-            lines.append(f"  Reward:           {stat.reward:+,.0f}")
+            lines.append(f"  Reward:           {stat.reward:+,.0f} (interno, no USD)")
             lines.append("")
         if any(s.strategy is not None for s in self.stats):
             lines.append("BY STRATEGY")
@@ -187,7 +187,7 @@ class PerformanceReport:
                     lines.append(self._fmt_horizon(current_horizon))
                 lines.append(
                     f"  {stat.strategy or '(default)':<12} "
-                    f"reward {stat.reward:+.2f} "
+                    f"reward {stat.reward:+.2f} (interno, no USD) "
                     f"dir {stat.direction_rate * 100:.1f}%"
                 )
             lines.append("")

@@ -21,11 +21,13 @@ from .core import (
 from .taylor import TaylorPredictionEngine
 from .statistical import StatisticalPredictionEngine
 from .kalman import KalmanPredictionEngine
+from .rosa_roja import RosaRojaMoEEngine
 
 # BaselineMovingAverageEngine ya se registra en core/factory.py
 EngineFactory.register("taylor", TaylorPredictionEngine)
 EngineFactory.register("statistical", StatisticalPredictionEngine)
 EngineFactory.register("kalman", KalmanPredictionEngine)
+EngineFactory.register("rosa_roja", RosaRojaMoEEngine)
 
 __all__ = [
     "EngineFactory",
@@ -35,4 +37,5 @@ __all__ = [
     "TaylorPredictionEngine",
     "StatisticalPredictionEngine",
     "KalmanPredictionEngine",
+    "RosaRojaMoEEngine",
 ]

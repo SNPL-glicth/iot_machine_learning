@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Literal
 from enum import Enum
 
-from core.orchestration.rosa_roja.ports.execution_port import ExecutionPort
-from core.orchestration.rosa_roja.domain.execution import ExecutionPlan, ActionEnvelope
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
 
 logger = logging.getLogger(__name__)
 

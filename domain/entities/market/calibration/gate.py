@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .pipeline import UNCALIBRATED, CalibrationEvidence
+from ..costs import CostModel
+from ..costs_net import evaluate_net
 
 __all__ = [
     "TradeAction",
@@ -44,6 +46,9 @@ class GateReason(str, Enum):
     NEUTRAL_ZONE = "neutral_zone"
     LONG_SIGNAL = "long_signal"
     SHORT_SIGNAL = "short_signal"
+    DISTRIBUTION_SHIFT = "distribution_shift"  # FASE 4: anomalía veta
+    GROSS_BLOCKED = "gross_blocked"  # FASE 6: ni en bruto hay edge
+    COST_BLOCKED = "cost_blocked"  # FASE 6: los costos matan la señal
 
 
 @dataclass(frozen=True)
@@ -94,11 +99,41 @@ class EvidenceGate:
 
     def decide(self, evidence: CalibrationEvidence) -> PaperDecision:
         """Decide la acción de papel para una señal calibrada."""
+        return self.decide_with_shift(evidence, is_shift=False)
+
+    def decide_with_costs(
+        self,
+        evidence: CalibrationEvidence,
+        *,
+        expected_gross: float,
+        cost_model: CostModel,
+    ) -> PaperDecision:
+        """Decide con gate económico duro (FASE 6).
+
+        Orden de vetos: UNCALIBRATED → SHIFT n/a aquí → GROSS (bruto<=0)
+        → COST (neto<=0) → probabilidad. Un 0.80 calibrado con +0.10%
+        bruto en BTC (24bps) da NO_TRADE/COST_BLOCKED: exacto, la señal
+        no paga su intento.         La paridad con la escalera de ``costs`` es
+        total: gross_negative→GROSS_BLOCKED, cost_negative→COST_BLOCKED.
+        """
         probability = evidence.prob_calibrated
         if self.require_calibrated and evidence.fallback_level == UNCALIBRATED:
             return PaperDecision(
                 TradeAction.NO_TRADE, GateReason.UNCALIBRATED, probability
             )
+        evaluation = evaluate_net(expected_gross, cost_model)
+        if evaluation.gross_return <= 0:
+            return PaperDecision(
+                TradeAction.NO_TRADE, GateReason.GROSS_BLOCKED, probability
+            )
+        if evaluation.net_return <= 0:
+            return PaperDecision(
+                TradeAction.NO_TRADE, GateReason.COST_BLOCKED, probability
+            )
+        return self._decide_probability(probability)
+
+    def _decide_probability(self, probability: float) -> PaperDecision:
+        """LONG/SHORT/NEUTRAL puro sobre la probabilidad calibrada."""
         upper = 0.5 + self.neutral_margin
         lower = 0.5 - self.neutral_margin
         if probability >= upper:
@@ -112,3 +147,23 @@ class EvidenceGate:
         return PaperDecision(
             TradeAction.NO_TRADE, GateReason.NEUTRAL_ZONE, probability
         )
+
+    def decide_with_shift(
+        self, evidence: CalibrationEvidence, is_shift: bool = False,
+    ) -> PaperDecision:
+        """Decide con veto de anomalía (FASE 4).
+
+        SHIFT ⇒ NO_TRADE antes de mirar la señal: evitar operar también
+        es una decisión y queda registrada con su motivo. Sin shift,
+        idéntico a ``decide`` (compatibilidad total).
+        """
+        probability = evidence.prob_calibrated
+        if is_shift:
+            return PaperDecision(
+                TradeAction.NO_TRADE, GateReason.DISTRIBUTION_SHIFT, probability
+            )
+        if self.require_calibrated and evidence.fallback_level == UNCALIBRATED:
+            return PaperDecision(
+                TradeAction.NO_TRADE, GateReason.UNCALIBRATED, probability
+            )
+        return self._decide_probability(probability)

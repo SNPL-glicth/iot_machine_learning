@@ -7,8 +7,8 @@ from typing import Any, Optional
 import numpy as np
 
 from infrastructure.ml.interfaces import PredictionEngine, PredictionResult
-from core.orchestration.rosa_roja.domain.trajectory import Trajectory
-from core.orchestration.rosa_roja.ports.expert_jury import ExpertJuryPort
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
 
 
 class BaseExpertAdapter(ExpertJuryPort):

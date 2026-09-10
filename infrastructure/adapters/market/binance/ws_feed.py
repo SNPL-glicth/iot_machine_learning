@@ -14,7 +14,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from typing import AsyncGenerator, Dict, List, Optional, Set, Any
-from collections import deque
+from collections import defaultdict, deque
 
 from iot_machine_learning.domain.entities.market.observations import (
     MarketObservation, Candle, Quote, Trade, OrderBookSnapshot
@@ -134,7 +134,7 @@ class BinanceWSFeed:
         self._last_sequence: Dict[str, int] = defaultdict(int)
         
         # Buffer de observaciones listas para emitir
-        self._obs_queue: asyncio.Queue[MarketObservation] = asyncio.Queue(maxsize=10000)
+        self._obs_queue: asyncio.Queue[MarketObservation] = asyncio.Queue(maxsize=max_queue_size)
         
         # Callbacks
         self.on_observation = on_observation
@@ -348,7 +348,7 @@ class BinanceWSFeed:
         return Trade(
             symbol=self.symbol,
             timestamp=data["T"] / 1000.0,  # Binance usa ms
-            data_status=DataStatus.LIVE,
+            data_status=DataStatus.REALTIME,
             source_provider="binance",
             price=float(data["p"]),
             size=float(data["q"]),
@@ -361,7 +361,7 @@ class BinanceWSFeed:
         return Quote(
             symbol=self.symbol,
             timestamp=receive_time,
-            data_status=DataStatus.LIVE,
+            data_status=DataStatus.REALTIME,
             source_provider="binance",
             bid=float(data["b"]),
             bid_size=float(data["B"]),
@@ -370,20 +370,28 @@ class BinanceWSFeed:
         )
     
     def _create_candle(self, data: Dict, receive_time: float) -> Candle:
-        """Crea Candle desde kline."""
+        """Crea Candle desde kline.
+
+        FASE 0: la vela en formación (x falsy) NO es señal live
+        (UNVERIFIED); solo la vela cerrada (x=True) es REALTIME.
+        """
         k = data.get("k", data)
+        closed = bool(k.get("x"))
+        volume = float(k.get("v", 0))
+        quote_vol = float(k.get("Q", 0) or 0)
+        vwap = quote_vol / volume if volume > 0 and quote_vol > 0 else None
         return Candle(
             symbol=self.symbol,
             timestamp=k["t"] / 1000.0,
-            data_status=DataStatus.LIVE if not k.get("x") else DataStatus.CLOSED,
+            data_status=DataStatus.REALTIME if closed else DataStatus.UNVERIFIED,
             source_provider="binance",
             open=float(k["o"]),
             high=float(k["h"]),
             low=float(k["l"]),
             close=float(k["c"]),
-            volume=float(k["v"]),
+            volume=volume,
             interval_seconds=self._interval_to_seconds(k.get("i", "1m")),
-            vwap=float(k.get("Q", 0)) / float(k["v"]) if float(k.get("v", 0)) > 0 else None,
+            vwap=vwap,
             trade_count=int(k.get("n", 0)),
         )
     
@@ -404,7 +412,7 @@ class BinanceWSFeed:
         return OrderBookSnapshot(
             symbol=self.symbol,
             timestamp=receive_time,
-            data_status=DataStatus.LIVE,
+            data_status=DataStatus.REALTIME,
             source_provider="binance",
             bids=tuple(bids),
             asks=tuple(asks),

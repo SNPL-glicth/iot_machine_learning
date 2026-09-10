@@ -15,6 +15,9 @@ observado el outcome externo.
 
 from .expert_scores import ExpertScore, PerformanceAnalyzer
 from .guard import AdaptationGuard, GuardCheck, GuardResult, wilson_lower_bound
+from .meta_blend import meta_adjusted_scores
+from .meta_learner import MetaLearner
+from .meta_types import META_STATE_VERSION, ExpertOutcome
 from .proposer import WeightProposal, WeightProposer, default_weights
 from .selection import (
     ExpertNetScore,
@@ -41,4 +44,8 @@ __all__ = [
     "expert_net_scores",
     "SelectionResult",
     "select_weights",
+    "META_STATE_VERSION",
+    "ExpertOutcome",
+    "MetaLearner",
+    "meta_adjusted_scores",
 ]

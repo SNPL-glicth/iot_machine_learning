@@ -6,10 +6,10 @@ import pytest
 from typing import Dict, Any, Optional
 from unittest.mock import Mock
 
-from core.orchestration.rosa_roja.ports.execution_port import ExecutionPort
-from core.orchestration.rosa_roja.domain.execution import ExecutionPlan, ActionEnvelope
-from core.orchestration.rosa_roja.domain.trajectory import Trajectory, TerminalState
-from core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
 import numpy as np
 
 

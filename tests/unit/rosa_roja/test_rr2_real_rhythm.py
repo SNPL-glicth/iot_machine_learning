@@ -5,9 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
-from core.orchestration.rosa_roja.domain.trajectory import Trajectory, TerminalState
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 
 
 def make_movement(delta, dt: float = 1.0, velocity: float = None, prev: Movement = None) -> Movement:

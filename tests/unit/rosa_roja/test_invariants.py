@@ -14,13 +14,13 @@ import numpy as np
 import random
 import math
 
-from core.orchestration.rosa_roja.domain.theta_belief import ThetaBelief, StateKey
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-from core.orchestration.rosa_roja.modules.phi_ritmo_scorer import PhiRitmoScorer
-from core.orchestration.rosa_roja.domain.trajectory_tracker import TrajectoryTracker, DeviationStatus
-from core.orchestration.rosa_roja.domain.trajectory import Trajectory, TerminalState
-from core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
-from core.orchestration.rosa_roja.domain.execution import ExecutionPlan, ActionEnvelope
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief, StateKey
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.phi_ritmo_scorer import PhiRitmoScorer
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory_tracker import TrajectoryTracker, DeviationStatus
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
 
 
 # ============================================================================

@@ -13,7 +13,7 @@ Responsabilidades:
 from __future__ import annotations
 
 from uuid import UUID, uuid5, NAMESPACE_OID
-from typing import List
+from typing import Any, List
 
 from iot_machine_learning.domain.entities.series import DataPoint, TimeWindow
 from iot_machine_learning.domain.entities.iot.sensor_reading import (
@@ -94,9 +94,11 @@ def sensor_reading_to_data_point(reading: Reading) -> DataPoint:
     # Extraer quality si existe
     quality = getattr(reading, 'quality', 1.0)
     
+    val: Any = reading.value
+    ts: Any = reading.timestamp
     return DataPoint(
-        value=float(reading.value),
-        timestamp=float(reading.timestamp),
+        value=float(val),
+        timestamp=float(ts),
         quality=float(quality),
         metadata=metadata,
     )

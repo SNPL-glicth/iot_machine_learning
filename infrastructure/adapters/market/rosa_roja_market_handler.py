@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 from typing import Optional, Dict, Any
-from core.orchestration.rosa_roja.ports.execution_port import ExecutionPort
-from core.orchestration.rosa_roja.domain.execution import ExecutionPlan
-from core.orchestration.rosa_roja.domain.trajectory import Trajectory
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class BrokerClientProtocol:
     """Minimal broker interface for order dispatch."""
     
-    def submit_order(self, symbol: str, side: str, order_type: str, 
+    async def submit_order(self, symbol: str, side: str, order_type: str, 
                      qty: float, price: Optional[float] = None, 
                      stop_price: Optional[float] = None, 
                      time_in_force: str = "GTC",
@@ -22,19 +22,19 @@ class BrokerClientProtocol:
         """Submit order to broker. Returns order response."""
         ...
     
-    def cancel_order(self, order_id: str) -> bool:
+    async def cancel_order(self, order_id: str) -> bool:
         """Cancel a specific order."""
         ...
     
-    def cancel_all_orders(self, symbol: Optional[str] = None) -> int:
+    async def cancel_all_orders(self, symbol: Optional[str] = None) -> int:
         """Cancel all open orders for symbol. Returns count cancelled."""
         ...
     
-    def get_position(self, symbol: str) -> float:
+    async def get_position(self, symbol: str) -> float:
         """Get current position size (positive=long, negative=short)."""
         ...
     
-    def close_position(self, symbol: str) -> bool:
+    async def close_position(self, symbol: str) -> bool:
         """Flatten position at market."""
         ...
 
@@ -54,7 +54,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
     def __init__(
         self,
-        broker_client: BrokerClientProtocol,
+        broker_client: Any,
         account_equity: float,
         symbol: str,
         lot_size: float = 1.0,
@@ -69,7 +69,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         self._max_position_pct = max_position_pct
         self._active_orders: Dict[str, Dict[str, Any]] = {}
 
-    def dispatch_execution(self, plan: ExecutionPlan) -> bool:
+    async def dispatch_execution(self, plan: ExecutionPlan) -> bool:
         """
         Processes an ExecutionPlan directly into market execution actions.
         
@@ -85,18 +85,18 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             return True
 
         if plan.regime_alert or plan.action == "EMERGENCY_FLUSH":
-            self.trigger_emergency_flush(
+            await self.trigger_emergency_flush(
                 reason=plan.veto_details.get("reason", "RegimeAlert_Triggered")
             )
             return False
 
         if plan.action == "EXECUTE" and plan.chosen_trajectory:
-            return self._execute_trajectory_orders(plan)
+            return await self._execute_trajectory_orders(plan)
 
         logger.warning("Unknown ExecutionPlan action", extra={"action": plan.action})
         return False
 
-    def _execute_trajectory_orders(self, plan: ExecutionPlan) -> bool:
+    async def _execute_trajectory_orders(self, plan: ExecutionPlan) -> bool:
         """
         Translates plan parameters to broker order requests.
         
@@ -148,7 +148,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             )
             
             # 1. Entry order (Market)
-            entry_order = self._broker.submit_order(
+            entry_order = await self._broker.submit_order(
                 symbol=self._symbol,
                 side=side,
                 order_type="market",
@@ -161,7 +161,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             # 2. Stop-loss order
             if stop_pct:
                 stop_price = current_price * (1 - stop_pct) if side == "buy" else current_price * (1 + stop_pct)
-                sl_order = self._broker.submit_order(
+                sl_order = await self._broker.submit_order(
                     symbol=self._symbol,
                     side=opposite_side,
                     order_type="stop",
@@ -175,7 +175,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             # 3. Take-profit order
             if target_pct:
                 tp_price = current_price * (1 + target_pct) if side == "buy" else current_price * (1 - target_pct)
-                tp_order = self._broker.submit_order(
+                tp_order = await self._broker.submit_order(
                     symbol=self._symbol,
                     side=opposite_side,
                     order_type="limit",
@@ -223,7 +223,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             }
         )
 
-    def trigger_emergency_flush(self, reason: str) -> None:
+    async def trigger_emergency_flush(self, reason: str) -> None:
         """
         Triggers emergency cancellation and risk protocol.
         
@@ -240,19 +240,19 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         # Cancel all active tracked orders
         for order_id in list(self._active_orders.keys()):
             try:
-                self._broker.cancel_order(order_id)
+                await self._broker.cancel_order(order_id)
                 del self._active_orders[order_id]
             except Exception as e:
                 logger.error(f"Failed to cancel order {order_id}", extra={"error": str(e)})
         
         # Cancel any remaining orders on broker for symbol
-        cancelled = self._broker.cancel_all_orders(symbol=self._symbol)
+        cancelled = await self._broker.cancel_all_orders(symbol=self._symbol)
         logger.info(f"Emergency flush: cancelled {cancelled} orders for {self._symbol}")
         
         # Flatten position
-        position = self._broker.get_position(self._symbol)
+        position = await self._broker.get_position(self._symbol)
         if position != 0:
-            self._broker.close_position(self._symbol)
+            await self._broker.close_position(self._symbol)
             logger.info(f"Emergency flatten: closed position of {position} for {self._symbol}")
 
     def update_equity(self, new_equity: float) -> None:

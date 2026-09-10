@@ -11,6 +11,7 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .distribution import ReturnDistribution
     from .types import PredictionInterval
 
 
@@ -36,4 +37,18 @@ def validate_interval_contains(
         raise ValueError(
             "intervalo incoherente: expected_return fuera del intervalo "
             f"{expected_return} ∉ [{interval.lower}, {interval.upper}]"
+        )
+
+
+def validate_distribution_coherence(
+    distribution: ReturnDistribution, expected_return: float
+) -> None:
+    """La media declarada y la de la distribución no pueden divergir."""
+    if not math.isclose(
+        distribution.expected_return, expected_return, rel_tol=0.0, abs_tol=1e-9
+    ):
+        raise ValueError(
+            "distribución incoherente: expected_return "
+            f"{expected_return!r} != distribution.expected_return "
+            f"{distribution.expected_return!r}"
         )

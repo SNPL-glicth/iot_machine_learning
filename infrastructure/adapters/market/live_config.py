@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Literal
 import json
 
 
@@ -15,10 +15,19 @@ class LiveBotConfig:
     Todos los parámetros son explícitos y validados en __post_init__.
     """
 
+    # Broker selection
+    broker: Literal["binance", "alpaca"] = "binance"
+
     # Símbolo e intercambio
     symbol: str = "BTCUSDT"
     exchange: str = "binance"
     testnet: bool = True
+
+    # Alpaca-specific config
+    alpaca_api_key: Optional[str] = None
+    alpaca_secret_key: Optional[str] = None
+    alpaca_api_base_url: str = "https://paper-api.alpaca.markets/v2"
+    alpaca_data_feed: str = "iex"  # "iex" or "sip"
 
     # Streams de datos
     depth_speed: str = "100ms"  # "100ms" o "1000ms"
@@ -105,6 +114,33 @@ class LiveBotConfig:
             raise ValueError("lot_size debe ser > 0")
         if self.max_lot_size < self.min_lot_size:
             raise ValueError("max_lot_size debe ser >= min_lot_size")
+
+        # Validación Alpaca
+        if self.broker == "alpaca":
+            if not self.alpaca_api_key:
+                raise ValueError("alpaca_api_key es requerido cuando broker=alpaca")
+            if not self.alpaca_secret_key:
+                raise ValueError("alpaca_secret_key es requerido cuando broker=alpaca")
+            if not self.alpaca_api_base_url:
+                raise ValueError("alpaca_api_base_url es requerido cuando broker=alpaca")
+            if "paper-api.alpaca.markets" not in self.alpaca_api_base_url:
+                raise ValueError("alpaca_api_base_url debe ser el endpoint PAPER: https://paper-api.alpaca.markets")
+            if self.alpaca_data_feed not in ("iex", "sip"):
+                raise ValueError("alpaca_data_feed debe ser 'iex' o 'sip'")
+
+    @property
+    def is_paper_trading(self) -> bool:
+        """Verifica si la configuración corresponde a paper trading."""
+        if self.broker == "alpaca":
+            return "paper-api.alpaca.markets" in self.alpaca_api_base_url
+        if self.broker == "binance":
+            return self.testnet
+        return False
+
+    @property
+    def is_live_trading(self) -> bool:
+        """Verifica si la configuración corresponde a live trading."""
+        return not self.is_paper_trading
 
     def to_json(self) -> str:
         """Serializa a JSON."""

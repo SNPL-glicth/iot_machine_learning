@@ -21,19 +21,19 @@ class ExecutionPort(Protocol):
         def __init__(self, ...):
             ...
         
-        def dispatch_execution(self, plan: ExecutionPlan) -> bool:
+        async def dispatch_execution(self, plan: ExecutionPlan) -> bool:
             if plan.action == "EXECUTE":
-                self._actuate(plan)
+                await self._actuate(plan)
             elif plan.action == "EMERGENCY_FLUSH":
-                self._emergency_shutdown(plan)
+                await self._emergency_shutdown(plan)
             return True
         
-        def trigger_emergency_flush(self, reason: str) -> None:
-            self._cancel_all_actions()
-            self._safe_shutdown()
+        async def trigger_emergency_flush(self, reason: str) -> None:
+            await self._cancel_all_actions()
+            await self._safe_shutdown()
     """
     
-    def dispatch_execution(self, plan: ExecutionPlan) -> bool:
+    async def dispatch_execution(self, plan: ExecutionPlan) -> bool:
         """
         Processes an ExecutionPlan directly into domain-specific actions.
         
@@ -45,7 +45,7 @@ class ExecutionPort(Protocol):
         """
         ...
     
-    def trigger_emergency_flush(self, reason: str) -> None:
+    async def trigger_emergency_flush(self, reason: str) -> None:
         """
         Triggers emergency cancellation and safety protocol.
         

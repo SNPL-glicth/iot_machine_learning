@@ -10,6 +10,8 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .distribution_metrics import DistributionEvaluation, evaluate_distribution
+
 if TYPE_CHECKING:
     from .outcome import Outcome
     from .prediction import Prediction, PredictionInterval
@@ -29,12 +31,15 @@ class Evaluation:
             intervalo de la predicción (``False`` sin intervalo).
         calibration_error: |probability_up - acierto| (0..1), donde
             acierto = 1 si el retorno fue positivo, 0 si no.
+        distribution: evaluación distribucional (None si la predicción
+            no declaró distribución; backward compatible FASE 3).
     """
 
     direction_correct: bool
     magnitude_error: float
     within_interval: bool
     calibration_error: float
+    distribution: DistributionEvaluation | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.magnitude_error) or self.magnitude_error < 0:
@@ -45,6 +50,10 @@ class Evaluation:
             raise ValueError(
                 f"calibration_error fuera de [0, 1]: {self.calibration_error!r}"
             )
+        if self.distribution is not None and not isinstance(
+            self.distribution, DistributionEvaluation
+        ):
+            raise TypeError("distribution debe ser DistributionEvaluation")
 
 
 def direction_correct(expected_return: float, return_realized: float, probability_up: float = 0.5) -> bool:
@@ -93,7 +102,15 @@ def evaluate_prediction(prediction: Prediction, outcome: Outcome) -> Evaluation:
     Validaciones de asociación (mismo símbolo y mismo horizonte) se
     realizan en ``Prediction._guard_outcome`` antes de llamar aquí; esta
     función es la matemática pura y asume predicción/outcome alineados.
+    Si la predicción declaró distribución, se evalúa también (pinball,
+    CRPS, cobertura de banda); si no, ``distribution`` queda en None.
     """
+    distribution = prediction.distribution
+    dist_eval = (
+        evaluate_distribution(distribution, outcome.return_realized)
+        if distribution is not None
+        else None
+    )
     return Evaluation(
         direction_correct=direction_correct(
             prediction.expected_return, outcome.return_realized, prediction.probability_up
@@ -105,4 +122,5 @@ def evaluate_prediction(prediction: Prediction, outcome: Outcome) -> Evaluation:
         calibration_error=calibration_error(
             prediction.probability_up, outcome.return_realized
         ),
+        distribution=dist_eval,
     )

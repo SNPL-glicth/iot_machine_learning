@@ -16,13 +16,13 @@ from typing import List
 import numpy as np
 import pytest
 
-from core.orchestration.rosa_roja.engine import RosaRojaEngine
-from core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-from core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
-from core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
-from core.orchestration.rosa_roja.ports.expert_jury import ExpertJuryPort
-from core.orchestration.rosa_roja.ports.drift_sensor import DriftSensorPort
+from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
 
 
 class MockExpert(ExpertJuryPort):
@@ -211,7 +211,7 @@ class TestPhase3Latency:
                 )
                 for j in range(11)
             )
-            from core.orchestration.rosa_roja.domain.trajectory import Trajectory, TerminalState
+            from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
             traj = Trajectory(
                 movements=movements,
                 coherence_score=0.5,

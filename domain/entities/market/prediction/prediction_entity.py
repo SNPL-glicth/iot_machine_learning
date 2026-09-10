@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
@@ -17,8 +18,10 @@ from .lifecycle import (
     validate_state_consistency,
     validate_transition,
 )
+from .distribution import ReturnDistribution
 from .types import InputContext, PredictionInterval, Regime
 from .validation import (
+    validate_distribution_coherence,
     validate_expected_return,
     validate_horizon,
     validate_interval_contains,
@@ -56,6 +59,7 @@ class Prediction:
     probability_up: float
     confidence: float
     interval: PredictionInterval | None = None
+    distribution: ReturnDistribution | None = None  # FASE 1: estado → distribución
     regime: Regime | None = None
     strategy: str | None = None
     input_context: InputContext | None = None
@@ -96,6 +100,11 @@ class Prediction:
             if not isinstance(self.interval, PredictionInterval):
                 raise TypeError("interval debe ser PredictionInterval")
             validate_interval_contains(self.interval, self.expected_return)
+
+        if self.distribution is not None:
+            if not isinstance(self.distribution, ReturnDistribution):
+                raise TypeError("distribution debe ser ReturnDistribution")
+            validate_distribution_coherence(self.distribution, self.expected_return)
 
         if self.regime is not None and not isinstance(self.regime, Regime):
             raise TypeError("regime debe ser Regime")

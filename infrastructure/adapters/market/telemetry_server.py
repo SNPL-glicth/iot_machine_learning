@@ -148,7 +148,7 @@ async def create_telemetry_server(
 
     async def handle_emergency_flush():
         if hasattr(runner, '_handler') and runner._handler:
-            runner._handler.trigger_emergency_flush("TUI Emergency Flush")
+            await runner._handler.trigger_emergency_flush("TUI Emergency Flush")
 
     async def handle_pause():
         logger.info("Pause requested from TUI")

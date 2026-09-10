@@ -12,22 +12,6 @@ from dataclasses import dataclass
 from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
 from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
 
-# Import condicional - Rosa Roja Core vive en core/orchestration/rosa_roja
-try:
-    from iot_machine_learning.core.orchestration.rosa_roja.domain.movement import Movement, RhythmSignature
-    from iot_machine_learning.core.orchestration.rosa_roja.domain.theta_belief import ThetaBelief
-    from iot_machine_learning.core.orchestration.rosa_roja.domain.trajectory import Trajectory, TerminalState
-    from iot_machine_learning.core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-    from iot_machine_learning.core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-    from iot_machine_learning.core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
-    from iot_machine_learning.core.orchestration.rosa_roja.ports.expert_jury import ExpertJuryPort
-    from iot_machine_learning.core.orchestration.rosa_roja.ports.drift_sensor import DriftSensorPort
-    from iot_machine_learning.core.orchestration.rosa_roja.engine import RosaRojaEngine
-    ROSA_ROJA_AVAILABLE = True
-except ImportError:
-    ROSA_ROJA_AVAILABLE = False
-
-
 @dataclass(frozen=True)
 class RosaRojaResult:
     """Resultado rico del core Rosa Roja (no degradado a probability_up)."""
@@ -45,6 +29,34 @@ class RosaRojaResult:
     status: str                     # "ok" | "unavailable" | "insufficient_history" | "invalid_state" | "error"
 
 
+# Import condicional - Rosa Roja vive en infrastructure/ml/engines/rosa_roja/algorithms
+try:
+    from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+    from infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief
+    from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+    from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+    from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+    from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
+    from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
+    from infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
+    from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+    ROSA_ROJA_AVAILABLE = True
+except ImportError:
+    try:
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+        ROSA_ROJA_AVAILABLE = True
+    except ImportError:
+        ROSA_ROJA_AVAILABLE = False
+
+
 class RosaRojaExpert(ExpertPort):
     """Adapter: Rosa Roja Core → ExpertPort.
     
@@ -54,7 +66,7 @@ class RosaRojaExpert(ExpertPort):
 
     def __init__(
         self,
-        engine: Optional["RosaRojaEngine"] = None,
+        engine: Optional[Any] = None,
         min_history_points: int = 50,
         enabled: bool = True,
     ):

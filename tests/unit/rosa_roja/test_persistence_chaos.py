@@ -16,10 +16,10 @@ import time
 import numpy as np
 import pytest
 
-from core.orchestration.rosa_roja.engine import RosaRojaEngine
-from core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-from core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
+from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
 from infrastructure.ml.adapters.ml_state_store import InMemoryMLStateStore, RedisMLStateStore
 from tests.unit.rosa_roja.synthetic.envs import PATTERN_A, PATTERN_B, SwitchingPatternEnv
 

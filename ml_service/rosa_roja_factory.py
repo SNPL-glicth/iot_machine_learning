@@ -11,10 +11,10 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from core.orchestration.rosa_roja.engine import RosaRojaEngine
-from core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-from core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
+from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
 from infrastructure.ml.adapters import (
     TaylorExpertAdapter,
     KalmanExpertAdapter,

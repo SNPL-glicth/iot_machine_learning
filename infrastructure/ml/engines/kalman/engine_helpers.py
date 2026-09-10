@@ -5,9 +5,10 @@ from __future__ import annotations
 import dataclasses
 import logging
 import math
-from typing import List, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 from core.parameters.numerical_constants import CONFIDENCE
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
 from .kalman_cv_math import (
     _compute_process_noise_covariance,
@@ -55,8 +56,8 @@ def estimate_dt(
     sorted_diffs = sorted(diffs)
     mid = len(sorted_diffs) // 2
     if len(sorted_diffs) % 2 == 1:
-        return float(sorted_diffs[mid])
-    return float((sorted_diffs[mid - 1] + sorted_diffs[mid]) / 2.0)
+        return sorted_diffs[mid]
+    return (sorted_diffs[mid - 1] + sorted_diffs[mid]) / 2.0
 
 
 def detect_gap(
@@ -120,7 +121,7 @@ def compute_confidence(
     return confidence, scale
 
 
-def classify_trend(v_hat: float, scale: float) -> str:
+def classify_trend(v_hat: float, scale: float) -> Literal["up", "down", "stable"]:
     """Classify trend from velocity estimate (scale-relative)."""
     threshold_rel = 0.01 * scale
     if v_hat > threshold_rel:
@@ -168,10 +169,8 @@ def build_metadata(
 
 def _fallback(
     clean_values: List[float], n: int, warmup_size: int,
-) -> "PredictionResult":
+) -> PredictionResult:
     """Return fallback PredictionResult when insufficient data."""
-    from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
-
     logger.warning(
         "kalman_insufficient_data",
         extra={"engine": "kalman", "n_points": n, "required": warmup_size},

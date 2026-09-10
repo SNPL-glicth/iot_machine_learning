@@ -5,6 +5,17 @@ Solo ``EVALUATED -> REWARDED`` materializa reward que alimenta el
 aprendizaje posterior (ver ``lifecycle``).
 """
 
+from .distribution import (
+    DISTRIBUTIONAL_HORIZONS,
+    QUANTILE_LEVELS,
+    ReturnDistribution,
+)
+from .distribution_metrics import (
+    DistributionEvaluation,
+    crps_gaussian,
+    evaluate_distribution,
+    pinball_loss,
+)
 from .evaluation import Evaluation, evaluate_prediction
 from .lifecycle import (
     InvalidTransitionError,
@@ -25,6 +36,13 @@ __all__ = [
     "Regime",
     "PredictionInterval",
     "InputContext",
+    "ReturnDistribution",
+    "DISTRIBUTIONAL_HORIZONS",
+    "QUANTILE_LEVELS",
+    "DistributionEvaluation",
+    "pinball_loss",
+    "crps_gaussian",
+    "evaluate_distribution",
     "Prediction",
     "Outcome",
     "Evaluation",

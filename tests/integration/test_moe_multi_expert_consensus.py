@@ -177,7 +177,7 @@ class TestMultiExpertConsensusWithRosaRoja:
     
     def test_4_master_modulator_phi_moe_calculation(self, fake_rosa_roja_engine, rosa_roja_result):
         """Verify Master Modulator: Phi_MoE = sum_w_c * (1 - lambda_t * (1 - Phi_Ritmo))."""
-        from iot_machine_learning.core.orchestration.rosa_roja.engine import RosaRojaEngine
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
         
         # Test cases for Master Modulator
         test_cases = [
@@ -226,7 +226,7 @@ class TestMultiExpertConsensusWithRosaRoja:
     
     def test_7_emergency_flush_on_direction_reversal(self, window, fake_rosa_roja_engine, rosa_roja_result):
         """Test EMERGENCY_FLUSH trigger on trajectory direction reversal."""
-        from iot_machine_learning.core.orchestration.rosa_roja.engine import RosaRojaEngine
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
         
         # Create trajectory with direction reversal (cos < -0.1)
         # This is tested at engine level, but we can verify the threshold

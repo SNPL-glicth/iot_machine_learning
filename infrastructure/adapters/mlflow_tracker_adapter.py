@@ -91,7 +91,8 @@ class MlflowTrackerAdapter(ExperimentTrackerPort):
 
         try:
             run = self._mlflow.start_run(run_name=run_name)
-            self._run_id = run.info.run_id
+            run_id = str(run.info.run_id)
+            self._run_id = run_id
 
             if tags:
                 self._mlflow.set_tags(tags)
@@ -100,7 +101,7 @@ class MlflowTrackerAdapter(ExperimentTrackerPort):
                 "mlflow_run_started",
                 extra={"run_id": self._run_id, "run_name": run_name},
             )
-            return self._run_id
+            return run_id
 
         except Exception as exc:
             logger.warning(

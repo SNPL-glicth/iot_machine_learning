@@ -15,11 +15,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from core.orchestration.rosa_roja.domain.execution import ExecutionPlan
-from core.orchestration.rosa_roja.engine import RosaRojaEngine
-from core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-from core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-from core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
+from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
 
 from .envs import PATTERN_A, PATTERN_B, CyclicPatternEnv, SwitchingPatternEnv
 

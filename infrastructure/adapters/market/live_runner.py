@@ -1,20 +1,20 @@
 """LiveBotRunner -- Loop principal event-driven para trading live.
 
 Arquitectura:
-    BinanceWSFeed (async) -> MarketFeatureExtractor -> RosaRojaEngine
-                                                    |
-                                                    v
-                                         RosaRojaMarketExecutionHandler
-                                                    |
-                                                    v
-                                         BinanceOrderClient (REST)
+    BinanceWSFeed / AlpacaWSFeed (async) -> MarketFeatureExtractor -> RosaRojaEngine
+                                                     |
+                                                     v
+                                          RosaRojaMarketExecutionHandler
+                                                     |
+                                                     v
+                                          BinanceOrderClient / AlpacaOrderClient (REST)
 
 Flujo por tick:
 1. Recibir observación (Quote, Trade, OrderBookSnapshot)
 2. Extraer features -> delta_state vector (10 dims) + delta_time
 3. RosaRojaEngine.process_event(delta_state, delta_time) -> ExecutionPlan
 4. Verificar cooldown/hysteresis
-5. ExecutionHandler.dispatch_execution() -> órdenes en Binance
+5. ExecutionHandler.dispatch_execution() -> órdenes en broker
 """
 
 from __future__ import annotations
@@ -39,23 +39,28 @@ from iot_machine_learning.infrastructure.adapters.market.binance import (
     OrderBookMetrics,
     FeedStats,
 )
+from iot_machine_learning.infrastructure.adapters.market.alpaca import (
+    AlpacaWSFeed,
+)
 from iot_machine_learning.infrastructure.adapters.market.telemetry_server import (
     TelemetryBroadcaster,
     create_telemetry_server,
 )
 from iot_machine_learning.infrastructure.adapters.market.rosa_roja_features import MarketFeatureExtractor
-from iot_machine_learning.core.orchestration.rosa_roja.engine import RosaRojaEngine
+from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from iot_machine_learning.infrastructure.adapters.market.rosa_roja_market_handler import (
     RosaRojaMarketExecutionHandler,
     BrokerClientProtocol,
 )
-from iot_machine_learning.core.orchestration.rosa_roja.domain.execution import (
+from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
     ExecutionPlan,
     ActionEnvelope,
 )
 from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
 from iot_machine_learning.infrastructure.adapters.market.binance.order_client import BinanceOrderClient
 from iot_machine_learning.infrastructure.adapters.market.binance.account import BinanceAccount
+from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
+from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +75,7 @@ class LiveBotState:
     last_phi_moe: float = 0.0
     last_lambda_t: float = 0.0
     last_phi_ritmo: float = 0.0
+    last_expert_votes: List[Dict[str, Any]] = field(default_factory=list)
     active_orders: Dict[str, Dict] = field(default_factory=dict)
     current_position: float = 0.0  # BTC, positivo=long, negativo=short
     total_pnl: float = 0.0
@@ -127,10 +133,10 @@ class LiveBotRunner:
         self._on_status = on_status or (lambda line: logger.info(line))
 
         # Componentes lazy-loaded
-        self._feed: Optional["BinanceWSFeed"] = feed
+        self._feed: Optional[Any] = feed
         self._engine: Optional[RosaRojaEngine] = engine
-        self._order_client: Optional["BinanceOrderClient"] = order_client
-        self._account: Optional["BinanceAccount"] = account
+        self._order_client: Optional[Any] = order_client
+        self._account: Optional[Any] = account
         self._handler: Optional["RosaRojaMarketExecutionHandler"] = None
 
         # Estado interno
@@ -150,7 +156,10 @@ class LiveBotRunner:
 
     async def initialize(self) -> None:
         """Inicializa todos los componentes."""
-        logger.info("Initializing LiveBotRunner", extra={"symbol": self.config.symbol})
+        logger.info("Initializing LiveBotRunner", extra={
+            "symbol": self.config.symbol,
+            "broker": self.config.broker,
+        })
 
         # 1. Feature extractor
         self._feature_extractor = MarketFeatureExtractor(window=200)
@@ -162,36 +171,16 @@ class LiveBotRunner:
             else:
                 raise ValueError("Engine required but rosa_roja_enabled=False")
 
-        # 3. Feed
+        # 3. Feed - broker-agnostic
         if self._feed is None:
-            self._feed = BinanceWSFeed(
-                symbol=self.config.symbol,
-                testnet=self.config.testnet,
-                depth_speed=self.config.depth_speed,
-                include_trades=self.config.include_trades,
-                include_book_ticker=self.config.include_book_ticker,
-                include_kline=self.config.include_kline,
-                kline_interval=self.config.kline_interval,
-                max_queue_size=self.config.ws_max_queue_size,
-                snapshot_interval_sec=self.config.ob_snapshot_interval_sec,
-                on_observation=self._on_observation_callback,
-                on_metrics=self._on_feed_metrics,
-                on_state_change=self._on_feed_state_change,
-            )
+            self._feed = self._create_feed()
 
-        # 4. Order client & account
+        # 4. Order client & account - broker-agnostic
         if self._order_client is None:
-            self._order_client = BinanceOrderClient(
-                api_key=self._get_api_key(),
-                api_secret=self._get_api_secret(),
-                testnet=self.config.testnet,
-            )
+            self._order_client = self._create_order_client()
 
         if self._account is None:
-            self._account = BinanceAccount(
-                client=self._order_client,
-                symbol=self.config.symbol,
-            )
+            self._account = self._create_account()
 
         # 5. Execution handler
         self._handler = RosaRojaMarketExecutionHandler(
@@ -218,13 +207,94 @@ class LiveBotRunner:
         if self.config.enable_metrics_export:
             self._telemetry = await create_telemetry_server(self)
 
-        logger.info("LiveBotRunner initialized successfully", extra={"symbol": self.config.symbol})
+        logger.info("LiveBotRunner initialized successfully", extra={
+            "symbol": self.config.symbol,
+            "broker": self.config.broker,
+        })
+
+    def _create_feed(self):
+        """Crea el feed de mercado según el broker configurado."""
+        if self.config.broker == "alpaca":
+            return AlpacaWSFeed(
+                symbol=self.config.symbol,
+                api_key=self.config.alpaca_api_key or "",
+                api_secret=self.config.alpaca_secret_key or "",
+                data_feed=self.config.alpaca_data_feed,
+                include_trades=True,
+                include_quotes=True,
+                include_bars=True,
+                bar_interval="1Min",
+                max_queue_size=self.config.ws_max_queue_size,
+                on_observation=self._on_observation_callback,
+                on_metrics=self._on_feed_metrics,
+                on_state_change=self._on_feed_state_change,
+            )
+        else:  # binance
+            return BinanceWSFeed(
+                symbol=self.config.symbol,
+                testnet=self.config.testnet,
+                depth_speed=self.config.depth_speed,
+                include_trades=self.config.include_trades,
+                include_book_ticker=self.config.include_book_ticker,
+                include_kline=self.config.include_kline,
+                kline_interval=self.config.kline_interval,
+                max_queue_size=self.config.ws_max_queue_size,
+                snapshot_interval_sec=self.config.ob_snapshot_interval_sec,
+                on_observation=self._on_observation_callback,
+                on_metrics=self._on_feed_metrics,
+                on_state_change=self._on_feed_state_change,
+            )
+
+    def _create_order_client(self):
+        """Crea el cliente de órdenes según el broker configurado."""
+        if self.config.broker == "alpaca":
+            return AlpacaOrderClient(
+                api_key=self.config.alpaca_api_key or "",
+                api_secret=self.config.alpaca_secret_key or "",
+                base_url=self.config.alpaca_api_base_url,
+                data_feed=self.config.alpaca_data_feed,
+            )
+        else:  # binance
+            return BinanceOrderClient(
+                api_key=self._get_binance_api_key(),
+                api_secret=self._get_binance_api_secret(),
+                testnet=self.config.testnet,
+            )
+
+    def _create_account(self):
+        """Crea la cuenta según el broker configurado."""
+        client = self._order_client or self._create_order_client()
+        if self.config.broker == "alpaca":
+            return AlpacaAccount(
+                client=client,  # type: ignore[arg-type]
+                auto_sync_interval=5.0,
+            )
+        else:  # binance
+            return BinanceAccount(
+                client=client,  # type: ignore[arg-type]
+                symbol=self.config.symbol,
+                auto_sync_interval=5.0,
+            )
+
+    def _get_binance_api_key(self) -> str:
+        import os
+        key = os.getenv("BINANCE_API_KEY") or os.getenv("BINANCE_TESTNET_API_KEY")
+        if not key:
+            raise ValueError("BINANCE_API_KEY or BINANCE_TESTNET_API_KEY not set")
+        return key
+
+    def _get_binance_api_secret(self) -> str:
+        import os
+        secret = os.getenv("BINANCE_API_SECRET") or os.getenv("BINANCE_TESTNET_API_SECRET")
+        if not secret:
+            raise ValueError("BINANCE_API_SECRET or BINANCE_TESTNET_API_SECRET not set")
+        return secret
 
     def _create_rosa_roja_engine(self) -> RosaRojaEngine:
         """Crea engine Rosa Roja con configuración por defecto."""
-        from iot_machine_learning.core.orchestration.rosa_roja.modules.module1_ingestion import MahalanobisFilter
-        from iot_machine_learning.core.orchestration.rosa_roja.modules.rhythm_generator import RhythmTrajectoryGenerator
-        from iot_machine_learning.core.orchestration.rosa_roja.modules.module3_moe_gating import MultiplicativeMoEGating
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
+        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
         from iot_machine_learning.infrastructure.ml.adapters import (
             TaylorExpertAdapter,
             KalmanExpertAdapter,
@@ -284,7 +354,7 @@ class LiveBotRunner:
     async def _get_equity(self) -> float:
         """Obtiene equity actual de la cuenta."""
         if self._account:
-            return await self._account.get_equity()
+            return float(await self._account.get_equity())
         return 10000.0  # Default para dry-run
 
     # Callbacks del feed
@@ -296,7 +366,11 @@ class LiveBotRunner:
         pass
 
     def _on_feed_state_change(self, old, new) -> None:
-        logger.info("Feed state change", extra={"from": old.value, "to": new.value, "symbol": self.config.symbol})
+        # AlpacaWSFeed pasa strings planos; BinanceWSFeed puede pasar Enum.
+        # Aceptar ambos para no romper el callback (deficiencia F3).
+        old_s = getattr(old, "value", old)
+        new_s = getattr(new, "value", new)
+        logger.info("Feed state change", extra={"from": old_s, "to": new_s, "symbol": self.config.symbol})
 
     # Main loop
     async def run(self) -> None:
@@ -340,27 +414,119 @@ class LiveBotRunner:
     async def _build_telemetry_state(self) -> Dict[str, Any]:
         """Construye el estado de telemetría para el TUI."""
         ob = self._feed.order_book if self._feed else None
+        
+        # Obtener datos de cuenta (async)
+        equity = 0.0
+        cash = 0.0
+        buying_power = 0.0
+        positions = {}
+        orders = []
+        
+        if self._account:
+            try:
+                equity = await self._account.get_equity()
+                cash = await self._account.get_cash() if hasattr(self._account, 'get_cash') else 0.0
+                buying_power = await self._account.get_buying_power() if hasattr(self._account, 'get_buying_power') else 0.0
+                
+                # Positions
+                if hasattr(self._account, 'get_all_positions'):
+                    pos_dict = await self._account.get_all_positions()
+                    positions = {k: v for k, v in pos_dict.items()} if pos_dict else {}
+                elif hasattr(self._account, 'get_position'):
+                    pos = await self._account.get_position(self.config.symbol)
+                    if pos:
+                        positions[self.config.symbol] = pos
+                
+                # Orders (for Alpaca)
+                if hasattr(self._order_client, 'get_orders'):
+                    orders_list = await self._order_client.get_orders(status="open", limit=50)
+                    orders = [{"id": o.id, "symbol": o.symbol, "side": o.side, "type": o.order_type, 
+                              "qty": o.qty, "price": o.price, "status": o.status} for o in orders_list]
+            except Exception as e:
+                logger.debug(f"Error fetching account data for telemetry: {e}")
+        
+        # Market data
+        best_bid = 0.0
+        best_ask = 0.0
+        bid_vol = 0.0
+        ask_vol = 0.0
+        obi = 0.0
+        microprice = 0.0
+        
+        if self._feed and hasattr(self._feed, 'order_book') and self._feed.order_book:
+            best_bid = self._feed.order_book.best_bid if self._feed.order_book else 0.0
+            best_ask = self._feed.order_book.best_ask if self._feed.order_book else 0.0
+            if self._feed.order_book.metrics:
+                bid_vol = self._feed.order_book.metrics.bid_volume
+                ask_vol = self._feed.order_book.metrics.ask_volume
+                obi = self._feed.order_book.metrics.volume_imbalance
+                microprice = self._feed.order_book.metrics.microprice
+        
+        # Determine mode string
+        if self.config.broker == "alpaca":
+            mode = "PAPER" if self.config.is_paper_trading else "LIVE"
+        else:
+            mode = "TESTNET" if self.config.testnet else "MAINNET"
+
+        # Horario de mercado (horas ET). is_open cubre solo sesión regular
+        # 9:30-16:00 ET; la extendida va 04:00-20:00 ET según calendario.
+        market_open: bool | None = None
+        next_open: str | None = None
+        next_close: str | None = None
+        if hasattr(self._order_client, "get_clock"):
+            try:
+                clock = await self._order_client.get_clock()
+                market_open = bool(clock.get("is_open"))
+                next_open = clock.get("next_open")
+                next_close = clock.get("next_close")
+            except Exception as e:
+                logger.debug(f"Error fetching market clock for telemetry: {e}")
+        
         return {
             "timestamp": time.time(),
             "symbol": self.config.symbol,
-            "mode": "TESTNET" if self.config.testnet else "MAINNET",
+            "mode": mode,
+            "broker": self.config.broker,
             "latency_p50_ms": np.percentile(self._latency_samples, 50) if self._latency_samples else 0.0,
             "phi_moe": self._state.last_phi_moe,
             "lambda_t": self._state.last_lambda_t,
             "phi_ritmo": self._state.last_phi_ritmo,
-            "best_bid": self._feed.order_book.best_bid if self._feed and self._feed.order_book else 0.0,
-            "best_ask": self._feed.order_book.best_ask if self._feed and self._feed.order_book else 0.0,
-            "bid_vol": self._feed.order_book.metrics.bid_volume if self._feed and self._feed.order_book.metrics else 0.0,
-            "ask_vol": self._feed.order_book.metrics.ask_volume if self._feed and self._feed.order_book.metrics else 0.0,
-            "obi": self._feed.order_book.metrics.volume_imbalance if self._feed and self._feed.order_book.metrics else 0.0,
-            "microprice": self._feed.order_book.metrics.microprice if self._feed and self._feed.order_book.metrics else 0.0,
-            "experts": [],  # TODO: poblar desde MoE
+            "best_bid": best_bid,
+            "best_ask": best_ask,
+            "bid_vol": bid_vol,
+            "ask_vol": ask_vol,
+            "obi": obi,
+            "microprice": microprice,
+            "experts": getattr(self._state, 'last_expert_votes', []),
             "position_qty": self._state.current_position,
             "entry_price": self._state.last_execution_price,
             "pnl_usd": self._state.total_pnl,
             "pnl_pct": 0.0,  # TODO: calcular
             "last_action": getattr(self._state, 'last_action', 'HOLD'),
             "last_reason": getattr(self._state, 'last_reason', ''),
+            "decision_rationale": {
+                "action": getattr(self._state, 'last_action', 'HOLD'),
+                "reason": getattr(self._state, 'last_reason', ''),
+                "phi_moe": self._state.last_phi_moe,
+                "lambda_t": self._state.last_lambda_t,
+                "phi_ritmo": self._state.last_phi_ritmo,
+                "expert_votes": {e["name"]: e.get("vote", 0.0) for e in getattr(self._state, 'last_expert_votes', [])},
+                "regime": "stable",
+                "risk_checks": [],
+                "timestamp": int(time.time() * 1000),
+            },
+            # Alpaca-specific fields
+            "equity": equity,
+            "cash": cash,
+            "buying_power": buying_power,
+            "positions": positions,
+            "orders": orders,
+            "feed_connected": self._feed.is_connected if self._feed else False,
+            "feed_state": str(self._feed.state) if self._feed else "DISCONNECTED",
+            "market_open": market_open,
+            "next_open_et": next_open,
+            "next_close_et": next_close,
+            "session_note": "RTH 9:30-16:00 ET; extendida 04:00-20:00 ET",
         }
 
     async def _broadcast_telemetry(self) -> None:
@@ -380,17 +546,35 @@ class LiveBotRunner:
         delta_state, delta_time = self._feature_extractor.process(obs)
 
         # 2. Rosa Roja Engine
+        if self._engine is None:
+            return
         plan = self._engine.process_event(delta_state, delta_time)
 
         # 3. Extraer métricas del plan
         phi_moe = plan.global_confidence
-        lambda_t = getattr(plan, 'lambda_t', 0.0) if hasattr(plan, 'lambda_t') else 0.0
-        phi_ritmo = getattr(plan, 'phi_ritmo', 0.0) if hasattr(plan, 'phi_ritmo') else 0.0
+        lambda_t = 0.0
+        phi_ritmo = plan.chosen_trajectory.coherence_score if plan.chosen_trajectory else 0.0
+
+        expert_votes = []
+        if plan.envelope and plan.envelope.metadata and "decision_trace" in plan.envelope.metadata:
+            dt = plan.envelope.metadata["decision_trace"]
+            lambda_t = float(dt.get("lambda_t", 0.0))
+            phi_ritmo = float(dt.get("phi_ritmo", phi_ritmo))
+            scores = dt.get("expert_confidences", {})
+            for name, score in scores.items():
+                expert_votes.append({
+                    "name": name,
+                    "vote": round(float(score) * 2.0 - 1.0, 2),
+                    "weight": 1.0,
+                    "confidence": round(float(score), 2),
+                })
 
         # Actualizar estado
         self._state.last_phi_moe = phi_moe
-        self._state.last_lambda_t = getattr(plan, 'lambda_t', 0.0) if hasattr(plan, 'lambda_t') else 0.0
-        self._state.last_phi_ritmo = getattr(plan, 'phi_ritmo', 0.0) if hasattr(plan, 'phi_ritmo') else 0.0
+        self._state.last_lambda_t = lambda_t
+        self._state.last_phi_ritmo = phi_ritmo
+        if expert_votes:
+            self._state.last_expert_votes = expert_votes
 
         # 3. Verificar cooldown / hysteresis
         if not self._can_execute(plan):
@@ -398,7 +582,7 @@ class LiveBotRunner:
 
         # 4. Ejecutar plan
         if self._handler:
-            success = self._handler.dispatch_execution(plan)
+            success = await self._handler.dispatch_execution(plan)
             if success and plan.action == "EXECUTE":
                 self._state.last_execution_time = time.time()
                 self._state.last_execution_price = self._get_current_mid()
@@ -608,13 +792,13 @@ class LiveBotRunner:
 
     async def shutdown(self) -> None:
         """Apagado graceful."""
-        logger.info("Shutting down LiveBotRunner", extra={"symbol": self.config.symbol})
+        logger.info("Shutting down LiveBotRunner", extra={"symbol": self.config.symbol, "broker": self.config.broker})
         self._running = False
         self._shutdown_event.set()
 
         # 1. Cancelar órdenes abiertas
         if self._handler:
-            self._handler.trigger_emergency_flush("Graceful shutdown")
+            await self._handler.trigger_emergency_flush("Graceful shutdown")
 
         # 2. Cerrar posición si existe
         if self._state.current_position != 0 and self._order_client:
@@ -627,11 +811,18 @@ class LiveBotRunner:
         if self._feed:
             await self._feed.disconnect()
 
-        # 3. Cerrar order client
+        # 4. Cerrar order client
         if self._order_client:
             await self._order_client.close()
 
-        # 4. Guardar estado final
+        # 5. Detener account auto-sync (Alpaca)
+        if self._account and hasattr(self._account, 'stop_auto_sync'):
+            try:
+                await self._account.stop_auto_sync()
+            except Exception as e:
+                logger.warning("Failed to stop account auto-sync", extra={"error": str(e)})
+
+        # 6. Guardar estado final
         await self._save_state()
 
         logger.info("LiveBotRunner shutdown complete", extra={"symbol": self.config.symbol})

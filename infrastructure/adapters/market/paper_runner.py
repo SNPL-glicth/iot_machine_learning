@@ -31,6 +31,10 @@ from iot_machine_learning.domain.entities.market.calibration.gate import (
     EvidenceRecord,
     TradeAction,
 )
+from iot_machine_learning.domain.entities.market.costs import (
+    COST_PROFILES,
+    CostModel,
+)
 from iot_machine_learning.domain.entities.market.calibration.pipeline import (
     AdaptiveCalibrator,
     CalibratedPredictor,
@@ -73,6 +77,10 @@ class PaperBotConfig:
     neutral_margin: float = 0.05
     require_calibrated: bool = True
     window_candles: int = 180
+    # FASE 6 — gate económico duro (decisión del usuario): sin edge neto
+    # después de costos no hay trade (COST_BLOCKED/GROSS_BLOCKED).
+    # Solo desactivar en experimentos controlados de señal bruta.
+    require_positive_net: bool = True
 
     def __post_init__(self) -> None:
         if not self.horizons_seconds:
@@ -228,6 +236,14 @@ class PaperBotRunner:
             neutral_margin=config.neutral_margin,
             require_calibrated=config.require_calibrated,
         )
+        try:
+            self.cost_model: CostModel = COST_PROFILES[config.symbol]
+        except KeyError:
+            raise ValueError(
+                f"sin perfil de costos para {config.symbol!r} "
+                f"(conocidos: {sorted(COST_PROFILES)}): el gate económico "
+                "falla cerrado, no abierto"
+            ) from None
         self.cycle_count = 0
         self.totals: Counter[str] = Counter()
 
@@ -290,7 +306,14 @@ class PaperBotRunner:
             ev = evidence_by_id.get(pred.prediction_id)
             if ev is None:
                 continue  # defensivo: jamás inventar evidencia
-            decision = self.gate.decide(ev)
+            if self.config.require_positive_net:
+                decision = self.gate.decide_with_costs(
+                    ev,
+                    expected_gross=pred.expected_return,
+                    cost_model=self.cost_model,
+                )
+            else:
+                decision = self.gate.decide(ev)
             records.append(EvidenceRecord(evidence=ev, decision=decision))
             self.totals[decision.action.value] += 1
             report.actions[decision.action] += 1

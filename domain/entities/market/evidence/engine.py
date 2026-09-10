@@ -144,6 +144,9 @@ class EvidenceEngine:
         recency_accuracies: list[float],  # [antigua, ..., reciente]
         # Calibración
         calibration_errors: list[float],
+        # FASE 4: veto de shift (None ⇒ 6 dimensiones como antes)
+        shift_is_shift: bool | None = None,
+        shift_summary: str = "",
     ) -> EvidenceVerdict:
         """Evalúa evidencia multidimensional para un contexto."""
         dimensions: list[EvidenceDimension] = []
@@ -237,6 +240,17 @@ class EvidenceEngine:
                 reason="no calibration data"
             ))
         
+        # 7. Distribution shift (FASE 4, solo si se provee veredicto)
+        if shift_is_shift is not None:
+            shift_passed = not shift_is_shift
+            dimensions.append(EvidenceDimension(
+                name="distribution_shift",
+                passed=shift_passed,
+                value=1.0 if shift_is_shift else 0.0,
+                threshold=1.0,
+                reason=f"shift: {shift_summary or shift_is_shift}",
+            ))
+
         # Determinar estado
         all_passed = all(d.passed for d in dimensions)
         

@@ -129,6 +129,9 @@ class BinanceKlinesFeed:
         self.errors = 0
         self.gaps = 0
         self.candles_received = 0
+        # FASE 0 — auditoría: nada se descarta en silencio.
+        self.duplicates_skipped = 0
+        self.late_skipped = 0
         self.last_success_monotonic: float | None = None
         self.last_error: str | None = None
 
@@ -166,11 +169,12 @@ class BinanceKlinesFeed:
             )
             if close_time > now_s:
                 continue  # vela en formación: no existe para el pipeline
-            if (
-                self._last_open_ts is not None
-                and candle.timestamp <= self._last_open_ts
-            ):
-                continue  # duplicado
+            if self._last_open_ts is not None and candle.timestamp <= self._last_open_ts:
+                if candle.timestamp == self._last_open_ts:
+                    self.duplicates_skipped += 1
+                else:
+                    self.late_skipped += 1
+                continue  # duplicado o tardío: no existe dos veces
             expected = (
                 self._last_open_ts + self.interval_seconds
                 if self._last_open_ts is not None

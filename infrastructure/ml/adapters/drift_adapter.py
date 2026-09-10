@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Literal
 
-from core.orchestration.rosa_roja.ports.drift_sensor import DriftSensorPort
+from infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
 
 logger = logging.getLogger(__name__)
 
