@@ -29,14 +29,18 @@ for p in (str(_ST_ROOT), str(_PROJECT_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 
 # Load .env from project root or ST root
 load_dotenv(_PROJECT_ROOT / ".env")
 load_dotenv(_ST_ROOT / ".env")
 
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-from iot_machine_learning.infrastructure.adapters.market.live_runner import create_live_bot
+from iot_machine_learning.infrastructure.adapters.market.live_config import (  # noqa: E402
+    LiveBotConfig,
+)
+from iot_machine_learning.infrastructure.adapters.market.live_runner import (  # noqa: E402
+    create_live_bot,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,18 +55,25 @@ def parse_args() -> argparse.Namespace:
         description="ZENIN Live Alpaca Bot - Event-Driven Market Trading",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--symbol", default="SPY", help="Ticker symbol to trade (e.g., SPY, QQQ, AAPL)")
+    parser.add_argument("--symbol", default="SPY", help="Default/primary ticker symbol (e.g., SPY)")
+    parser.add_argument("--symbols", default="SPY,QQQ,NVDA,AAPL", help="Comma-separated basket of symbols to trade concurrently")
+    parser.add_argument("--max-positions", type=int, default=2, help="Max concurrent active positions across portfolio")
+    parser.add_argument("--max-portfolio-exposure", type=float, default=0.25, help="Max total portfolio exposure fraction of equity")
     parser.add_argument("--dry-run", action="store_true", default=False, help="Simulate execution without sending orders")
     parser.add_argument("--no-dry-run", action="store_false", dest="dry_run", help="Enable actual paper order execution")
     parser.add_argument("--config", type=Path, help="Path to JSON configuration file")
     parser.add_argument("--lot-size", type=float, default=1.0, help="Order lot size (shares)")
-    parser.add_argument("--max-lot-size", type=float, default=5.0, help="Max lot size per order (shares)")
+    parser.add_argument("--max-lot-size", type=float, default=25.0, help="Max lot size per order (shares)")
     parser.add_argument("--min-lot-size", type=float, default=1.0, help="Min lot size per order (shares)")
-    parser.add_argument("--max-position-pct", type=float, default=0.05, help="Max position fraction of equity")
+    parser.add_argument("--max-position-pct", type=float, default=0.10, help="Max position fraction of equity per trade")
     parser.add_argument("--cooldown-ms", type=int, default=500, help="Cooldown between orders in ms")
-    parser.add_argument("--phi-moe-threshold", type=float, default=0.35, help="Phi_MoE execution threshold (intermediate balance)")
+    parser.add_argument("--phi-moe-threshold", type=float, default=0.40, help="Phi_MoE execution threshold (intermediate balance)")
     parser.add_argument("--geometric-threshold", type=float, default=-0.4, help="Min cos theta before direction reversal abort")
+    parser.add_argument("--trailing-activation", type=float, default=4.50, help="Trailing profit activation PnL in USD")
+    parser.add_argument("--trailing-min-giveback", type=float, default=1.80, help="Min giveback in USD before trailing lock")
+    parser.add_argument("--trailing-giveback-ratio", type=float, default=0.30, help="Giveback ratio from peak profit")
     parser.add_argument("--feed", default=os.getenv("ALPACA_DATA_FEED", "iex"), choices=["iex", "sip"], help="Alpaca data feed")
+    parser.add_argument("--enforce-market-hours", action="store_true", default=False, help="Strictly flush and halt on 16:00 ET close (default: False for paper/extended)")
     parser.add_argument("--metrics-export", action="store_true", default=True, help="Broadcast WebSocket telemetry on 8765")
     parser.add_argument("--no-metrics-export", action="store_false", dest="metrics_export")
     return parser.parse_args()
@@ -77,12 +88,18 @@ def build_config(args: argparse.Namespace) -> LiveBotConfig:
         logger.error("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set in environment or .env!")
         sys.exit(1)
 
+    symbols_list = [s.strip().upper() for s in args.symbols.split(",") if s.strip()] if args.symbols else [args.symbol.upper()]
+    primary_symbol = symbols_list[0] if symbols_list else args.symbol.upper()
+
     if args.config and args.config.exists():
         cfg = LiveBotConfig.from_file(args.config)
     else:
         cfg = LiveBotConfig(
             broker="alpaca",
-            symbol=args.symbol,
+            symbol=primary_symbol,
+            symbols=symbols_list,
+            max_concurrent_positions=args.max_positions,
+            max_portfolio_exposure_pct=args.max_portfolio_exposure,
             testnet=True,
             dry_run=args.dry_run,
             alpaca_api_key=api_key,
@@ -101,7 +118,10 @@ def build_config(args: argparse.Namespace) -> LiveBotConfig:
 
     # Always ensure credentials and symbol overrides
     cfg.broker = "alpaca"
-    cfg.symbol = args.symbol
+    cfg.symbol = primary_symbol
+    cfg.symbols = symbols_list
+    cfg.max_concurrent_positions = args.max_positions
+    cfg.max_portfolio_exposure_pct = args.max_portfolio_exposure
     cfg.alpaca_api_key = api_key
     cfg.alpaca_secret_key = secret_key
     cfg.alpaca_api_base_url = base_url
@@ -110,6 +130,12 @@ def build_config(args: argparse.Namespace) -> LiveBotConfig:
     cfg.enable_metrics_export = args.metrics_export
     cfg.phi_moe_threshold = args.phi_moe_threshold
     cfg.geometric_threshold = getattr(args, "geometric_threshold", -0.4)
+    cfg.max_position_pct = args.max_position_pct
+    cfg.max_lot_size = args.max_lot_size
+    cfg.trailing_activation_pnl = args.trailing_activation
+    cfg.trailing_min_giveback = args.trailing_min_giveback
+    cfg.trailing_giveback_ratio = args.trailing_giveback_ratio
+    cfg.enforce_market_hours = args.enforce_market_hours
     return cfg
 
 
@@ -117,11 +143,13 @@ async def main() -> int:
     args = parse_args()
     config = build_config(args)
 
+    symbols_str = ", ".join(config.symbols) if config.symbols else config.symbol
     print("=" * 65)
-    print("  🏛️  ZENIN LIVE MARKET BOT — ALPACA PAPER TRADING (09:30 AM RTH)")
-    print(f"  Symbol: {config.symbol} | Feed: {config.alpaca_data_feed} | Mode: {'DRY-RUN' if config.dry_run else 'LIVE PAPER'}")
+    print("  🏛️  ZENIN LIVE MARKET BOT — ALPACA MULTI-ASSET PORTFOLIO")
+    print(f"  Basket: [{symbols_str}] | Max Concurrent Pos: {config.max_concurrent_positions}")
+    print(f"  Feed: {config.alpaca_data_feed} | Mode: {'DRY-RUN' if config.dry_run else 'LIVE PAPER'}")
     print(f"  Rosa Roja: {'ON' if config.rosa_roja_enabled else 'OFF'} | Telemetry WS: {'ws://127.0.0.1:8765' if config.enable_metrics_export else 'OFF'}")
-    print(f"  Lot size: {config.lot_size} shares | Max Pos: {config.max_position_pct * 100:.0f}%")
+    print(f"  Lot size: {config.lot_size} sh | Pos Pct: {config.max_position_pct * 100:.0f}% | Max Port: {config.max_portfolio_exposure_pct * 100:.0f}%")
     print("=" * 65)
 
     try:

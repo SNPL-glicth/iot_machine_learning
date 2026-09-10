@@ -72,7 +72,7 @@ def detect_gap(
         for i in range(1, len(timestamps))
     ]
     if gaps and max(gaps) > 5.0 * dt:
-        logger.warning(
+        logger.debug(
             "kalman_gap_detected",
             extra={
                 "engine": "kalman",
@@ -171,7 +171,7 @@ def _fallback(
     clean_values: List[float], n: int, warmup_size: int,
 ) -> PredictionResult:
     """Return fallback PredictionResult when insufficient data."""
-    logger.warning(
+    logger.debug(
         "kalman_insufficient_data",
         extra={"engine": "kalman", "n_points": n, "required": warmup_size},
     )

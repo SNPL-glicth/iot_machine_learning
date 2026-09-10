@@ -144,7 +144,7 @@ class TemporalGapDetector:
                 timestamps[start_idx:],
             ))
 
-        logger.info(
+        logger.debug(
             "time_series_segmented",
             extra={
                 "n_gaps": len(gaps),

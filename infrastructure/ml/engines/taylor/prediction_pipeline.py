@@ -12,7 +12,7 @@ from iot_machine_learning.domain.validators.numeric import (
 from iot_machine_learning.domain.entities.structural_analysis import StructuralAnalysis
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
-from .types import DerivativeMethod
+from .types import DerivativeMethod, TaylorCoefficients
 from .diagnostics import compute_diagnostic
 from .time_step import compute_dt
 from .polynomial import project
@@ -42,9 +42,9 @@ def run_taylor_prediction(
     values, timestamps = sanitize_inputs(values, timestamps)
     if not values:
         return PredictionResult(
-            predicted_value=None,
+            predicted_value=0.0,
             confidence=0.0,
-            trend="unknown",
+            trend="stable",
             metadata={"reason": "all_inputs_invalid"},
         )
 
@@ -58,7 +58,7 @@ def run_taylor_prediction(
             values, timestamps
         )
         if len(values) < n:
-            logger.info(
+            logger.debug(
                 "taylor_gap_segmentation",
                 extra={"original_size": n, "segment_size": len(values)},
             )
@@ -81,10 +81,11 @@ def run_taylor_prediction(
 
     # FASE 2: Check cache first
     window_hash = None
+    coeffs: TaylorCoefficients
     if engine._cache and engine._series_id:
         window_hash = TaylorCoefficientCache.compute_window_hash(values, timestamps)
         cached = engine._cache.get(engine._series_id, window_hash)
-        if cached:
+        if cached is not None:
             coeffs = cached
             logger.debug("taylor_cache_hit", extra={"series_id": engine._series_id})
         else:

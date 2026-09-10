@@ -8,6 +8,10 @@ from typing import Any
 
 from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
 from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
+from iot_machine_learning.infrastructure.adapters.market.trailing_profit_manager import (
+    TrailingProfitConfig,
+    TrailingProfitManager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         lot_size: float = 1.0,
         min_qty: float = 0.01,
         max_position_pct: float = 1.0,
+        trailing_config: TrailingProfitConfig | None = None,
     ):
         self._broker = broker_client
         self._equity = account_equity
@@ -69,13 +74,25 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         self._min_qty = min_qty
         self._max_position_pct = max_position_pct
         self._active_orders: dict[str, dict[str, Any]] = {}
+        self._trailing_config = trailing_config
+        self._trailing_manager = TrailingProfitManager(trailing_config)
+        self._trailing_managers: dict[str, TrailingProfitManager] = {symbol.upper(): self._trailing_manager}
+        self._cached_positions: dict[str, dict[str, Any]] = {}
+        self._last_pos_checks: dict[str, float] = {}
 
-    async def dispatch_execution(self, plan: ExecutionPlan) -> bool:
+    def _get_trailing_manager(self, sym: str) -> TrailingProfitManager:
+        s = sym.upper()
+        if s not in self._trailing_managers:
+            self._trailing_managers[s] = TrailingProfitManager(self._trailing_config)
+        return self._trailing_managers[s]
+
+    async def dispatch_execution(self, plan: ExecutionPlan, symbol: str | None = None) -> bool:
         """
         Processes an ExecutionPlan directly into market execution actions.
 
         Args:
             plan: The orchestrated execution plan from Rosa Roja Engine.
+            symbol: Target symbol for multi-asset execution.
 
         Returns:
             True if execution was dispatched successfully, False otherwise.
@@ -87,24 +104,24 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
         if plan.action == "EMERGENCY_FLUSH" or plan.regime_alert:
             reason = plan.veto_details.get("reason", "RegimeAlert_Triggered")
-            # In intermediate live trading, reactive trajectory micro-deviations are protected
-            # by Alpaca's server-side bracket order (stop-loss and take-profit)
-            if "Reactive_Trajectory_Deviation" in reason:
+            # In intermediate live trading, reactive trajectory micro-deviations and geometric threshold breaches
+            # are protected by Alpaca's server-side bracket order (stop-loss and take-profit) and Trailing Profit Manager.
+            if "Reactive_Trajectory_Deviation" in reason or "Geometric_Threshold_Breach" in reason:
                 logger.info(
-                    "Trajectory micro-deviation observed (%s) — position protected by server-side bracket, maintaining position",
+                    "Trajectory micro-deviation observed (%s) — position protected by server-side bracket and trailing profit manager, maintaining position",
                     reason,
                 )
                 return True
-            await self.trigger_emergency_flush(reason=reason)
+            await self.trigger_emergency_flush(reason=reason, symbol=symbol)
             return False
 
         if plan.action == "EXECUTE" and plan.chosen_trajectory:
-            return await self._execute_trajectory_orders(plan)
+            return await self._execute_trajectory_orders(plan, symbol=symbol)
 
         logger.warning("Unknown ExecutionPlan action", extra={"action": plan.action})
         return False
 
-    async def _execute_trajectory_orders(self, plan: ExecutionPlan) -> bool:
+    async def _execute_trajectory_orders(self, plan: ExecutionPlan, symbol: str | None = None) -> bool:
         """
         Translates plan parameters to broker order requests.
 
@@ -120,10 +137,13 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 logger.warning("EXECUTE plan missing envelope or trajectory")
                 return False
 
+            target_sym = (symbol or getattr(plan, "symbol", None) or self._symbol).upper()
+            current_price = self._get_reference_price(target_sym)
+
             # Calculate position sizing from envelope magnitude
             notional = self._equity * min(envelope.magnitude, self._max_position_pct)
             qty = max(self._min_qty,
-                     round(notional / self._get_reference_price() / self._lot_size) * self._lot_size)
+                     round(notional / current_price / self._lot_size) * self._lot_size)
 
             # Extract bounds from envelope
             stop_pct = envelope.bounds.get("stop_pct", 0.0)
@@ -132,7 +152,6 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
             # Determine direction from trajectory terminal state
             terminal_state = plan.chosen_trajectory.terminal_state
-            current_price = self._get_reference_price()
             terminal_price = terminal_state.state_vector[0]
 
             side = "buy" if terminal_price > current_price else "sell"
@@ -140,6 +159,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             logger.info(
                 "Dispatching Rosa Roja execution plan",
                 extra={
+                    "symbol": target_sym,
                     "action": plan.action,
                     "confidence": plan.global_confidence,
                     "notional": notional,
@@ -184,7 +204,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
             # 1. Atomic Entry order (Market order with native server-side bracket protection)
             entry_order = await self._broker.submit_order(
-                symbol=self._symbol,
+                symbol=target_sym,
                 side=side,
                 order_type="market",
                 qty=qty,
@@ -194,7 +214,8 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 take_profit=take_profit,
                 stop_loss=stop_loss,
             )
-            self._track_order(entry_order)
+            self._track_order(entry_order, symbol=target_sym)
+            self._cached_positions[target_sym] = None
 
             # 4. Invalidation timer scheduling (for external handler)
             if invalidation_step:
@@ -206,17 +227,19 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             logger.error(f"Failed to dispatch execution plan: {e}", exc_info=True)
             return False
 
-    def _get_reference_price(self) -> float:
+    def _get_reference_price(self, symbol: str | None = None) -> float:
         """Get current market reference price (midpoint or last trade)."""
         cb = getattr(self, "get_reference_price_callback", None)
         if callable(cb):
-            p = cb()
+            import inspect
+            sig = inspect.signature(cb)
+            p = cb(symbol) if len(sig.parameters) > 0 else cb()
             if isinstance(p, (int, float)) and p > 0:
                 return float(p)
         return 759.0
 
-    def _track_order(self, order_response: Any) -> None:
-        """Track active order for potential cancellation."""
+    def _track_order(self, order_response: Any, symbol: str | None = None) -> None:
+        """Track active order for potential cancellation per symbol."""
         if hasattr(order_response, "id"):
             order_id = order_response.id or getattr(order_response, "client_order_id", None)
         elif isinstance(order_response, dict):
@@ -224,13 +247,17 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         else:
             order_id = None
         if order_id:
-            self._active_orders[str(order_id)] = order_response
+            target_sym = (symbol or self._symbol).upper()
+            if target_sym not in self._active_orders:
+                self._active_orders[target_sym] = {}
+            self._active_orders[target_sym][str(order_id)] = order_response
 
     def _schedule_invalidation_check(self, invalidation_step: int, step_index: int) -> None:
-        """Schedule invalidation check at the computed step.
+        """
+        Schedules a check to verify trajectory validity at invalidation_step.
 
-        In production, this would integrate with the execution engine's
-        timer/scheduler to trigger re-evaluation at the invalidation point.
+        If the price hasn't reached expected progress by this step, the position
+        should be closed or tightened.
         """
         logger.info(
             "Invalidation step scheduled",
@@ -241,42 +268,84 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             }
         )
 
-    async def trigger_emergency_flush(self, reason: str) -> None:
-        """
-        Triggers emergency cancellation and risk protocol.
+    async def trigger_emergency_flush(self, reason: str, symbol: str | None = None) -> None:
+        """Triggers emergency cancellation and risk protocol for a specific symbol or default."""
+        target_sym = (symbol or self._symbol).upper()
+        logger.warning(f"EMERGENCY FLUSH TRIGGERED: reason='{reason}'", extra={"reason": reason, "symbol": target_sym})
 
-        Called when:
-        - Module 1 detects regime change (Mahalanobis outlier)
-        - Module 3 hard-gating vetoes all trajectories
-        - External risk limits breached
-
-        Args:
-            reason: Human-readable reason for emergency action.
-        """
-        logger.warning(f"EMERGENCY FLUSH TRIGGERED: reason='{reason}'", extra={"reason": reason, "symbol": self._symbol})
-
-        # Cancel all active tracked orders
-        for order_id in list(self._active_orders.keys()):
+        # Cancel active tracked orders strictly for this target symbol
+        sym_orders = self._active_orders.get(target_sym, {})
+        for order_id in list(sym_orders.keys()):
             try:
                 await self._broker.cancel_order(order_id)
-                del self._active_orders[order_id]
+                del sym_orders[order_id]
             except Exception as e:
-                logger.error(f"Failed to cancel order {order_id}", extra={"error": str(e)})
+                logger.error(f"Failed to cancel order {order_id} for {target_sym}", extra={"error": str(e)})
 
-        # Cancel any remaining orders on broker for symbol
-        cancelled = await self._broker.cancel_all_orders(symbol=self._symbol)
-        logger.info(f"Emergency flush: cancelled {cancelled} orders for {self._symbol}")
-        # Flatten position
-        position = await self._broker.get_position(self._symbol)
+        # Cancel any remaining orders on broker strictly for target symbol
+        cancelled = await self._broker.cancel_all_orders(symbol=target_sym)
+        logger.info(f"Emergency flush: cancelled {cancelled} orders for {target_sym}")
+        # Flatten position for target symbol
+        position = await self._broker.get_position(target_sym)
         pos_qty = float(position.get("qty", 0.0)) if isinstance(position, dict) else float(position or 0.0)
         if pos_qty != 0:
-            await self._broker.close_position(self._symbol)
-            logger.info(f"Emergency flatten: closed position of {pos_qty} for {self._symbol}")
+            await self._broker.close_position(target_sym)
+            logger.info(f"Emergency flatten: closed position of {pos_qty} for {target_sym}")
+        self._cached_positions[target_sym] = None
 
     def update_equity(self, new_equity: float) -> None:
         """Update account equity for position sizing."""
         self._equity = new_equity
 
-    def get_active_orders(self) -> dict[str, dict[str, Any]]:
-        """Return copy of active orders."""
-        return self._active_orders.copy()
+    def get_active_orders(self, symbol: str | None = None) -> dict[str, Any]:
+        """Return copy of active orders (either for a specific symbol or flattened across all)."""
+        if symbol is not None:
+            return self._active_orders.get(symbol.upper(), {}).copy()
+        flattened = {}
+        for sym_orders in self._active_orders.values():
+            flattened.update(sym_orders)
+        return flattened
+
+    async def check_trailing_profit(self, current_price: float, symbol: str | None = None) -> bool:
+        """Monitorea la posición activa de un símbolo y liquida si retrocede desde el pico máximo."""
+        sym = (symbol or self._symbol).upper()
+        if not self._broker or current_price <= 0:
+            return False
+        try:
+            now = time.time()
+            last_check = self._last_pos_checks.get(sym, 0.0)
+            cached = self._cached_positions.get(sym)
+            if cached is None or (now - last_check >= 0.5):
+                pos = await self._broker.get_position(sym)
+                cached = pos if isinstance(pos, dict) else {"qty": float(pos or 0.0)}
+                self._cached_positions[sym] = cached
+                self._last_pos_checks[sym] = now
+
+            position = cached or {}
+            qty = float(position.get("qty", 0.0))
+            mgr = self._get_trailing_manager(sym)
+            if qty == 0:
+                mgr.reset()
+                return False
+
+            avg_entry = float(position.get("avg_entry_price", 0.0))
+            if avg_entry <= 0:
+                return False
+
+            # PnL no realizado (positivo si largo y sube, positivo si corto y baja)
+            unrealized_pnl = (current_price - avg_entry) * qty
+            should_exit, reason = mgr.update(unrealized_pnl)
+            if should_exit:
+                logger.warning(
+                    "TRAILING PROFIT LOCK [%s]: %s | Closing position %s @ $%.2f",
+                    sym, reason, qty, current_price,
+                )
+                await self._broker.cancel_all_orders(symbol=sym)
+                await self._broker.close_position(sym)
+                self._active_orders.pop(sym, None)
+                mgr.reset()
+                self._cached_positions[sym] = None
+                return True
+        except Exception as e:
+            logger.debug("Error checking trailing profit for %s: %s", sym, e)
+        return False

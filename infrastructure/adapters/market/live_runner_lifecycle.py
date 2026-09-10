@@ -34,8 +34,9 @@ def create_feed(
 ) -> Any:
     """Crea el feed de mercado según el broker configurado."""
     if config.broker == "alpaca":
+        feed_symbols = config.symbols if config.symbols else config.symbol
         return AlpacaWSFeed(
-            symbol=config.symbol,
+            symbol=feed_symbols,
             api_key=config.alpaca_api_key or "",
             api_secret=config.alpaca_secret_key or "",
             data_feed=config.alpaca_data_feed,

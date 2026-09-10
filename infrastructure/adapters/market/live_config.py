@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, List, Literal
-import json
+from typing import Literal
 
 
 @dataclass
@@ -20,12 +20,13 @@ class LiveBotConfig:
 
     # Símbolo e intercambio
     symbol: str = "BTCUSDT"
+    symbols: list[str] = field(default_factory=list)
     exchange: str = "binance"
     testnet: bool = True
 
     # Alpaca-specific config
-    alpaca_api_key: Optional[str] = None
-    alpaca_secret_key: Optional[str] = None
+    alpaca_api_key: str | None = None
+    alpaca_secret_key: str | None = None
     alpaca_api_base_url: str = "https://paper-api.alpaca.markets/v2"
     alpaca_data_feed: str = "iex"  # "iex" or "sip"
 
@@ -42,6 +43,8 @@ class LiveBotConfig:
 
     # Parámetros de riesgo y ejecución
     max_position_pct: float = 0.05      # 5% del equity máximo por trade
+    max_concurrent_positions: int = 2   # Máximo de posiciones simultáneas en el portafolio
+    max_portfolio_exposure_pct: float = 0.15  # Exposición combinada máxima (15%)
     max_lot_size: float = 0.001         # Tamaño máximo de lote (BTC)
     min_lot_size: float = 0.00001       # Tamaño mínimo de lote
     lot_size: float = 0.00001           # Incremento de lote (step size)
@@ -61,10 +64,28 @@ class LiveBotConfig:
     market_on_high_accel: bool = True   # MARKET si aceleración alta
     high_accel_threshold: float = 0.8   # lambda_t > 0.8 -> alta aceleración
 
-    # Stop Loss / Take Profit
+    # Stop Loss / Take Profit / Trailing High-Water Mark
     default_stop_pct: float = 0.02      # 2% stop loss
     default_target_pct: float = 0.04    # 4% take profit
-    use_trailing_stop: bool = False     # Trailing stop (futuro)
+    use_trailing_profit: bool = True    # Trailing High-Water Mark dinámico
+    trailing_activation_pnl: float = 4.50  # PnL USD para activar trailing
+    trailing_giveback_ratio: float = 0.30 # Retroceso permitido (30%)
+    trailing_min_giveback: float = 1.80  # Colchón mínimo de retroceso USD
+    trailing_max_giveback: float = 3.50  # Colchón máximo de retroceso USD
+
+    # Protección de Ganancias de Portafolio Diario (Circuit Breaker a nivel cuenta)
+    portfolio_profit_lock_trigger: float = 10.0   # Ganancia pico USD para activar bloqueo
+    portfolio_max_giveback_pct: float = 0.25      # Máximo retroceso permitido del pico (25%)
+    enforce_portfolio_profit_lock: bool = True    # Circuit breaker diario activo
+
+    # Guardrail de Correlación Cruzada (Cluster Tech)
+    max_cluster_correlated_positions: int = 1     # Máx posiciones simultáneas en misma dirección en cluster Tech
+
+    # Filtro de Inercia y Velocidad Macro
+    enforce_macro_velocity_alignment: bool = True # Prohíbe cortos si velocidad macro > 0
+
+    # Sesión de mercado
+    enforce_market_hours: bool = False  # Si False (paper/after-hours), no fuerza salida en cierre RTH 16:00 ET
 
     # Emergency Flush
     emergency_cancel_all: bool = True   # Cancelar todas las órdenes abiertas
@@ -82,9 +103,9 @@ class LiveBotConfig:
     ob_snapshot_interval_sec: float = 30.0
 
     # Persistencia y auditoría
-    audit_log_path: Optional[str] = "./logs/audit"
+    audit_log_path: str | None = "./logs/audit"
     audit_rotate_daily: bool = True
-    state_snapshot_path: Optional[str] = "./data/state_snapshots"
+    state_snapshot_path: str | None = "./data/state_snapshots"
     snapshot_interval_sec: int = 300    # 5 minutos
 
     # Health checks
@@ -97,6 +118,13 @@ class LiveBotConfig:
     dry_run: bool = False               # Solo simula, no envía órdenes reales
 
     def __post_init__(self) -> None:
+        if not self.symbols:
+            self.symbols = [self.symbol.upper()]
+        else:
+            self.symbols = [s.upper() for s in self.symbols]
+            if self.symbol.upper() not in self.symbols:
+                self.symbol = self.symbols[0]
+
         # Validaciones
         if self.max_position_pct <= 0 or self.max_position_pct > 1:
             raise ValueError("max_position_pct debe estar en (0, 1]")
@@ -150,13 +178,13 @@ class LiveBotConfig:
         }, indent=2, default=str)
 
     @classmethod
-    def from_json(cls, json_str: str) -> "LiveBotConfig":
+    def from_json(cls, json_str: str) -> LiveBotConfig:
         """Crea config desde JSON."""
         data = json.loads(json_str)
         return cls(**data)
 
     @classmethod
-    def from_file(cls, path: Path) -> "LiveBotConfig":
+    def from_file(cls, path: Path) -> LiveBotConfig:
         """Carga config desde archivo."""
         return cls.from_json(path.read_text())
 

@@ -58,7 +58,7 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
                 raise ValueError("trailing_stop requires trail_price or trail_percent")
             if req.trail_price is not None: params["trail_price"] = str(req.trail_price)
             if req.trail_percent is not None: params["trail_percent"] = str(req.trail_percent)
-        if req.extended_hours: params["extended_hours"] = "true"
+        if req.extended_hours: params["extended_hours"] = True
         if req.client_order_id: params["client_order_id"] = req.client_order_id
         if req.order_class:
             params["order_class"] = req.order_class

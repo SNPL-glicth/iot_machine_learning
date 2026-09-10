@@ -6,14 +6,14 @@ All functions are pure or near-pure; any engine-mutation is explicit.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Literal, Optional
 
 import numpy as np
 
 from core.parameters.numerical_constants import EPSILON
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
-from .types import DerivativeMethod
+from .types import DerivativeMethod, TaylorCoefficients
 from .diagnostics import compute_diagnostic
 from .derivatives import estimate_derivatives
 
@@ -72,7 +72,7 @@ def compute_taylor_coefficients(
     dt: float,
     base_order: int,
     method: DerivativeMethod,
-) -> object:
+) -> TaylorCoefficients:
     """Compute Taylor coefficients with variance check (CRIT-4)."""
     variance = compute_variance(values)
     effective_order = base_order
@@ -91,7 +91,7 @@ def compute_taylor_coefficients(
 
 def classify_trend(
     slope: float, threshold: float, values: Optional[List[float]] = None
-) -> str:
+) -> Literal["up", "down", "stable"]:
     """Classify trend with scale-relative threshold (P2).
 
     Args:
