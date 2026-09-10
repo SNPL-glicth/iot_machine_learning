@@ -177,6 +177,10 @@ Los sensores industriales exhiben múltiples modos de falla: spikes de magnitud 
 
 Los pesos fijos asumen que un motor siempre es mejor. La EMA simple olvida que un motor puede ser excelente en STABLE pero terrible en VOLATILE. El tracker bayesiano mantiene un prior gaussiano por par `(regime, engine)`. Cada predicción actualiza el posterior con varianza empírica por motor (`σ²_obs` estimada online). Resultado: pesos óptimos por régimen, sin retraining.
 
+### ¿Por qué Bucle Metacognitivo y Meta-Aprendizaje (Fase 11)?
+
+Predecir no es suficiente; el sistema debe aprender de sus propios procesos de razonamiento. Mediante `PostMortemEvaluator` y `FailureTaxonomy` (`domain/entities/cognitive/`), ZENIN audita diferidamente qué modelo acertó, clasifica la causa raíz del error (ruptura de inercia, disrupción de régimen, exceso de confianza del árbitro) y calcula el **Índice de Meta-Competencia ($\Omega_t$)**. Si detecta **ceguera sistémica** (todos los expertos fallando simultáneamente en un régimen), eleva automáticamente $\lambda_t \to 1.0$ forzando abstención (`HOLD`) y redistribuye los pesos plásticos mediante `RegimePlasticityManager` con circuit-breakers.
+
 ---
 
 ## 5. Límites de Dependencia por Capa

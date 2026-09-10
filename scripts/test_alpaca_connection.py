@@ -24,20 +24,15 @@ import sys
 import time
 from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
+_ST_ROOT = _PROJECT_ROOT.parent
 
-# Load order client directly (avoiding package init issues)
-import importlib.util
+for p in (str(_ST_ROOT), str(_PROJECT_ROOT)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
-spec = importlib.util.spec_from_file_location(
-    "alpaca_order_client",
-    Path(__file__).resolve().parent.parent / "infrastructure" / "adapters" / "market" / "alpaca" / "order_client.py"
-)
-order_client_module = importlib.util.module_from_spec(spec)
-sys.modules["alpaca_order_client"] = order_client_module
-spec.loader.exec_module(order_client_module)
-AlpacaOrderClient = order_client_module.AlpacaOrderClient
+from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
 
 from dotenv import load_dotenv
 

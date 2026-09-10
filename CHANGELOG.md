@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [ZENIN Cognitive — Fase 11: Metacognitive Feedback Loop & Meta-Learning] - 2026-09-10
+
+### Diseño (La evolución metacognitiva)
+Cierre del ciclo de retroalimentación para que ZENIN no solo aprenda del mercado, sino que aprenda de sus propios errores de razonamiento:
+    1. Post-Mortem Credit Assignment — evaluación diferida al madurar el horizonte temporal (H=11 pasos) para auditar qué experto (Kalman, Taylor, Statistical, Rhythm) acertó y cuál falló.
+    2. Taxonomía Causal de Fallos — categorización determinista de errores: REGIME_DISRUPTION (outliers de Mahalanobis), INERTIA_COLLAPSE (ruptura de velocidad cinemática), ARBITER_OVERCONFIDENCE (alta varianza ignorada por el árbitro), y ENTROPY_UNDERESTIMATION (lambda_t subestimado).
+    3. Cuantificación de Auto-Ceguera (Meta-Competencia) — Índice Ω_t ∈ [0, 1] que penaliza el error de calibración (ECE) y fallos correlacionados. Si todos los expertos fallan simultáneamente en el régimen actual, se detecta Ceguera Sistémica y se modula lambda_t → 1.0 (forzando abstención HOLD).
+    4. Plasticidad Adaptativa y Circuit Breakers — actualización multiplicativa bayesiana de pesos por régimen (w_i ∝ exp(-η·loss_i)) con inhibición temporal automática (circuit-breaker w=0) para expertos con fallos repetidos.
+    5. Snapshot State Persistence — integración con el contrato StatePersistable para exportar/importar el estado aprendido de plasticidad.
+
+### Added
+- **`domain/entities/cognitive/failure_taxonomy.py`**: `FailureReason`, `FailureDiagnostic`, `diagnose_prediction_failure` (<180 líneas).
+- **`domain/entities/cognitive/post_mortem_evaluator.py`**: `PendingPrediction`, `PostMortemRecord`, `PostMortemEvaluator` (<180 líneas).
+- **`domain/entities/cognitive/metacognitive_tracker.py`**: `MetacognitiveStatus`, `MetacognitiveTracker` con modulación de lambda_t (<180 líneas).
+- **`domain/entities/cognitive/__init__.py`**: Re-exports del subdominio cognitivo.
+- **`infrastructure/ml/cognitive/plasticity/regime_plasticity_manager.py`**: `RegimePlasticityManager` con circuit breaker y persistencia (<180 líneas).
+- **`infrastructure/ml/cognitive/metacognitive_coordinator.py`**: `MetacognitiveCoordinator` orquestador de inferencia y maduración diferida (<180 líneas).
+- **`tests/unit/cognitive/test_metacognitive_system.py`**: Suite completa de 10 tests unitarios verificando diagnósticos, cola post-mortem, ceguera sistémica, desplazamiento de pesos y persistencia.
+
+### Fixed
+- **`infrastructure/ml/adapters/base_adapter.py`**:
+  - Corrección de tipo devuelto por `_project_to_1d` mediante `cast(np.ndarray, projected)` eliminando error de Any implícito.
+  - Anotación explícita de `state: dict[str, Any]` en `export_state()` e `import_state()` permitiendo asignación de `None` en clave `engine`.
+
 ## [ZENIN Market — Fase 9.5: Statistical Reality Check] - 2026-08-20
 
 ### Diseño (la pregunta de la fase)

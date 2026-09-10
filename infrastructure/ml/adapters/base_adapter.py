@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import numpy as np
 
 from infrastructure.ml.interfaces import PredictionEngine, PredictionResult
@@ -85,7 +85,7 @@ class BaseExpertAdapter(ExpertJuryPort):
             if np.corrcoef(projected, state_matrix[:, 0])[0, 1] < 0:
                 projected = -projected
                 
-            return projected
+            return cast(np.ndarray, projected)
         except np.linalg.LinAlgError:
             return state_matrix[:, 0]
     
@@ -127,15 +127,15 @@ class BaseExpertAdapter(ExpertJuryPort):
     # None so snapshots stay forward-compatible.
     # ------------------------------------------------------------------
 
-    def export_state(self) -> dict:
-        state = {"schema_version": 1}
+    def export_state(self) -> dict[str, Any]:
+        state: dict[str, Any] = {"schema_version": 1}
         if hasattr(self._engine, "export_state"):
             state["engine"] = self._engine.export_state()
         else:
             state["engine"] = None
         return state
 
-    def import_state(self, payload: dict) -> None:
+    def import_state(self, payload: dict[str, Any]) -> None:
         if not isinstance(payload, dict) or "schema_version" not in payload:
             raise ValueError(f"{self.name} adapter payload missing schema_version")
         engine_state = payload.get("engine")

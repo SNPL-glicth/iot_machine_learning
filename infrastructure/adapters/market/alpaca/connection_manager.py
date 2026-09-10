@@ -51,4 +51,5 @@ async def subscribe_streams(ws: Any, symbol: str, streams: List[str]) -> None:
 
 def get_reconnect_delay(attempt: int, base: float = 1.0, max_d: float = 60.0) -> float:
     """Calcula retraso exponencial para reconexión con jitter/cap."""
-    return min(base * (2 ** min(attempt, 6)), max_d)
+    delay: float = base * (2.0 ** min(attempt, 6))
+    return delay if delay < max_d else max_d

@@ -14,7 +14,13 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
+_ST_ROOT = _PROJECT_ROOT.parent
+
+for p in (str(_ST_ROOT), str(_PROJECT_ROOT)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from dotenv import load_dotenv
 
@@ -75,7 +81,7 @@ async def validate_preconditions(client: AlpacaOrderClient) -> dict:
         symbol="SPY",
         alpaca_api_key=os.getenv("ALPACA_API_KEY"),
         alpaca_secret_key=os.getenv("ALPACA_SECRET_KEY"),
-        alpaca_api_base_url=os.getenv("ALPACA_API_BASE_URL"),
+        alpaca_api_base_url=os.getenv("ALPACA_API_BASE_URL") or "https://paper-api.alpaca.markets",
         alpaca_data_feed=os.getenv("ALPACA_DATA_FEED", "iex"),
     )
     
@@ -201,7 +207,7 @@ async def monitor_order(client: AlpacaOrderClient, order_id: str) -> dict:
             return {
                 "order": order,
                 "final_status": order.status,
-                "filled_qty": float(order.filled_qty),
+                "filled_qty": order.filled_qty,
                 "filled_avg_price": order.filled_avg_price,
             }
         
@@ -260,6 +266,9 @@ async def main():
     
     api_key = os.getenv("ALPACA_API_KEY")
     api_secret = os.getenv("ALPACA_SECRET_KEY")
+    if not api_key or not api_secret:
+        print_error("Variables ALPACA_API_KEY y ALPACA_SECRET_KEY son requeridas")
+        return False
     base_url = os.getenv("ALPACA_API_BASE_URL", "https://paper-api.alpaca.markets")
     data_feed = os.getenv("ALPACA_DATA_FEED", "iex")
     

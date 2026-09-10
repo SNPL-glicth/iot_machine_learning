@@ -5,25 +5,32 @@ from __future__ import annotations
 import logging
 import os
 import signal
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount
-from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
+from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import (
+    AlpacaOrderClient,
+)
 from iot_machine_learning.infrastructure.adapters.market.alpaca.ws_feed import AlpacaWSFeed
 from iot_machine_learning.infrastructure.adapters.market.binance.account import BinanceAccount
-from iot_machine_learning.infrastructure.adapters.market.binance.order_client import BinanceOrderClient
+from iot_machine_learning.infrastructure.adapters.market.binance.order_client import (
+    BinanceOrderClient,
+)
 from iot_machine_learning.infrastructure.adapters.market.binance.ws_feed import BinanceWSFeed
 from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import (
+    RosaRojaEngine,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def create_feed(
     config: LiveBotConfig,
-    on_observation: Optional[Callable] = None,
-    on_metrics: Optional[Callable] = None,
-    on_state_change: Optional[Callable] = None,
+    on_observation: Callable | None = None,
+    on_metrics: Callable | None = None,
+    on_state_change: Callable | None = None,
 ) -> Any:
     """Crea el feed de mercado según el broker configurado."""
     if config.broker == "alpaca":
@@ -103,10 +110,18 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         TaylorExpertAdapter,
     )
     from iot_machine_learning.infrastructure.ml.engines.kalman.engine import KalmanPredictionEngine
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
-    from iot_machine_learning.infrastructure.ml.engines.statistical.engine import StatisticalPredictionEngine
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import (
+        MahalanobisFilter,
+    )
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import (
+        MultiplicativeMoEGating,
+    )
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import (
+        RhythmTrajectoryGenerator,
+    )
+    from iot_machine_learning.infrastructure.ml.engines.statistical import (
+        StatisticalPredictionEngine,
+    )
     from iot_machine_learning.infrastructure.ml.engines.taylor.engine import TaylorPredictionEngine
 
     ingestion = MahalanobisFilter(noise_threshold=3.0, history_window=100, min_samples_for_cov=20)
@@ -120,7 +135,7 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         KalmanExpertAdapter(engine=KalmanPredictionEngine()),
         StatisticalExpertAdapter(engine=StatisticalPredictionEngine()),
     ]
-    return RosaRojaEngine(
+    engine = RosaRojaEngine(
         ingestion_filter=ingestion,
         rhythm_generator=rhythm,
         moe_gating=gating,
@@ -129,6 +144,13 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         outlier_reset_threshold=3,
         exploration_boost_events=5,
     )
+    engine.gamma_exec = float(config.phi_moe_threshold)
+    engine.geometric_threshold = float(config.geometric_threshold)
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory_tracker import (
+        TrajectoryTracker,
+    )
+    engine._tracker = TrajectoryTracker(max_direction_dev_deg=120.0, max_velocity_rel_err=5.0)
+    return engine
 
 
 def install_signal_handlers(shutdown_event: Any, already_installed: bool = False) -> bool:

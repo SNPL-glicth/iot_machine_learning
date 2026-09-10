@@ -21,6 +21,8 @@ INTERVAL_MAP = {
 
 def create_trade(data: Dict, default_symbol: str, receive_time: float) -> Trade:
     """Crea Trade desde mensaje Alpaca."""
+    raw_conditions = data.get("c", ())
+    conditions = tuple(str(c).strip() for c in raw_conditions if str(c).strip())
     return Trade(
         symbol=str(data.get("S", default_symbol)),
         timestamp=iso_to_epoch(str(require(data, "t"))),
@@ -28,30 +30,34 @@ def create_trade(data: Dict, default_symbol: str, receive_time: float) -> Trade:
         source_provider="alpaca",
         price=as_float(require(data, "p"), "p"),
         size=as_float(require(data, "s"), "s"),
-        trade_id=str(require(data, "i")),
+        trade_id=str(data.get("i", "")),
         taker_side=None,
-        conditions=tuple(str(c) for c in require(data, "c", label="conditions")),
-        tape=str(require(data, "z", label="tape")),
-        corrected=bool(require(data, "u", label="corrected")),
+        conditions=conditions,
+        tape=str(data.get("z", "A")),
+        corrected=bool(data.get("u", False)),
     )
 
 
 def create_quote(data: Dict, default_symbol: str, receive_time: float) -> Quote:
     """Crea Quote desde mensaje Alpaca."""
+    raw_conditions = data.get("c", ())
+    conditions = tuple(str(c).strip() for c in raw_conditions if str(c).strip())
+    bx = str(data.get("bx", "V"))
+    ax = str(data.get("ax", "V"))
     return Quote(
         symbol=str(data.get("S", default_symbol)),
         timestamp=iso_to_epoch(str(require(data, "t"))),
         data_status=DataStatus.REALTIME,
         source_provider="alpaca",
-        venue=str(require(data, "bx", label="bid exchange")),
+        venue=bx,
         bid=as_float(require(data, "bp"), "bp"),
         bid_size=as_float(require(data, "bs"), "bs"),
         ask=as_float(require(data, "ap"), "ap"),
         ask_size=as_float(require(data, "as"), "as"),
-        bid_exchange=str(require(data, "bx", label="bid exchange")),
-        ask_exchange=str(require(data, "ax", label="ask exchange")),
-        conditions=tuple(str(c) for c in require(data, "c", label="conditions")),
-        tape=str(require(data, "z", label="tape")),
+        bid_exchange=bx,
+        ask_exchange=ax,
+        conditions=conditions,
+        tape=str(data.get("z", "A")),
     )
 
 

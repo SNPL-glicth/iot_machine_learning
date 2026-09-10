@@ -1,12 +1,9 @@
 """AlpacaWSFeed — Feed asíncrono de mercado para Alpaca Paper Trading."""
-
 from __future__ import annotations
-
 import asyncio
 import logging
 import time
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
-
 from iot_machine_learning.domain.entities.market.observations import MarketObservation
 from iot_machine_learning.infrastructure.adapters.market.alpaca.connection_manager import (
     connect_and_auth, get_reconnect_delay, subscribe_streams,
@@ -32,14 +29,19 @@ class AlpacaWSFeed:
         self.data_feed, self.bar_interval = data_feed, bar_interval
         self.streams = [s for s, inc in [("trades", include_trades), ("quotes", include_quotes), ("bars", include_bars)] if inc]
         self.ws_url = f"wss://stream.data.alpaca.markets/v2/{data_feed}"
-        self._running, self._connected = False, False
-        self._state, self._ws, self._reconnect_count, self._last_ping = ConnectionState.DISCONNECTED, None, 0, 0.0
-        self._obs_queue: asyncio.Queue[MarketObservation] = asyncio.Queue(maxsize=max_queue_size)
-        self.on_observation, self.on_metrics, self.on_state_change = on_observation, on_metrics, on_state_change
-        self.stats = FeedStats()
+        self._running: bool = False
+        self._connected: bool = False
+        self._state: str = ConnectionState.DISCONNECTED
+        self._ws: Optional[Any] = None
+        self._reconnect_count: int = 0
+        self._last_ping: float = 0.0
+        self._latest_quote: Optional[Any] = None
         self._emit_task: Optional[asyncio.Task] = None
         self._health_task: Optional[asyncio.Task] = None
         self._ping_task: Optional[asyncio.Task] = None
+        self._obs_queue: asyncio.Queue[MarketObservation] = asyncio.Queue(maxsize=max_queue_size)
+        self.on_observation, self.on_metrics, self.on_state_change = on_observation, on_metrics, on_state_change
+        self.stats = FeedStats()
         logger.info("AlpacaWSFeed initialized", extra={"symbol": self.symbol, "streams": self.streams})
 
     @property
@@ -51,13 +53,21 @@ class AlpacaWSFeed:
     @property
     def order_book_metrics(self) -> None: return None
     @property
-    def best_bid(self) -> Optional[float]: return None
+    def best_bid(self) -> Optional[float]:
+        bid = getattr(self._latest_quote, "bid", None)
+        return float(bid) if bid is not None else None
     @property
-    def best_ask(self) -> Optional[float]: return None
+    def best_ask(self) -> Optional[float]:
+        ask = getattr(self._latest_quote, "ask", None)
+        return float(ask) if ask is not None else None
     @property
-    def mid_price(self) -> Optional[float]: return None
+    def mid_price(self) -> Optional[float]:
+        b, a = self.best_bid, self.best_ask
+        return (b + a) / 2.0 if (b is not None and a is not None) else None
     @property
-    def spread(self) -> Optional[float]: return None
+    def spread(self) -> Optional[float]:
+        b, a = self.best_bid, self.best_ask
+        return a - b if (b is not None and a is not None) else None
 
     def _set_state(self, new_state: str) -> None:
         old, self._state = self._state, new_state
@@ -101,6 +111,8 @@ class AlpacaWSFeed:
                     msg = await asyncio.wait_for(self._ws.recv(), timeout=1.0)
                     self.stats.events_received += 1
                     for obs in parse_raw_message(msg, self.symbol, self.bar_interval, time.time(), self.stats):
+                        if hasattr(obs, "bid") and hasattr(obs, "ask"):
+                            self._latest_quote = obs
                         self.stats.events_emitted += 1; self.stats.last_emitted_time = time.time()
                         lat_ms = (time.time() - obs.timestamp) * 1000
                         self.stats.avg_latency_ms = self.stats.avg_latency_ms * 0.99 + lat_ms * 0.01
@@ -150,22 +162,18 @@ class AlpacaWSFeed:
                 except Exception as e: logger.error("Metrics callback error", extra={"error": str(e)})
 
     def __aiter__(self) -> AsyncGenerator[MarketObservation, None]: return self.iter_observations()
-
     async def iter_observations(self) -> AsyncGenerator[MarketObservation, None]:
         while self._running:
             try: yield await asyncio.wait_for(self._obs_queue.get(), timeout=1.0)
             except (asyncio.TimeoutError, Exception):
                 if not self._running: break
-
     async def get_next_observation(self, timeout: Optional[float] = None) -> Optional[MarketObservation]:
         try: return await (self._obs_queue.get() if timeout is None else asyncio.wait_for(self._obs_queue.get(), timeout=timeout))
         except asyncio.TimeoutError: return None
-
     def get_stats(self) -> Dict[str, Any]:
         return {
             "symbol": self.symbol, "running": self._running, "connected": self._connected,
             "state": self._state, "feed_stats": self.stats.to_dict(), "reconnect_count": self._reconnect_count,
         }
-
 
 AlpacaLiveFeed = AlpacaWSFeed

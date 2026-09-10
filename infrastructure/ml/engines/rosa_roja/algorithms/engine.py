@@ -345,8 +345,8 @@ class RosaRojaEngine:
         Returns:
             "EXECUTE", "HOLD", or "EMERGENCY_FLUSH"
         """
-        gamma_exec = 0.5      # Threshold for EXECUTE
-        geometric_threshold = -0.1  # Only trigger on actual direction reversal (cos < 0)
+        gamma_exec = getattr(self, "gamma_exec", 0.5)      # Threshold for EXECUTE
+        geometric_threshold = getattr(self, "geometric_threshold", -0.1)  # Trigger on direction reversal
         
         # Check geometric threshold (cos(theta_k) < geometric_threshold)
         # Only trigger EMERGENCY_FLUSH on actual direction reversal or extreme sharpness

@@ -36,9 +36,11 @@ def can_execute(plan: Any, config: LiveBotConfig, state: LiveBotState, current_p
 
 
 def get_current_mid(feed: Any) -> float:
-    """Obtiene mid-price actual del order book."""
-    if feed and hasattr(feed, "order_book") and feed.order_book and feed.order_book.is_initialized:
+    """Obtiene mid-price actual del order book o feed."""
+    if feed and hasattr(feed, "order_book") and feed.order_book and getattr(feed.order_book, "is_initialized", False):
         return float(feed.order_book.mid_price or 0.0)
+    if feed and hasattr(feed, "mid_price") and feed.mid_price is not None:
+        return float(feed.mid_price)
     return 0.0
 
 
@@ -62,6 +64,7 @@ async def log_execution(
     execution_history.append(ctx)
     log_file = audit_path / f"audit_{time.strftime('%Y%m%d')}.ndjson"
     try:
+        audit_path.mkdir(parents=True, exist_ok=True)
         import aiofiles
         async with aiofiles.open(log_file, "a") as f:
             await f.write(json.dumps({
@@ -85,8 +88,10 @@ async def save_state(state: LiveBotState, state_path: Optional[Path | str]) -> N
             "total_pnl": state.total_pnl, "trades_count": state.trades_count,
             "last_error": state.last_error, "timestamp": time.time(),
         }
+        p = Path(state_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
         import aiofiles
-        async with aiofiles.open(Path(state_path), "w") as f:
+        async with aiofiles.open(p, "w") as f:
             await f.write(json.dumps(payload, indent=2))
     except Exception as e:
         logger.warning("Failed to save state", extra={"error": str(e)})

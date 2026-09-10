@@ -43,7 +43,8 @@ class LiveBotRunner:
         self._on_status = on_status or (lambda line: logger.info(line))
         self._handler: Optional[RosaRojaMarketExecutionHandler] = None
         self._state, self._running, self._shutdown_event = LiveBotState(), False, asyncio.Event()
-        self._last_health_check, self._start_time = 0.0, time.time()
+        self._last_health_check, self._last_broadcast, self._start_time = 0.0, 0.0, time.time()
+        self._last_eval_log: float = 0.0
         self._latency_samples: Deque[float] = deque(maxlen=1000)
         self._execution_history: List[ExecutionContext] = []
         self._audit_log_path: Optional[Path] = None
@@ -66,6 +67,7 @@ class LiveBotRunner:
             broker_client=self._order_client, account_equity=equity, symbol=self.config.symbol,
             lot_size=self.config.lot_size, min_qty=self.config.min_lot_size, max_position_pct=self.config.max_position_pct,
         )
+        setattr(self._handler, "get_reference_price_callback", self._get_current_mid)
         if self.config.enable_audit_log and self.config.audit_log_path:
             self._audit_log_path = Path(self.config.audit_log_path)
             self._audit_log_path.mkdir(parents=True, exist_ok=True)
@@ -105,6 +107,7 @@ class LiveBotRunner:
         self._state.last_phi_moe = plan.global_confidence
         self._state.last_phi_ritmo = plan.chosen_trajectory.coherence_score if plan.chosen_trajectory else 0.0
 
+        scores: Dict[str, Any] = {}
         if plan.envelope and plan.envelope.metadata and "decision_trace" in plan.envelope.metadata:
             dt = plan.envelope.metadata["decision_trace"]
             self._state.last_lambda_t = float(dt.get("lambda_t", 0.0))
@@ -114,6 +117,17 @@ class LiveBotRunner:
                 {"name": n, "vote": round(float(s) * 2.0 - 1.0, 2), "weight": 1.0, "confidence": round(float(s), 2)}
                 for n, s in scores.items()
             ]
+
+        now = time.time()
+        if now - self._last_eval_log >= 5.0 or plan.action == "EXECUTE":
+            self._last_eval_log = now
+            reason = plan.veto_details.get("reason", "") if getattr(plan, "veto_details", None) else ""
+            sc_str = " ".join(f"{k.split('_')[0]}:{float(v):.2f}" for k, v in scores.items()) if scores else ""
+            logger.info(
+                "Evaluation [%s] action=%s reason='%s' mid=%.2f phi_moe=%.3f trades=%d %s",
+                self.config.symbol, plan.action, reason, self._get_current_mid(),
+                self._state.last_phi_moe, self._state.trades_count, f"[{sc_str}]" if sc_str else "",
+            )
 
         if not self._can_execute(plan):
             return
@@ -147,7 +161,8 @@ class LiveBotRunner:
     async def _build_telemetry_state(self) -> Dict[str, Any]:
         return await build_telemetry_state(self._state, self.config, self._feed, self._order_client, self._account, self._latency_samples)
     async def _broadcast_telemetry(self) -> None:
-        if self._telemetry:
+        if self._telemetry and (time.time() - self._last_broadcast >= 0.1):
+            self._last_broadcast = time.time()
             try: await self._telemetry.broadcast_state(await self._build_telemetry_state())
             except Exception as e: logger.debug(f"Telemetry broadcast error: {e}")
     async def _maybe_health_check(self) -> None:

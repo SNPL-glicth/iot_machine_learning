@@ -37,12 +37,12 @@ Engine perception collection and orchestration
 - `record_actual_handler.py` (114 lines) — Dispatch legacy/advanced plasticity
 
 ### 📁 plasticity/
-Regime-contextual weight learning (base + advanced)
-- `base.py` (124 lines) — `PlasticityTracker` simple EMA-based
-- `factory.py` (49 lines) — Factory for `AdvancedPlasticityCoordinator`
-- `advanced_plasticity_coordinator.py` (249 lines) — Coordinates 4 advanced components
-- `adaptive_learning_rate.py` (240 lines) — Context-aware learning rates
-- `contextual_plasticity_tracker.py` (264 lines) — MAE tracking by context
+Regime-contextual weight learning and circuit-breaker inhibition (Fase 11)
+- `regime_plasticity_manager.py` (101 lines) — `RegimePlasticityManager`: Bayesian multiplicative loss update ($w_i \propto \exp(-\eta \cdot \text{Loss}_i)$), simplex normalization with min-weight clamp, and auto-inhibition circuit breakers after repeated directional failures.
+- `__init__.py` — Package exports.
+
+### 📄 metacognitive_coordinator.py (107 lines)
+Top-level metacognitive coordinator connecting post-mortem prediction evaluation (`PostMortemEvaluator`), meta-competence quantification (`MetacognitiveTracker`), and regime plasticity (`RegimePlasticityManager`). Exposes exploration factor modulation ($\lambda_t$) and state snapshot persistence (`StatePersistable`).
 
 ### 📁 drift/
 Online drift detection algorithms

@@ -1,0 +1,14 @@
+{
+  "cycle_count": 0,
+  "last_execution_time": 1789061050.3596535,
+  "last_execution_price": 758.69,
+  "last_execution_side": "",
+  "last_phi_moe": 0.354490529798583,
+  "last_lambda_t": 0.0,
+  "last_phi_ritmo": 0.030653007021252343,
+  "current_position": 0.0,
+  "total_pnl": 0.0,
+  "trades_count": 2,
+  "last_error": null,
+  "timestamp": 1789061050.3604465
+}

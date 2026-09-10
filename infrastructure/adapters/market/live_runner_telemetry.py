@@ -43,14 +43,25 @@ async def build_telemetry_state(
             logger.debug(f"Error fetching account data for telemetry: {e}")
 
     best_bid, best_ask, bid_vol, ask_vol, obi, microprice = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    if feed and hasattr(feed, "order_book") and feed.order_book:
-        best_bid = feed.order_book.best_bid or 0.0
-        best_ask = feed.order_book.best_ask or 0.0
-        if feed.order_book.metrics:
-            bid_vol = feed.order_book.metrics.bid_volume
-            ask_vol = feed.order_book.metrics.ask_volume
-            obi = feed.order_book.metrics.volume_imbalance
-            microprice = feed.order_book.metrics.microprice
+    if feed:
+        if hasattr(feed, "order_book") and feed.order_book:
+            best_bid = feed.order_book.best_bid or 0.0
+            best_ask = feed.order_book.best_ask or 0.0
+            if feed.order_book.metrics:
+                bid_vol = feed.order_book.metrics.bid_volume
+                ask_vol = feed.order_book.metrics.ask_volume
+                obi = feed.order_book.metrics.volume_imbalance
+                microprice = feed.order_book.metrics.microprice
+        elif getattr(feed, "best_bid", None) is not None and getattr(feed, "best_ask", None) is not None:
+            best_bid = float(feed.best_bid or 0.0)
+            best_ask = float(feed.best_ask or 0.0)
+            q = getattr(feed, "_latest_quote", None)
+            if q:
+                bid_vol = float(getattr(q, "bid_size", 0.0))
+                ask_vol = float(getattr(q, "ask_size", 0.0))
+                tot = bid_vol + ask_vol
+                obi = (bid_vol - ask_vol) / tot if tot > 0 else 0.0
+                microprice = (best_bid * ask_vol + best_ask * bid_vol) / tot if tot > 0 else (best_bid + best_ask) / 2.0
 
     mode = ("PAPER" if config.is_paper_trading else "LIVE") if config.broker == "alpaca" else ("TESTNET" if config.testnet else "MAINNET")
     market_open, next_open, next_close = None, None, None

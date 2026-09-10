@@ -11,13 +11,19 @@ from infrastructure.ml.interfaces import PredictionEngine
 class KalmanExpertAdapter(BaseExpertAdapter):
     """Adapter for Kalman Constant-Velocity engine."""
 
-    def __init__(self, engine: PredictionEngine):
+    def __init__(
+        self,
+        engine: PredictionEngine,
+        is_critical: bool = False,
+        threshold: float = 0.60,
+        weight: float = 1.0,
+    ):
         super().__init__(
             engine=engine,
             name="kalman",
-            is_critical=True,
-            threshold=0.60,
-            weight=1.0,
+            is_critical=is_critical,
+            threshold=threshold,
+            weight=weight,
         )
 
     def _trajectory_to_values(self, trajectory: Trajectory) -> np.ndarray:
