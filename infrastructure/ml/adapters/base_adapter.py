@@ -61,31 +61,36 @@ class BaseExpertAdapter(ExpertJuryPort):
         # Center the data
         centered = state_matrix - np.mean(state_matrix, axis=0)
         
-        # Check for degenerate covariance
+        # Check for degenerate covariance and add Tikhonov regularization
         cov = np.cov(centered, rowvar=False)
         if cov.ndim < 2 or np.allclose(cov, 0):
             # Fallback: return primary feature (index 0)
             return state_matrix[:, 0]
+        cov += 1e-6 * np.eye(cov.shape[0])
         
         # Compute eigendecomposition
         try:
-            eigvals, eigvecs = np.linalg.eigh(cov)
-            # First principal component = eigenvector with largest eigenvalue
-            first_pc = eigvecs[:, np.argmax(eigvals)]
-            # Project onto PC1
-            projected = np.dot(centered, first_pc)
+            eigenvalues, eigenvectors = np.linalg.eigh(cov)
+            # Sort descending: largest eigenvalue first
+            idx = np.argsort(eigenvalues)[::-1]
+            eigenvectors = eigenvectors[:, idx]
+            
+            # Principal component (eigenvector for largest eigenvalue)
+            v1 = eigenvectors[:, 0]
+            
+            # Project data: (T, D) @ (D,) -> (T,)
+            projected = centered @ v1
+            
+            # Ensure orientation aligns with primary feature
+            if np.corrcoef(projected, state_matrix[:, 0])[0, 1] < 0:
+                projected = -projected
+                
             return projected
         except np.linalg.LinAlgError:
-            # Numerical issues - fallback to primary feature
             return state_matrix[:, 0]
     
     def _trajectory_to_values(self, trajectory: Trajectory) -> np.ndarray:
-        """
-        Extract 1D value sequence from trajectory for engine prediction.
-        
-        Uses PCA projection for multidimensional state to preserve
-        maximum information from all state dimensions.
-        """
+        """Extract 1D sequence of values from trajectory."""
         state_matrix = trajectory.delta_states  # Shape: (T, D)
         return self._project_to_1d(state_matrix)
     
@@ -97,7 +102,12 @@ class BaseExpertAdapter(ExpertJuryPort):
         """
         try:
             values = self._trajectory_to_values(trajectory)
-            result: PredictionResult = self._engine.predict(values.tolist())
+            timestamps = (
+                trajectory.timestamps.tolist()
+                if hasattr(trajectory, "timestamps") and trajectory.timestamps is not None
+                else None
+            )
+            result: PredictionResult = self._engine.predict(values.tolist(), timestamps=timestamps)
             return float(np.clip(result.confidence, 0.0, 1.0))
         except Exception:
             # On any error, return low confidence rather than crashing
