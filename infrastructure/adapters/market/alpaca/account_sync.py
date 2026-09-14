@@ -34,15 +34,36 @@ def parse_position(pos: Dict[str, Any]) -> Position:
 async def fetch_account_and_positions(client: Any) -> Tuple[Dict[str, Any], Dict[str, Position]]:
     """Consulta la API de Alpaca y devuelve datos normalizados de cuenta y posiciones."""
     account = await client.get_account()
+
+    # Manejo explícito de claves de seguridad críticas: si faltan, asumir bloqueado (fail-safe)
+    missing_security_keys = [
+        k for k in ("trading_blocked", "account_blocked")
+        if not isinstance(account, dict) or k not in account or account[k] is None
+    ]
+    if missing_security_keys:
+        logger.error(
+            "CRITICAL: Incomplete or corrupted Alpaca account payload! Missing or null security keys: %s. "
+            "Assuming trading is BLOCKED as a safety precaution to avoid operating in an unconfirmed state.",
+            missing_security_keys,
+        )
+        trading_blocked = True
+        account_blocked = True
+        suspicious_payload = True
+    else:
+        trading_blocked = bool(account["trading_blocked"])
+        account_blocked = bool(account["account_blocked"])
+        suspicious_payload = False
+
     account_fields: Dict[str, Any] = {
-        "equity": float(account.get("equity", 0)),
-        "cash": float(account.get("cash", 0)),
-        "buying_power": float(account.get("buying_power", 0)),
-        "portfolio_value": float(account.get("portfolio_value", 0)),
-        "pattern_day_trader": account.get("pattern_day_trader", False),
-        "trading_blocked": account.get("trading_blocked", False),
-        "transfers_blocked": account.get("transfers_blocked", False),
-        "account_blocked": account.get("account_blocked", False),
+        "equity": float(account.get("equity", 0)) if isinstance(account, dict) else 0.0,
+        "cash": float(account.get("cash", 0)) if isinstance(account, dict) else 0.0,
+        "buying_power": float(account.get("buying_power", 0)) if isinstance(account, dict) else 0.0,
+        "portfolio_value": float(account.get("portfolio_value", 0)) if isinstance(account, dict) else 0.0,
+        "pattern_day_trader": account.get("pattern_day_trader", False) if isinstance(account, dict) else False,
+        "trading_blocked": trading_blocked,
+        "transfers_blocked": account.get("transfers_blocked", False) if isinstance(account, dict) else False,
+        "account_blocked": account_blocked,
+        "suspicious_payload": suspicious_payload,
     }
 
     positions_data = await client.get_positions()

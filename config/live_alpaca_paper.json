@@ -39,5 +39,10 @@
   "enable_audit_log": true,
   "enable_metrics_export": true,
   "rosa_roja_enabled": true,
-  "rosa_roja_min_history": 50
+  "rosa_roja_min_history": 50,
+  "enforce_market_hours": true,
+  "trailing_activation_pnl": 15.0,
+  "trailing_min_giveback": 5.0,
+  "trailing_giveback_ratio": 0.25,
+  "trailing_max_giveback": 12.0
 }

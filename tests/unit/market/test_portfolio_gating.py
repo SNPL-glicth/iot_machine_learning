@@ -120,3 +120,59 @@ async def test_live_runner_multi_asset_initialization():
     assert runner._symbol_extractors["SPY"] is not runner._symbol_extractors["QQQ"]
     assert runner._symbol_engines["NVDA"] is not runner._symbol_engines["AAPL"]
 
+
+def test_can_execute_with_real_trajectory_object():
+    """can_execute safely extracts side from a real Trajectory with TerminalState without AttributeError."""
+    import numpy as np
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+        ActionEnvelope,
+        ExecutionPlan,
+    )
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import (
+        Movement,
+        RhythmSignature,
+    )
+    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import (
+        TerminalState,
+        Trajectory,
+    )
+
+    config = LiveBotConfig(symbol="SPY", phi_moe_threshold=0.30)
+    state = LiveBotState()
+    state.last_phi_moe = 0.50
+
+    rs = RhythmSignature(
+        tempo_ratio=1.0,
+        velocity_delta=0.0,
+        acceleration=0.0,
+        phase_angle=0.0,
+        entropy_rate=0.0,
+    )
+    m = Movement(
+        delta_state=np.array([1.5, 0.1]),
+        delta_time=1.0,
+        velocity=1.0,
+        direction=np.array([1.0, 0.0]),
+        rhythm_signature=rs,
+        mahalanobis_distance=0.5,
+        timestamp=100.0,
+    )
+    traj = Trajectory(
+        movements=(m,),
+        coherence_score=0.9,
+        invalidation_step=None,
+        terminal_state=TerminalState(
+            state_vector=np.array([585.0, 0.5]),
+            step_index=15,
+            confidence=0.8,
+        ),
+    )
+    envelope = ActionEnvelope(magnitude=0.5, bounds={}, max_steps=15, metadata={})
+    plan = ExecutionPlan.EXECUTE(traj, confidence=0.85, envelope=envelope)
+
+    # current_price 580.0 < terminal_price 585.0 -> side is "buy"
+    allowed = can_execute(plan, config, state, current_price=580.0, symbol="SPY")
+    assert allowed is True
+    assert traj.side == "buy"
+
+

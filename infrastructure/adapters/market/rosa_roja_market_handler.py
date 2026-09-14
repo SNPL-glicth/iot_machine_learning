@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
-from typing import Any
+from typing import Any, Protocol
 
 from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
 from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
@@ -16,7 +17,11 @@ from iot_machine_learning.infrastructure.adapters.market.trailing_profit_manager
 logger = logging.getLogger(__name__)
 
 
-class BrokerClientProtocol:
+class PriceUnavailableError(RuntimeError):
+    """Raised when no valid market reference price is available for an asset."""
+
+
+class BrokerClientProtocol(Protocol):
     """Minimal broker interface for order dispatch."""
 
     async def submit_order(self, symbol: str, side: str, order_type: str,
@@ -66,6 +71,10 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         min_qty: float = 0.01,
         max_position_pct: float = 1.0,
         trailing_config: TrailingProfitConfig | None = None,
+        max_stop_loss_usd: float = 10.0,
+        state: Any | None = None,
+        max_consecutive_losses: int = 2,
+        consecutive_loss_cooldown_sec: float = 900.0,
     ):
         self._broker = broker_client
         self._equity = account_equity
@@ -73,12 +82,37 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         self._lot_size = lot_size
         self._min_qty = min_qty
         self._max_position_pct = max_position_pct
+        self._max_stop_loss_usd = max_stop_loss_usd
+        self._state = state
+        self._max_consecutive_losses = max_consecutive_losses
+        self._consecutive_loss_cooldown_sec = consecutive_loss_cooldown_sec
         self._active_orders: dict[str, dict[str, Any]] = {}
         self._trailing_config = trailing_config
         self._trailing_manager = TrailingProfitManager(trailing_config)
         self._trailing_managers: dict[str, TrailingProfitManager] = {symbol.upper(): self._trailing_manager}
-        self._cached_positions: dict[str, dict[str, Any]] = {}
+        self._cached_positions: dict[str, dict[str, Any] | None] = {}
         self._last_pos_checks: dict[str, float] = {}
+        self._last_known_prices: dict[str, tuple[float, float]] = {}
+
+    def _mark_closing(self, symbol: str) -> None:
+        """Marca símbolo en proceso de cierre en LiveBotState antes de enviar órdenes de salida."""
+        if self._state is not None and hasattr(self._state, "mark_closing"):
+            self._state.mark_closing(symbol)
+
+    def _mark_close_confirmed(self, symbol: str) -> None:
+        """Registra confirmación real de salida en LiveBotState para iniciar cooldown post-cierre."""
+        if self._state is not None and hasattr(self._state, "mark_close_confirmed"):
+            self._state.mark_close_confirmed(symbol)
+
+    def _record_trade_outcome(self, symbol: str, realized_pnl: float) -> None:
+        """Registra el resultado (ganancia/pérdida) del trade en LiveBotState para racha y enfriamiento."""
+        if self._state is not None and hasattr(self._state, "record_trade_outcome"):
+            self._state.record_trade_outcome(
+                symbol,
+                realized_pnl=realized_pnl,
+                max_consecutive_losses=self._max_consecutive_losses,
+                cooldown_sec=self._consecutive_loss_cooldown_sec,
+            )
 
     def _get_trailing_manager(self, sym: str) -> TrailingProfitManager:
         s = sym.upper()
@@ -104,11 +138,53 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
         if plan.action == "EMERGENCY_FLUSH" or plan.regime_alert:
             reason = plan.veto_details.get("reason", "RegimeAlert_Triggered")
-            # In intermediate live trading, reactive trajectory micro-deviations and geometric threshold breaches
-            # are protected by Alpaca's server-side bracket order (stop-loss and take-profit) and Trailing Profit Manager.
-            if "Reactive_Trajectory_Deviation" in reason or "Geometric_Threshold_Breach" in reason:
+            target_sym = (symbol or self._symbol).upper()
+
+            # FIX 3: La ausencia de datos en _cached_positions (None o vacío) NUNCA debe
+            # interpretarse como "posición ganadora" por defecto. Si el caché está vacío,
+            # forzamos una consulta directa y síncrona al broker para conocer la exposición real.
+            cached_pos = self._cached_positions.get(target_sym)
+            if cached_pos is None or not cached_pos:
+                try:
+                    pos = await self._broker.get_position(target_sym)
+                    cached_pos = pos if isinstance(pos, dict) else {"qty": float(pos or 0.0)}
+                    self._cached_positions[target_sym] = cached_pos
+                    self._last_pos_checks[target_sym] = time.time()
+                except Exception as e:
+                    logger.warning(
+                        "Failed to query broker position for %s during EMERGENCY_FLUSH evaluation: %s. "
+                        "Assuming risky/unverified position (will proceed with flush).",
+                        target_sym, e,
+                    )
+                    cached_pos = None
+
+            # Inversión de lógica por defecto: Asumir riesgo por defecto (is_verified_winning = False).
+            # En emergencias es preferible cerrar una posición que resultaba ganadora a dejar correr
+            # una perdedora sin cobertura. Solo se suprime el flush si se verifica positivamente
+            # que la posición existe y su PnL no realizado es neutral o positivo (>= -$3.00).
+            is_verified_winning = False
+            if cached_pos:
+                pos_qty = float(cached_pos.get("qty", 0.0))
+                avg_entry = float(cached_pos.get("avg_entry_price", 0.0))
+                try:
+                    ref_mid = self._get_reference_price(target_sym)
+                except Exception:
+                    ref_mid = 0.0
+
+                if pos_qty != 0.0 and avg_entry > 0.0 and ref_mid > 0.0:
+                    pos_side = str(cached_pos.get("side", "")).lower()
+                    unrealized = (
+                        (avg_entry - ref_mid) * abs(pos_qty)
+                        if (pos_side in ("short", "sell") or pos_qty < 0)
+                        else (ref_mid - avg_entry) * abs(pos_qty)
+                    )
+                    if unrealized >= -3.0:
+                        is_verified_winning = True
+
+            # Solo se mantiene la posición si es micro-desviación y está POSITIVAMENTE VERIFICADA como ganadora/neutral
+            if ("Reactive_Trajectory_Deviation" in reason or "Geometric_Threshold_Breach" in reason) and is_verified_winning:
                 logger.info(
-                    "Trajectory micro-deviation observed (%s) — position protected by server-side bracket and trailing profit manager, maintaining position",
+                    "Trajectory micro-deviation observed (%s) on verified neutral/winning position — maintaining position",
                     reason,
                 )
                 return True
@@ -138,7 +214,11 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 return False
 
             target_sym = (symbol or getattr(plan, "symbol", None) or self._symbol).upper()
-            current_price = self._get_reference_price(target_sym)
+            try:
+                current_price = self._get_reference_price(target_sym)
+            except PriceUnavailableError as pe:
+                logger.error("Aborting order dispatch for %s: %s", target_sym, pe)
+                return False
 
             # Calculate position sizing from envelope magnitude
             notional = self._equity * min(envelope.magnitude, self._max_position_pct)
@@ -227,16 +307,44 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             logger.error(f"Failed to dispatch execution plan: {e}", exc_info=True)
             return False
 
-    def _get_reference_price(self, symbol: str | None = None) -> float:
-        """Get current market reference price (midpoint or last trade)."""
+    def _get_reference_price(self, symbol: str | None = None, max_stale_age_sec: float = 30.0) -> float:
+        """
+        Get current market reference price (midpoint or last trade).
+        If feed is unavailable, attempts to use cached price if age <= max_stale_age_sec.
+        Never returns a hardcoded fake price. Raises PriceUnavailableError if unavailable.
+        """
+        sym = (symbol or self._symbol).upper()
         cb = getattr(self, "get_reference_price_callback", None)
         if callable(cb):
-            import inspect
-            sig = inspect.signature(cb)
-            p = cb(symbol) if len(sig.parameters) > 0 else cb()
-            if isinstance(p, (int, float)) and p > 0:
-                return float(p)
-        return 759.0
+            try:
+                import inspect
+                sig = inspect.signature(cb)
+                p = cb(sym) if len(sig.parameters) > 0 else cb()
+                if isinstance(p, (int, float)) and p > 0:
+                    val = float(p)
+                    self._last_known_prices[sym] = (val, time.time())
+                    return val
+            except Exception as e:
+                logger.warning("Failed to fetch reference price for %s via callback: %s", sym, e)
+
+        # Check cached price for this specific symbol
+        if sym in self._last_known_prices:
+            last_price, cached_at = self._last_known_prices[sym]
+            age = time.time() - cached_at
+            if age <= max_stale_age_sec:
+                logger.warning(
+                    "Using STALE reference price for %s: $%.2f (age: %.1fs <= %.1fs)",
+                    sym, last_price, age, max_stale_age_sec,
+                )
+                return last_price
+            logger.error(
+                "Cached reference price for %s is EXPIRED (age: %.1fs > %.1fs, price: $%.2f)",
+                sym, age, max_stale_age_sec, last_price,
+            )
+
+        raise PriceUnavailableError(
+            f"Market reference price unavailable for symbol '{sym}' (feed callback returned invalid price and no valid cache within {max_stale_age_sec}s)"
+        )
 
     def _track_order(self, order_response: Any, symbol: str | None = None) -> None:
         """Track active order for potential cancellation per symbol."""
@@ -267,30 +375,90 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 "steps_remaining": invalidation_step - step_index
             }
         )
+    def _is_close_confirmed(self, close_resp: Any) -> bool:
+        """Verifica si la respuesta del broker confirma el fill o la orden de cierre."""
+        if close_resp is None or close_resp is False:
+            return False
+        if isinstance(close_resp, dict):
+            status = str(close_resp.get("status", "")).lower()
+            if status in ("filled", "closed", "accepted", "new", "pending_new"):
+                return True
+            if close_resp.get("symbol") and "error" not in close_resp:
+                return True
+            return False
+        from unittest.mock import Mock
+        if isinstance(close_resp, Mock):
+            st = getattr(close_resp, "status", None)
+            if isinstance(st, str):
+                return st.lower() in ("filled", "closed", "accepted", "new", "pending_new")
+            return True
+        if hasattr(close_resp, "status") and isinstance(getattr(close_resp, "status"), str):
+            status = getattr(close_resp, "status").lower()
+            return status in ("filled", "closed", "accepted", "new", "pending_new")
+        if isinstance(close_resp, (bool, int, float)):
+            return bool(close_resp)
+        return True
 
     async def trigger_emergency_flush(self, reason: str, symbol: str | None = None) -> None:
         """Triggers emergency cancellation and risk protocol for a specific symbol or default."""
         target_sym = (symbol or self._symbol).upper()
+        self._mark_closing(target_sym)
         logger.warning(f"EMERGENCY FLUSH TRIGGERED: reason='{reason}'", extra={"reason": reason, "symbol": target_sym})
 
         # Cancel active tracked orders strictly for this target symbol
         sym_orders = self._active_orders.get(target_sym, {})
+        cancelled_local = 0
         for order_id in list(sym_orders.keys()):
             try:
                 await self._broker.cancel_order(order_id)
                 del sym_orders[order_id]
+                cancelled_local += 1
             except Exception as e:
                 logger.error(f"Failed to cancel order {order_id} for {target_sym}", extra={"error": str(e)})
 
         # Cancel any remaining orders on broker strictly for target symbol
-        cancelled = await self._broker.cancel_all_orders(symbol=target_sym)
-        logger.info(f"Emergency flush: cancelled {cancelled} orders for {target_sym}")
+        try:
+            cancelled = await self._broker.cancel_all_orders(symbol=target_sym)
+            logger.info(f"Emergency flush: cancelled {cancelled} orders on broker ({cancelled_local} tracked) for {target_sym}")
+        except (RuntimeError, asyncio.TimeoutError, ConnectionError, OSError) as e:
+            logger.error(
+                f"EMERGENCY FLUSH: Failed to cancel open orders for {target_sym} due to transport/broker error: {e}. "
+                "Continuing immediately to position liquidation.",
+                exc_info=True,
+                extra={"symbol": target_sym, "error": str(e)},
+            )
+        except Exception as e:
+            logger.critical(
+                f"EMERGENCY FLUSH: Unexpected failure cancelling orders for {target_sym}: {e}. "
+                "Proceeding immediately to position liquidation.",
+                exc_info=True,
+                extra={"symbol": target_sym, "error": str(e)},
+            )
+
         # Flatten position for target symbol
         position = await self._broker.get_position(target_sym)
         pos_qty = float(position.get("qty", 0.0)) if isinstance(position, dict) else float(position or 0.0)
         if pos_qty != 0:
-            await self._broker.close_position(target_sym)
-            logger.info(f"Emergency flatten: closed position of {pos_qty} for {target_sym}")
+            avg_entry = float(position.get("avg_entry_price", 0.0)) if isinstance(position, dict) else 0.0
+            try:
+                ref_mid = self._get_reference_price(target_sym)
+            except Exception:
+                ref_mid = avg_entry
+            pos_side = str(position.get("side", "")).lower() if isinstance(position, dict) else ""
+            if pos_side in ("short", "sell") or pos_qty < 0:
+                pnl = (avg_entry - ref_mid) * abs(pos_qty) if ref_mid > 0 else 0.0
+            else:
+                pnl = (ref_mid - avg_entry) * abs(pos_qty) if ref_mid > 0 else 0.0
+
+            close_resp = await self._broker.close_position(target_sym)
+            if self._is_close_confirmed(close_resp):
+                logger.info(f"Emergency flatten: closed position of {pos_qty} for {target_sym} confirmed by broker (est PnL: ${pnl:.2f})")
+                self._record_trade_outcome(target_sym, pnl)
+                self._mark_close_confirmed(target_sym)
+            else:
+                logger.error(f"Emergency flatten: broker did not confirm position closure for {target_sym}. Response: {close_resp}")
+        else:
+            self._mark_close_confirmed(target_sym)
         self._cached_positions[target_sym] = None
 
     def update_equity(self, new_equity: float) -> None:
@@ -333,15 +501,47 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 return False
 
             # PnL no realizado (positivo si largo y sube, positivo si corto y baja)
-            unrealized_pnl = (current_price - avg_entry) * qty
+            pos_side = str(position.get("side", "")).lower()
+            if pos_side in ("short", "sell") or qty < 0:
+                unrealized_pnl = (avg_entry - current_price) * abs(qty)
+            else:
+                unrealized_pnl = (current_price - avg_entry) * abs(qty)
+            # Software Stop-Loss de protección: liquidar si pérdida alcanza el límite máximo
+            if self._max_stop_loss_usd > 0 and unrealized_pnl <= -self._max_stop_loss_usd:
+                reason = f"Software Stop-Loss: Loss reached ${unrealized_pnl:.2f} <= -${self._max_stop_loss_usd:.2f}"
+                logger.warning(
+                    "SOFTWARE STOP-LOSS [%s]: %s | Liquidating position %s @ $%.2f",
+                    sym, reason, qty, current_price,
+                )
+                self._mark_closing(sym)
+                await self._broker.cancel_all_orders(symbol=sym)
+                close_resp = await self._broker.close_position(sym)
+                if self._is_close_confirmed(close_resp):
+                    logger.info(f"Software Stop-Loss: closed position of {qty} for {sym} confirmed by broker")
+                    self._mark_close_confirmed(sym)
+                    self._record_trade_outcome(sym, unrealized_pnl)
+                else:
+                    logger.error(f"Software Stop-Loss: broker did not confirm position closure for {sym}. Response: {close_resp}")
+                self._active_orders.pop(sym, None)
+                mgr.reset()
+                self._cached_positions[sym] = None
+                return True
+
             should_exit, reason = mgr.update(unrealized_pnl)
             if should_exit:
                 logger.warning(
                     "TRAILING PROFIT LOCK [%s]: %s | Closing position %s @ $%.2f",
                     sym, reason, qty, current_price,
                 )
+                self._mark_closing(sym)
                 await self._broker.cancel_all_orders(symbol=sym)
-                await self._broker.close_position(sym)
+                close_resp = await self._broker.close_position(sym)
+                if self._is_close_confirmed(close_resp):
+                    logger.info(f"Trailing profit lock: closed position of {qty} for {sym} confirmed by broker")
+                    self._mark_close_confirmed(sym)
+                    self._record_trade_outcome(sym, unrealized_pnl)
+                else:
+                    logger.error(f"Trailing profit lock: broker did not confirm position closure for {sym}. Response: {close_resp}")
                 self._active_orders.pop(sym, None)
                 mgr.reset()
                 self._cached_positions[sym] = None

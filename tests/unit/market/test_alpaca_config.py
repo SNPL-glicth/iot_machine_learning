@@ -45,8 +45,10 @@ def test_alpaca_rejects_live_url():
         assert "paper-api.alpaca.markets" in str(e)
 
 
-def test_alpaca_requires_credentials():
+def test_alpaca_requires_credentials(monkeypatch):
     """Test that Alpaca config requires API credentials."""
+    monkeypatch.delenv("ALPACA_API_KEY", raising=False)
+    monkeypatch.delenv("ALPACA_SECRET_KEY", raising=False)
     try:
         LiveBotConfig(broker="alpaca")
         assert False, "Should have raised ValueError"

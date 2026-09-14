@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, Set
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +20,7 @@ class PortfolioRiskConfig:
     max_cluster_positions: int = 1          # Máx posiciones simultáneas en misma dirección por cluster
     enable_macro_velocity_filter: bool = True
     macro_velocity_epsilon: float = 0.0001  # Tolerancia mínima para considerar velocidad no neutral
+    max_daily_loss_usd: float = 50.0        # Límite de pérdida diaria absoluta (independiente de picos)
 
 
 class PortfolioRiskManager:
@@ -39,20 +39,46 @@ class PortfolioRiskManager:
         self.circuit_breaker_tripped: bool = False
         self.clusters: dict[str, set[str]] = clusters or DEFAULT_CLUSTERS
 
+    def reset_day(self, new_equity: float) -> None:
+        """Reinicia el High-Water Mark diario para una nueva sesión de mercado."""
+        self.initial_equity = new_equity
+        self.peak_equity = new_equity
+        self.is_profit_locked = False
+        self.circuit_breaker_tripped = False
+        logger.info(
+            "Portfolio risk baseline reset for new market session: initial_equity=$%.2f",
+            new_equity,
+        )
+
     def update_equity(self, current_equity: float) -> tuple[bool, str]:
-        """Evalúa el equity actual frente al High-Water Mark diario.
+        """Evalúa el equity actual frente a la pérdida máxima absoluta y el High-Water Mark diario.
 
         Retorna:
-            (tripped, reason): True si se dispara el disyuntor por caída superior al 25% del pico.
+            (tripped, reason): True si se dispara el disyuntor (por pérdida absoluta o por giveback de pico).
         """
         if self.circuit_breaker_tripped:
             return True, "Daily Circuit Breaker already tripped — all trading suspended"
+
+        # 1. Comprobación de pérdida máxima diaria absoluta (independiente de si hubo ganancia previa)
+        if self.config.max_daily_loss_usd > 0:
+            daily_loss = self.initial_equity - current_equity
+            if daily_loss >= abs(self.config.max_daily_loss_usd):
+                self.circuit_breaker_tripped = True
+                reason = (
+                    f"CRITICAL: Maximum Daily Loss Limit Reached! "
+                    f"Initial Equity: ${self.initial_equity:.2f}, Current Equity: ${current_equity:.2f}, "
+                    f"Daily Loss: -${daily_loss:.2f} >= Limit: -${abs(self.config.max_daily_loss_usd):.2f}. "
+                    "Suspending all trading for the rest of the day."
+                )
+                logger.critical(reason)
+                return True, reason
 
         if current_equity > self.peak_equity:
             self.peak_equity = current_equity
 
         peak_profit = self.peak_equity - self.initial_equity
 
+        # 2. Comprobación de trinquete de ganancias (giveback desde el pico)
         if peak_profit >= self.config.profit_lock_trigger_usd:
             self.is_profit_locked = True
             max_giveback = peak_profit * self.config.max_giveback_pct

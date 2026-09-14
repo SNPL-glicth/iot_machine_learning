@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -66,17 +67,23 @@ class LiveBotConfig:
 
     # Stop Loss / Take Profit / Trailing High-Water Mark
     default_stop_pct: float = 0.02      # 2% stop loss
+    max_trade_loss_usd: float = 10.00   # Stop loss máximo por trade en USD (software cut)
     default_target_pct: float = 0.04    # 4% take profit
     use_trailing_profit: bool = True    # Trailing High-Water Mark dinámico
-    trailing_activation_pnl: float = 4.50  # PnL USD para activar trailing
-    trailing_giveback_ratio: float = 0.30 # Retroceso permitido (30%)
-    trailing_min_giveback: float = 1.80  # Colchón mínimo de retroceso USD
-    trailing_max_giveback: float = 3.50  # Colchón máximo de retroceso USD
+    trailing_activation_pnl: float = 15.00 # PnL USD para activar trailing (~0.15% en $10k pos)
+    trailing_giveback_ratio: float = 0.25 # Retroceso permitido (25%)
+    trailing_min_giveback: float = 5.00   # Colchón mínimo de retroceso USD (~$0.17 en 30sh)
+    trailing_max_giveback: float = 12.00  # Colchón máximo de retroceso USD
 
-    # Protección de Ganancias de Portafolio Diario (Circuit Breaker a nivel cuenta)
-    portfolio_profit_lock_trigger: float = 10.0   # Ganancia pico USD para activar bloqueo
+    # Protección de Pérdida Diaria y Ganancias (Circuit Breakers a nivel cuenta)
+    max_daily_loss_usd: float = 50.0              # Límite de pérdida diaria máxima absoluta (ej. -$50 USD)
+    portfolio_profit_lock_trigger: float = 30.0   # Ganancia pico USD para activar bloqueo
     portfolio_max_giveback_pct: float = 0.25      # Máximo retroceso permitido del pico (25%)
     enforce_portfolio_profit_lock: bool = True    # Circuit breaker diario activo
+
+    # Control de Rachas de Pérdidas Consecutivas
+    max_consecutive_losses: int = 2               # Racha máxima de pérdidas antes de pausa
+    consecutive_loss_cooldown_sec: float = 900.0  # Tiempo de enfriamiento tras racha (15 minutos = 900s)
 
     # Guardrail de Correlación Cruzada (Cluster Tech)
     max_cluster_correlated_positions: int = 1     # Máx posiciones simultáneas en misma dirección en cluster Tech
@@ -85,7 +92,7 @@ class LiveBotConfig:
     enforce_macro_velocity_alignment: bool = True # Prohíbe cortos si velocidad macro > 0
 
     # Sesión de mercado
-    enforce_market_hours: bool = False  # Si False (paper/after-hours), no fuerza salida en cierre RTH 16:00 ET
+    enforce_market_hours: bool = True   # Valida sesión RTH 16:00 ET en Alpaca (inhibe fuera de RTH y aplana al cierre)
 
     # Emergency Flush
     emergency_cancel_all: bool = True   # Cancelar todas las órdenes abiertas
@@ -145,6 +152,13 @@ class LiveBotConfig:
 
         # Validación Alpaca
         if self.broker == "alpaca":
+            if not self.alpaca_api_key:
+                self.alpaca_api_key = os.getenv("ALPACA_API_KEY") or None
+            if not self.alpaca_secret_key:
+                self.alpaca_secret_key = os.getenv("ALPACA_SECRET_KEY") or None
+            if not self.alpaca_api_base_url:
+                self.alpaca_api_base_url = os.getenv("ALPACA_API_BASE_URL", "https://paper-api.alpaca.markets/v2")
+
             if not self.alpaca_api_key:
                 raise ValueError("alpaca_api_key es requerido cuando broker=alpaca")
             if not self.alpaca_secret_key:

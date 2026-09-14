@@ -44,7 +44,7 @@ class ExecutionPlan:
     veto_details: dict
 
     @classmethod
-    def HOLD(cls, reason: str, alert: bool = False, details: dict = None) -> "ExecutionPlan":
+    def HOLD(cls, reason: str, alert: bool = False, details: Optional[dict] = None) -> "ExecutionPlan":
         return cls(
             action="HOLD",
             chosen_trajectory=None,
@@ -57,7 +57,7 @@ class ExecutionPlan:
 
     @classmethod
     def EXECUTE(cls, trajectory: Trajectory, confidence: float,
-                envelope: ActionEnvelope, invalidation_step: Optional[int] = None) -> "ExecutionPlan":
+                envelope: Optional[ActionEnvelope] = None, invalidation_step: Optional[int] = None) -> "ExecutionPlan":
         return cls(
             action="EXECUTE",
             chosen_trajectory=trajectory,

@@ -4,31 +4,21 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
-from .domain.movement import Movement
-from .domain.execution import ExecutionPlan, ActionEnvelope
-from .domain.trajectory_tracker import TrajectoryTracker, DeviationStatus
-from .domain.ml_taxonomy import (
-    PredictionConfidence,
-    TrajectoryCoherence,
-    MoEConfidence,
-    ExecutionConfidence,
-    DriftSeverity,
-    TransitionEntropy,
-    ExplorationFactor,
-    ActionMagnitude,
-)
-from .domain.state_machine import StateMachine, PipelineState
+from .domain.execution import ActionEnvelope, ExecutionPlan
+from .domain.state_machine import StateMachine
 from .domain.state_persistence import STATE_SCHEMA_VERSION
+from .domain.trajectory_tracker import TrajectoryTracker
 from .domain.validation import ValidationResult
 from .modules.module1_ingestion import MahalanobisFilter
-from .modules.rhythm_generator import RhythmTrajectoryGenerator
 from .modules.module3_moe_gating import MultiplicativeMoEGating
-from .ports.expert_jury import ExpertJuryPort
+from .modules.rhythm_generator import RhythmTrajectoryGenerator
 from .ports.drift_sensor import DriftSensorPort
+from .ports.expert_jury import ExpertJuryPort
 from .ports.state_store import MLStateStore
 
 logger = logging.getLogger(__name__)
@@ -36,12 +26,12 @@ logger = logging.getLogger(__name__)
 
 class RosaRojaEngine:
     """
-    Master System Orchestrator driven by Stochastic Active Control, 
+    Master System Orchestrator driven by Stochastic Active Control,
     Game Theory (Gungi-inspired position spaces), and Bayesian Active Inference.
-    
+
     Controls raw event ingestion, trajectory generation, MoE hard-gating,
     and returns actionable ExecutionPlan objects.
-    
+
     This is the CENTRAL CORE OF THE SYSTEM - it owns and orchestrates
     the Mixture of Experts (MoE) and Drift Detectors.
     """
@@ -55,7 +45,7 @@ class RosaRojaEngine:
         drift_sensors: Sequence[DriftSensorPort],
         outlier_reset_threshold: int = 3,
         exploration_boost_events: int = 5,
-        state_store: Optional[MLStateStore] = None,
+        state_store: MLStateStore | None = None,
         engine_id: str = "default",
         checkpoint_interval: int = 100,
     ):
@@ -97,15 +87,15 @@ class RosaRojaEngine:
     @property
     def _consecutive_outliers(self) -> int:
         return self._state_machine.state.consecutive_outliers
-    
+
     @_consecutive_outliers.setter
     def _consecutive_outliers(self, value: int) -> None:
         self._state_machine.state.consecutive_outliers = value
-    
+
     @property
     def _auto_resets(self) -> int:
         return self._state_machine.state.auto_resets
-    
+
     @_auto_resets.setter
     def _auto_resets(self, value: int) -> None:
         self._state_machine.state.auto_resets = value
@@ -113,11 +103,11 @@ class RosaRojaEngine:
     def process_event(self, delta_state: np.ndarray, delta_time: float) -> ExecutionPlan:
         """
         Main entry point for processing a new state transition S_t -> S_{t+1}.
-        
+
         Args:
             delta_state: State change vector ΔS (multidimensional)
             delta_time: Time delta Δt
-            
+
         Returns:
             ExecutionPlan with action, trajectory, confidence, and risk parameters
         """
@@ -134,11 +124,11 @@ class RosaRojaEngine:
 
         # 1. Module 1: Anti-Contamination Ingestion
         movement, is_outlier = self._ingestion.process_raw_step(delta_state, delta_time)
-        
+
         if is_outlier:
             # Update state machine - returns True if regime reset was triggered
             reset_triggered = self._state_machine.on_outlier_detected(is_consecutive=True)
-            
+
             if reset_triggered:
                 self._trigger_auto_regime_reset()
                 return ExecutionPlan.HOLD(
@@ -161,17 +151,17 @@ class RosaRojaEngine:
                 active_traj = self._tracker.active_trajectory
                 inv_step = active_traj.invalidation_step if active_traj else None
                 self._tracker.set_active_trajectory(None)
-                
+
                 # Update state machine
                 self._state_machine.on_deviation(status.reason)
-                
+
                 if self._state_machine.state.consecutive_outliers >= self.outlier_reset_threshold:
                     self._trigger_auto_regime_reset()
                     return ExecutionPlan.HOLD(
                         reason="Auto_Regime_Reset_Triggered",
                         alert=True
                     )
-                
+
                 # EMERGENCY_FLUSH if deviation before predicted invalidation (surprise)
                 if inv_step is None or status.step_index < inv_step:
                     return ExecutionPlan.EMERGENCY_FLUSH(
@@ -180,7 +170,7 @@ class RosaRojaEngine:
                 return ExecutionPlan.HOLD(
                     reason=f"Trajectory_Deviation_At_Step_{status.step_index}"
                 )
-            
+
             # Valid tracked step - resets the consecutive outlier counter and
             # advances the tracker
             self._state_machine.on_valid_step()
@@ -208,7 +198,7 @@ class RosaRojaEngine:
             self._rhythm._theta_manager.compute_entropy(self._rhythm._latest_state_key),
             current_drift
         )
-        
+
         # Get phi_ritmo from chosen trajectory (will be computed in gating)
         # We need to pass the coherence_score from trajectories
         validation = self._gating.evaluate_and_veto(
@@ -217,7 +207,7 @@ class RosaRojaEngine:
             lambda_t=lambda_t,
             phi_ritmo=top_k_trajectories[0].coherence_score if top_k_trajectories else 0.0,
         )
-        
+
 # MASTER EQUATION BRIDGE:
         # Phi_MoE = Phi_MoE_base * (1 - lambda_t * (1 - Phi_Ritmo))
         # This smoothly interpolates:
@@ -228,13 +218,13 @@ class RosaRojaEngine:
         phi_moe_base = validation.global_confidence
         phi_ritmo = validation.chosen_trajectory.coherence_score if validation.chosen_trajectory else 0.0
         lambda_t_clamped = max(0.0, min(1.0, lambda_t))
-        
+
         # Master Equation: Phi_MoE = Phi_MoE_base * (1 - lambda_t * (1 - Phi_Ritmo))
         phi_moe_final = phi_moe_base * (1.0 - lambda_t_clamped * (1.0 - phi_ritmo))
-        
+
         # Clamp to valid range
         phi_moe_final = max(0.0, min(1.0, phi_moe_final))
-        
+
         # Update validation with final Phi_MoE
         validation = ValidationResult(
             chosen_trajectory=validation.chosen_trajectory,
@@ -247,7 +237,7 @@ class RosaRojaEngine:
             lambda_t=validation.lambda_t,
             phi_ritmo=phi_ritmo,
         )
-        
+
         if validation.veto_triggered or validation.chosen_trajectory is None:
             self._tracker.set_active_trajectory(None)
             self._state_machine.on_validation_veto("All trajectories vetoed by critical expert")
@@ -264,7 +254,7 @@ class RosaRojaEngine:
                     if validation.veto_details else {}
                 )
             )
-        
+
         # Build decision trace for ISO 22989 traceability
         telemetry_hash = self._compute_telemetry_hash(delta_state, delta_time)
         # Compute sum_w_c from expert scores (matching jury order)
@@ -284,7 +274,7 @@ class RosaRojaEngine:
             "gamma_exec": 0.5,  # Threshold for EXECUTE
             "geometric_threshold": -0.1,  # For EMERGENCY_FLUSH
         }
-        
+
         # Update envelope with decision_trace
         envelope = validation.envelope
         if envelope is not None:
@@ -294,33 +284,43 @@ class RosaRojaEngine:
                 max_steps=envelope.max_steps,
                 metadata={**envelope.metadata, "decision_trace": decision_trace}
             )
-        
+
         # 6. Build Final Orchestrated Execution Plan with Master Equation
         action = self._determine_action(phi_moe_final, validation.chosen_trajectory)
-        
+
         if action == "HOLD":
             return ExecutionPlan.HOLD(reason="Phi_MoE_Below_Gamma_Exec")
         elif action == "EMERGENCY_FLUSH":
             return ExecutionPlan.EMERGENCY_FLUSH(
                 f"Geometric_Threshold_Breach_Phi_MoE_{phi_moe_final:.3f}"
             )
-        
+
         # 6. Build Final Orchestrated Execution Plan
-        envelope = validation.envelope
-        
+        if validation.chosen_trajectory is None:
+            return ExecutionPlan.HOLD(reason="No_Trajectory_For_Execution")
+
+        if envelope is None:
+            envelope = ActionEnvelope(
+                magnitude=float(phi_moe_final),
+                bounds={},
+                max_steps=len(validation.chosen_trajectory.movements),
+                metadata={"decision_trace": decision_trace},
+                decision_trace=decision_trace,
+            )
+
         # Set new active trajectory for reactive monitoring (start at step 1: next movement)
         self._tracker.set_active_trajectory(
-            validation.chosen_trajectory, 
+            validation.chosen_trajectory,
             start_step=1
         )
-        
+
         # Update state machine
         trajectory_id = f"traj_{validation.chosen_trajectory.terminal_state.step_index}"
         self._state_machine.on_trajectory_start(
             trajectory_id=trajectory_id,
             invalidation_step=validation.chosen_trajectory.invalidation_step
         )
-        
+
         return ExecutionPlan.EXECUTE(
             trajectory=validation.chosen_trajectory,
             confidence=validation.global_confidence,
@@ -337,18 +337,22 @@ class RosaRojaEngine:
 
     def _determine_action(self, phi_moe: float, trajectory) -> str:
         """Determine action based on Master Equation output.
-        
+
         Args:
             phi_moe: Final Phi_MoE score from Master Equation
             trajectory: Chosen trajectory for geometric threshold check
-            
+
         Returns:
             "EXECUTE", "HOLD", or "EMERGENCY_FLUSH"
         """
         gamma_exec = getattr(self, "gamma_exec", 0.5)      # Threshold for EXECUTE
         geometric_threshold = getattr(self, "geometric_threshold", -0.1)  # Trigger on direction reversal
-        
-        # Check geometric threshold (cos(theta_k) < geometric_threshold)
+
+        # If Phi_MoE is below execution threshold, plan is simply HOLD
+        if phi_moe < gamma_exec:
+            return "HOLD"
+
+        # Check geometric threshold (cos(theta_k) < geometric_threshold) on high-confidence candidates
         # Only trigger EMERGENCY_FLUSH on actual direction reversal or extreme sharpness
         if trajectory is not None and hasattr(trajectory, 'movements') and len(trajectory.movements) > 1:
             directions = trajectory.directions
@@ -357,10 +361,8 @@ class RosaRojaEngine:
                 min_cos_theta = float(np.min(dir_dots))
                 if min_cos_theta < geometric_threshold:
                     return "EMERGENCY_FLUSH"
-        
-        if phi_moe >= gamma_exec:
-            return "EXECUTE"
-        return "HOLD"
+
+        return "EXECUTE"
 
     def _trigger_auto_regime_reset(self) -> None:
         """Automatic regime recovery: full reset of Module 1 covariance, boost exploration."""
@@ -379,10 +381,10 @@ class RosaRojaEngine:
         # Use first dimension for scalar feedback (price/value)
         actual_scalar = float(actual_state[0]) if len(actual_state) > 0 else 0.0
         predicted_scalar = float(predicted_state[0]) if len(predicted_state) > 0 else 0.0
-        
+
         for sensor in self._sensors:
             sensor.update(actual_scalar, predicted_scalar)
-        
+
         for expert in self._jury:
             expert.update_learning(actual_scalar, predicted_scalar)
 
@@ -424,7 +426,7 @@ class RosaRojaEngine:
     # Persistence (warm start / recoverability)
     # ------------------------------------------------------------------
 
-    def export_state(self) -> Dict[str, Any]:
+    def export_state(self) -> dict[str, Any]:
         """Atomic snapshot of all learning state.
 
         The active trajectory is intentionally excluded: restoring with a
@@ -455,7 +457,7 @@ class RosaRojaEngine:
             },
         }
 
-    def import_state(self, payload: Dict[str, Any]) -> None:
+    def import_state(self, payload: dict[str, Any]) -> None:
         """Restore learning state from an export_state snapshot.
 
         Raises ValueError on unknown schemas or malformed payloads; callers
@@ -503,7 +505,9 @@ class RosaRojaEngine:
                         f"Snapshot '{key}' member '{name}' has no live counterpart"
                     )
                 if entry.get("state") is not None:
-                    member.import_state(entry["state"])
+                    import_fn = getattr(member, "import_state", None)
+                    if callable(import_fn):
+                        import_fn(entry["state"])
 
     def checkpoint(self) -> bool:
         """Persist a snapshot to the configured store. False if disabled/failed."""
@@ -516,7 +520,7 @@ class RosaRojaEngine:
             )
         return ok
 
-    def restore(self, state_store: Optional[MLStateStore] = None) -> bool:
+    def restore(self, state_store: MLStateStore | None = None) -> bool:
         """Warm start from the store. Returns True when state was restored.
 
         Any storage or schema failure degrades to cold start (False) without

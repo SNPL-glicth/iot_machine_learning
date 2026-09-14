@@ -135,7 +135,7 @@ def apply_savgol_smoothing(values: List[float], window: int) -> List[float]:
         return list(values)
 
     try:
-        from scipy.signal import savgol_filter
+        from scipy.signal import savgol_filter  # type: ignore[import-untyped,import]
 
         smoothed = savgol_filter(values, window_length=effective_window, polyorder=2)
         return [float(v) for v in smoothed]

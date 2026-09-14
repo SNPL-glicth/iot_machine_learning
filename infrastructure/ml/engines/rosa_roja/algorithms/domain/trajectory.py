@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from .movement import Movement
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +24,7 @@ class Trajectory:
     """Candidate trajectory T of 11–15 movements."""
     movements: tuple[Movement, ...]  # Length 11–15
     coherence_score: float           # Φ_Ritmo(T) from Module 2
-    invalidation_step: Optional[int] # Index where trajectory breaks
+    invalidation_step: int | None # Index where trajectory breaks
     terminal_state: TerminalState
     metadata: dict = field(default_factory=dict)
 
@@ -44,3 +48,12 @@ class Trajectory:
     @property
     def directions(self) -> np.ndarray:
         return np.stack([m.direction for m in self.movements])
+
+    @property
+    def side(self) -> str:
+        """Infer projected side (buy/sell) from cumulative delta movements."""
+        deltas = self.delta_states
+        if deltas.size > 0:
+            net_delta = float(np.sum(deltas[:, 0])) if deltas.ndim > 1 else float(np.sum(deltas))
+            return "buy" if net_delta >= 0 else "sell"
+        return "buy"

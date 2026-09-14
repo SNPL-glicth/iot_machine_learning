@@ -35,12 +35,12 @@ from iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry i
     format_status_line,
     perform_health_check,
 )
-from iot_machine_learning.infrastructure.adapters.market.rosa_roja_features import (
-    MarketFeatureExtractor,
-)
 from iot_machine_learning.infrastructure.adapters.market.portfolio_risk_manager import (
     PortfolioRiskConfig,
     PortfolioRiskManager,
+)
+from iot_machine_learning.infrastructure.adapters.market.rosa_roja_features import (
+    MarketFeatureExtractor,
 )
 from iot_machine_learning.infrastructure.adapters.market.rosa_roja_market_handler import (
     RosaRojaMarketExecutionHandler,
@@ -119,6 +119,10 @@ class LiveBotRunner:
             broker_client=self._order_client, account_equity=equity, symbol=self.config.symbol,
             lot_size=self.config.lot_size, min_qty=self.config.min_lot_size, max_position_pct=self.config.max_position_pct,
             trailing_config=trailing_cfg,
+            max_stop_loss_usd=getattr(self.config, "max_trade_loss_usd", 10.0),
+            state=self._state,
+            max_consecutive_losses=getattr(self.config, "max_consecutive_losses", 2),
+            consecutive_loss_cooldown_sec=getattr(self.config, "consecutive_loss_cooldown_sec", 900.0),
         )
         self._handler.get_reference_price_callback = self._get_current_mid
         risk_cfg = PortfolioRiskConfig(
@@ -126,6 +130,7 @@ class LiveBotRunner:
             max_giveback_pct=getattr(self.config, "portfolio_max_giveback_pct", 0.25),
             max_cluster_positions=getattr(self.config, "max_cluster_correlated_positions", 1),
             enable_macro_velocity_filter=getattr(self.config, "enforce_macro_velocity_alignment", True),
+            max_daily_loss_usd=getattr(self.config, "max_daily_loss_usd", 50.0),
         )
         self._portfolio_risk_mgr = PortfolioRiskManager(initial_equity=equity, config=risk_cfg)
         if self.config.enable_audit_log and self.config.audit_log_path:
@@ -141,6 +146,7 @@ class LiveBotRunner:
         if not self._feed or not self._engine:
             raise RuntimeError("Runner not initialized. Call initialize() first.")
         self._running = True
+        await self._check_market_session()
         await self._feed.connect()
         try:
             async for obs in self._feed.iter_observations():
@@ -206,12 +212,12 @@ class LiveBotRunner:
                 self._state.last_phi_moe, self._state.trades_count, f"[{sc_str}]" if sc_str else "",
             )
 
-        if getattr(self.config, "enforce_portfolio_profit_lock", True) and self._portfolio_risk_mgr:
+        if (getattr(self.config, "enforce_portfolio_profit_lock", True) or getattr(self.config, "max_daily_loss_usd", 0.0) > 0) and self._portfolio_risk_mgr:
             current_eq = await self._get_equity()
             tripped, reason = self._portfolio_risk_mgr.update_equity(current_eq)
             if tripped and not self._state.portfolio_circuit_breaker_tripped:
                 self._state.portfolio_circuit_breaker_tripped = True
-                logger.warning("PORTFOLIO CIRCUIT BREAKER TRIPPED: %s", reason)
+                logger.critical("PORTFOLIO CIRCUIT BREAKER TRIPPED: %s", reason)
                 if self._handler:
                     for s in self._symbols:
                         await self._handler.trigger_emergency_flush(reason, symbol=s)
@@ -265,17 +271,39 @@ class LiveBotRunner:
             except Exception as e:
                 logger.debug(f"Telemetry broadcast error: {e}")
     async def _maybe_health_check(self) -> None:
+        if self._account and hasattr(self._account, "is_tradeable"):
+            try:
+                tradeable = await self._account.is_tradeable()
+                self._state.account_blocked = not tradeable
+                if not tradeable:
+                    logger.warning("Account health check: account is NOT tradeable (blocked or suspicious). Entry orders vetoed.")
+            except Exception as e:
+                logger.warning("Failed to check account tradeable status: %s", e)
+                self._state.account_blocked = True
+
         if self._account and hasattr(self._account, "get_position"):
             try:
                 symbols = getattr(self, "_symbols", [self.config.symbol])
                 for sym in symbols:
                     pos = await self._account.get_position(sym)
                     self._state.set_position(sym, pos)
-                self._state.current_position = self._state.get_position(self.config.symbol)
                 if hasattr(self._account, "get_unrealized_pl"):
                     self._state.total_pnl = await self._account.get_unrealized_pl(self.config.symbol)
             except Exception as e:
                 logger.debug(f"Position sync error: {e}")
+
+        if self._portfolio_risk_mgr and (getattr(self.config, "enforce_portfolio_profit_lock", True) or getattr(self.config, "max_daily_loss_usd", 0.0) > 0):
+            try:
+                current_eq = await self._get_equity()
+                tripped, reason = self._portfolio_risk_mgr.update_equity(current_eq)
+                if tripped and not self._state.portfolio_circuit_breaker_tripped:
+                    self._state.portfolio_circuit_breaker_tripped = True
+                    logger.critical("PORTFOLIO CIRCUIT BREAKER TRIPPED: %s", reason)
+                    if self._handler:
+                        for s in self._symbols:
+                            await self._handler.trigger_emergency_flush(reason, symbol=s)
+            except Exception as e:
+                logger.debug("Portfolio risk evaluation error: %s", e)
         await self._check_market_session()
         if time.time() - self._last_health_check >= self.config.health_check_interval_sec:
             self._last_health_check = time.time()
@@ -306,6 +334,16 @@ class LiveBotRunner:
                 else:
                     logger.debug("Market clock is_open=False, continuing in extended/paper mode.")
                 return
+
+            if self._state.market_closed or self._state.market_closing_soon:
+                self._state.market_closed = False
+                self._state.market_closing_soon = False
+                logger.info("Market session is OPEN (clock.is_open=True). Resuming entry orders.")
+                if self._portfolio_risk_mgr:
+                    try:
+                        self._portfolio_risk_mgr.reset_day(await self._get_equity())
+                    except Exception as e:
+                        logger.warning("Failed to reset daily risk baseline: %s", e)
 
             if next_close_str and getattr(self.config, "enforce_market_hours", False):
                 from datetime import datetime

@@ -26,10 +26,23 @@ def can_execute(
         return True
     if getattr(state, "portfolio_circuit_breaker_tripped", False) or getattr(state, "market_closed", False):
         return False
-    if getattr(state, "market_closing_soon", False):
+    if getattr(state, "market_closing_soon", False) or getattr(state, "account_blocked", False):
         return False
     sym = (symbol or config.symbol).upper()
-    side = plan.chosen_trajectory.side if getattr(plan, "chosen_trajectory", None) else ""
+    post_close_cooldown = getattr(config, "post_close_cooldown_sec", 45.0)
+    if hasattr(state, "is_symbol_closing") and state.is_symbol_closing(sym, cooldown_sec=post_close_cooldown):
+        return False
+    if hasattr(state, "is_in_loss_streak_cooldown") and state.is_in_loss_streak_cooldown(sym):
+        return False
+    side = getattr(plan, "side", "") or ""
+    if not side and getattr(plan, "chosen_trajectory", None) is not None:
+        traj = plan.chosen_trajectory
+        if getattr(traj, "terminal_state", None) is not None and hasattr(traj.terminal_state, "state_vector"):
+            vec = getattr(traj.terminal_state, "state_vector", None)
+            if vec is not None and len(vec) > 0 and current_price > 0:
+                side = "buy" if float(vec[0]) > current_price else "sell"
+        if not side and hasattr(traj, "side"):
+            side = str(getattr(traj, "side", ""))
     if risk_mgr:
         if not risk_mgr.check_macro_velocity(sym, side, macro_velocity)[0]:
             return False
@@ -40,7 +53,7 @@ def can_execute(
             return False
         if state.active_positions_count >= getattr(config, "max_concurrent_positions", 2):
             return False
-    elif state.current_position != 0:
+    elif state.active_positions_count > 0:
         return False
     now = time.time()
     cooldown_ms = (
@@ -94,11 +107,14 @@ async def log_execution(
         import aiofiles
         async with aiofiles.open(log_file, "a") as f:
             await f.write(json.dumps({
-                "timestamp": ctx.timestamp, "phi_moe": ctx.phi_moe,
-                "lambda_t": ctx.lambda_t, "phi_ritmo": ctx.phi_ritmo, "action": ctx.action,
+                "timestamp": float(ctx.timestamp),
+                "phi_moe": float(ctx.phi_moe),
+                "lambda_t": float(ctx.lambda_t),
+                "phi_ritmo": float(ctx.phi_ritmo),
+                "action": str(ctx.action),
             }) + "\n")
     except Exception as e:
-        logger.warning("Failed to write audit log", extra={"error": str(e)})
+        logger.warning("Failed to write audit log: %s", e)
 
 
 async def save_state(state: LiveBotState, state_path: Path | str | None) -> None:
@@ -107,13 +123,22 @@ async def save_state(state: LiveBotState, state_path: Path | str | None) -> None
         return
     try:
         payload = {
-            "cycle_count": state.cycle_count, "last_execution_time": state.last_execution_time,
-            "last_execution_price": state.last_execution_price, "last_execution_side": state.last_execution_side,
-            "last_phi_moe": state.last_phi_moe, "last_lambda_t": state.last_lambda_t,
-            "last_phi_ritmo": state.last_phi_ritmo, "current_position": state.current_position,
-            "positions": state.positions,
-            "total_pnl": state.total_pnl, "trades_count": state.trades_count,
-            "last_error": state.last_error, "timestamp": time.time(),
+            "cycle_count": int(state.cycle_count),
+            "last_execution_time": float(state.last_execution_time),
+            "last_execution_price": float(state.last_execution_price),
+            "last_execution_side": str(state.last_execution_side or ""),
+            "last_phi_moe": float(state.last_phi_moe),
+            "last_lambda_t": float(state.last_lambda_t),
+            "last_phi_ritmo": float(state.last_phi_ritmo),
+            "current_position": float(state.current_position),
+            "positions": {k: float(v) for k, v in state.positions.items()},
+            "total_pnl": float(state.total_pnl),
+            "trades_count": int(state.trades_count),
+            "consecutive_losses": {k: int(v) for k, v in state.consecutive_losses.items()},
+            "streak_cooling_until": {k: float(v) for k, v in state.streak_cooling_until.items()},
+            "portfolio_circuit_breaker_tripped": bool(state.portfolio_circuit_breaker_tripped),
+            "last_error": str(state.last_error) if state.last_error else None,
+            "timestamp": time.time(),
         }
         p = Path(state_path)
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -121,7 +146,7 @@ async def save_state(state: LiveBotState, state_path: Path | str | None) -> None
         async with aiofiles.open(p, "w") as f:
             await f.write(json.dumps(payload, indent=2))
     except Exception as e:
-        logger.warning("Failed to save state", extra={"error": str(e)})
+        logger.warning("Failed to save state: %s", e)
 
 
 async def load_state(state: LiveBotState, state_path: Path | str | None) -> None:
@@ -138,11 +163,14 @@ async def load_state(state: LiveBotState, state_path: Path | str | None) -> None
                           "last_lambda_t", "last_phi_ritmo", "current_position", "total_pnl"):
                 setattr(state, field, data.get(field, 0.0))
             state.positions = data.get("positions", {})
+            state.consecutive_losses = data.get("consecutive_losses", {})
+            state.streak_cooling_until = data.get("streak_cooling_until", {})
+            state.portfolio_circuit_breaker_tripped = bool(data.get("portfolio_circuit_breaker_tripped", False))
             state.last_execution_side = data.get("last_execution_side", "")
             state.last_error = data.get("last_error")
         logger.info("State loaded", extra={"cycle": state.cycle_count})
     except Exception as e:
-        logger.warning("Failed to load state", extra={"error": str(e)})
+        logger.warning("Failed to load state: %s", e)
 
 
 async def perform_shutdown(
@@ -152,11 +180,15 @@ async def perform_shutdown(
     """Secuencia de apagado graceful y liquidación segura."""
     if handler:
         await handler.trigger_emergency_flush("Graceful shutdown")
-    if state.current_position != 0 and order_client:
-        try:
-            await order_client.close_position(config.symbol)
-        except Exception as e:
-            logger.error("Failed to close position on shutdown", extra={"error": str(e)})
+    if order_client and hasattr(order_client, "close_position"):
+        open_syms = [s for s, q in state.positions.items() if q != 0.0]
+        if not open_syms and state.get_position(config.symbol) != 0.0:
+            open_syms = [config.symbol]
+        for s in open_syms:
+            try:
+                await order_client.close_position(s)
+            except Exception as e:
+                logger.error("Failed to close position for %s on shutdown: %s", s, e)
     if feed:
         await feed.disconnect()
     if order_client:

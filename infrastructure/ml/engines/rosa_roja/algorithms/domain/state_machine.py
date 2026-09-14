@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeVar, cast
 import time
 
 from .state_persistence import STATE_SCHEMA_VERSION
@@ -209,7 +209,7 @@ class StateMachine:
         """Handle valid (non-outlier) step."""
         self._state.consecutive_outliers = 0
     
-    def on_trajectory_start(self, trajectory_id: str, invalidation_step: int) -> None:
+    def on_trajectory_start(self, trajectory_id: str, invalidation_step: Optional[int] = None) -> None:
         """Handle new active trajectory."""
         self._state.active_trajectory_id = trajectory_id
         self._state.current_trajectory_step = 0
@@ -375,12 +375,14 @@ class StateMachine:
                 f"Unsupported StateMachine schema: {payload['schema_version']}"
             )
 
-        def _parse(name_key: str, value_key: str) -> Enum:
+        T = TypeVar("T", bound=Enum)
+
+        def _parse(name_key: str, value_key: str, expected_cls: type[T]) -> T:
             enum_cls = self._ENUM_REGISTRY.get(payload.get(name_key, ""))
-            if enum_cls is None:
+            if enum_cls is not expected_cls:
                 raise ValueError(f"Unknown enum class {payload.get(name_key)!r}")
             try:
-                return enum_cls(payload[value_key])
+                return expected_cls(payload[value_key])
             except (KeyError, ValueError, TypeError):
                 raise ValueError(f"Invalid {name_key}={payload.get(value_key)!r}")
 
@@ -391,8 +393,8 @@ class StateMachine:
         restored_history = []
         for entry in history_raw:
             try:
-                from_cls = self._ENUM_REGISTRY[entry["from_enum"]]
-                to_cls = self._ENUM_REGISTRY[entry["to_enum"]]
+                from_cls = cast(Any, self._ENUM_REGISTRY[entry["from_enum"]])
+                to_cls = cast(Any, self._ENUM_REGISTRY[entry["to_enum"]])
                 restored_history.append(
                     StateTransition(
                         from_state=from_cls(entry["from_value"]),
@@ -407,11 +409,11 @@ class StateMachine:
 
         self.reset()
         s = self._state
-        s.pipeline_state = _parse("pipeline_enum", "pipeline_state")
-        s.ingestion_state = _parse("ingestion_enum", "ingestion_state")
-        s.tracking_state = _parse("tracking_enum", "tracking_state")
-        s.generation_state = _parse("generation_enum", "generation_state")
-        s.validation_state = _parse("validation_enum", "validation_state")
+        s.pipeline_state = _parse("pipeline_enum", "pipeline_state", PipelineState)
+        s.ingestion_state = _parse("ingestion_enum", "ingestion_state", IngestionState)
+        s.tracking_state = _parse("tracking_enum", "tracking_state", TrackingState)
+        s.generation_state = _parse("generation_enum", "generation_state", GenerationState)
+        s.validation_state = _parse("validation_enum", "validation_state", ValidationState)
 
         s.consecutive_outliers = int(payload.get("consecutive_outliers", 0))
         s.auto_resets = int(payload.get("auto_resets", 0))

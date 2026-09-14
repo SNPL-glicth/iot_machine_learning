@@ -32,10 +32,11 @@ class AlpacaMarketMixin(AlpacaOrderTransport):
                 return {"symbol": symbol.upper(), "qty": "0", "side": "long", "avg_entry_price": "0", "market_value": "0"}
             raise
 
-    async def close_position(self, symbol: str) -> Dict[str, Any]:
-        """Cierra una posición específica a mercado."""
+    async def close_position(self, symbol: str, cancel_orders: bool = True) -> Dict[str, Any]:
+        """Cierra una posición específica a mercado cancelando sus órdenes asociadas."""
+        params = {"cancel_orders": "true" if cancel_orders else "false"}
         try:
-            return await self._request("DELETE", f"/v2/positions/{symbol.upper()}", weight=1)
+            return await self._request("DELETE", f"/v2/positions/{symbol.upper()}", params=params, weight=1)
         except RuntimeError as e:
             if "404" in str(e) or "position does not exist" in str(e):
                 return {"symbol": symbol.upper(), "status": "closed", "qty": "0"}

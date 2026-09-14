@@ -1,20 +1,20 @@
 {
   "cycle_count": 0,
-  "last_execution_time": 1789070084.4869864,
-  "last_execution_price": 708.675,
+  "last_execution_time": 1789414676.313212,
+  "last_execution_price": 761.565,
   "last_execution_side": "",
-  "last_phi_moe": 0.4373856414848152,
-  "last_lambda_t": 0.0,
-  "last_phi_ritmo": 0.014100426209565269,
+  "last_phi_moe": 0.42914367803241293,
+  "last_lambda_t": 0.2530390413655703,
+  "last_phi_ritmo": 0.0089012635871768,
   "current_position": 0.0,
   "positions": {
-    "SPY": 7.0,
+    "SPY": 0.0,
     "QQQ": 0.0,
     "NVDA": 0.0,
     "AAPL": 0.0
   },
-  "total_pnl": 0.929999,
-  "trades_count": 1,
+  "total_pnl": 0.0,
+  "trades_count": 6,
   "last_error": null,
-  "timestamp": 1789070084.4881835
+  "timestamp": 1789414676.31422
 }

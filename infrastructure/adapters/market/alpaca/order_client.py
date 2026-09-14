@@ -54,8 +54,7 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
             if req.stop_price is None: raise ValueError(f"{req.order_type} requires stop_price")
             params["stop_price"] = str(req.stop_price)
         if req.order_type == self.ORDER_TYPE_TRAILING_STOP:
-            if req.trail_price is None and req.trail_percent is None:
-                raise ValueError("trailing_stop requires trail_price or trail_percent")
+            if req.trail_price is None and req.trail_percent is None: raise ValueError("trailing_stop requires trail")
             if req.trail_price is not None: params["trail_price"] = str(req.trail_price)
             if req.trail_percent is not None: params["trail_percent"] = str(req.trail_percent)
         if req.extended_hours: params["extended_hours"] = True
@@ -83,10 +82,30 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
         return await self.get_order_by_client_id(client_order_id)
 
     async def cancel_all_orders(self, symbol: Optional[str] = None) -> int:
-        """Cancela todas las órdenes abiertas."""
-        params = {"symbol": symbol.upper()} if symbol else {}
-        data = await self._request("DELETE", "/v2/orders", params=params, weight=1)
-        return len(data) if isinstance(data, list) else 0
+        """Cancela órdenes abiertas (filtradas por símbolo si se especifica)."""
+        if symbol:
+            sym_u = symbol.upper()
+            open_orders = await self.get_orders(status="open")
+            matched = [o for o in open_orders if o.symbol.upper() == sym_u]
+            cancelled_ids: List[str] = []
+            failed_ids: List[str] = []
+            for o in matched:
+                try:
+                    await self.cancel_order(o.id)
+                    cancelled_ids.append(o.id)
+                except Exception as e:
+                    logger.warning("Failed to cancel order %s for %s: %s", o.id, sym_u, e)
+                    failed_ids.append(o.id)
+            if failed_ids:
+                logger.error(
+                    "cancel_all_orders for %s partially failed: cancelled=%d, failed=%d (failed_ids=%s)",
+                    sym_u, len(cancelled_ids), len(failed_ids), failed_ids,
+                )
+            return len(cancelled_ids)
+        data = await self._request("DELETE", "/v2/orders", weight=1)
+        if isinstance(data, list):
+            return sum(1 for item in data if isinstance(item, dict) and item.get("status", 200) < 400)
+        return 0
 
     async def get_orders(
         self, status: Optional[str] = None, limit: int = 100,
@@ -119,12 +138,7 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
         limit_price: Optional[float] = None, stop_price: Optional[float] = None, client_order_id: Optional[str] = None,
     ) -> OrderResponse:
         """Reemplaza una orden existente."""
-        params: Dict[str, Any] = {}
-        if qty is not None: params["qty"] = str(qty)
-        if time_in_force: params["time_in_force"] = time_in_force
-        if limit_price is not None: params["limit_price"] = str(limit_price)
-        if stop_price is not None: params["stop_price"] = str(stop_price)
-        if client_order_id: params["client_order_id"] = client_order_id
+        params: Dict[str, Any] = {k: str(v) for k, v in [("qty", qty), ("time_in_force", time_in_force), ("limit_price", limit_price), ("stop_price", stop_price), ("client_order_id", client_order_id)] if v is not None}
         data = await self._request("PATCH", f"/v2/orders/{order_id}", json_data=params, weight=1)
         return self._parse_order_response(data)
 
@@ -144,8 +158,8 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
     ) -> OrderResponse:
         """Orden LIMIT simple."""
         return await self.submit_order(OrderRequest(
-            symbol=symbol, side=side, order_type=self.ORDER_TYPE_LIMIT, qty=qty,
-            price=price, time_in_force=time_in_force, extended_hours=extended_hours, client_order_id=client_order_id,
+            symbol=symbol, side=side, order_type=self.ORDER_TYPE_LIMIT, qty=qty, price=price,
+            time_in_force=time_in_force, extended_hours=extended_hours, client_order_id=client_order_id,
         ))
 
     async def place_stop_order(
@@ -154,8 +168,8 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
     ) -> OrderResponse:
         """Orden STOP simple."""
         return await self.submit_order(OrderRequest(
-            symbol=symbol, side=side, order_type=self.ORDER_TYPE_STOP, qty=qty,
-            stop_price=stop_price, time_in_force=time_in_force, client_order_id=client_order_id,
+            symbol=symbol, side=side, order_type=self.ORDER_TYPE_STOP, qty=qty, stop_price=stop_price,
+            time_in_force=time_in_force, client_order_id=client_order_id,
         ))
 
     async def place_bracket_order(
@@ -167,8 +181,8 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
         return await self.submit_order(OrderRequest(
             symbol=symbol, side=side, order_type=order_type, qty=qty, price=limit_price,
             time_in_force=time_in_force, order_class="bracket",
-            take_profit={"limit_price": str(take_profit_price)},
-            stop_loss={"stop_price": str(stop_loss_price)}, client_order_id=client_order_id,
+            take_profit={"limit_price": str(take_profit_price)}, stop_loss={"stop_price": str(stop_loss_price)},
+            client_order_id=client_order_id,
         ))
 
 

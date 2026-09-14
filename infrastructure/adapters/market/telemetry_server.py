@@ -61,23 +61,71 @@ class TelemetryBroadcaster:
                 try:
                     data = json.loads(message)
                     command = data.get("command")
-                    if command == "EMERGENCY_FLUSH" and self._command_callback:
+                    if not command:
+                        continue
+
+                    if command == "EMERGENCY_FLUSH":
                         logger.warning("⚠️ TUI triggered EMERGENCY_FLUSH")
-                        await self._command_callback()
-                    elif command == "PAUSE":
-                        logger.info("TUI requested PAUSE")
                         if self._command_callback:
-                            await self._command_callback("PAUSE")
-                    elif command == "RESUME":
-                        logger.info("TUI requested RESUME")
+                            try:
+                                sym = data.get("symbol")
+                                if asyncio.iscoroutinefunction(self._command_callback):
+                                    await self._command_callback("EMERGENCY_FLUSH", symbol=sym)
+                                else:
+                                    res = self._command_callback("EMERGENCY_FLUSH", symbol=sym)
+                                    if asyncio.iscoroutine(res):
+                                        await res
+                                await websocket.send(json.dumps({
+                                    "type": "command_response",
+                                    "command": "EMERGENCY_FLUSH",
+                                    "status": "success",
+                                    "message": f"Emergency flush executed successfully for {sym or 'all active symbols'}",
+                                }))
+                            except Exception as cmd_err:
+                                logger.critical(
+                                    f"CRITICAL: Failed to execute EMERGENCY_FLUSH from TUI: {cmd_err}",
+                                    exc_info=True,
+                                )
+                                try:
+                                    await websocket.send(json.dumps({
+                                        "type": "command_response",
+                                        "command": "EMERGENCY_FLUSH",
+                                        "status": "error",
+                                        "error": str(cmd_err),
+                                        "message": f"Emergency flush failed: {cmd_err}",
+                                    }))
+                                except Exception:
+                                    pass
+                    elif command in ("PAUSE", "RESUME", "QUIT"):
+                        logger.info(f"TUI requested {command}")
                         if self._command_callback:
-                            await self._command_callback("RESUME")
-                    elif command == "QUIT":
-                        logger.info("TUI requested QUIT")
-                        if self._command_callback:
-                            await self._command_callback("QUIT")
+                            try:
+                                if asyncio.iscoroutinefunction(self._command_callback):
+                                    await self._command_callback(command)
+                                else:
+                                    res = self._command_callback(command)
+                                    if asyncio.iscoroutine(res):
+                                        await res
+                                await websocket.send(json.dumps({
+                                    "type": "command_response",
+                                    "command": command,
+                                    "status": "success",
+                                }))
+                            except Exception as cmd_err:
+                                logger.error(f"Failed to execute command {command}: {cmd_err}", exc_info=True)
+                                try:
+                                    await websocket.send(json.dumps({
+                                        "type": "command_response",
+                                        "command": command,
+                                        "status": "error",
+                                        "error": str(cmd_err),
+                                    }))
+                                except Exception:
+                                    pass
                 except json.JSONDecodeError:
                     pass
+                except Exception as e:
+                    logger.error(f"Error handling TUI websocket message: {e}", exc_info=True)
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
@@ -146,27 +194,65 @@ async def create_telemetry_server(
     """Factory to create and configure telemetry server with runner callbacks."""
     broadcaster = TelemetryBroadcaster(host=host, port=port)
 
-    async def handle_emergency_flush():
-        if hasattr(runner, '_handler') and runner._handler:
-            await runner._handler.trigger_emergency_flush("TUI Emergency Flush")
+    async def handle_emergency_flush(symbol: str | None = None) -> None:
+        if not hasattr(runner, '_handler') or not runner._handler:
+            logger.critical("CRITICAL: Cannot execute EMERGENCY_FLUSH: runner has no execution handler")
+            raise RuntimeError("Runner has no execution handler")
 
-    async def handle_pause():
+        if symbol:
+            symbols = [symbol.upper()]
+        else:
+            symbols = list(getattr(runner, "_symbols", []))
+            if not symbols and hasattr(runner, "config") and hasattr(runner.config, "symbol"):
+                symbols = [runner.config.symbol]
+            if not symbols:
+                symbols = ["SPY"]
+
+        logger.warning("Executing emergency flush from TUI for symbols: %s", symbols)
+        errors = []
+        for sym in symbols:
+            try:
+                await runner._handler.trigger_emergency_flush("TUI Emergency Flush", symbol=sym)
+            except Exception as e:
+                logger.critical(
+                    "CRITICAL: Failed to execute EMERGENCY_FLUSH for %s via TUI panic button: %s",
+                    sym, e, exc_info=True, extra={"symbol": sym, "error": str(e)},
+                )
+                errors.append(f"{sym}: {e}")
+
+        if errors:
+            raise RuntimeError(f"Emergency flush failed for: {', '.join(errors)}")
+
+    async def handle_pause() -> None:
         logger.info("Pause requested from TUI")
-        # Could set a pause flag on runner
+        if hasattr(runner, "_paused"):
+            runner._paused = True
 
-    async def handle_resume():
+    async def handle_resume() -> None:
         logger.info("Resume requested from TUI")
+        if hasattr(runner, "_paused"):
+            runner._paused = False
 
-    async def handle_quit():
+    async def handle_quit() -> None:
         logger.info("Quit requested from TUI")
-        # Could trigger graceful shutdown
+        if hasattr(runner, "shutdown"):
+            asyncio.create_task(runner.shutdown())
 
-    broadcaster.set_command_callback(lambda cmd=None: {
-        "EMERGENCY_FLUSH": handle_emergency_flush,
-        "PAUSE": handle_pause,
-        "RESUME": handle_resume,
-        "QUIT": handle_quit,
-    }.get(cmd, lambda: None)() if cmd else None)
+    async def command_dispatcher(cmd: str | None = None, **kwargs) -> None:
+        if not cmd:
+            return
+        if cmd == "EMERGENCY_FLUSH":
+            await handle_emergency_flush(symbol=kwargs.get("symbol"))
+        elif cmd == "PAUSE":
+            await handle_pause()
+        elif cmd == "RESUME":
+            await handle_resume()
+        elif cmd == "QUIT":
+            await handle_quit()
+        else:
+            logger.warning("Unknown command received from TUI: %s", cmd)
+
+    broadcaster.set_command_callback(command_dispatcher)
 
     await broadcaster.start()
     return broadcaster

@@ -46,7 +46,9 @@ class AlpacaWSFeed:
         self._ws: Any | None = None
         self._reconnect_count, self._latest_quote = 0, None
         self._latest_quotes: dict[str, Any] = {}
-        self._emit_task, self._health_task, self._ping_task = None, None, None
+        self._emit_task: asyncio.Task[Any] | None = None
+        self._health_task: asyncio.Task[Any] | None = None
+        self._ping_task: asyncio.Task[Any] | None = None
         self._obs_queue: asyncio.Queue[MarketObservation] = asyncio.Queue(maxsize=max_queue_size)
         self.on_observation, self.on_metrics, self.on_state_change = on_observation, on_metrics, on_state_change
         self.stats = FeedStats()
@@ -172,6 +174,6 @@ class AlpacaWSFeed:
             "connected": self._connected, "state": self._state,
             "feed_stats": self.stats.to_dict(), "reconnect_count": self._reconnect_count,
         }
-
+#princes trainner
 
 AlpacaLiveFeed = AlpacaWSFeed

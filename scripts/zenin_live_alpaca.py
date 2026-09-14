@@ -69,11 +69,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cooldown-ms", type=int, default=500, help="Cooldown between orders in ms")
     parser.add_argument("--phi-moe-threshold", type=float, default=0.40, help="Phi_MoE execution threshold (intermediate balance)")
     parser.add_argument("--geometric-threshold", type=float, default=-0.4, help="Min cos theta before direction reversal abort")
-    parser.add_argument("--trailing-activation", type=float, default=4.50, help="Trailing profit activation PnL in USD")
-    parser.add_argument("--trailing-min-giveback", type=float, default=1.80, help="Min giveback in USD before trailing lock")
-    parser.add_argument("--trailing-giveback-ratio", type=float, default=0.30, help="Giveback ratio from peak profit")
+    parser.add_argument("--trailing-activation", type=float, default=15.00, help="Trailing profit activation PnL in USD")
+    parser.add_argument("--trailing-min-giveback", type=float, default=5.00, help="Min giveback in USD before trailing lock")
+    parser.add_argument("--trailing-giveback-ratio", type=float, default=0.25, help="Giveback ratio from peak profit")
+    parser.add_argument("--portfolio-profit-lock", type=float, default=30.0, help="Daily portfolio profit lock trigger in USD")
+    parser.add_argument("--max-stop-loss", type=float, default=10.00, help="Max loss in USD per trade before software stop-loss cut")
     parser.add_argument("--feed", default=os.getenv("ALPACA_DATA_FEED", "iex"), choices=["iex", "sip"], help="Alpaca data feed")
-    parser.add_argument("--enforce-market-hours", action="store_true", default=False, help="Strictly flush and halt on 16:00 ET close (default: False for paper/extended)")
+    parser.add_argument("--enforce-market-hours", action="store_true", default=True, help="Strictly flush and halt on 16:00 ET close (default: True)")
+    parser.add_argument("--no-enforce-market-hours", action="store_false", dest="enforce_market_hours", help="Disable RTH session check")
     parser.add_argument("--metrics-export", action="store_true", default=True, help="Broadcast WebSocket telemetry on 8765")
     parser.add_argument("--no-metrics-export", action="store_false", dest="metrics_export")
     return parser.parse_args()
@@ -135,6 +138,8 @@ def build_config(args: argparse.Namespace) -> LiveBotConfig:
     cfg.trailing_activation_pnl = args.trailing_activation
     cfg.trailing_min_giveback = args.trailing_min_giveback
     cfg.trailing_giveback_ratio = args.trailing_giveback_ratio
+    cfg.portfolio_profit_lock_trigger = args.portfolio_profit_lock
+    cfg.max_trade_loss_usd = args.max_stop_loss
     cfg.enforce_market_hours = args.enforce_market_hours
     return cfg
 

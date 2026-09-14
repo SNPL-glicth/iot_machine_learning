@@ -89,7 +89,7 @@ class AlpacaAccount:
         async with self._lock:
             await self._ensure_synced()
             pos = self._positions.get(symbol.upper())
-            return (pos.qty if pos.side == "long" else -pos.qty) if pos else 0.0
+            return (abs(pos.qty) if pos.side.lower() == "long" else -abs(pos.qty)) if pos else 0.0
 
     async def get_position_details(self, symbol: str) -> Optional[Position]:
         """Detalles completos de posición."""
