@@ -49,6 +49,44 @@ class BrokerClientProtocol(Protocol):
         ...
 
 
+def calculate_unrealized_pnl(
+    side: str,
+    qty: float,
+    avg_entry_price: float,
+    current_price: float,
+) -> float:
+    """Calcula el PnL no realizado con estricta consistencia de signo para posiciones Long y Short.
+
+    Fórmulas estándar de mercado:
+        - Long:  (current_price - avg_entry_price) * abs(qty)
+        - Short: (avg_entry_price - current_price) * abs(qty)
+
+    Convenciones de entrada soportadas:
+        - Alpaca: qty > 0 con side="short" o "sell".
+        - Brokers con signo (Binance/IB): qty < 0 para shorts, o side="short".
+
+    Retorna 0.0 si los datos son inválidos (precios <= 0 o qty == 0).
+    """
+    try:
+        q = float(qty)
+        entry = float(avg_entry_price)
+        curr = float(current_price)
+    except (ValueError, TypeError):
+        return 0.0
+
+    if entry <= 0.0 or curr <= 0.0 or q == 0.0:
+        return 0.0
+
+    s = str(side).strip().lower() if side is not None else ""
+    is_short = s in ("short", "sell") or q < 0.0
+
+    abs_qty = abs(q)
+    if is_short:
+        return (entry - curr) * abs_qty
+    else:
+        return (curr - entry) * abs_qty
+
+
 class RosaRojaMarketExecutionHandler(ExecutionPort):
     """
     Native Market execution handler fulfilling Rosa Roja's ExecutionPort contract.
@@ -172,12 +210,8 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                     ref_mid = 0.0
 
                 if pos_qty != 0.0 and avg_entry > 0.0 and ref_mid > 0.0:
-                    pos_side = str(cached_pos.get("side", "")).lower()
-                    unrealized = (
-                        (avg_entry - ref_mid) * abs(pos_qty)
-                        if (pos_side in ("short", "sell") or pos_qty < 0)
-                        else (ref_mid - avg_entry) * abs(pos_qty)
-                    )
+                    pos_side = str(cached_pos.get("side", ""))
+                    unrealized = calculate_unrealized_pnl(pos_side, pos_qty, avg_entry, ref_mid)
                     if unrealized >= -3.0:
                         is_verified_winning = True
 
@@ -444,11 +478,8 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 ref_mid = self._get_reference_price(target_sym)
             except Exception:
                 ref_mid = avg_entry
-            pos_side = str(position.get("side", "")).lower() if isinstance(position, dict) else ""
-            if pos_side in ("short", "sell") or pos_qty < 0:
-                pnl = (avg_entry - ref_mid) * abs(pos_qty) if ref_mid > 0 else 0.0
-            else:
-                pnl = (ref_mid - avg_entry) * abs(pos_qty) if ref_mid > 0 else 0.0
+            pos_side = str(position.get("side", "")) if isinstance(position, dict) else ""
+            pnl = calculate_unrealized_pnl(pos_side, pos_qty, avg_entry, ref_mid)
 
             close_resp = await self._broker.close_position(target_sym)
             if self._is_close_confirmed(close_resp):
@@ -501,11 +532,8 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 return False
 
             # PnL no realizado (positivo si largo y sube, positivo si corto y baja)
-            pos_side = str(position.get("side", "")).lower()
-            if pos_side in ("short", "sell") or qty < 0:
-                unrealized_pnl = (avg_entry - current_price) * abs(qty)
-            else:
-                unrealized_pnl = (current_price - avg_entry) * abs(qty)
+            pos_side = str(position.get("side", ""))
+            unrealized_pnl = calculate_unrealized_pnl(pos_side, qty, avg_entry, current_price)
             # Software Stop-Loss de protección: liquidar si pérdida alcanza el límite máximo
             if self._max_stop_loss_usd > 0 and unrealized_pnl <= -self._max_stop_loss_usd:
                 reason = f"Software Stop-Loss: Loss reached ${unrealized_pnl:.2f} <= -${self._max_stop_loss_usd:.2f}"

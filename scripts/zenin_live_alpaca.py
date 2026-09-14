@@ -72,7 +72,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trailing-activation", type=float, default=15.00, help="Trailing profit activation PnL in USD")
     parser.add_argument("--trailing-min-giveback", type=float, default=5.00, help="Min giveback in USD before trailing lock")
     parser.add_argument("--trailing-giveback-ratio", type=float, default=0.25, help="Giveback ratio from peak profit")
-    parser.add_argument("--portfolio-profit-lock", type=float, default=30.0, help="Daily portfolio profit lock trigger in USD")
+    parser.add_argument("--portfolio-profit-lock", type=float, default=12.0, help="Daily portfolio profit lock trigger in USD (calibrated to $12.00)")
     parser.add_argument("--max-stop-loss", type=float, default=10.00, help="Max loss in USD per trade before software stop-loss cut")
     parser.add_argument("--feed", default=os.getenv("ALPACA_DATA_FEED", "iex"), choices=["iex", "sip"], help="Alpaca data feed")
     parser.add_argument("--enforce-market-hours", action="store_true", default=True, help="Strictly flush and halt on 16:00 ET close (default: True)")

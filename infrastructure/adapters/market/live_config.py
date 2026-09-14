@@ -77,7 +77,7 @@ class LiveBotConfig:
 
     # Protección de Pérdida Diaria y Ganancias (Circuit Breakers a nivel cuenta)
     max_daily_loss_usd: float = 50.0              # Límite de pérdida diaria máxima absoluta (ej. -$50 USD)
-    portfolio_profit_lock_trigger: float = 30.0   # Ganancia pico USD para activar bloqueo
+    portfolio_profit_lock_trigger: float = 12.0   # Ganancia pico USD para activar bloqueo (calibrado a 2 wins típicos)
     portfolio_max_giveback_pct: float = 0.25      # Máximo retroceso permitido del pico (25%)
     enforce_portfolio_profit_lock: bool = True    # Circuit breaker diario activo
 

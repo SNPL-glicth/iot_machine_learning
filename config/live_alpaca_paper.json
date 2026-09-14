@@ -44,5 +44,6 @@
   "trailing_activation_pnl": 15.0,
   "trailing_min_giveback": 5.0,
   "trailing_giveback_ratio": 0.25,
-  "trailing_max_giveback": 12.0
+  "trailing_max_giveback": 12.0,
+  "portfolio_profit_lock_trigger": 12.0
 }

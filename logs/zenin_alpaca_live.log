@@ -1512,3 +1512,494 @@
 15:39:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
 15:39:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=709.85 phi_moe=0.000 trades=6 
 15:39:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:40:22 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:40:23 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:40:23 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:40:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:40:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:40:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:40:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:40:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:40:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:40:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:40:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:40:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.06 phi_moe=0.000 trades=6 
+15:40:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:40:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:40:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:41:23 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:41:23 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:41:24 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:41:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:41:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+15:41:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.03 phi_moe=0.000 trades=6 
+15:41:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:41:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:41:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:41:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.05 phi_moe=0.000 trades=6 
+15:41:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:41:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:41:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:41:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:42:23 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:42:24 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:42:25 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:42:25 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:42:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.06 phi_moe=0.000 trades=6 
+15:42:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:42:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:42:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.05 phi_moe=0.000 trades=6 
+15:42:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:42:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:42:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:42:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:42:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:43:24 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:43:24 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:43:25 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:43:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:43:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:43:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.03 phi_moe=0.000 trades=6 
+15:43:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:43:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:43:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:43:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:43:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.03 phi_moe=0.000 trades=6 
+15:43:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:43:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:44:25 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:44:25 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:44:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:44:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+15:44:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:44:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:44:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:44:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:44:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:44:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:45:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:45:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:45:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:45:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:45:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:45:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+15:45:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:45:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:45:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.14 phi_moe=0.000 trades=6 
+15:45:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:45:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:45:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:45:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:46:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:46:26 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:46:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:46:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:46:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:46:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:46:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:46:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:46:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:47:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:47:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:47:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:47:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:47:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:47:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:47:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:47:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:47:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=710.18 phi_moe=0.000 trades=6 
+15:47:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:47:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:47:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:47:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:47:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:48:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:48:27 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:48:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:48:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:48:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:48:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:48:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:48:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:48:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:48:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:48:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:48:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:48:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.18 phi_moe=0.000 trades=6 
+15:48:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:48:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:48:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:49:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:49:28 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:49:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:49:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:49:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:49:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:49:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:49:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:49:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:49:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:49:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:49:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:49:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:49:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:49:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:50:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:50:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:50:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:50:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:50:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:50:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:50:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:50:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:50:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:50:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:50:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:50:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:50:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:50:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:50:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:51:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:51:29 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:51:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:51:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:51:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:51:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:51:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:51:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:51:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:51:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:51:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:51:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:51:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:51:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.18 phi_moe=0.000 trades=6 
+15:51:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:51:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:52:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:52:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:52:30 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:52:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:52:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:52:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+15:52:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.22 phi_moe=0.000 trades=6 
+15:52:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:52:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=EXECUTE reason='' mid=335.06 phi_moe=0.511 trades=6 [taylor:0.50 kalman:0.82 statistical:0.20]
+15:52:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:52:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.rosa_roja_market_handler | Trajectory micro-deviation observed (Reactive_Trajectory_Deviation_At_Step_2: Velocity_Error_Exceeded (err=6.42 > 5.0)) on neutral/winning position — maintaining position
+15:52:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:52:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=EXECUTE reason='' mid=335.06 phi_moe=0.481 trades=6 [taylor:0.50 kalman:0.72 statistical:0.20]
+15:52:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:52:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.26 phi_moe=0.000 trades=6 
+15:52:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.rosa_roja_market_handler | Trajectory micro-deviation observed (Reactive_Trajectory_Deviation_At_Step_3: Velocity_Error_Exceeded (err=33.41 > 5.0)) on neutral/winning position — maintaining position
+15:52:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:52:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:52:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:53:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:53:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:53:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:53:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:53:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.35 phi_moe=0.000 trades=6 
+15:53:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:53:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:53:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:53:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:53:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:53:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.34 phi_moe=0.000 trades=6 
+15:53:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:53:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:53:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:53:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:54:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:54:31 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:54:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:54:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:54:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:54:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:54:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:54:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:54:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:54:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:54:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:54:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:54:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:54:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.40 phi_moe=0.000 trades=6 
+15:54:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:54:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:55:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:55:32 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:55:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:55:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:55:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:55:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:55:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:55:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:55:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:55:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:55:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:55:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:55:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:55:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:55:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:55:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:56:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:56:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:56:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:56:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:56:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:56:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:56:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:56:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:56:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:56:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:56:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:56:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:56:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:56:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:56:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:57:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:57:33 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:57:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+15:57:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:57:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:57:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+15:57:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:57:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:57:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:57:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+15:57:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+15:57:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+15:57:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:57:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:57:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:57:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:57:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+15:58:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:58:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:58:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:58:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:58:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:58:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:58:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:58:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:58:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:58:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:58:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+15:58:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:58:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:58:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:59:34 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:59:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:59:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:59:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:59:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:59:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:59:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:59:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:59:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:59:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+15:59:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+15:59:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+15:59:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+15:59:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:00:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:00:35 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:00:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:00:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:00:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:00:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:00:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:00:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:00:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:01:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:01:36 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:01:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=710.36 phi_moe=0.000 trades=6 
+16:01:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:01:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:01:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+16:01:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:01:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:01:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:01:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:01:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:01:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:01:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:02:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:02:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:02:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:02:37 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:02:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:02:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:02:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:02:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:02:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:02:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:02:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:02:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:02:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=710.36 phi_moe=0.000 trades=6 
+16:02:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:02:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:03:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:03:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:03:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:03:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:03:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:03:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:03:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:03:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:03:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:03:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:03:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:03:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:03:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:04:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:04:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:04:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:04:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:04:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:04:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:04:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Auto_Regime_Reset_Triggered' mid=211.35 phi_moe=0.000 trades=6 
+16:04:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:04:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:04:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:04:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:04:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:04:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:05:38 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:05:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:05:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:05:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:05:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:05:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:05:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:05:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:05:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:05:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:05:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:05:59 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:06:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:06:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:06:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:06:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+16:06:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:06:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:06:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:06:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+16:06:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:06:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:06:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:06:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:06:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:06:59 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:07:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:07:39 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:07:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:07:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:07:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+16:07:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:07:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:07:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:07:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:07:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:07:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:07:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:07:59 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:08:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:08:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:08:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:08:40 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:08:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:08:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:08:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:08:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:08:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:08:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:08:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:08:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+16:08:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:09:01 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:09:02 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:09:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:09:41 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:09:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:09:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:09:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+16:09:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:09:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:09:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:09:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:09:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:09:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:09:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:10:01 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:10:02 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:10:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:10:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:10:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:10:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:10:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:10:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:10:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:10:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:10:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:10:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:10:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:11:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:11:02 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:11:42 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:11:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:11:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:11:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+16:11:48 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:11:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:11:52 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:11:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:11:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+16:11:56 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:11:59 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:12:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:12:03 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:12:04 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:12:04 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:12:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:12:43 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:12:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:12:47 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Insufficient_Trajectory_Density' mid=710.36 phi_moe=0.000 trades=6 
+16:12:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:12:49 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:12:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Insufficient_Trajectory_Density' mid=335.06 phi_moe=0.000 trades=6 
+16:12:53 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:12:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:12:57 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:12:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:13:01 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:13:02 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:13:03 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:13:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:13:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:13:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:13:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Insufficient_Trajectory_Density' mid=211.35 phi_moe=0.000 trades=6 
+16:13:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:13:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:13:54 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:13:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:13:58 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:13:59 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:14:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:14:03 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:14:05 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:14:05 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:14:44 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:14:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=759.06 phi_moe=0.000 trades=6 
+16:14:45 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:14:46 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [QQQ] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=710.36 phi_moe=0.000 trades=6 
+16:14:50 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Insufficient_Trajectory_Density' mid=759.06 phi_moe=0.000 trades=6 
+16:14:51 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=211.35 phi_moe=0.000 trades=6 
+16:14:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:14:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:14:55 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=335.06 phi_moe=0.000 trades=6 
+16:15:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:15:00 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
+16:15:01 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [AAPL] action=HOLD reason='Noise_Outlier_Blocked_By_Module_1' mid=335.06 phi_moe=0.000 trades=6 
+16:15:05 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner_telemetry | Health check
+16:15:05 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [SPY] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=759.06 phi_moe=0.000 trades=6 
+16:15:06 | INFO     | iot_machine_learning.infrastructure.adapters.market.live_runner | Evaluation [NVDA] action=HOLD reason='Phi_MoE_Below_Gamma_Exec' mid=211.35 phi_moe=0.000 trades=6 
