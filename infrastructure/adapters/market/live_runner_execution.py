@@ -104,15 +104,24 @@ async def log_execution(
     log_file = audit_path / f"audit_{time.strftime('%Y%m%d')}.ndjson"
     try:
         audit_path.mkdir(parents=True, exist_ok=True)
+        trace = plan.envelope.metadata.get("decision_trace", {}) if plan.envelope else (
+            plan.veto_details.get("decision_trace", {}) if getattr(plan, "veto_details", None) and isinstance(plan.veto_details, dict) else {}
+        )
+        record: dict[str, Any] = {
+            "timestamp": float(ctx.timestamp),
+            "phi_moe": float(ctx.phi_moe),
+            "lambda_t": float(ctx.lambda_t),
+            "phi_ritmo": float(ctx.phi_ritmo),
+            "action": str(ctx.action),
+        }
+        if "risk_engine_shadow" in trace and trace["risk_engine_shadow"]:
+            record["risk_engine_shadow"] = trace["risk_engine_shadow"]
+        if "temporal_engine_shadow" in trace and trace["temporal_engine_shadow"]:
+            record["temporal_engine_shadow"] = trace["temporal_engine_shadow"]
+
         import aiofiles
         async with aiofiles.open(log_file, "a") as f:
-            await f.write(json.dumps({
-                "timestamp": float(ctx.timestamp),
-                "phi_moe": float(ctx.phi_moe),
-                "lambda_t": float(ctx.lambda_t),
-                "phi_ritmo": float(ctx.phi_ritmo),
-                "action": str(ctx.action),
-            }) + "\n")
+            await f.write(json.dumps(record) + "\n")
     except Exception as e:
         logger.warning("Failed to write audit log: %s", e)
 

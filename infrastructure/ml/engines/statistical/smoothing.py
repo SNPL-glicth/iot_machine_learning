@@ -78,10 +78,17 @@ def compute_residual_std(values: List[float], ema_series: List[float]) -> float:
 
 
 def compute_confidence(values: List[float], residual_std: float) -> float:
-    """Compute confidence from residual stability."""
+    """Compute confidence from residual stability relative to signal dispersion."""
     n = len(values)
-    mean_abs = abs(sum(values) / n) if n > 0 else 1.0
-    noise_ratio = residual_std / (mean_abs + EPSILON.DIVISION)
+    if n < 2:
+        return 0.5
+    mean = sum(values) / n
+    var = sum((v - mean) ** 2 for v in values) / n
+    signal_std = math.sqrt(max(0.0, var))
+    if signal_std < EPSILON.COMPARISON:
+        noise_ratio = 0.0 if residual_std < EPSILON.COMPARISON else 1.0
+    else:
+        noise_ratio = residual_std / (signal_std + EPSILON.DIVISION)
     return max(0.2, min(0.95, 1.0 - noise_ratio))
 
 

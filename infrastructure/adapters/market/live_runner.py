@@ -189,8 +189,14 @@ class LiveBotRunner:
         self._state.last_phi_ritmo = plan.chosen_trajectory.coherence_score if plan.chosen_trajectory else 0.0
 
         scores: dict[str, Any] = {}
+        shadow_str = ""
+        dt: dict[str, Any] = {}
         if plan.envelope and plan.envelope.metadata and "decision_trace" in plan.envelope.metadata:
             dt = plan.envelope.metadata["decision_trace"]
+        elif getattr(plan, "veto_details", None) and isinstance(plan.veto_details, dict) and "decision_trace" in plan.veto_details:
+            dt = plan.veto_details["decision_trace"]
+
+        if dt:
             self._state.last_lambda_t = float(dt.get("lambda_t", 0.0))
             self._state.last_phi_ritmo = float(dt.get("phi_ritmo", self._state.last_phi_ritmo))
             scores = dt.get("expert_confidences", {})
@@ -198,6 +204,13 @@ class LiveBotRunner:
                 {"name": n, "vote": round(float(s) * 2.0 - 1.0, 2), "weight": 1.0, "confidence": round(float(s), 2)}
                 for n, s in scores.items()
             ]
+            r_sh = dt.get("risk_engine_shadow", {})
+            t_sh = dt.get("temporal_engine_shadow", {})
+            if r_sh or t_sh:
+                r_veto = r_sh.get("veto_riesgo", 1)
+                cvar = r_sh.get("cvar_t", 0.0)
+                crono = t_sh.get("lambda_crono", 0.0)
+                shadow_str = f"[shadow: risk_veto={r_veto} cvar={cvar:.4f} crono={crono:.3f}]"
 
         now = time.time()
         last_eval = self._last_eval_logs.get(sym, 0.0)
@@ -207,9 +220,10 @@ class LiveBotRunner:
             reason = plan.veto_details.get("reason", "") if getattr(plan, "veto_details", None) else ""
             sc_str = " ".join(f"{k.split('_')[0]}:{float(v):.2f}" for k, v in scores.items()) if scores else ""
             logger.info(
-                "Evaluation [%s] action=%s reason='%s' mid=%.2f phi_moe=%.3f trades=%d %s",
+                "Evaluation [%s] action=%s reason='%s' mid=%.2f phi_moe=%.3f trades=%d %s %s",
                 sym, plan.action, reason, mid,
                 self._state.last_phi_moe, self._state.trades_count, f"[{sc_str}]" if sc_str else "",
+                shadow_str,
             )
 
         if (getattr(self.config, "enforce_portfolio_profit_lock", True) or getattr(self.config, "max_daily_loss_usd", 0.0) > 0) and self._portfolio_risk_mgr:

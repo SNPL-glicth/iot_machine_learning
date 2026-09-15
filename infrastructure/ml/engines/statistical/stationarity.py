@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import List, Optional
 
 import numpy as np
 
+from core.parameters.numerical_constants import EPSILON
 from core.statistical.statistical_validation import StationarityValidator, StationarityTestResult
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 from .smoothing import ema, compute_residual_std, compute_confidence
@@ -56,12 +58,21 @@ class StationarityHandler:
         predicted = ema_series[-1]
         residual_std = compute_residual_std(values, ema_series)
         
-        n = len(values)
-        mean_abs = abs(sum(values) / n) if n > 0 else 1.0
-        noise_ratio = residual_std / (mean_abs + 1e-12)  # EPSILON.DIVISION
-        confidence = max(0.2, min(0.95, 1.0 - noise_ratio))
+        confidence = compute_confidence(values, residual_std)
         trend_dir = "stable"
-        stability = min(1.0, noise_ratio)
+        
+        n = len(values)
+        if n > 1:
+            mean = sum(values) / n
+            var = sum((v - mean) ** 2 for v in values) / n
+            signal_std = math.sqrt(max(0.0, var))
+            if signal_std < EPSILON.COMPARISON:
+                noise_ratio = 0.0 if residual_std < EPSILON.COMPARISON else 1.0
+            else:
+                noise_ratio = residual_std / (signal_std + EPSILON.DIVISION)
+        else:
+            noise_ratio = 1.0
+        stability = min(1.0, max(0.0, noise_ratio))
         
         metadata = {
             "level": predicted,

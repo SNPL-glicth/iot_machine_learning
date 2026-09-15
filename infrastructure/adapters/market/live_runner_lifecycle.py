@@ -109,6 +109,8 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         KalmanExpertAdapter,
         StatisticalExpertAdapter,
         TaylorExpertAdapter,
+        RiskEngineAdapter,
+        TemporalEngineAdapter,
     )
     from iot_machine_learning.infrastructure.ml.engines.kalman.engine import KalmanPredictionEngine
     from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import (
@@ -136,11 +138,16 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         KalmanExpertAdapter(engine=KalmanPredictionEngine()),
         StatisticalExpertAdapter(engine=StatisticalPredictionEngine()),
     ]
+    shadow_experts = [
+        RiskEngineAdapter(),
+        TemporalEngineAdapter(),
+    ]
     engine = RosaRojaEngine(
         ingestion_filter=ingestion,
         rhythm_generator=rhythm,
         moe_gating=gating,
         expert_jury=jury,
+        shadow_experts=shadow_experts,
         drift_sensors=[],
         outlier_reset_threshold=3,
         exploration_boost_events=5,

@@ -48,11 +48,13 @@ class RosaRojaEngine:
         state_store: MLStateStore | None = None,
         engine_id: str = "default",
         checkpoint_interval: int = 100,
+        shadow_experts: Sequence[Any] = (),
     ):
         self._ingestion = ingestion_filter
         self._rhythm = rhythm_generator
         self._gating = moe_gating
         self._jury = list(expert_jury)
+        self._shadow_experts = list(shadow_experts)
         self._sensors = list(drift_sensors)
         self._tracker = TrajectoryTracker()
 
@@ -264,6 +266,49 @@ class RosaRojaEngine:
             sum_w_c = float(np.average(score_list, weights=weight_list)) if score_list else 0.0
         else:
             sum_w_c = 0.0
+        # Evaluate shadow experts in pure observational mode (zero impact on phi_moe or actions)
+        risk_shadow: dict[str, Any] = {}
+        temporal_shadow: dict[str, Any] = {}
+        for shadow in self._shadow_experts:
+            try:
+                name = getattr(shadow, "name", "")
+                if name == "stochastic_risk":
+                    log_ret = float(delta_state[0]) if len(delta_state) > 0 else 0.0
+                    # Operates strictly in logarithmic return space (delta_state[0] = log_return ~0.0002),
+                    # NOT in absolute currency/price space ($512.45). Tolerance tube R_t and CVaR
+                    # are dimensionless fractional return thresholds (e.g. 0.005 = 50 bps).
+                    risk_shadow = shadow.record_observation(
+                        return_signal=log_ret,
+                        delta_time=delta_time,
+                        log_return=log_ret,
+                    )
+                elif name == "fractal_chronometric":
+                    imb = float(delta_state[5]) if len(delta_state) > 5 else 0.0
+                    temporal_shadow = shadow.record_observation(
+                        current_price=float(delta_state[0]),
+                        book_imbalance=imb,
+                        price_velocity=movement.velocity,
+                    )
+                elif hasattr(shadow, "evaluate_trajectory") and validation.chosen_trajectory:
+                    shadow.evaluate_trajectory(validation.chosen_trajectory)
+                    if hasattr(shadow, "get_shadow_metrics"):
+                        metrics = shadow.get_shadow_metrics()
+                        if name == "stochastic_risk":
+                            risk_shadow = metrics
+                        elif name == "fractal_chronometric":
+                            temporal_shadow = metrics
+            except Exception as exc:
+                logger.debug("shadow_expert_failed", extra={"expert": getattr(shadow, "name", "unknown"), "error": str(exc)})
+
+        if not risk_shadow:
+            for s in self._shadow_experts:
+                if getattr(s, "name", "") == "stochastic_risk" and hasattr(s, "get_shadow_metrics"):
+                    risk_shadow = s.get_shadow_metrics()
+        if not temporal_shadow:
+            for s in self._shadow_experts:
+                if getattr(s, "name", "") == "fractal_chronometric" and hasattr(s, "get_shadow_metrics"):
+                    temporal_shadow = s.get_shadow_metrics()
+
         decision_trace = {
             "telemetry_hash": telemetry_hash,
             "lambda_t": lambda_t_clamped,
@@ -273,6 +318,8 @@ class RosaRojaEngine:
             "phi_moe": phi_moe_final,
             "gamma_exec": 0.5,  # Threshold for EXECUTE
             "geometric_threshold": -0.1,  # For EMERGENCY_FLUSH
+            "risk_engine_shadow": risk_shadow,
+            "temporal_engine_shadow": temporal_shadow,
         }
 
         # Update envelope with decision_trace
@@ -289,7 +336,10 @@ class RosaRojaEngine:
         action = self._determine_action(phi_moe_final, validation.chosen_trajectory)
 
         if action == "HOLD":
-            return ExecutionPlan.HOLD(reason="Phi_MoE_Below_Gamma_Exec")
+            return ExecutionPlan.HOLD(
+                reason="Phi_MoE_Below_Gamma_Exec",
+                details={"reason": "Phi_MoE_Below_Gamma_Exec", "decision_trace": decision_trace}
+            )
         elif action == "EMERGENCY_FLUSH":
             return ExecutionPlan.EMERGENCY_FLUSH(
                 f"Geometric_Threshold_Breach_Phi_MoE_{phi_moe_final:.3f}"
