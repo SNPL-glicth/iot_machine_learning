@@ -82,7 +82,7 @@ class TrajectoryTracker:
         
         # 2. Velocity relative error
         v_planned = planned_m.velocity
-        if v_planned > 1e-6:
+        if self.max_vel_rel_err is not None and v_planned > 1e-6:
             v_err = abs(actual_movement.velocity - v_planned) / v_planned
             if v_err > self.max_vel_rel_err:
                 return DeviationStatus(

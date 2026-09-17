@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Optional, Sequence
 import numpy as np
 
 from ..domain.trajectory import Trajectory
@@ -28,12 +28,13 @@ class MultiplicativeMoEGating:
     
     # Confidence bands for action envelope calculation
     # (low, high, magnitude, stop_pct, target_pct, max_steps)
+    # Calibrated for realistic intraday market moves (0.25% - 0.50% targets)
     CONFIDENCE_BANDS = [
-        (0.9, 1.0, 1.0, 0.015, 0.06, 20),   # Very high
-        (0.7, 0.9, 0.7, 0.020, 0.05, 15),   # High
-        (0.5, 0.7, 0.4, 0.025, 0.04, 12),   # Medium
-        (0.3, 0.5, 0.2, 0.030, 0.03, 10),   # Low
-        (0.0, 0.3, 0.0, 0.000, 0.00, 0),    # No action
+        (0.9, 1.0, 1.0, 0.0035, 0.0050, 20),   # Very high (0.35% SL, 0.50% TP)
+        (0.7, 0.9, 0.7, 0.0030, 0.0040, 15),   # High (0.30% SL, 0.40% TP)
+        (0.5, 0.7, 0.4, 0.0025, 0.0035, 12),   # Medium (0.25% SL, 0.35% TP)
+        (0.3, 0.5, 0.2, 0.0020, 0.0025, 10),   # Low (0.20% SL, 0.25% TP)
+        (0.0, 0.3, 0.0, 0.0000, 0.0000, 0),    # No action
     ]
     
     def evaluate_and_veto(
@@ -58,6 +59,7 @@ class MultiplicativeMoEGating:
         best_trajectory = None
         best_score = -1.0
         best_all_scores = {}
+        best_variance = 0.0
         veto_details = None
         
         for traj in trajectories:
@@ -81,6 +83,7 @@ class MultiplicativeMoEGating:
                 best_score = phi_moe
                 best_trajectory = traj
                 best_all_scores = {expert.name: score for expert, score in zip(jury, scores)}
+                best_variance = float(variance)
         
         if best_trajectory is None:
             return ValidationResult(
@@ -109,7 +112,7 @@ class MultiplicativeMoEGating:
             veto_triggered=False,
             veto_details=None,
             all_scores=best_all_scores,
-            variance_penalty=variance,
+            variance_penalty=best_variance,
             lambda_t=lambda_t,
             phi_ritmo=phi_ritmo,
         )

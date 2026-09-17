@@ -1,7 +1,7 @@
 """Unit tests for PortfolioRiskManager: High-Water Mark daily circuit breaker, correlation guardrails, and macro velocity filtering."""
 
 import pytest
-from iot_machine_learning.infrastructure.adapters.market.portfolio_risk_manager import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_risk_manager import (
     PortfolioRiskConfig,
     PortfolioRiskManager,
 )
@@ -98,9 +98,9 @@ def test_macro_velocity_filter_prevents_shorting_upward_rally():
 
 def test_can_execute_integration_with_portfolio_risk_manager():
     from types import SimpleNamespace
-    from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-    from iot_machine_learning.infrastructure.adapters.market.live_runner_execution import can_execute
-    from iot_machine_learning.infrastructure.adapters.market.live_runner_models import LiveBotState
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import can_execute
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
 
     cfg = LiveBotConfig(symbol="SPY")
     plan_sell = SimpleNamespace(action="EXECUTE", chosen_trajectory=SimpleNamespace(side="sell"))

@@ -4,7 +4,7 @@ import pytest
 
 def test_prediction_cache_importable():
     try:
-        import iot_machine_learning.infrastructure.adapters.prediction_cache
-        assert iot_machine_learning.infrastructure.adapters.prediction_cache is not None
+        import iot_machine_learning.infrastructure.adapters.persistence.prediction_cache
+        assert iot_machine_learning.infrastructure.adapters.persistence.prediction_cache is not None
     except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"Import failed: {e}")

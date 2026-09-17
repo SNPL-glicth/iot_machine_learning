@@ -34,7 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Use absolute imports through sys.path
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
 from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
 from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount, create_account
 

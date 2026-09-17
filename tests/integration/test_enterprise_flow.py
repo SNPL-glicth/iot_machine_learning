@@ -54,7 +54,7 @@ from iot_machine_learning.infrastructure.security.access_control import (
     UserContext,
 )
 # prediction_cache/ module deleted
-# from iot_machine_learning.infrastructure.adapters.prediction_cache import (
+# from iot_machine_learning.infrastructure.adapters.persistence.prediction_cache import (
 #     InMemoryPredictionCache,
 # )
 

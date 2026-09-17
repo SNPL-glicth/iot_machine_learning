@@ -7,7 +7,7 @@ import time
 import pytest
 
 from iot_machine_learning.domain.ports import NullAnomalyTracker
-from iot_machine_learning.infrastructure.adapters.inmemory import InMemoryRecentAnomalyTracker
+from iot_machine_learning.infrastructure.adapters.persistence.inmemory import InMemoryRecentAnomalyTracker
 
 
 class TestNullAnomalyTracker:

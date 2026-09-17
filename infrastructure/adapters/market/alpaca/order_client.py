@@ -13,6 +13,8 @@ from iot_machine_learning.infrastructure.adapters.market.alpaca.order_models imp
 )
 from iot_machine_learning.infrastructure.adapters.market.alpaca.rate_limiter import RateLimiter
 
+import time
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["AlpacaOrderClient", "OrderRequest", "OrderResponse", "RateLimiter", "BrokerClientProtocol"]
@@ -41,12 +43,16 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
         return parse_order_response(data)
 
     async def submit_order(self, request: Optional[OrderRequest] = None, **kwargs: Any) -> OrderResponse:
-        """Envía orden a Alpaca."""
+        """Envía orden a Alpaca con idempotencia y reconciliación de órdenes huérfanas."""
         req = request or OrderRequest(**kwargs)
         params: Dict[str, Any] = {
             "symbol": req.symbol.upper(), "side": req.side.lower(),
-            "type": req.order_type, "qty": str(req.qty), "time_in_force": req.time_in_force,
+            "type": req.order_type, "time_in_force": req.time_in_force,
         }
+        if req.notional is not None and req.notional > 0:
+            params["notional"] = str(round(req.notional, 2))
+        else:
+            params["qty"] = str(req.qty)
         if req.order_type in (self.ORDER_TYPE_LIMIT, self.ORDER_TYPE_STOP_LIMIT):
             if req.price is None: raise ValueError(f"{req.order_type} requires price")
             params["limit_price"] = str(req.price)
@@ -58,14 +64,26 @@ class AlpacaOrderClient(OrderClientConstants, AlpacaMarketMixin):
             if req.trail_price is not None: params["trail_price"] = str(req.trail_price)
             if req.trail_percent is not None: params["trail_percent"] = str(req.trail_percent)
         if req.extended_hours: params["extended_hours"] = True
-        if req.client_order_id: params["client_order_id"] = req.client_order_id
+        cid = req.client_order_id or f"zeph_{req.symbol.lower()}_{int(time.time()*1000)}"
+        params["client_order_id"] = cid
         if req.order_class:
             params["order_class"] = req.order_class
             if req.take_profit: params["take_profit"] = req.take_profit
             if req.stop_loss: params["stop_loss"] = req.stop_loss
 
-        data = await self._request("POST", "/v2/orders", json_data=params, weight=1)
-        return self._parse_order_response(data)
+        try:
+            data = await self._request("POST", "/v2/orders", json_data=params, weight=1)
+            return self._parse_order_response(data)
+        except RuntimeError as exc:
+            try:
+                existing = await self.get_order_by_client_id(cid)
+                if existing:
+                    logger.info("Reconciled orphan order: order %s was confirmed on exchange", existing.id)
+                    return existing
+            except Exception:
+                pass
+            raise
+
 
     async def cancel_order(self, order_id: str) -> OrderResponse:
         """Cancela una orden específica por ID."""

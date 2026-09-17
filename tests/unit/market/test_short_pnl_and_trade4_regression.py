@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from iot_machine_learning.infrastructure.adapters.market.portfolio_risk_manager import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_risk_manager import (
     PortfolioRiskConfig,
     PortfolioRiskManager,
 )
-from iot_machine_learning.infrastructure.adapters.market.rosa_roja_market_handler import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import (
     RosaRojaMarketExecutionHandler,
     calculate_unrealized_pnl,
 )

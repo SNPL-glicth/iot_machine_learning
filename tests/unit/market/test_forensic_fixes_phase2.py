@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import websockets
 
-from infrastructure.adapters.market.live_config import LiveBotConfig
-from infrastructure.adapters.market.live_runner_execution import can_execute
-from infrastructure.adapters.market.live_runner_models import LiveBotState
-from infrastructure.adapters.market.rosa_roja_market_handler import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import can_execute
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import (
     PriceUnavailableError,
     RosaRojaMarketExecutionHandler,
 )
-from infrastructure.adapters.market.telemetry_server import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.server import (
     TelemetryBroadcaster,
     create_telemetry_server,
 )
@@ -265,7 +265,7 @@ async def test_fix3_empty_cache_and_broker_failure_assumes_risk_and_flushes():
 
 @pytest.mark.asyncio
 async def test_fix3_empty_cache_maintains_only_if_broker_confirms_winning():
-    """Fix 3: If broker confirms position is positively winning, maintain position is allowed."""
+    """Fix 3: Sovereign Master Equation ensures EMERGENCY_FLUSH triggers liquidation without PnL override."""
     broker = MagicMock()
     broker.get_position = AsyncMock(return_value={
         "symbol": "SPY",
@@ -273,13 +273,15 @@ async def test_fix3_empty_cache_maintains_only_if_broker_confirms_winning():
         "side": "long",
         "avg_entry_price": "500.0",
     })
+    broker.cancel_order = AsyncMock(return_value=True)
+    broker.cancel_all_orders = AsyncMock(return_value=1)
+    broker.close_position = AsyncMock(return_value=True)
 
     handler = RosaRojaMarketExecutionHandler(
         broker_client=broker,
         account_equity=100000.0,
         symbol="SPY",
     )
-    # Current price is 505.0 -> profit of +$50.00 (>= -$3.00)
     handler.get_reference_price_callback = lambda sym: 505.0
     handler._cached_positions["SPY"] = None
 
@@ -288,9 +290,8 @@ async def test_fix3_empty_cache_maintains_only_if_broker_confirms_winning():
     )
 
     result = await handler.dispatch_execution(plan, symbol="SPY")
-    # Position is actively verified winning -> maintained
-    assert result is True
-    broker.close_position.assert_not_called()
+    assert result is False
+    broker.close_position.assert_called_once_with("SPY")
 
 
 # ============================================================================

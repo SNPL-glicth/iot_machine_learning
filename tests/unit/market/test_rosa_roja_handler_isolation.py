@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from infrastructure.adapters.market.rosa_roja_market_handler import RosaRojaMarketExecutionHandler
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import RosaRojaMarketExecutionHandler
 
 
 @pytest.mark.asyncio

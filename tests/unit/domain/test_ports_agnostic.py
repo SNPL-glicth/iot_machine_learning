@@ -433,7 +433,7 @@ class TestCognitiveStorageDecoratorSeries:
     """Tests para CognitiveStorageDecorator con métodos series_id."""
 
     def test_load_series_window_delegates(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_decorator import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_decorator import (
             CognitiveStorageDecorator,
         )
 
@@ -449,7 +449,7 @@ class TestCognitiveStorageDecoratorSeries:
         assert 42 in inner.loaded_sensor_ids
 
     def test_list_active_series_ids_delegates(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_decorator import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_decorator import (
             CognitiveStorageDecorator,
         )
 
@@ -464,7 +464,7 @@ class TestCognitiveStorageDecoratorSeries:
         assert ids == ["1", "2", "3"]
 
     def test_get_series_metadata_delegates(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_decorator import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_decorator import (
             CognitiveStorageDecorator,
         )
 

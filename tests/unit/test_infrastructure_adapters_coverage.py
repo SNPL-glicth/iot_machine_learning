@@ -57,7 +57,7 @@ class TestCoreAdapters:
 
 class TestInmemoryAdapters:
     def test_recent_anomaly_tracker(self):
-        from iot_machine_learning.infrastructure.adapters.inmemory import recent_anomaly_tracker
+        from iot_machine_learning.infrastructure.adapters.persistence.inmemory import recent_anomaly_tracker
         assert recent_anomaly_tracker is not None
 
 
@@ -101,37 +101,37 @@ class TestCalibratorAdapters:
 
 class TestWeaviateAdapters:
     def test_batch_operations(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import batch_operations
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import batch_operations
         assert batch_operations is not None
 
     def test_filter_builders(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import filter_builders
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import filter_builders
         assert filter_builders is not None
 
     def test_http_client(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import http_client
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import http_client
         assert http_client is not None
 
     def test_memory_readers(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import memory_readers
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import memory_readers
         assert memory_readers is not None
 
     def test_memory_writers(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import memory_writers
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import memory_writers
         assert memory_writers is not None
 
     def test_object_operations(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import object_operations
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import object_operations
         assert object_operations is not None
 
     def test_query_operations(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import query_operations
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import query_operations
         assert query_operations is not None
 
     def test_result_mapper(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import result_mapper
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import result_mapper
         assert result_mapper is not None
 
     def test_weaviate_cognitive(self):
-        from iot_machine_learning.infrastructure.adapters.weaviate import weaviate_cognitive
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import weaviate_cognitive
         assert weaviate_cognitive is not None

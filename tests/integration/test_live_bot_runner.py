@@ -8,8 +8,9 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
 
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-from iot_machine_learning.infrastructure.adapters.market.live_runner import LiveBotRunner, LiveBotState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import LiveBotRunner
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from iot_machine_learning.infrastructure.adapters.market.binance.ws_feed import BinanceWSFeed
 from iot_machine_learning.infrastructure.adapters.market.binance.order_client import BinanceOrderClient
@@ -104,7 +105,7 @@ class TestLiveBotRunner:
     @pytest.mark.asyncio
     async def test_runner_initialization(self, mock_config, mock_engine, mock_feed, mock_order_client, mock_account):
         """Test que el runner se inicializa correctamente."""
-        with patch('iot_machine_learning.infrastructure.adapters.market.live_runner.create_live_bot') as mock_create:
+        with patch('iot_machine_learning.infrastructure.adapters.market.zephyr.runners.create_live_bot') as mock_create:
             runner = LiveBotRunner(mock_config)
             runner._engine = mock_engine
             runner._feed = mock_feed

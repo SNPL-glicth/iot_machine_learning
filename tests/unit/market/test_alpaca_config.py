@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
 
 
 def test_default_binance_config():

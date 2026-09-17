@@ -17,7 +17,7 @@ from iot_machine_learning.domain.ports.experiment_tracker_port import (
     ExperimentTrackerPort,
     NullExperimentTracker,
 )
-from iot_machine_learning.infrastructure.adapters.mlflow_tracker_adapter import (
+from iot_machine_learning.infrastructure.adapters.experiment_tracking.mlflow_tracker_adapter import (
     MlflowTrackerAdapter,
 )
 

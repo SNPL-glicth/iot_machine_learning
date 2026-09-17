@@ -35,13 +35,14 @@ class ActionEnvelope:
 @dataclass(frozen=True, slots=True)
 class ExecutionPlan:
     """Final output produced by Rosa Roja for the execution layer."""
-    action: str                        # "EXECUTE", "HOLD", "EMERGENCY_FLUSH"
+    action: Any                        # "EXECUTE", "HOLD", "EMERGENCY_FLUSH", or float/int
     chosen_trajectory: Optional[Trajectory]
     global_confidence: float           # Phi_MoE score in [0.0, 1.0]
     envelope: Optional[ActionEnvelope] # Action parameters (None for HOLD/FLUSH)
     invalidation_step: Optional[int]   # Index where trajectory is breached
     regime_alert: bool                 # Triggered if Module 1 Mahalanobis outlier detected
     veto_details: dict
+    side: Optional[str] = None
 
     @classmethod
     def HOLD(cls, reason: str, alert: bool = False, details: Optional[dict] = None) -> "ExecutionPlan":

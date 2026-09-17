@@ -35,7 +35,7 @@ from iot_machine_learning.domain.entities.market.costs_net import (
     evaluate_net,
     with_observed_spread,
 )
-from iot_machine_learning.infrastructure.adapters.market.paper_runner import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners.paper_runner import (
     PaperBotConfig,
     PaperBotRunner,
 )

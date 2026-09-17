@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 from dotenv import load_dotenv
 load_dotenv()
 
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-from iot_machine_learning.infrastructure.adapters.market.live_runner import LiveBotRunner, LiveBotState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import LiveBotRunner
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
 from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
 from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount, create_account
 from iot_machine_learning.infrastructure.adapters.market.alpaca.ws_feed import AlpacaWSFeed

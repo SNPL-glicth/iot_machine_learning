@@ -244,7 +244,7 @@ class TestKillRecovery:
 
         victim = build_engine(state_store=store, engine_id="victim", checkpoint_interval=interval)
         train_until_execute(victim, env)
-        events_before_crash = 12
+        events_before_crash = 14  # 14 - 10 <= interval (5), preserves pattern phase (period 4)
         while victim.state_machine.state.total_events_processed < events_before_crash:
             victim.process_event(env.step(), 1.0)
         watermark_at_last_checkpoint = store.load("victim")["event_watermark"]

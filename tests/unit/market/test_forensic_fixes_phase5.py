@@ -14,13 +14,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from infrastructure.adapters.market.live_config import LiveBotConfig
-from infrastructure.adapters.market.live_runner_models import LiveBotState
-from infrastructure.adapters.market.portfolio_risk_manager import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_risk_manager import (
     PortfolioRiskConfig,
     PortfolioRiskManager,
 )
-from infrastructure.adapters.market.rosa_roja_market_handler import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import (
     RosaRojaMarketExecutionHandler,
 )
 from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
@@ -76,7 +76,7 @@ def test_fix1_cancel_active_trajectory_resets_tracker_and_state_machine():
 @pytest.mark.asyncio
 async def test_fix1_live_runner_cancels_trajectory_when_can_execute_vetoes():
     """Verifica que si can_execute veta una orden EXECUTE, el LiveBotRunner cancela la trayectoria en el motor."""
-    from infrastructure.adapters.market.live_runner import LiveBotRunner
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import LiveBotRunner
 
     config = LiveBotConfig(symbol="SPY", phi_moe_threshold=0.40)
     runner = LiveBotRunner(config=config, feed=MagicMock())

@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 import math
 import numpy as np
+from core.parameters.numerical_constants import EPSILON
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ def compute_certeza(
         return 0.0
 
     # 2. Chronometric synchrony with zero-division protection: max(|dR/dt|, eps * sigma_dr)
-    effective_sigma_dr = max(1e-6, float(abs(sigma_dr)))
+    effective_sigma_dr = max(EPSILON.CONFIDENCE, float(abs(sigma_dr)))
     floor_threshold = float(epsilon) * effective_sigma_dr
     denominator = max(abs(float(dr_dt)), floor_threshold)
 
@@ -126,23 +127,11 @@ def compute_momentum_veto(
     magnitud: float,
     tau_mom: float = 0.5,
     sigma_mom: float = 0.001,
+    sigma_market: float | None = None,
 ) -> float:
-    """Calculates Heaviside momentum confirmation with noise deadband.
-
-    Formula:
-        H((ds_dt_ema · magnitud) - (τ_mom · σ_mom))
-        Returns 1.0 if signal > 0.0 (momentum confirms trade), else 0.0 (veto).
-
-    Args:
-        ds_dt_ema: Exponential moving average of price velocity [return/sec].
-        magnitud: Directional target magnitude [market return units].
-        tau_mom: Deadband sensitivity multiplier [dimensionless].
-        sigma_mom: Noise standard deviation of momentum [return/sec].
-
-    Returns:
-        float: 1.0 if momentum confirms direction exceeding deadband, else 0.0.
-    """
-    signal = (float(ds_dt_ema) * float(magnitud)) - (float(tau_mom) * float(sigma_mom))
+    """Calculates Heaviside momentum confirmation with dynamic adaptive noise deadband."""
+    effective_sigma = max(float(sigma_mom), float(sigma_market)) if (sigma_market is not None and sigma_market > 0) else float(sigma_mom)
+    signal = (float(ds_dt_ema) * float(magnitud)) - (float(tau_mom) * effective_sigma)
     return 1.0 if signal > 0.0 else 0.0
 
 

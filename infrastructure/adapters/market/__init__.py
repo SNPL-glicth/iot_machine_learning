@@ -1,28 +1,18 @@
-"""Adaptadores de proveedores de datos de mercado (FASE 4, 5, 6 y 7).
+"""Adaptadores de proveedores de datos de mercado y Zephyr Bot."""
 
-FASE 4: convierten payloads de los proveedores (Alpaca/Binance) a
-entidades del dominio ZENIN. Sin conexiones, sin claves API, sin
-estado: la conversión es pura y testeada con fixtures congelados.
-
-FASE 5: feeds históricos (CSV congelado en disco) para el Market
-Replay; el replay jamás toca la red.
-
-FASE 6: LiveFeed wrapper con detección de gaps y estados de conexión;
-LiveShadowRunner para el modo shadow (sin persistencia, consola).
-
-FASE 7: BinanceWSFeed event-driven con order book L2 sincronizado,
-feature extraction y ejecución de órdenes live.
-"""
-
-from .alpaca_adapter import ALPACA_PROFILE, AlpacaAdapter
-from .binance_adapter import BINANCE_PROFILE, BinanceAdapter
+from .zephyr.adapters.alpaca_adapter import ALPACA_PROFILE, AlpacaAdapter
+from .zephyr.adapters.binance_adapter import BINANCE_PROFILE, BinanceAdapter
 from .binance.ws_client import BinanceWSClient, create_market_streams, ConnectionState
 from .binance.ws_feed import BinanceWSFeed, FeedStats
 from .binance.order_book_state import OrderBookL2, OrderBookMetrics, PriceLevel
-from .alpaca import AlpacaOrderClient, AlpacaAccount, AlpacaWSFeed, OrderRequest, OrderResponse, Position, AccountSnapshot
-from .csv_feed import HistoricalCsvFeed
-from .live_feed import GapDetected, LiveFeed, StateTransition
-from .live_fragment import (
+from .alpaca.order_client import AlpacaOrderClient
+from .alpaca.account import AlpacaAccount
+from .alpaca.ws_feed import AlpacaWSFeed
+from .alpaca.order_models import OrderRequest, OrderResponse
+from .alpaca.account_models import Position, AccountSnapshot
+from .feeds.csv_feed import HistoricalCsvFeed
+from .feeds.live_feed import GapDetected, LiveFeed, StateTransition
+from .feeds.live_fragment import (
     RESOLUTIONS,
     DropWindowsFeed,
     FragmentFeed,
@@ -31,7 +21,7 @@ from .live_fragment import (
     fragment_bounds,
     parse_drop,
 )
-from .live_shadow import DegradedWindow, LiveShadowResult, LiveShadowRunner
+from .zephyr.engines.shadow import DegradedWindow, LiveShadowResult, LiveShadowRunner
 
 __all__ = [
     "ALPACA_PROFILE",
@@ -42,7 +32,6 @@ __all__ = [
     "create_market_streams",
     "ConnectionState",
     "BinanceWSFeed",
-    "BinanceLiveFeed",
     "FeedStats",
     "OrderBookL2",
     "OrderBookMetrics",
@@ -50,7 +39,6 @@ __all__ = [
     "AlpacaOrderClient",
     "AlpacaAccount",
     "AlpacaWSFeed",
-    "AlpacaLiveFeed",
     "OrderRequest",
     "OrderResponse",
     "Position",

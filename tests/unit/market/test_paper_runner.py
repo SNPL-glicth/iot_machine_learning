@@ -17,7 +17,7 @@ from iot_machine_learning.domain.entities.market.calibration import (
     export_calibrator_state,
     try_refit,
 )
-from iot_machine_learning.infrastructure.adapters.market.paper_runner import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners.paper_runner import (
     PaperBotConfig,
     PaperBotRunner,
 )

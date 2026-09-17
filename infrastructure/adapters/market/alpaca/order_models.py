@@ -12,7 +12,8 @@ class OrderRequest:
     symbol: str
     side: str              # "buy" o "sell"
     order_type: str        # "market", "limit", "stop", "stop_limit", "trailing_stop"
-    qty: float
+    qty: float = 0.0
+    notional: Optional[float] = None
     price: Optional[float] = None
     stop_price: Optional[float] = None
     trail_price: Optional[float] = None
@@ -54,10 +55,10 @@ def parse_order_response(data: Dict[str, Any]) -> OrderResponse:
         status=data.get("status", ""),
         side=data.get("side", ""),
         order_type=data.get("order_type", ""),
-        qty=float(data.get("qty", 0)),
+        qty=float(data.get("qty") or 0),
         price=float(data.get("limit_price", 0)) if data.get("limit_price") else None,
         stop_price=float(data.get("stop_price", 0)) if data.get("stop_price") else None,
-        filled_qty=float(data.get("filled_qty", 0)),
+        filled_qty=float(data.get("filled_qty") or 0),
         filled_avg_price=float(data.get("filled_avg_price", 0)) if data.get("filled_avg_price") else None,
         commission=float(data.get("commission", 0)) if data.get("commission") else 0.0,
         created_at=data.get("created_at", 0),

@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import using the working test infrastructure
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
 from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client import AlpacaOrderClient
 from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount, create_account
 

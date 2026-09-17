@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from infrastructure.adapters.market.live_config import LiveBotConfig
-from infrastructure.adapters.market.live_runner_execution import can_execute
-from infrastructure.adapters.market.live_runner_models import LiveBotState
-from infrastructure.adapters.market.rosa_roja_market_handler import RosaRojaMarketExecutionHandler
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import can_execute
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import RosaRojaMarketExecutionHandler
 from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client_market import AlpacaMarketMixin
 
 

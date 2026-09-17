@@ -112,7 +112,7 @@ def _create_default_engine(feature_flags: Any | None = None) -> AnalysisEnginePo
     cognitive_memory = None
     if feature_flags is not None:
         try:
-            from iot_machine_learning.infrastructure.adapters.cognitive_storage_factory import (
+            from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory import (
                 build_cognitive_memory,
             )
             cognitive_memory = build_cognitive_memory(feature_flags)

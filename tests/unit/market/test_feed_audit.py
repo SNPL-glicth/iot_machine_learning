@@ -185,7 +185,7 @@ class TestKlinesCounters:
     def test_duplicado_y_tardio_se_cuentan(self, monkeypatch):
         import time
 
-        from iot_machine_learning.infrastructure.adapters.market.binance_klines_feed import (
+        from iot_machine_learning.infrastructure.adapters.market.feeds.binance_klines_feed import (
             BinanceKlinesFeed,
         )
 

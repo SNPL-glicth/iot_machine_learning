@@ -3,13 +3,13 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-from iot_machine_learning.infrastructure.adapters.market.live_runner import LiveBotRunner
-from iot_machine_learning.infrastructure.adapters.market.live_runner_execution import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import LiveBotRunner
+from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import (
     can_execute,
     get_current_mid,
 )
-from iot_machine_learning.infrastructure.adapters.market.live_runner_models import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.models import (
     LiveBotState,
 )
 

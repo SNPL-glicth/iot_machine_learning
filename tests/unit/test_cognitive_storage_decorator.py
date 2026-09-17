@@ -34,7 +34,7 @@ from iot_machine_learning.domain.ports.cognitive_memory_port import (
     CognitiveMemoryPort,
 )
 from iot_machine_learning.domain.ports.storage_port import StoragePort
-from iot_machine_learning.infrastructure.adapters.cognitive_storage_decorator import (
+from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_decorator import (
     CognitiveStorageDecorator,
 )
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
@@ -483,21 +483,21 @@ _skip_no_sqlalchemy = pytest.mark.skipif(
 @_skip_no_sqlalchemy
 class TestBuildStorageFactory:
     def test_returns_raw_sql_when_disabled(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_factory import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory import (
             build_storage,
         )
         flags = FeatureFlags(ML_ENABLE_COGNITIVE_MEMORY=False)
         mock_conn = MagicMock()
 
         with patch(
-            "iot_machine_learning.infrastructure.adapters.cognitive_storage_factory.SqlServerStorageAdapter"
+            "iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory.SqlServerStorageAdapter"
         ) as MockSql:
             storage = build_storage(mock_conn, flags)
             MockSql.assert_called_once_with(mock_conn)
             assert storage is MockSql.return_value
 
     def test_returns_decorator_when_enabled_with_url(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_factory import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory import (
             build_storage,
         )
         flags = FeatureFlags(
@@ -508,15 +508,15 @@ class TestBuildStorageFactory:
         mock_conn = MagicMock()
 
         with patch(
-            "iot_machine_learning.infrastructure.adapters.cognitive_storage_factory.SqlServerStorageAdapter"
+            "iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory.SqlServerStorageAdapter"
         ), patch(
-            "iot_machine_learning.infrastructure.adapters.cognitive_storage_factory.WeaviateCognitiveAdapter"
+            "iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory.WeaviateCognitiveAdapter"
         ):
             storage = build_storage(mock_conn, flags)
             assert isinstance(storage, CognitiveStorageDecorator)
 
     def test_returns_decorator_with_null_cognitive_when_no_url(self):
-        from iot_machine_learning.infrastructure.adapters.cognitive_storage_factory import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory import (
             build_storage,
         )
         flags = FeatureFlags(
@@ -526,7 +526,7 @@ class TestBuildStorageFactory:
         mock_conn = MagicMock()
 
         with patch(
-            "iot_machine_learning.infrastructure.adapters.cognitive_storage_factory.SqlServerStorageAdapter"
+            "iot_machine_learning.infrastructure.adapters.cognitive.cognitive_storage_factory.SqlServerStorageAdapter"
         ):
             storage = build_storage(mock_conn, flags)
             assert isinstance(storage, CognitiveStorageDecorator)

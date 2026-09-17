@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from iot_machine_learning.infrastructure.adapters.market.binance_klines_feed import (
+from iot_machine_learning.infrastructure.adapters.market.feeds.binance_klines_feed import (
     BinanceKlinesFeed,
     _binance_interval,
     _map_symbol,

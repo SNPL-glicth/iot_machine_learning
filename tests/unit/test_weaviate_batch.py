@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import Mock, patch
 
-from iot_machine_learning.infrastructure.adapters.weaviate.batch_operations import (
+from iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations import (
     WeaviateBatch,
     BatchResult,
 )
@@ -83,7 +83,7 @@ class TestWeaviateBatch:
         batch.add_object("MLExplanation", {"text": "test"})
         assert batch.pending_count == 0
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_auto_flush_on_batch_size(self, mock_post):
         """Test that batch auto-flushes when batch_size is reached."""
         mock_post.return_value = [
@@ -123,7 +123,7 @@ class TestWeaviateBatch:
         assert result.uuids == ["dry-run-uuid"]
         assert batch.pending_count == 0
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_flush_success(self, mock_post):
         """Test successful batch flush."""
         mock_post.return_value = [
@@ -142,7 +142,7 @@ class TestWeaviateBatch:
         assert len(result.uuids) == 2
         assert batch.pending_count == 0
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_flush_partial_failure(self, mock_post):
         """Test batch flush with some failures."""
         mock_post.return_value = [
@@ -166,7 +166,7 @@ class TestWeaviateBatch:
         assert len(result.errors) == 1
         assert "Invalid property" in result.errors[0]
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_flush_http_error(self, mock_post):
         """Test batch flush with HTTP error."""
         mock_post.side_effect = Exception("Connection refused")
@@ -192,7 +192,7 @@ class TestWeaviateBatch:
         assert dist["MLExplanation"] == 2
         assert dist["MLAnomaly"] == 1
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_statistics_tracking(self, mock_post):
         """Test that statistics are tracked across multiple flushes."""
         mock_post.return_value = [
@@ -217,7 +217,7 @@ class TestWeaviateBatch:
         assert batch.total_failed == 0
         assert batch.overall_success_rate == 100.0
     
-    @patch("iot_machine_learning.infrastructure.adapters.weaviate.batch_operations.post_json")
+    @patch("iot_machine_learning.infrastructure.adapters.cognitive.weaviate.batch_operations.post_json")
     def test_context_manager(self, mock_post):
         """Test context manager auto-flushes on exit."""
         mock_post.return_value = [
@@ -256,7 +256,7 @@ class TestBatchPropertyBuilders:
             Prediction,
             PredictionConfidence,
         )
-        from iot_machine_learning.infrastructure.adapters.weaviate.memory_writers import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate.memory_writers import (
             build_explanation_properties,
         )
         
@@ -287,7 +287,7 @@ class TestBatchPropertyBuilders:
             AnomalyResult,
             AnomalySeverity,
         )
-        from iot_machine_learning.infrastructure.adapters.weaviate.memory_writers import (
+        from iot_machine_learning.infrastructure.adapters.cognitive.weaviate.memory_writers import (
             build_anomaly_properties,
         )
         

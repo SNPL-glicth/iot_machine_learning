@@ -1,7 +1,7 @@
 """Unit tests for TrailingProfitManager."""
 
 
-from iot_machine_learning.infrastructure.adapters.market.trailing_profit_manager import (
+from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.trailing_profit_manager import (
     TrailingProfitConfig,
     TrailingProfitManager,
 )
@@ -88,11 +88,11 @@ def test_can_execute_market_session_gating():
     """Verifica que can_execute bloquee nuevas órdenes si el mercado va a cerrar o si ya hay posición activa."""
     from types import SimpleNamespace
 
-    from iot_machine_learning.infrastructure.adapters.market.live_config import LiveBotConfig
-    from iot_machine_learning.infrastructure.adapters.market.live_runner_execution import (
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import (
         can_execute,
     )
-    from iot_machine_learning.infrastructure.adapters.market.live_runner_models import LiveBotState
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
 
     cfg = LiveBotConfig(symbol="SPY")
     plan = SimpleNamespace(action="EXECUTE")

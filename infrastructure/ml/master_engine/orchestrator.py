@@ -10,6 +10,7 @@ import logging
 from typing import Any
 import numpy as np
 
+from core.parameters.numerical_constants import EPSILON
 from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
 from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.master_engine.master_equation import (
@@ -78,6 +79,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
         phi_moe_base = float(base_trace.get("phi_moe", plan_base.global_confidence))
 
         log_return = float(delta_state[0]) if len(delta_state) > 0 else 0.0
+        volatility_market = float(delta_state[1]) if len(delta_state) > 1 else 0.0
         book_imbalance = float(delta_state[5]) if len(delta_state) > 5 else 0.0
 
         # 2. Stochastic Risk Adapter: tolerance tube and binary CVaR veto
@@ -101,16 +103,17 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             logger.debug("temporal_adapter_error: %s", exc)
 
         lambda_t_crono = float(temporal_verdict.get("lambda_crono", 1.0))
-        ds_dt = float(temporal_verdict.get("dS_dt", abs(log_return / max(1e-6, delta_time))))
-        dr_dt = float(temporal_verdict.get("dR_dt", 0.01))
+        ds_dt = float(temporal_verdict.get("dS_dt", abs(log_return / max(EPSILON.CONFIDENCE, delta_time))))
+        dr_dt = float(temporal_verdict.get("dR_dt", max(volatility_market, 0.0001)))
 
-        # 4. Pure Mathematical Computations (Pilar 1)
+        # 4. Pure Mathematical Computations (Pilar 1 & 2: Dynamic Parametrization)
+        effective_sigma_dr = max(0.1, abs(book_imbalance) * 2.0) if book_imbalance != 0.0 else 1.0
         certeza = compute_certeza(
             i_cvar=i_cvar,
             ds_dt=ds_dt,
             dr_dt=dr_dt,
             certeza_epistemica=phi_moe_base,
-            sigma_dr=1.0,
+            sigma_dr=effective_sigma_dr,
         )
 
         jury = getattr(self._rosa_roja, "_jury", [])
@@ -122,6 +125,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             magnitud=magnitud_objetivo,
             tau_mom=self._tau_mom,
             sigma_mom=self._sigma_mom,
+            sigma_market=volatility_market,
         )
 
         # 5. Assemble Trace and Plan (Pilar 2 & 3)
