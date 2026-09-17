@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Zephyr 2.0 — Institutional Execution Backend & ZENIN Master Equation Sovereignty] - 2026-09-17
+
+### Diseño y Arquitectura
+Reestructuración institucional completa del subsistema de ejecución en mercado (`zephyr/`):
+    1. **Soberanía Absoluta de ZENIN**: Zephyr desacoplado de la toma de decisiones. `MasterEquationOrchestrator` es la única autoridad de decisión; Zephyr es un ejecutor ciego, sordo y mudo (`MasterEngineAdapter`).
+    2. **Reorganización Modular Estricta**: Eliminación total de archivos sueltos en la raíz de `zephyr/`. 11 subpaquetes especializados (`adapters/`, `config/`, `engines/`, `execution/`, `master_engine_adapter/`, `models/`, `resilience/`, `risk/`, `runners/`, `scripts/`, `telemetry/`).
+    3. **Gobernanza de Líneas (≤180 Líneas)**: 100% de los módulos de producción cumplen la restricción institucional ISO de tamaño por archivo.
+    4. **Centralización Canónica de Configuración**: Todo esquema, loader, validador y perfil JSON consolidado en `zephyr/config/` con estricta supresión de secretos (`to_safe_dict()`).
+    5. **Punto de Entrada Unificado Raíz**: Creación de `run_zephyr.py` en la raíz del workspace para gestión integral (`--broker`, `--symbol`, `--status`, `--testnet`, `--config`).
+    6. **Depuración de Scripts Obsoletos**: Eliminación de scripts redundantes (`zenin_adapt_run.py`, `zenin_live_alpaca.py`, `zenin_live_btc.py`, temporales de migración).
+
+### Added
+- **`run_zephyr.py`**: Lanzador raíz canónico institucional con auto-detección de rutas y CLI unificado.
+- **`infrastructure/adapters/market/zephyr/master_engine_adapter/`**: `MasterEngineAdapter`, `PlanTranslator` y `MasterTelemetryPacker` para puente soberano a Weaviate y Master Equation.
+- **`infrastructure/adapters/market/zephyr/config/`**: `LiveBotConfig`, `loader.py`, `presets.py`, `validator.py` y perfiles JSON.
+- **`infrastructure/adapters/market/zephyr/execution/`**: Módulos desacoplados de ciclo de vida, precondiciones de broker (`gating.py`), sesión y almacenamiento atómico.
+- **`infrastructure/adapters/market/zephyr/resilience/`**: `CircuitBreaker` y protección SRE.
+- **`tests/integration/test_institutional_e2e_certification.py`**: Suite de certificación institucional E2E y auditoría continua de límites de líneas.
+
+### Fixed
+- Eliminación de errores de tipado en `gating.py` (`asyncio` import), `loader.py` (cast `LiveBotConfig`), `adapter.py` (cast `ExecutionPlan`), `commands.py`, `server.py` (resolución de `rebuild_keys`, inicialización de `data`, corrección de tipos `Callable` y `websockets`), `alpaca_adapter.py`, `binance_adapter.py` y `module3_moe_gating.py` (`best_variance` float tracking).
+- Verificación exitosa de 855 pruebas unitarias e integración en verde (`0 failed`).
+
 ## [ZENIN Cognitive — Fase 11: Metacognitive Feedback Loop & Meta-Learning] - 2026-09-10
 
 ### Diseño (La evolución metacognitiva)

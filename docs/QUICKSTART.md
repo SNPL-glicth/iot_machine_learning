@@ -32,6 +32,25 @@ pytest tests/ -q
 uvicorn ml_service.main:app --reload --port 8002
 ```
 
+## Zephyr 2.0 Algorithmic Trading (Live & Paper)
+
+Para ejecutar el motor de trading algorítmico institucional gobernado por la **Ecuación Maestra de ZENIN**:
+
+```bash
+# Regresar a la raíz del proyecto ST
+cd ..
+
+# Lanzador Canónico Raíz (run_zephyr.py)
+python run_zephyr.py --broker alpaca --symbol SPY            # Alpaca Paper Trading
+python run_zephyr.py --broker binance --symbol BTCUSDT --testnet  # Binance Testnet
+python run_zephyr.py --status                               # Inspeccionar cuenta y posiciones
+python run_zephyr.py --dry-run                              # Simulación sin órdenes vivas
+
+# Conectar Dashboard React en tiempo real:
+cd zephyr_dashboard && npm run dev
+# Abrir http://localhost:5173 (se conecta a ws://127.0.0.1:8765)
+```
+
 ## Docker (Full Stack)
 
 ```bash

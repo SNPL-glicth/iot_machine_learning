@@ -39,6 +39,19 @@ las verifican permanentemente.
     `.env.example` sin valores reales.
 14. **No refactors no relacionados durante una fase** — el alcance de cada
     fase es cerrado; refactors ajenos se agenda aparte.
+15. **Soberanía Absoluta del Motor Matemático (ZENIN Master Equation)** — Zephyr
+    es un ejecutor ciego, sordo y mudo; el `MasterEquationOrchestrator` es la
+    única autoridad de decisión (`ExecutionPlan`). Zephyr jamás altera,
+    sobreescribe ni introduce heurísticas discrecionales a la orden emitida.
+16. **Segregación Estricta de Secretos y Configuración Canónica** — Toda
+    configuración vive en `zephyr/config/`. Los archivos JSON que van a disco o
+    telemetría deben pasar por `to_safe_dict()` o `to_public_dict()`. Jamás
+    filtrar API keys a logs o clientes WebSocket.
+17. **Gobernanza Modular Estricta (≤180 Líneas)** — Todos los módulos de producción
+    en `zephyr/` deben residir en sus subpaquetes especializados (`adapters/`,
+    `config/`, `engines/`, `execution/`, `master_engine_adapter/`, `models/`,
+    `resilience/`, `risk/`, `runners/`, `scripts/`, `telemetry/`) y cumplir
+    estrictamente con $\le 180$ líneas de código por archivo.
 
 ## Colisión de nombres (regla crítica)
 

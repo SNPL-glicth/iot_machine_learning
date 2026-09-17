@@ -180,3 +180,36 @@ export ML_ROLLBACK_TO_BASELINE=true
 | **`RegimeType` enum** | Eliminates magic strings across 10+ files |
 | **`RedisKeys` registry** | Single point of change for key patterns; enables access auditing |
 | **Fallback to `FeatureFlags()`** | Service stays alive even if config system fails |
+
+---
+
+### Zephyr 2.0 Trading Platform Configuration
+
+La configuración de trading de Zephyr se gestiona canónicamente en `infrastructure/adapters/market/zephyr/config/`:
+
+#### Estructura de Configuración y Secretos
+- **`LiveBotConfig`** (`bot_config.py`): Dataclass fuertemente tipado con validación de rangos, límites de riesgo, dynamic cooldown y mixin de serialización segura.
+- **`zephyr_config.json`**: Perfil público por defecto (símbolos, umbrales de riesgo, intervalos, telemetría).
+- **`zephyr_secrets.json`**: Almacén local de credenciales privadas (`alpaca_api_key`, `alpaca_secret_key`, etc.), excluido del control de versiones.
+- **`zephyr_secrets.json.template`**: Plantilla de ejemplo para configuración segura.
+
+#### Parámetros Críticos de LiveBotConfig
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `broker` | `str` | `"alpaca"` | Broker objetivo (`"alpaca"` o `"binance"`). |
+| `symbol` | `str` | `"SPY"` | Símbolo principal para trading. |
+| `testnet` | `bool` | `true` | Habilita entorno de papel o testnet (modo seguro). |
+| `use_master_orchestrator` | `bool` | `true` | Soberanía de la Ecuación Maestra de ZENIN. |
+| `master_shadow_mode` | `bool` | `false` | `false` para ejecución real/papel gobernada por ZENIN. |
+| `max_position_pct` | `float` | `0.05` | Máxima exposición por posición individual. |
+| `max_portfolio_exposure_pct` | `float` | `0.15` | Máxima exposición acumulada del portafolio. |
+| `phi_moe_threshold` | `float` | `0.5` | Umbral mínimo de confianza MoE para permitir ejecución. |
+| `emergency_lambda_threshold` | `float` | `0.95` | Umbral de entropía temporal para veto automático. |
+| `cooldown_ms` | `float` | `1000.0` | Tiempo mínimo entre ejecuciones consecutivas. |
+| `dynamic_cooldown` | `bool` | `true` | Cooldown adaptativo en función de $\lambda_t$. |
+
+#### Hot-Reload y Comandos en Caliente (WebSocket)
+El servidor WebSocket (`telemetry/server.py`) permite consultar y modificar la configuración en tiempo real desde el dashboard sin reiniciar el bot:
+- `GET_CONFIG`: Retorna la configuración sanitizada (sin secretos).
+- `UPDATE_CONFIG`: Aplica cambios en vivo. Si cambian claves de autenticación del broker (`rebuild_keys`), se recrean automáticamente las conexiones sin detener el loop de eventos.
+

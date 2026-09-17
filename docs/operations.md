@@ -102,3 +102,26 @@ print(weights)  # {'taylor': 0.7, 'baseline': 0.3, 'kalman': 0.2, 'statistical':
 - Enable batch processing: `ML_BATCH_PARALLEL_WORKERS=4`
 - Disable stream predictions: `ML_STREAM_PREDICTIONS_ENABLED=false`
 - Use write-behind caching for plasticity
+
+---
+
+## Zephyr 2.0 Real-Time Trading Operations
+
+### Inspección Rápida de Estado
+```bash
+# Consultar balance de broker y posiciones abiertas en tiempo real
+python run_zephyr.py --status
+```
+
+### Protocolo de Parada Limpia (Graceful Shutdown)
+Al recibir `SIGINT` (Ctrl+C), `SIGTERM` o comando remoto `QUIT`:
+1. Cancela todas las órdenes vivas en el broker (`cancel_all_orders`).
+2. Cierra posiciones activas si se requiere salvaguardar capital (`close_position`).
+3. Drena la cola asíncrona de Weaviate (`flush_and_close`).
+4. Desconecta los feeds de mercado WebSocket (`feed.disconnect()`).
+5. Persiste el estado atómico final a disco (`data/state.json`).
+
+### Auditoría y Registros Forenses
+- **Audit Logs Estructurados**: Almacenados en `logs/audit/audit_YYYYMMDD.ndjson` con hashes criptográficos de telemetría y trazas de decisión.
+- **Memoria Semántica Weaviate**: Almacena ejecuciones y telemetría de alta resolución para análisis posterior y reentrenamiento.
+

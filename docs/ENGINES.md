@@ -41,6 +41,7 @@ ZENIN runs two families of engines:
 
 | Family | Purpose | Lives in |
 |--------|---------|----------|
+| **Quantitative Master Equation** | Pináculo decisional: $\mathcal{O}_{\text{ZENIN}}(t)$, consenso MoE, veto CVaR, sincronía temporal $\Lambda(t)$ | `infrastructure/ml/master_engine/` y `engines/rosa_roja/` |
 | **Prediction Engines** | Forecast the next numeric value from a time-series window | `infrastructure/ml/engines/` |
 | **Cognitive Engines** | Analyze signals, fuse predictions, and produce decisions with explanations | `infrastructure/ml/cognitive/` |
 | **Neural Engines** | Hybrid SNN + classical feedforward analysis for severity classification | `infrastructure/ml/cognitive/neural/` |

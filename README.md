@@ -46,3 +46,18 @@ $$
 El comportamiento se resume en dos reglas prácticas:
 * **Penalización por desacuerdo:** El sistema promedia lo que opinan sus diferentes modelos matemáticos. Sin embargo, si los modelos se contradicen entre sí (uno dice sube, otro dice baja), se aplica un castigo severo a la confianza total. Solo se actúa si hay consenso.
 * **Humildad algorítmica:** El sistema monitorea constantemente qué tan predecible está siendo el entorno. Si detecta que las reglas del juego están cambiando rápido, aumenta su índice de "ignorancia" y frena sus acciones hasta volver a entender el terreno.
+
+---
+
+## Integración con Zephyr 2.0 (Backend de Ejecución de Mercado)
+
+Para ejecutar esta matemática en mercados reales o simulados, ZENIN se conecta con **Zephyr 2.0**:
+* **Ubicación del Backend:** [`infrastructure/adapters/market/zephyr/`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/adapters/market/zephyr)
+* **Soberanía Matemática:** La clase [`MasterEngineAdapter`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/adapters/market/zephyr/master_engine_adapter/adapter.py) conecta el flujo de eventos con `MasterEquationOrchestrator`. Zephyr acata la decisión (`EXECUTE`, `HOLD`, `EMERGENCY_FLUSH`) sin modificarla ni interferir con la señal.
+* **Lanzador Raíz Canónico:** Se ejecuta directamente desde la raíz del repositorio con [`run_zephyr.py`](file:///home/nicolas/Documentos/Proyectos/ST/run_zephyr.py):
+  ```bash
+  python run_zephyr.py --broker alpaca --symbol SPY
+  python run_zephyr.py --broker binance --symbol BTCUSDT --testnet
+  python run_zephyr.py --status
+  ```
+* **Telemetría y Dashboard:** Emite estado a 10 Hz vía WebSocket (`ws://127.0.0.1:8765`) al frontend.
