@@ -14,12 +14,23 @@ El orquestador de decisiones del sistema está gobernado por una Ecuación Maest
 ### 1. Motor de Decisión (El Gatillo)
 Determina la orden final $\mathcal{O}_{\text{ZENIN}}(t)$ a enviar al sistema (mercado, actuador robótico, etc.):
 
-$$\mathcal{O}_{\text{ZENIN}}(t) = \underbrace{ \left( \sum_{i=1}^{N} w_i \Psi_i(t) \right) }_{\text{Magnitud Objetivo}} \cdot \underbrace{ \Theta \Big( \Phi_{\text{Certeza}}(t) - \tau_{\text{exec}} \Big) }_{\text{Filtro de Umbral}} \cdot \underbrace{ \Theta \left( \overline{\frac{dy}{dt}} \cdot \sum_{i=1}^{N} w_i \Psi_i(t) - (\tau_{\text{mom}} \cdot \sigma_{\text{mom}}) \right) }_{\text{Filtro de Momentum Normalizado}}$$
+$$\mathcal{O}_{\text{ZENIN}}(t) = \underbrace{ \left( \sum_{i=1}^{N} w_i \Psi_i(t) \right) }_{\text{Magnitud Objetivo}} \cdot \underbrace{ \Theta \Big( \Phi_{\text{RedRose}}(t) - \tau_{\text{exec}} \Big) }_{\text{Filtro de Umbral}} \cdot \underbrace{ \Theta \left( \overline{\frac{dy}{dt}} \cdot \sum_{i=1}^{N} w_i \Psi_i(t) - (\tau_{\text{mom}} \cdot \sigma_{\text{mom}}) \right) }_{\text{Filtro de Momentum Normalizado}}$$
 
-### 2. Motor de Certeza (El Escudo Metacognitivo)
-Calcula la viabilidad matemática de la operación en el dominio acotado $[0, 1]$:
+### 2. Motor de Certeza Red Rose (El Escudo Metacognitivo)
+Calcula la viabilidad matemática de la operación en el dominio acotado $[0, 1]$ mediante la Ecuación Maestra de Red Rose:
 
-$$\Phi_{\text{Certeza}}(t) = \mathbb{I}(\text{CVaR}_t \le L_{\text{max}}(t)) \cdot \exp \left( - \left\vert{} \frac{\big\vert{} \overline{dy/dt} \big\vert{}}{\max\left(\vert{}dR/dt\vert{}, \epsilon \cdot \sigma_{dR/dt}\right)} - 1 \right\vert{} \right) \cdot \left[ \frac{1 - \lambda_t (1 - \Phi_{\text{ritmo}})}{1 + \gamma \text{Var}(\Psi_i)} \right]$$
+$$\Phi_{\text{RedRose}}(t) = \underbrace{\mathbb{I}(\text{CVaR}_t \le L_{\text{max}}(t))}_{\text{Veto de Riesgo Estocástico}} \cdot \underbrace{\exp \left( - \left\vert{} \frac{\big\vert{} \partial S / \partial t \big\vert{}}{\max\left(\vert{}\partial R / \partial t\vert{}, \epsilon \cdot \sigma_{\partial R / \partial t}\right)} - 1 \right\vert{} \right)}_{\text{Sincronía Cronométrica Fractal } \Lambda(t)} \cdot \underbrace{\Phi_{\text{epistémica}}(t)}_{\text{Confianza Base Rosa Roja}}$$
+
+Donde el núcleo cognitivo de **Red Rose** ($\Phi_{\text{epistémica}}$) sintetiza el consenso del ensamble MoE, la penalización por varianza inter-experto y la modulación por exploración y ritmo dinámico:
+
+$$\Phi_{\text{epistémica}}(t) = \underbrace{\left[ \frac{\frac{\sum_{i=1}^{M} w_i s_i(t)}{\sum_{i=1}^M w_i}}{1 + \gamma \text{Var}(s_i)} \right]}_{\Phi_{\text{base}} \text{ (Consenso del Jurado con Varianza)}} \cdot \underbrace{\Big( 1 - \lambda_t (1 - \Phi_{\text{ritmo}}) \Big)}_{\text{Modulación de Ritmo y Exploración}}$$
+
+* **$\mathbb{I}(\text{CVaR}_t \le L_{\text{max}}(t)) \in \{0.0, 1.0\}$**: Compuerta de veto estocástico duro (Risk Engine). Si la pérdida esperada condicional de cola excede el límite del tubo de tolerancia operativa, colapsa la certeza inmediatamente a $0.0$.
+* **$\Lambda(t) \in [0.0, 1.0]$**: Sincronía cronométrica fractal (Temporal Engine) entre la velocidad del estado $|\partial S / \partial t|$ y el ritmo de referencia $|\partial R / \partial t|$, regularizada contra división por cero vía $\max(|\partial R / \partial t|, \epsilon \cdot \sigma_{\partial R / \partial t})$. Si el régimen se desincroniza, $\Lambda(t) \to 0.0$.
+* **$\Phi_{\text{epistémica}}(t) \in [0.0, 1.0]$**: Certeza epistémica generada por Red Rose:
+  * **$\Phi_{\text{base}}$**: Consenso ponderado de los expertos del jurado interno ($s_i \in [0, 1]$ evaluando la trayectoria candidata), penalizado por la varianza inter-experto $\gamma \text{Var}(s_i)$.
+  * **$\lambda_t \in [0, 1]$**: Factor bayesiano de exploración/incertidumbre, modulado por la entropía del régimen.
+  * **$\Phi_{\text{ritmo}} \in [0, 1]$**: Coherencia dinámica de la trayectoria temporal elegida.
 
 ---
 
@@ -27,7 +38,7 @@ $$\Phi_{\text{Certeza}}(t) = \mathbb{I}(\text{CVaR}_t \le L_{\text{max}}(t)) \cd
 
 Los sistemas de IA convencionales colapsan porque mezclan la *fuerza* de la señal con la *probabilidad* de acierto. La arquitectura ZENIN resuelve esto mediante tres compuertas de validación estricta (basadas en funciones Heaviside $\Theta$):
 
-1. **Aislamiento Dimensional:** La Ecuación de Certeza no sabe de dólares, grados Celsius ni hercios. Genera un porcentaje puro de confianza. Si y solo si este porcentaje supera el umbral cognitivo ($\tau_{\text{exec}}$), se autoriza a la máquina a leer la Magnitud Objetivo calculada por el ensamble de expertos (MoE).
+1. **Aislamiento Dimensional:** La Ecuación de Certeza de Red Rose ($\Phi_{\text{RedRose}}$) no sabe de dólares, grados Celsius ni hercios. Genera un porcentaje puro de confianza en $[0, 1]$. Si y solo si este porcentaje supera el umbral cognitivo ($\tau_{\text{exec}}$), se autoriza a la máquina a leer la Magnitud Objetivo calculada por el ensamble de expertos (MoE).
 2. **Sincronía Fractal (Tiempo vs Precio):** En la ecuación de certeza, comparamos la velocidad instantánea de la señal contra la velocidad teórica del ritmo esperado. Si el sistema sufre una bifurcación o pánico, la división se aleja de 1, y la función exponencial hunde la certeza a 0, forzando un estado de inacción (`HOLD`).
 3. **Chequeo de Última Milla (Punto Ciego de Momentum):** El tercer bloque de la ecuación principal impide que el bot actúe en contra de la inercia instantánea del entorno. Si el modelo predice "comprar" pero en ese microsegundo la señal cae a plomo, el producto direccional es negativo y la función $\Theta$ aborta la orden milisegundos antes de la ejecución.
 
