@@ -69,7 +69,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cooldown-ms", type=int, default=500, help="Cooldown between orders in ms")
     parser.add_argument("--phi-moe-threshold", type=float, default=0.40, help="Phi_MoE execution threshold (intermediate balance)")
     parser.add_argument("--geometric-threshold", type=float, default=-0.4, help="Min cos theta before direction reversal abort")
-    parser.add_argument("--trailing-activation", type=float, default=15.00, help="Trailing profit activation PnL in USD")
+    parser.add_argument("--max-cluster-positions", type=int, default=2, help="Max positions in the same direction within the same asset cluster")
+    parser.add_argument("--trailing-activation", type=float, default=6.00, help="Trailing profit activation PnL in USD")
     parser.add_argument("--trailing-min-giveback", type=float, default=5.00, help="Min giveback in USD before trailing lock")
     parser.add_argument("--trailing-giveback-ratio", type=float, default=0.25, help="Giveback ratio from peak profit")
     parser.add_argument("--portfolio-profit-lock", type=float, default=12.0, help="Daily portfolio profit lock trigger in USD (calibrated to $12.00)")
@@ -141,6 +142,13 @@ def build_config(args: argparse.Namespace) -> LiveBotConfig:
     cfg.portfolio_profit_lock_trigger = args.portfolio_profit_lock
     cfg.max_trade_loss_usd = args.max_stop_loss
     cfg.enforce_market_hours = args.enforce_market_hours
+    cfg.max_cluster_correlated_positions = getattr(args, "max_cluster_positions", 2)
+    cfg.asset_clusters = {
+        "INDEX_BROAD": {"SPY", "VOO", "IVV"},
+        "INDEX_TECH": {"QQQ", "TQQQ", "SQQQ"},
+        "EQUITY_TECH_MEGA": {"AAPL", "MSFT", "GOOGL", "META"},
+        "EQUITY_SEMIS": {"NVDA", "AMD", "INTC", "TSM"},
+    }
     return cfg
 
 

@@ -21,6 +21,7 @@ from iot_machine_learning.infrastructure.adapters.market.live_runner_execution i
 )
 from iot_machine_learning.infrastructure.adapters.market.live_runner_lifecycle import (
     create_account,
+    create_default_master_orchestrator,
     create_default_rosa_roja_engine,
     create_feed,
     create_order_client,
@@ -90,11 +91,13 @@ class LiveBotRunner:
         self._symbols = list(self.config.symbols) if self.config.symbols else [self.config.symbol]
         self._symbol_extractors = {s: MarketFeatureExtractor(window=200) for s in self._symbols}
         self._feature_extractor = self._symbol_extractors.get(self.config.symbol, MarketFeatureExtractor(window=200))
+        use_master = getattr(self.config, "use_master_orchestrator", True)
+        create_engine_fn = self._create_master_orchestrator if use_master else self._create_rosa_roja_engine
         if self._engine is None and self.config.rosa_roja_enabled:
-            self._symbol_engines = {s: self._create_rosa_roja_engine() for s in self._symbols}
+            self._symbol_engines = {s: create_engine_fn() for s in self._symbols}
             self._engine = self._symbol_engines.get(self.config.symbol)
         elif self._engine is not None:
-            self._symbol_engines = {s: (self._engine if s == self.config.symbol else self._create_rosa_roja_engine()) for s in self._symbols}
+            self._symbol_engines = {s: (self._engine if s == self.config.symbol else create_engine_fn()) for s in self._symbols}
         elif self._engine is None:
             raise ValueError("Engine required but rosa_roja_enabled=False")
         if self._feed is None:
@@ -117,7 +120,7 @@ class LiveBotRunner:
         )
         self._handler = RosaRojaMarketExecutionHandler(
             broker_client=self._order_client, account_equity=equity, symbol=self.config.symbol,
-            lot_size=self.config.lot_size, min_qty=self.config.min_lot_size, max_position_pct=self.config.max_position_pct,
+            lot_size=self.config.lot_size, min_qty=self.config.min_lot_size, max_qty=self.config.max_lot_size, max_position_pct=self.config.max_position_pct,
             trailing_config=trailing_cfg,
             max_stop_loss_usd=getattr(self.config, "max_trade_loss_usd", 10.0),
             state=self._state,
@@ -132,7 +135,8 @@ class LiveBotRunner:
             enable_macro_velocity_filter=getattr(self.config, "enforce_macro_velocity_alignment", True),
             max_daily_loss_usd=getattr(self.config, "max_daily_loss_usd", 50.0),
         )
-        self._portfolio_risk_mgr = PortfolioRiskManager(initial_equity=equity, config=risk_cfg)
+        clusters = getattr(self.config, "asset_clusters", None)
+        self._portfolio_risk_mgr = PortfolioRiskManager(initial_equity=equity, config=risk_cfg, clusters=clusters)
         if self.config.enable_audit_log and self.config.audit_log_path:
             self._audit_log_path = Path(self.config.audit_log_path)
             self._audit_log_path.mkdir(parents=True, exist_ok=True)
@@ -210,7 +214,14 @@ class LiveBotRunner:
                 r_veto = r_sh.get("veto_riesgo", 1)
                 cvar = r_sh.get("cvar_t", 0.0)
                 crono = t_sh.get("lambda_crono", 0.0)
-                shadow_str = f"[shadow: risk_veto={r_veto} cvar={cvar:.4f} crono={crono:.3f}]"
+                certeza = dt.get("certeza", dt.get("phi_redrose"))
+                mag = dt.get("magnitud_objetivo", 0.0)
+                mom = dt.get("momentum_veto", 1.0)
+                gov = dt.get("governing_component", "phi_moe_base")
+                cert_str = f" cert={certeza:.3f}" if certeza is not None else ""
+                mag_str = f" mag={mag:.4f}" if mag > 0.0 else ""
+                mom_str = f" mom={int(mom)}" if mom is not None else ""
+                shadow_str = f"[{gov}: risk_veto={r_veto} cvar={cvar:.4f} crono={crono:.3f}{cert_str}{mag_str}{mom_str}]"
 
         now = time.time()
         last_eval = self._last_eval_logs.get(sym, 0.0)
@@ -242,14 +253,23 @@ class LiveBotRunner:
             macro_vel = (p[-1] - p[-5]) / p[-5] if p[-5] > 0 else 0.0
 
         if not self._can_execute(plan, symbol=sym, macro_velocity=macro_vel):
+            if plan.action == "EXECUTE" and hasattr(engine, "cancel_active_trajectory"):
+                engine.cancel_active_trajectory()
             return
 
-        if self._handler and await self._handler.dispatch_execution(plan, symbol=sym) and plan.action == "EXECUTE":
+        dispatched = False
+        if self._handler:
+            dispatched = await self._handler.dispatch_execution(plan, symbol=sym)
+
+        if dispatched and plan.action == "EXECUTE":
             self._state.last_execution_time = time.time()
             self._state.last_execution_price = mid
             self._state.trades_count += 1
             await self._log_execution(plan)
             await self._save_state()
+        elif plan.action == "EXECUTE" and not dispatched:
+            if hasattr(engine, "cancel_active_trajectory"):
+                engine.cancel_active_trajectory()
         await self._maybe_health_check()
 
     def _can_execute(self, plan: Any, symbol: str | None = None, macro_velocity: float = 0.0) -> bool:
@@ -269,6 +289,7 @@ class LiveBotRunner:
     def _create_order_client(self) -> Any: return create_order_client(self.config)
     def _create_account(self) -> Any: return create_account(self.config, self._order_client)
     def _create_rosa_roja_engine(self) -> Any: return create_default_rosa_roja_engine(self.config)
+    def _create_master_orchestrator(self) -> Any: return create_default_master_orchestrator(self.config)
     def _install_signal_handlers(self) -> None: self._signal_handlers_installed = install_signal_handlers(self._shutdown_event, self._signal_handlers_installed)
     async def _get_equity(self) -> float: return float(await self._account.get_equity()) if self._account else 10000.0
     def _on_observation_callback(self, obs: Any) -> None: pass

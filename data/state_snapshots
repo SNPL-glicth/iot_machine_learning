@@ -1,11 +1,11 @@
 {
   "cycle_count": 0,
-  "last_execution_time": 1789414676.313212,
-  "last_execution_price": 761.565,
+  "last_execution_time": 1789492255.3032243,
+  "last_execution_price": 705.185,
   "last_execution_side": "",
-  "last_phi_moe": 0.42914367803241293,
-  "last_lambda_t": 0.2530390413655703,
-  "last_phi_ritmo": 0.0089012635871768,
+  "last_phi_moe": 0.4194700159422074,
+  "last_lambda_t": 0.19990513785872982,
+  "last_phi_ritmo": 0.015579527243971825,
   "current_position": 0.0,
   "positions": {
     "SPY": 0.0,
@@ -14,7 +14,10 @@
     "AAPL": 0.0
   },
   "total_pnl": 0.0,
-  "trades_count": 6,
+  "trades_count": 7,
+  "consecutive_losses": {},
+  "streak_cooling_until": {},
+  "portfolio_circuit_breaker_tripped": false,
   "last_error": null,
-  "timestamp": 1789414676.31422
+  "timestamp": 1789492255.3042367
 }

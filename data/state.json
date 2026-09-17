@@ -15,6 +15,8 @@
   },
   "total_pnl": 0.0,
   "trades_count": 0,
-  "last_error": null,
-  "timestamp": 1789158243.8885422
+  "consecutive_losses": {},
+  "streak_cooling_until": {},
+  "portfolio_circuit_breaker_tripped": false,
+  "last_error": null
 }

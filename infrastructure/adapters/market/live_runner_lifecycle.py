@@ -138,16 +138,11 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
         KalmanExpertAdapter(engine=KalmanPredictionEngine()),
         StatisticalExpertAdapter(engine=StatisticalPredictionEngine()),
     ]
-    shadow_experts = [
-        RiskEngineAdapter(),
-        TemporalEngineAdapter(),
-    ]
     engine = RosaRojaEngine(
         ingestion_filter=ingestion,
         rhythm_generator=rhythm,
         moe_gating=gating,
         expert_jury=jury,
-        shadow_experts=shadow_experts,
         drift_sensors=[],
         outlier_reset_threshold=3,
         exploration_boost_events=5,
@@ -159,6 +154,32 @@ def create_default_rosa_roja_engine(config: LiveBotConfig) -> RosaRojaEngine:
     )
     engine._tracker = TrajectoryTracker(max_direction_dev_deg=120.0, max_velocity_rel_err=5.0)
     return engine
+
+
+def create_default_master_orchestrator(config: LiveBotConfig) -> Any:
+    """Crea el orquestador maestro unificando Rosa Roja, Riesgo Estocástico y Sincronía Temporal."""
+    from iot_machine_learning.infrastructure.ml.adapters import (
+        RiskEngineAdapter,
+        TemporalEngineAdapter,
+    )
+    from iot_machine_learning.infrastructure.ml.master_engine import MasterEquationOrchestrator
+
+    rosa_roja = create_default_rosa_roja_engine(config)
+    risk_adapter = RiskEngineAdapter()
+    temporal_adapter = TemporalEngineAdapter()
+
+    shadow_mode = getattr(config, "master_shadow_mode", True)
+    tau_mom = getattr(config, "tau_mom", 0.5)
+    sigma_mom = getattr(config, "sigma_mom", 0.001)
+
+    return MasterEquationOrchestrator(
+        rosa_roja_engine=rosa_roja,
+        risk_adapter=risk_adapter,
+        temporal_adapter=temporal_adapter,
+        shadow_mode=shadow_mode,
+        tau_mom=tau_mom,
+        sigma_mom=sigma_mom,
+    )
 
 
 def install_signal_handlers(shutdown_event: Any, already_installed: bool = False) -> bool:

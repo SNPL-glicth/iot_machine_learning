@@ -107,6 +107,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         symbol: str,
         lot_size: float = 1.0,
         min_qty: float = 0.01,
+        max_qty: float = float("inf"),
         max_position_pct: float = 1.0,
         trailing_config: TrailingProfitConfig | None = None,
         max_stop_loss_usd: float = 10.0,
@@ -119,6 +120,7 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
         self._symbol = symbol
         self._lot_size = lot_size
         self._min_qty = min_qty
+        self._max_qty = max_qty
         self._max_position_pct = max_position_pct
         self._max_stop_loss_usd = max_stop_loss_usd
         self._state = state
@@ -256,8 +258,9 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
 
             # Calculate position sizing from envelope magnitude
             notional = self._equity * min(envelope.magnitude, self._max_position_pct)
-            qty = max(self._min_qty,
-                     round(notional / current_price / self._lot_size) * self._lot_size)
+            qty = min(self._max_qty,
+                      max(self._min_qty,
+                          round(notional / current_price / self._lot_size) * self._lot_size))
 
             # Extract bounds from envelope
             stop_pct = envelope.bounds.get("stop_pct", 0.0)
@@ -489,7 +492,12 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
             else:
                 logger.error(f"Emergency flatten: broker did not confirm position closure for {target_sym}. Response: {close_resp}")
         else:
-            self._mark_close_confirmed(target_sym)
+            # Si la posición ya estaba plana (qty == 0), no imponer cooldown post-cierre de 45s.
+            # Limpiar is_closing para no bloquear el activo injustificadamente.
+            if self._state is not None and hasattr(self._state, "is_closing"):
+                self._state.is_closing[target_sym] = False
+                if hasattr(self._state, "close_confirmed_at") and target_sym in self._state.close_confirmed_at:
+                    del self._state.close_confirmed_at[target_sym]
         self._cached_positions[target_sym] = None
 
     def update_equity(self, new_equity: float) -> None:

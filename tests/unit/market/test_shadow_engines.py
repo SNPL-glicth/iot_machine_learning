@@ -6,6 +6,7 @@ Validates:
 3. Non-interference invariant: shadow experts do not alter phi_moe or execution decisions.
 """
 
+from typing import Any
 import math
 import numpy as np
 import pytest
@@ -26,6 +27,7 @@ from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 from iot_machine_learning.infrastructure.ml.engines.statistical import StatisticalPredictionEngine
 from iot_machine_learning.infrastructure.ml.engines.taylor.engine import TaylorPredictionEngine
+from iot_machine_learning.infrastructure.ml.master_engine import MasterEquationOrchestrator
 
 
 class TestRiskEngineAdapter:
@@ -133,7 +135,7 @@ class TestTemporalEngineAdapter:
 class TestShadowModeIsolation:
     """Verifies that shadow engines do not interfere with live execution or phi_moe."""
 
-    def _build_engine(self, with_shadow: bool = True) -> RosaRojaEngine:
+    def _build_engine(self, with_shadow: bool = True) -> Any:
         ingestion = MahalanobisFilter(noise_threshold=3.0, history_window=50, min_samples_for_cov=10)
         rhythm = RhythmTrajectoryGenerator(min_trajectory_len=11, max_trajectory_len=15, top_k=4)
         gating = MultiplicativeMoEGating(variance_penalty=0.5)
@@ -142,14 +144,20 @@ class TestShadowModeIsolation:
             KalmanExpertAdapter(engine=KalmanPredictionEngine()),
             StatisticalExpertAdapter(engine=StatisticalPredictionEngine()),
         ]
-        shadow = [RiskEngineAdapter(), TemporalEngineAdapter()] if with_shadow else []
-        return RosaRojaEngine(
+        engine = RosaRojaEngine(
             ingestion_filter=ingestion,
             rhythm_generator=rhythm,
             moe_gating=gating,
             expert_jury=jury,
-            shadow_experts=shadow,
             drift_sensors=[],
+        )
+        if not with_shadow:
+            return engine
+        return MasterEquationOrchestrator(
+            rosa_roja_engine=engine,
+            risk_adapter=RiskEngineAdapter(),
+            temporal_adapter=TemporalEngineAdapter(),
+            shadow_mode=True,
         )
 
     def test_non_interference_invariant(self) -> None:

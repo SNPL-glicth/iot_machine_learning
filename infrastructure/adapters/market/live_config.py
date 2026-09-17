@@ -38,9 +38,13 @@ class LiveBotConfig:
     include_kline: bool = False
     kline_interval: str = "1m"
 
-    # Motor Rosa Roja
+    # Motor Rosa Roja y Orquestador Maestro
     rosa_roja_enabled: bool = True
     rosa_roja_min_history: int = 50
+    use_master_orchestrator: bool = True  # True: MasterEquationOrchestrator; False: RosaRoja directo
+    master_shadow_mode: bool = True       # True: telemetría en sombra; False: control activo total del motor maestro
+    tau_mom: float = 0.5                  # Multiplicador de umbral de banda muerta de momentum
+    sigma_mom: float = 0.001              # Desviación estándar / escala de ruido de momentum
 
     # Parámetros de riesgo y ejecución
     max_position_pct: float = 0.05      # 5% del equity máximo por trade
@@ -85,8 +89,9 @@ class LiveBotConfig:
     max_consecutive_losses: int = 2               # Racha máxima de pérdidas antes de pausa
     consecutive_loss_cooldown_sec: float = 900.0  # Tiempo de enfriamiento tras racha (15 minutos = 900s)
 
-    # Guardrail de Correlación Cruzada (Cluster Tech)
-    max_cluster_correlated_positions: int = 1     # Máx posiciones simultáneas en misma dirección en cluster Tech
+    # Guardrail de Correlación Cruzada (Clusters de Activos)
+    max_cluster_correlated_positions: int = 2     # Máx posiciones simultáneas en misma dirección en mismo cluster
+    asset_clusters: dict[str, set[str]] | None = None  # Mapeo de clusters personalizados (si None, usa DEFAULT_CLUSTERS)
 
     # Filtro de Inercia y Velocidad Macro
     enforce_macro_velocity_alignment: bool = True # Prohíbe cortos si velocidad macro > 0
