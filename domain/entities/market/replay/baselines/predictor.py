@@ -11,7 +11,8 @@ from .prediction_signal import PredictionSignal
 class Predictor(Protocol):
     """Contrato de un predictor evaluable por el benchmark."""
 
-    name: str
+    @property
+    def name(self) -> str: ...
 
     def predict(
         self,

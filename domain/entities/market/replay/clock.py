@@ -29,7 +29,8 @@ class ClockRollbackError(ValueError):
 class Clock(Protocol):
     """Protocol de reloj: abstracción para replay vs live (FASE 6)."""
 
-    now: float
+    @property
+    def now(self) -> float: ...
 
     def advance_to(self, timestamp: float) -> Clock:
         """Avanza el reloj a ``timestamp`` (monótono; copia inmutable)."""

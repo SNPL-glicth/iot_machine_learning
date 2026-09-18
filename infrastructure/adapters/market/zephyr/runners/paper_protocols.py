@@ -40,8 +40,10 @@ class FeedProtocol(Protocol):
 class _StaticCandleFeed:
     """Feed mínimo sobre una tupla de velas (contrato HistoricalFeed)."""
 
-    def __init__(self, candles: tuple[Candle, ...]) -> None:
+    def __init__(self, candles: tuple[Candle, ...], symbol: str = "", resolution_seconds: int = 0) -> None:
         self._candles = candles
+        self.symbol = symbol
+        self.resolution_seconds = resolution_seconds
 
     def iter_events(self):
         yield from self._candles

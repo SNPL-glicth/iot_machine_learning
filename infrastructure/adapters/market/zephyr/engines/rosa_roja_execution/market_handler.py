@@ -74,8 +74,8 @@ class RosaRojaMarketExecutionHandler(ExecutionPort):
                 cfg = TrailingProfitConfig(
                     activation_pnl_usd=max(0.02, round(self._trailing_config.activation_pnl_usd * scale, 3)),
                     min_giveback_usd=max(0.01, round(self._trailing_config.min_giveback_usd * scale, 3)),
-                    profit_lock_floor_usd=max(0.01, round(self._trailing_config.profit_lock_floor_usd * scale, 3)),
-                    giveback_pct=self._trailing_config.giveback_pct,
+                    max_giveback_usd=max(0.01, round(self._trailing_config.max_giveback_usd * scale, 3)),
+                    giveback_ratio=self._trailing_config.giveback_ratio,
                 )
                 self._trailing_managers[s] = TrailingProfitManager(cfg)
             else:

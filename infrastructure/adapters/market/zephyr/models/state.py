@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import InitVar, dataclass, field
 from typing import Any
 
@@ -34,6 +35,7 @@ class LiveBotState:
     close_confirmed_at: dict[str, float] = field(default_factory=dict)
     consecutive_losses: dict[str, int] = field(default_factory=dict)
     streak_cooling_until: dict[str, float] = field(default_factory=dict)
+    on_trade_outcome: Callable[..., None] | None = field(default=None, repr=False)
 
     def __post_init__(self, current_position: float | None = None) -> None:
         if isinstance(current_position, (int, float)) and current_position != 0.0:

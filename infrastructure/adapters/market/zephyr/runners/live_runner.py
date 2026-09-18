@@ -25,7 +25,7 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roj
 from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_risk_manager import PortfolioRiskConfig, PortfolioRiskManager
 from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.trailing_profit_manager import TrailingProfitConfig
 from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.builder import build_telemetry_state, format_status_line
-from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.server import create_telemetry_server
+from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.server import TelemetryBroadcaster, create_telemetry_server
 from iot_machine_learning.infrastructure.adapters.persistence.weaviate_telemetry import WeaviateTelemetryStore
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,9 @@ class LiveBotRunner:
         self._symbols = list(config.symbols) if config.symbols else [config.symbol]
         self._symbol_extractors, self._symbol_engines = {}, {}
         self._state_path = Path(state_path) if state_path else (Path(config.state_snapshot_path) if config.state_snapshot_path else None)
-        self._on_status, self._handler, self._portfolio_risk_mgr = on_status or (lambda line: logger.info(line)), None, None
+        self._on_status = on_status or (lambda line: logger.info(line))
+        self._handler: RosaRojaMarketExecutionHandler | None = None
+        self._portfolio_risk_mgr: PortfolioRiskManager | None = None
         self._state, self._running, self._shutdown_event = LiveBotState(), False, asyncio.Event()
         self._last_health_check, self._last_broadcast, self._start_time = 0.0, 0.0, time.time()
 
@@ -53,7 +55,9 @@ class LiveBotRunner:
         self._latency_samples: deque[float] = deque(maxlen=1000)
         self._execution_history: deque[ExecutionContext] = deque(maxlen=1000)
         self._market_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
-        self._audit_log_path, self._telemetry, self._signal_handlers_installed = None, None, False
+        self._audit_log_path: Path | None = None
+        self._telemetry: TelemetryBroadcaster | None = None
+        self._signal_handlers_installed = False
         self._memory_mgr = ContextualMemoryManager(max_daily_loss=getattr(config, "max_daily_loss_usd", 50.0))
         self._state.on_trade_outcome = self._memory_mgr.update_from_execution
         self._weaviate_store = WeaviateTelemetryStore(url=getattr(config, "weaviate_url", "http://localhost:8080"))
@@ -115,6 +119,7 @@ class LiveBotRunner:
         finally: await self.shutdown()
 
     async def _ingest_worker(self) -> None:
+        assert self._feed is not None, "Feed must be initialized before _ingest_worker"
         async for obs in self._feed.iter_observations():
             if not self._running or self._shutdown_event.is_set(): break
             if self._market_queue.full():
