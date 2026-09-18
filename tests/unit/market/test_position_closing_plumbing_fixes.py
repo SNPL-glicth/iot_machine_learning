@@ -10,7 +10,7 @@ import pytest
 from iot_machine_learning.infrastructure.adapters.market.zephyr.config import LiveBotConfig
 from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import can_execute
 from iot_machine_learning.infrastructure.adapters.market.zephyr.models import LiveBotState
-from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import RosaRojaMarketExecutionHandler
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja_execution.market_handler import RosaRojaMarketExecutionHandler
 from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client_market import AlpacaMarketMixin
 
 

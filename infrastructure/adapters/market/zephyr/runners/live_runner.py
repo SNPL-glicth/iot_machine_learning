@@ -20,8 +20,8 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import
 from iot_machine_learning.infrastructure.adapters.market.zephyr.models import (
     ContextualMemoryManager, ExecutionContext, LiveBotState,
 )
-from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.features import MarketFeatureExtractor
-from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import RosaRojaMarketExecutionHandler
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja_execution.features import MarketFeatureExtractor
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja_execution.market_handler import RosaRojaMarketExecutionHandler
 from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_risk_manager import PortfolioRiskConfig, PortfolioRiskManager
 from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.trailing_profit_manager import TrailingProfitConfig
 from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.builder import build_telemetry_state, format_status_line

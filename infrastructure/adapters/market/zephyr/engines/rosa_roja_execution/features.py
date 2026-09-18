@@ -8,7 +8,7 @@ import numpy as np
 from iot_machine_learning.domain.entities.market.observations import (
     Candle, MarketObservation, OrderBookSnapshot, Quote, Trade,
 )
-from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.features_state import FeatureState
+from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja_execution.features_state import FeatureState
 
 
 class MarketFeatureExtractor:
