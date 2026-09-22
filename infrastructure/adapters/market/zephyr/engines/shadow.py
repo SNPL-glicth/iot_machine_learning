@@ -1,26 +1,9 @@
-"""Live Shadow runner (FASE 6) — ZENIN consumiendo un feed live.
+"""Historical Feed Gap Replay runner (FASE 6 Legacy).
 
-Composición explícita de infraestructura + dominio para el modo shadow:
-
-    LiveFeed ──> MarketReplayEngine ──> LiveShadowResult
-
-El engine es el MISMO del replay (condición 1): el dominio no cambia;
-solo cambia la fuente (LiveFeed) y el reloj (LiveClock). Este runner
-añade la capa de honestidad live:
-
-    * pre-scan del feed (pasada seca con otro LiveFeed) para descubrir
-      los gaps ANTES de correr el engine;
-    * ventanas degradadas [expected, received] pasadas al engine: las
-      predicciones emitidas sobre contexto incompleto se invalidan al
-      emitir con ``reason="provider_gap"`` — jamás producen reward
-      (condiciones 3 y 4);
-    * historial de estados de conexión expuesto (condición 4).
-
-Sin persistencia (condición 5): el shadow imprime a consola/dashboard;
-la persistencia (MySQL → Outcome → Reward) es la siguiente etapa.
-
-El pre-scan requiere un feed subyacente re-iterable (frozen); con un
-WebSocket real el descubrimiento de gaps ocurre en streaming (futuro).
+[ARCHITECTURAL SCOPE]: Purely for historical replay and gap-detection parity.
+This is NOT part of Zephyr's live production execution path. Zephyr live trading
+operates under the absolute sovereign authority of MasterEquationOrchestrator
+in active execution mode via MasterEngineAdapter.
 """
 
 from __future__ import annotations

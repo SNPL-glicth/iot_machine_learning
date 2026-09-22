@@ -1,63 +1,151 @@
-# Arquitectura ZENIN: Motor de Decisión y Metacognición
+# Arquitectura ZENIN: Motor de Decisión, Resonancia de Ondas y Metacognición
 
-## Contexto del Proyecto
-
-ZENIN nació para procesar datos de sensores de Internet de las Cosas (IoT). Como el mundo real está lleno de ruido, retrasos y fallos físicos, el sistema aprendió una regla vital: **nunca confiar a ciegas en los datos ni en sus propias predicciones**.
-
-Hoy, el núcleo se ha convertido en un motor de decisiones universal. A diferencia de la Inteligencia Artificial tradicional, que asume que siempre tiene la razón y falla sin avisar cuando se confunde, ZENIN tiene *metacognición*: sabe cuándo no sabe. Antes de actuar (ya sea invirtiendo dinero en un mercado o moviendo un robot), calcula matemáticamente su nivel de duda, el riesgo de equivocarse y si el momento exacto es el adecuado para moverse.
+> **Módulo Central de Machine Learning e Inferencia de Sistemas Dinámicos**  
+> Paquete: `iot_machine_learning` | Versión: `0.1.0` | Python: `>=3.10`
 
 ---
 
-## La Ecuación Maestra (ZENIN v2.2)
+## 1. Visión y Fundamentos del Sistema
 
-Esta ecuación es el cerebro del sistema. Su mayor logro es separar tres cosas que la IA normal suele mezclar en un solo número: **Qué hacer**, **Qué tan seguros estamos** y **Si el viento sopla a favor**.
+**ZENIN** implementa un paradigma de *metacognición computacional* y física de sistemas dinámicos para la toma de decisiones en entornos estocásticos con alta presencia de ruido y no-estacionariedad.
 
-### 1. Motor de Decisión (El Gatillo)
-Determina la acción final que el sistema ejecutará en la realidad.
-
-$$
-\mathcal{O}_{\text{ZENIN}}(t) = \underbrace{ \left( \sum_{i=1}^{N} w_i \Psi_i(t) \right) }_{\text{Magnitud Objetivo}} \cdot \underbrace{ \Theta \Big( \Phi_{\text{RedRose}}(t) - \tau_{\text{exec}} \Big) }_{\text{Filtro de Umbral}} \cdot \underbrace{ \Theta \left( \overline{\frac{dy}{dt}} \cdot \sum_{i=1}^{N} w_i \Psi_i(t) - (\tau_{\text{mom}} \cdot \sigma_{\text{mom}}) \right) }_{\text{Filtro de Momentum}}
-$$
-
-En términos sencillos, el sistema multiplica tres factores:
-* **El Objetivo (Magnitud):** Lo que los modelos recomiendan hacer (ej. "comprar 50 acciones").
-* **El Permiso (Umbral):** Un interruptor de seguridad. Si el nivel de certeza del sistema no supera un umbral mínimo, este valor se vuelve cero y cancela la operación entera.
-* **El Chequeo de Último Instante (Momentum):** Justo antes de actuar, mira la inercia de la realidad. Si el sistema quiere "comprar" pero en ese preciso milisegundo el precio se está desplomando bruscamente, bloquea la acción para no estrellarse.
-
-### 2. Motor de Certeza Rosa Roja (El Escudo)
-Esta fórmula es la que decide si el interruptor de "Permiso" del paso anterior se enciende o se apaga. Califica la seguridad del sistema en una escala de 0.0 (duda total) a 1.0 (certeza absoluta).
-
-$$
-\Phi_{\text{RedRose}}(t) = \underbrace{\mathbb{I}(\text{CVaR}_t \le L_{\text{max}}(t))}_{\text{Veto de Riesgo}} \cdot \underbrace{\exp \left( - \left| \frac{\big| \partial S / \partial t \big|}{\max\left(|\partial R / \partial t|, \epsilon \cdot \sigma_{\partial R / \partial t}\right)} - 1 \right| \right)}_{\text{Sincronía de Tiempo } \Lambda(t)} \cdot \underbrace{\Phi_{\text{epistémica}}(t)}_{\text{Confianza del Jurado}}
-$$
-
-Para que el sistema confíe en sí mismo, debe pasar tres filtros:
-1. **Límite de Pérdida (Riesgo):** Calcula el peor escenario posible. Si la pérdida máxima esperada supera lo que el sistema tiene permitido arriesgar, la certeza cae a cero instantáneamente. La supervivencia va antes que la ganancia.
-2. **Sincronía del Reloj (Tiempo):** Compara la velocidad a la que están ocurriendo las cosas frente a la velocidad a la que *deberían* ocurrir. Si el mercado o el entorno entra en pánico y se mueve demasiado rápido, el sistema detecta el caos y reduce drásticamente su nivel de confianza.
-3. **El Debate Interno (Confianza del Jurado):** Consulta la opinión de sus propios modelos internos, detallada a continuación.
-
-### 3. La Confianza del Jurado (Rosa Roja Base)
-Aquí es donde el sistema evalúa a sus propios expertos internos.
-
-$$
-\Phi_{\text{epistémica}}(t) = \underbrace{\left[ \frac{\frac{\sum_{i=1}^{M} w_i s_i(t)}{\sum_{i=1}^M w_i}}{1 + \gamma \text{Var}(s_i)} \right]}_{\text{Consenso y Varianza}} \cdot \underbrace{\Big( 1 - \lambda_t (1 - \Phi_{\text{ritmo}}) \Big)}_{\text{Reconocimiento de Ignorancia}}
-$$
-
-El comportamiento se resume en dos reglas prácticas:
-* **Penalización por desacuerdo:** El sistema promedia lo que opinan sus diferentes modelos matemáticos. Sin embargo, si los modelos se contradicen entre sí (uno dice sube, otro dice baja), se aplica un castigo severo a la confianza total. Solo se actúa si hay consenso.
-* **Humildad algorítmica:** El sistema monitorea constantemente qué tan predecible está siendo el entorno. Si detecta que las reglas del juego están cambiando rápido, aumenta su índice de "ignorancia" y frena sus acciones hasta volver a entender el terreno.
+A diferencia de los modelos de inferencia convencionales que fusionan magnitud y probabilidad en una única salida determinista, ZENIN desacopla ortogonalmente tres dimensiones fundamentales:
+1. **Magnitud Objetivo ($\mu$):** Consenso ponderado sobre la acción óptima en unidades de estado.
+2. **Certeza Resonante ($\Phi$):** Grado de coherencia analítica y de fase entre los subsistemas de inferencia, acotado en $[0.0, 1.0]$.
+3. **Filtro de Momentum Cinético ($\mathcal{V}_{\text{mom}}$):** Validación de inercia y dinámica temporal instantánea mediante deadband adaptativo.
 
 ---
 
-## Integración con Zephyr 2.0 (Backend de Ejecución de Mercado)
+## 2. Marco Matemático y Ecuaciones Activas
 
-Para ejecutar esta matemática en mercados reales o simulados, ZENIN se conecta con **Zephyr 2.0**:
-* **Ubicación del Backend:** [`infrastructure/adapters/market/zephyr/`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/adapters/market/zephyr)
-* **Soberanía Matemática:** La clase [`MasterEngineAdapter`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/adapters/market/zephyr/master_engine_adapter/adapter.py) conecta el flujo de eventos con `MasterEquationOrchestrator`. Zephyr acata la decisión (`EXECUTE`, `HOLD`, `EMERGENCY_FLUSH`) sin modificarla ni interferir con la señal.
-* **Lanzador Raíz Canónico:** Se ejecuta directamente desde la raíz del repositorio con [`run_zephyr.py`](file:///home/nicolas/Documentos/Proyectos/ST/run_zephyr.py):
-  ```bash
-  python run_zephyr.py --broker alpaca --symbol SPY
-  python run_zephyr.py --broker binance --symbol BTCUSDT --testnet
-  python run_zephyr.py --status
-  ```
-* **Telemetría y Dashboard:** Emite estado a 10 Hz vía WebSocket (`ws://127.0.0.1:8765`) al frontend.
+### 2.1. Ecuación Maestra Compuesta (Composite Master Equation)
+Implementada en [`master_equation.py`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/master_engine/master_equation.py):
+
+$$\Phi_{\text{RedRose}}(t) = I_{\text{CVaR}} \cdot \Lambda(t) \cdot \Phi_{\text{MoE\_base}} \cdot \Big( r(t) \cdot \alpha_{\text{align}} \Big)$$
+
+Donde cada componente auditable cumple con la norma ISO 22989:
+* **$I_{\text{CVaR}} \in [0.0, 1.0]$:** Factor de solvencia y veto continuo derivado del Conditional Value at Risk ($i_{\text{cvar}}$). Si $I_{\text{CVaR}} \le 0.0$, la certeza colapsa a $0.0$.
+* **$\Lambda(t) \in [0.0, 1.0]$:** Coherencia y sincronía cronométrica de tiempo:
+  $$\Lambda(t) = \exp\left( -\min\left(10.0, \, \left| \frac{\big| \partial S / \partial t \big|}{\max\big(|\partial R / \partial t|, \, \epsilon \cdot \sigma_{\partial R / \partial t}\big)} - 1.0 \right| \right) \right)$$
+* **$\Phi_{\text{MoE\_base}} \in [0.0, 1.0]$:** Confianza epistémica base entregada por el jurado de expertos Mixture-of-Experts.
+* **$r(t) \in [0.0, 1.0]$:** Parámetro de Orden de Kuramoto para sincronización de fase entre osciladores del sistema.
+* **$\alpha_{\text{align}} \in [0.0, 1.0]$:** Grado de alineación de fase inter-componente (`phase_alignment`).
+
+---
+
+### 2.2. Interferencia Resonante de Ondas Complejas y Parámetro de Kuramoto
+Implementada en [`compute_certeza`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/master_engine/master_equation.py#L31-L85):
+
+$$\Phi_{\text{certeza}}(t) = A_1 \cdot A_2 \cdot A_3 \cdot \psi\big(r(t)\big)$$
+
+#### 1. Amplitudes de Onda:
+* $A_1 = a_{\text{risk}} = \text{clip}(I_{\text{CVaR}}, 0, 1)$
+* $A_2 = \Lambda(t) = \exp(-\min(10, |\text{ratio} - 1|))$
+* $A_3 = \Phi_{\text{epist}} = \text{clip}(\text{certeza\_epistemica}, 0, 1)$
+
+#### 2. Mapeo a Espacio de Fases Local:
+$$\theta_k = \text{atan2}\left( \text{velocidad}_k, \, \text{desplazamiento}_k \right)$$
+* $\theta_1 = 0.0$ (Fase de referencia / amortiguación de riesgo).
+* $\theta_2 = \text{atan2}(\Delta v, \, \text{denominador})$, donde $\Delta v = v_s - v_r$.
+* $\theta_3 = \text{atan2}\left(v_s, \, \max\big(10^{-4}, |\Phi_{\text{epist}} - 0.5|\big)\right)$.
+
+#### 3. Parámetro de Orden de Kuramoto:
+$$z(t) = \frac{1}{N}\sum_{k=1}^N e^{i \theta_k} \implies r(t) = |z(t)| = \sqrt{ \left(\frac{1}{N}\sum_{k=1}^N \cos\theta_k\right)^2 + \left(\frac{1}{N}\sum_{k=1}^N \sin\theta_k\right)^2 }$$
+
+#### 4. Modulación Resonante y Protección Estacionaria:
+$$\psi(r) = r(t)^2$$
+> **Invarianza Estacionaria:** Si la dinámica no presenta fluctuación diferencial ($|\Delta v| < 10^{-7}$ o $|v_s| < 10^{-9}$), se fija $r(t) = 1.0$, preservando el producto marginal clásico $\mathbb{E}[\Phi] = A_1 \cdot A_2 \cdot A_3$ sin desvanecimiento de certeza (*vanishing certainty*).
+
+---
+
+### 2.3. Consenso de Magnitud Objetivo
+Implementada en [`compute_magnitud_objetivo`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/master_engine/master_equation.py#L87-L109):
+
+$$\mu_{\text{obj}}(t) = \frac{\sum_{i=1}^{N} w_i \cdot y_i(t)}{\sum_{i=1}^{N} w_i}$$
+
+Calcula el promedio ponderado de las proyecciones $\{y_i\}$ de los expertos (ej. Taylor, Kalman, Modelos Estadísticos) según sus pesos dinámicos $\{w_i\}$.
+
+---
+
+### 2.4. Veto de Momentum Continuo (Smooth Deadband Filter)
+Implementada en [`compute_momentum_veto`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/master_engine/master_equation.py#L111-L133):
+
+$$\mathcal{V}_{\text{mom}}(t) = \text{clip}\left( \frac{k_{\text{flux}} - \delta_{\text{deadband}}}{\delta_{\text{deadband}}}, \, 0.0, \, 1.0 \right)$$
+
+Donde:
+* **Flujo cinético:** $k_{\text{flux}} = \overline{\left(\frac{ds}{dt}\right)}_{\text{EMA}} \cdot \mu_{\text{obj}}(t)$
+* **Banda muerta adaptativa:** $\delta_{\text{deadband}} = \tau_{\text{mom}} \cdot \max(\sigma_{\text{mom}}, \sigma_{\text{market}})$
+* Si $k_{\text{flux}} \le \delta_{\text{deadband}}$, $\mathcal{V}_{\text{mom}} = 0.0$ (bloqueo por ruido o contra-inercia).
+
+---
+
+### 2.5. Gating MoE Multiplicativo y Penalización por Desacuerdo
+Implementada en [`module3_moe_gating.py`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/engines/rosa_roja/algorithms/modules/module3_moe_gating.py):
+
+$$\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \text{Críticos}} \mathbb{I}\big(\Psi_k(T) \ge \tau_k\big) \right] \cdot \frac{\frac{\sum_{e=1}^{M} w_e \Psi_e(T)}{\sum_{e=1}^{M} w_e}}{1 + \gamma \cdot \text{Var}\big(\{\Psi_e(T)\}\big)}$$
+
+* **Hard-Gating:** Si un único experto calificado como *crítico* evalúa la trayectoria $T$ por debajo de su umbral $\tau_k$, la indicatriz $\mathbb{I}$ se anula y la propuesta queda vetada de inmediato.
+* **Penalización por Varianza $\gamma$:** Amortigua la confianza si los expertos presentan opiniones divergentes sobre la trayectoria candidata.
+
+---
+
+### 2.6. Ingesta y Filtro Mahalanobis Anti-Contaminación
+Implementado en [`module1_ingestion.py`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/engines/rosa_roja/algorithms/modules/module1_ingestion.py):
+
+$$\mathcal{D}_t = \mathcal{D}_{t-1} \cup \left\{ (\Delta s_t, \Delta t) \cdot \mathbb{I}\big(d_{\text{Mahalanobis}}(\Delta s_t) \le \tau_{\text{noise}}\big) \right\}$$
+
+$$d_M^2(\Delta s_t) = (\Delta s_t - \mu_n)^T \Sigma_n^{-1} (\Delta s_t - \mu_n)$$
+
+* **Actualización en Tiempo Real $O(1)$ (Welford):**
+  $$\mu_n = \mu_{n-1} + \frac{\Delta s_t - \mu_{n-1}}{n}, \quad M_{2,n} = M_{2,n-1} + (\Delta s_t - \mu_{n-1}) \otimes (\Delta s_t - \mu_n)$$
+  $$\Sigma_n = \frac{M_{2,n}}{n - 1} + 10^{-6} \cdot I$$
+
+---
+
+## 3. Estructura del Código en `iot_machine_learning`
+
+```
+iot_machine_learning/
+├── core/
+│   └── parameters/
+│       └── numerical_constants.py      # Umbrales épsilon, tolerancias y constantes numéricas
+├── domain/
+│   ├── entities/                       # Entidades de mercado, calibración y evaluación
+│   └── ports/                          # Interfaces/contratos de expertos, sensores y stores
+├── infrastructure/
+│   ├── adapters/                       # Adaptadores de telemetría, Weaviate y puente Zephyr
+│   └── ml/
+│       ├── adapters/                   # Adaptadores de jurado experto (Kalman, Taylor, Statistical)
+│       ├── engines/
+│       │   ├── kalman/                 # Motor de predicción por Filtro de Kalman
+│       │   ├── taylor/                 # Motor de predicción por expansión polinomial de Taylor
+│       │   ├── statistical/            # Motor de predicción por modelos autorregresivos/estadísticos
+│       │   └── rosa_roja/              # Motor cognitivo metacognitivo Rosa Roja
+│       │       └── algorithms/
+│       │           ├── domain/         # Máquina de estados, trayectorias y persistencia
+│       │           └── modules/        # Ingesta Mahalanobis, Random Walk, Gating MoE
+│       └── master_engine/
+│           ├── master_equation.py      # Ecuación Maestra, Interferencia de Ondas y Kuramoto
+│           ├── orchestrator.py         # MasterEquationOrchestrator (coordinador general)
+│           ├── plan_builder.py         # Constructor de ExecutionPlan y ActionEnvelope
+│           └── telemetry.py            # Generación de trazas de decisión ISO 22989
+└── tests/
+    ├── unit/                           # Tests unitarios matemáticos y de invarianzas
+    └── integration/                    # Tests de certificación E2E institucional
+```
+
+---
+
+## 4. Ejecución de Tests y Verificación
+
+Para validar la suite matemática completa y las invarianzas de la Ecuación Maestra:
+
+```bash
+# Tests unitarios del motor maestro e interferencia de Kuramoto
+pytest -v iot_machine_learning/tests/unit/market/test_zenin_v22_master_equation.py \
+          iot_machine_learning/tests/unit/market/test_kuramoto_resonance.py \
+          iot_machine_learning/tests/unit/market/test_master_orchestrator_invariance.py
+
+# Suite unitaria completa de mercado (698+ tests)
+pytest -v iot_machine_learning/tests/unit/market/
+```

@@ -126,3 +126,41 @@ def test_master_telemetry_packer_weaviate_records():
     assert record["action"] == "BUY:1"
     assert record["cvar"] == 0.012
     assert record["decision_rationale"]["certeza"] == 0.84
+
+
+def test_evaluate_directive_bridge():
+    """Verify MasterEngineAdapter.evaluate_directive returns both ExecutionPlan and OrderDirective."""
+    mock_engine = MagicMock()
+    mock_plan = ExecutionPlan(
+        action=1.0,
+        chosen_trajectory=MagicMock(),
+        global_confidence=0.88,
+        envelope=ActionEnvelope(magnitude=1.0, bounds={}, max_steps=10, metadata={}),
+        invalidation_step=None,
+        regime_alert=False,
+        veto_details={},
+    )
+    mock_engine.process_event.return_value = mock_plan
+
+    adapter = MasterEngineAdapter(mock_engine, symbol="SPY")
+    delta_s = np.zeros(10, dtype=np.float32)
+
+    plan, directive = adapter.evaluate_directive(delta_s, delta_time=0.1, current_position=0.0)
+
+    assert plan is mock_plan
+    assert isinstance(directive, OrderDirective)
+    assert directive.action == "EXECUTE"
+    assert directive.side == "buy"
+    assert directive.confidence == 0.88
+
+
+def test_orchestrator_default_active_mode():
+    """Verify MasterEquationOrchestrator defaults to active institutional mode (shadow_mode=False)."""
+    from iot_machine_learning.infrastructure.ml.master_engine import MasterEquationOrchestrator
+
+    orch = MasterEquationOrchestrator(
+        rosa_roja_engine=MagicMock(),
+        risk_adapter=MagicMock(),
+        temporal_adapter=MagicMock(),
+    )
+    assert orch._shadow_mode is False

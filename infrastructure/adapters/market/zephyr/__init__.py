@@ -5,7 +5,11 @@ Decoupled execution backend obeying ZENIN Master Equation sovereignty.
 
 from __future__ import annotations
 
+import sys
+
 from iot_machine_learning.infrastructure.adapters.market.zephyr.config import (
+    AccountManager,
+    ConfigManager,
     LiveBotConfig,
     load_zephyr_config,
 )
@@ -21,13 +25,14 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.models import (
     ExecutionContext,
     LiveBotState,
 )
-import sys
 from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import (
     LiveBotRunner,
     PaperBotRunner,
     create_live_bot,
 )
-from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import paper_runner as _paper_runner
+from iot_machine_learning.infrastructure.adapters.market.zephyr.runners import (
+    paper_runner as _paper_runner,
+)
 
 sys.modules["iot_machine_learning.infrastructure.adapters.market.zephyr.paper_runner"] = _paper_runner
 
@@ -37,6 +42,8 @@ __all__ = [
     "create_live_bot",
     "LiveBotConfig",
     "load_zephyr_config",
+    "ConfigManager",
+    "AccountManager",
     "LiveBotState",
     "ExecutionContext",
     "MasterEngineAdapter",

@@ -61,13 +61,10 @@ async def process_observation_pipeline(obs: Any, runner: Any) -> None:
     delta_state, delta_time = extractor.process(obs)
     mid = runner._get_current_mid(sym)
 
-    # 1. Sovereign Evaluation via MasterEngineAdapter (Zero Silent Errors)
+    # 1. Sovereign Evaluation & Translation via MasterEngineAdapter
     adapter = _get_or_create_adapter(runner, sym, engine)
     current_pos = runner._state.get_position(sym) if hasattr(runner._state, "get_position") else 0.0
-    plan = adapter.evaluate(delta_state, delta_time, current_position=current_pos)
-
-    # 2. Canonical Translation into Order Directive
-    directive: OrderDirective = PlanTranslator.translate(plan)
+    plan, directive = adapter.evaluate_directive(delta_state, delta_time, current_position=current_pos)
     runner._state.last_phi_moe = directive.confidence
     runner._state.last_phi_ritmo = (
         plan.chosen_trajectory.coherence_score if getattr(plan, "chosen_trajectory", None) else 0.0

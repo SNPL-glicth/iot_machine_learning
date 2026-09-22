@@ -5,13 +5,15 @@ Provides canonical loading routines for public JSON configurations and local sec
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import Optional, cast
 
 from iot_machine_learning.infrastructure.adapters.market.zephyr.config.bot_config import (
     LiveBotConfig,
+)
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config.config_manager import (
+    ConfigManager,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,12 +28,14 @@ ALPACA_PAPER_CONFIG_PATH = CONFIG_DIR / "live_alpaca_paper.json"
 def load_zephyr_config(
     config_path: str | Path | None = None,
     secrets_path: str | Path | None = None,
+    profile_name: Optional[str] = None,
 ) -> LiveBotConfig:
-    """Loads Zephyr configuration from JSON merged with local secrets and environment variables.
+    """Loads Zephyr configuration from JSON merged with local secrets, profiles, and env vars.
 
     Args:
         config_path: Path to public configuration JSON. Defaults to zephyr_config.json.
         secrets_path: Path to secrets JSON file. Defaults to zephyr_secrets.json.
+        profile_name: Optional profile name to load from AccountManager.
 
     Returns:
         LiveBotConfig: Fully validated configuration instance.
@@ -39,10 +43,8 @@ def load_zephyr_config(
     cfg_file = Path(config_path) if config_path else ZEPHYR_CONFIG_PATH
     sec_file = Path(secrets_path) if secrets_path else ZEPHYR_SECRETS_PATH
 
-    return cast(
-        LiveBotConfig,
-        LiveBotConfig.load_with_secrets(config_path=cfg_file, secrets_path=sec_file),
-    )
+    manager = ConfigManager(config_path=cfg_file, secrets_path=sec_file)
+    return manager.load_config(profile_name=profile_name)
 
 
 def get_available_configs() -> list[str]:
@@ -52,3 +54,14 @@ def get_available_configs() -> list[str]:
         list[str]: List of filenames for available configurations.
     """
     return [p.name for p in CONFIG_DIR.glob("*.json") if not p.name.endswith("secrets.json")]
+
+
+__all__ = [
+    "CONFIG_DIR",
+    "ZEPHYR_CONFIG_PATH",
+    "ZEPHYR_SECRETS_PATH",
+    "ZEPHYR_SECRETS_TEMPLATE_PATH",
+    "ALPACA_PAPER_CONFIG_PATH",
+    "load_zephyr_config",
+    "get_available_configs",
+]

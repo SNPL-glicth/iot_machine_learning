@@ -5,8 +5,16 @@ Houses public JSON configuration profiles, credential templates, and loader rout
 
 from __future__ import annotations
 
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config.account_manager import (
+    AccountCredentials,
+    AccountManager,
+    AccountProfile,
+)
 from iot_machine_learning.infrastructure.adapters.market.zephyr.config.bot_config import (
     LiveBotConfig,
+)
+from iot_machine_learning.infrastructure.adapters.market.zephyr.config.config_manager import (
+    ConfigManager,
 )
 from iot_machine_learning.infrastructure.adapters.market.zephyr.config.loader import (
     ALPACA_PAPER_CONFIG_PATH,
@@ -41,4 +49,8 @@ __all__ = [
     "get_testnet_config",
     "validate_live_bot_config",
     "ConfigSerializationMixin",
+    "AccountManager",
+    "AccountProfile",
+    "AccountCredentials",
+    "ConfigManager",
 ]

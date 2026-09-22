@@ -90,6 +90,21 @@ class MasterEngineAdapter:
                 veto_details={"reason": f"FAILSAFE_ZENIN_CRASH: {exc}"},
             )
 
+    def evaluate_directive(
+        self,
+        delta_state: np.ndarray,
+        delta_time: float,
+        current_position: float = 0.0,
+    ) -> tuple[ExecutionPlan, Any]:
+        """Evaluates market state and translates authoritative plan into an OrderDirective."""
+        from iot_machine_learning.infrastructure.adapters.market.zephyr.master_engine_adapter.translator import (
+            PlanTranslator,
+        )
+
+        plan = self.evaluate(delta_state, delta_time, current_position=current_position)
+        directive = PlanTranslator.translate(plan)
+        return plan, directive
+
     def cancel_active_trajectory(self) -> None:
         """Cancels any tracked trajectory in the underlying trajectory engine."""
         if hasattr(self._engine, "cancel_active_trajectory"):

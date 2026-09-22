@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
+# El modulo main para iniciarlo 
 # Ensure workspace and iot_machine_learning roots are in sys.path
 _IOT_DIR = Path(__file__).resolve().parents[4]
 _ST_ROOT = _IOT_DIR.parent

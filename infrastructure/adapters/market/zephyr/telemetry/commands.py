@@ -22,11 +22,19 @@ SECRET_KEYS = (
 )
 
 
-def extract_bot_config_dict(config: Any) -> Dict[str, Any]:
+def obfuscate_secret(val: Any) -> str:
+    """Ofusca credenciales (ej. PKH2******BBLE) para visualización segura en telemetría."""
+    if not val:
+        return ""
+    s = str(val)
+    return f"{s[:4]}******{s[-4:]}" if len(s) >= 8 else "******"
+
+
+def extract_bot_config_dict(config: Any, obfuscate: bool = False) -> Dict[str, Any]:
     """Extrae todos los campos de configuración del bot en un diccionario sanitizado."""
     if not config:
         return {}
-    if hasattr(config, "to_safe_dict"):
+    if hasattr(config, "to_safe_dict") and not obfuscate:
         return cast(Dict[str, Any], config.to_safe_dict())
 
     if hasattr(config, "__dict__"):
@@ -38,8 +46,9 @@ def extract_bot_config_dict(config: Any) -> Dict[str, Any]:
 
     for sec in SECRET_KEYS:
         if sec in res and res[sec]:
-            res[sec] = "***REDACTED***"
+            res[sec] = obfuscate_secret(res[sec]) if obfuscate else "***REDACTED***"
     return res
+
 
 
 def apply_bot_config_update(runner: Any, updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -82,7 +91,12 @@ def apply_bot_config_update(runner: Any, updates: Dict[str, Any]) -> Dict[str, A
         k: v for k, v in config.__dict__.items() if k not in SECRET_KEYS and not k.startswith("_")
     }
 
+    from iot_machine_learning.infrastructure.adapters.market.zephyr.config.loader import (
+        ZEPHYR_CONFIG_PATH,
+    )
+
     save_paths = [
+        ZEPHYR_CONFIG_PATH,
         Path("config/zephyr_config.json"),
         Path("iot_machine_learning/config/zephyr_config.json"),
     ]
@@ -92,6 +106,7 @@ def apply_bot_config_update(runner: Any, updates: Dict[str, Any]) -> Dict[str, A
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(json.dumps(public_dict, indent=2), encoding="utf-8")
                 logger.info("Persisted sanitized public live config to %s", p)
+                break
         except Exception as e:
             logger.warning("Could not persist config to %s: %s", p, e)
 
