@@ -21,13 +21,13 @@ A diferencia de los modelos de inferencia convencionales que fusionan magnitud y
 ### 2.1. Ecuación Maestra Compuesta (Composite Master Equation)
 Implementada en [`master_equation.py`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/master_engine/master_equation.py):
 
-$$\Phi_{\text{RedRose}}(t) = I_{\text{CVaR}} \cdot \Lambda(t) \cdot \Phi_{\text{MoE\_base}} \cdot \Big( r(t) \cdot \alpha_{\text{align}} \Big)$$
+$$\Phi_{\text{RedRose}}(t) = I_{\text{CVaR}} \cdot \Lambda(t) \cdot \Phi_{\text{MoE,base}} \cdot \Big( r(t) \cdot \alpha_{\text{align}} \Big)$$
 
 Donde cada componente auditable cumple con la norma ISO 22989:
 * **$I_{\text{CVaR}} \in [0.0, 1.0]$:** Factor de solvencia y veto continuo derivado del Conditional Value at Risk ($i_{\text{cvar}}$). Si $I_{\text{CVaR}} \le 0.0$, la certeza colapsa a $0.0$.
 * **$\Lambda(t) \in [0.0, 1.0]$:** Coherencia y sincronía cronométrica de tiempo:
   $$\Lambda(t) = \exp\left( -\min\left(10.0, \, \left| \frac{\big| \partial S / \partial t \big|}{\max\big(|\partial R / \partial t|, \, \epsilon \cdot \sigma_{\partial R / \partial t}\big)} - 1.0 \right| \right) \right)$$
-* **$\Phi_{\text{MoE\_base}} \in [0.0, 1.0]$:** Confianza epistémica base entregada por el jurado de expertos Mixture-of-Experts.
+* **$\Phi_{\text{MoE,base}} \in [0.0, 1.0]$:** Confianza epistémica base entregada por el jurado de expertos Mixture-of-Experts.
 * **$r(t) \in [0.0, 1.0]$:** Parámetro de Orden de Kuramoto para sincronización de fase entre osciladores del sistema.
 * **$\alpha_{\text{align}} \in [0.0, 1.0]$:** Grado de alineación de fase inter-componente (`phase_alignment`).
 
@@ -41,10 +41,10 @@ $$\Phi_{\text{certeza}}(t) = A_1 \cdot A_2 \cdot A_3 \cdot \psi\big(r(t)\big)$$
 #### 1. Amplitudes de Onda:
 * $A_1 = a_{\text{risk}} = \text{clip}(I_{\text{CVaR}}, 0, 1)$
 * $A_2 = \Lambda(t) = \exp(-\min(10, |\text{ratio} - 1|))$
-* $A_3 = \Phi_{\text{epist}} = \text{clip}(\text{certeza\_epistemica}, 0, 1)$
+* $A_3 = \Phi_{\text{epist}} = \text{clip}(\Phi_{\text{epist}}, 0, 1)$
 
 #### 2. Mapeo a Espacio de Fases Local:
-$$\theta_k = \text{atan2}\left( \text{velocidad}_k, \, \text{desplazamiento}_k \right)$$
+$$\theta_k = \text{atan2}\left( v_k, \, \Delta x_k \right)$$
 * $\theta_1 = 0.0$ (Fase de referencia / amortiguación de riesgo).
 * $\theta_2 = \text{atan2}(\Delta v, \, \text{denominador})$, donde $\Delta v = v_s - v_r$.
 * $\theta_3 = \text{atan2}\left(v_s, \, \max\big(10^{-4}, |\Phi_{\text{epist}} - 0.5|\big)\right)$.
@@ -82,7 +82,7 @@ Donde:
 ### 2.5. Gating MoE Multiplicativo y Penalización por Desacuerdo
 Implementada en [`module3_moe_gating.py`](file:///home/nicolas/Documentos/Proyectos/ST/iot_machine_learning/infrastructure/ml/engines/rosa_roja/algorithms/modules/module3_moe_gating.py):
 
-$$\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \text{Críticos}} \mathbb{I}\big(\Psi_k(T) \ge \tau_k\big) \right] \cdot \frac{\frac{\sum_{e=1}^{M} w_e \Psi_e(T)}{\sum_{e=1}^{M} w_e}}{1 + \gamma \cdot \text{Var}\big(\{\Psi_e(T)\}\big)}$$
+$$\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \text{Criticos}} \mathbb{I}\big(\Psi_k(T) \ge \tau_k\big) \right] \cdot \frac{\frac{\sum_{e=1}^{M} w_e \Psi_e(T)}{\sum_{e=1}^{M} w_e}}{1 + \gamma \cdot \text{Var}\big(\{\Psi_e(T)\}\big)}$$
 
 * **Hard-Gating:** Si un único experto calificado como *crítico* evalúa la trayectoria $T$ por debajo de su umbral $\tau_k$, la indicatriz $\mathbb{I}$ se anula y la propuesta queda vetada de inmediato.
 * **Penalización por Varianza $\gamma$:** Amortigua la confianza si los expertos presentan opiniones divergentes sobre la trayectoria candidata.
