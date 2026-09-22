@@ -66,7 +66,6 @@ def _detect_change_points(lengths: np.ndarray) -> List[int]:
     n = len(lengths)
     if n < _MIN_SEGMENTS_FOR_SHIFT:
         return []
-    global_mean = np.mean(lengths)
     points: List[int] = []
     window = max(2, n // 4)
     for i in range(window, n - window):

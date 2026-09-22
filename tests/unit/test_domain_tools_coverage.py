@@ -36,7 +36,3 @@ class TestToolModules:
     def test_tool_import(self):
         from iot_machine_learning.domain.tools import tool
         assert tool is not None
-
-    def test_iot_tools_import(self):
-        from iot_machine_learning.domain.tools import iot_tools
-        assert iot_tools is not None

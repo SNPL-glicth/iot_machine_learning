@@ -5,7 +5,7 @@ This is a domain entity for representing operational propagation events.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Mapping
 
 
 @dataclass(frozen=True)
@@ -25,7 +25,7 @@ class PropagationEvent:
     propagation_path: List[int]
     confidence: float
     is_cascade: bool
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""

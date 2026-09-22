@@ -71,7 +71,7 @@ class RegimeDetectionPipeline:
         
         # Smooth transition with state manager
         smoothed_regime = self._state_manager.smooth_transition(
-            sensor_id=sensor_id,
+            series_id=sensor_id,
             new_regime=regime_prediction.regime,
             current_timestamp=current_timestamp,
             min_duration=config.min_regime_duration,

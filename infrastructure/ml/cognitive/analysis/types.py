@@ -125,7 +125,6 @@ def _patched_init(self, *args, **kwargs):
     import inspect
     frame = inspect.currentframe()
     if frame and frame.f_back:
-        caller_locals = frame.f_back.f_locals
         # Check if caller is using the SignalProfile name
         if 'SignalProfile' in frame.f_back.f_code.co_names:
             _deprecated_signal_profile_warning()

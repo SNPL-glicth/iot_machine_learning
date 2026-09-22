@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 
 class EntityType(Enum):
@@ -42,7 +42,7 @@ class SemanticEntity:
     end_pos: int
     confidence: float = 0.8
     context_window: str = ""
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: Mapping[str, Any] = field(default_factory=dict)
     relations: List[int] = field(default_factory=list)
     
     def __post_init__(self):
@@ -106,7 +106,7 @@ class SemanticEnrichmentResult:
     entities: List[SemanticEntity]
     critical_entities: List[SemanticEntity]
     entity_count: int
-    equipment_metric_pairs: List[Dict[str, Any]]
+    equipment_metric_pairs: List[Mapping[str, Any]]
     domain_detected: str
     enrichment_confidence: float
     

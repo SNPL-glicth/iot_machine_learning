@@ -27,8 +27,20 @@ from core.parameters.numerical_constants import EPSILON
 from ..analysis.types import EnginePerception, InhibitionState
 from iot_machine_learning.core.ensemble.ensemble_watchdog import EnsembleWatchdog
 from iot_machine_learning.core.ensemble.forced_recovery import ForcedRecoveryManager
+from iot_machine_learning.core.ensemble.ensemble_correlation import EngineCorrelationAnalyzer
+from iot_machine_learning.core.ensemble.decorrelation import EnsembleDecorrelator
 
 logger = logging.getLogger(__name__)
+
+# Constants for spatial bias and confidence penalties
+SPATIAL_BIAS_RATIO: float = 0.1
+STD_TOLERANCE_THRESHOLD: float = 0.5
+DISCREPANCY_SLOPE: float = 0.3
+MIN_DISCREPANCY_PENALTY: float = 0.3
+DEFAULT_ENTROPY_PENALTY: float = 0.5
+MAX_ENTROPY_ATTENUATION: float = 0.5
+SIGNAL_NOISE_SLOPE: float = 0.1
+MIN_SIGNAL_PENALTY: float = 0.6
 
 
 class WeightedFusion:
@@ -165,7 +177,7 @@ class WeightedFusion:
             up_count = sum(1 for t in neighbor_trends.values() if t == "up")
             down_count = sum(1 for t in neighbor_trends.values() if t == "down")
             bias_factor = (up_count - down_count) / max(len(neighbor_trends), 1)
-            fused_value += bias_factor * signal_std * 0.1
+            fused_value += bias_factor * signal_std * SPATIAL_BIAS_RATIO
 
         # Majority vote for trend
         fused_trend = max(trend_votes, key=trend_votes.get)  # type: ignore[arg-type]
@@ -208,23 +220,23 @@ class WeightedFusion:
                     # Re-compute fusion with recovered weights
                     fused_value = 0.0
                     fused_confidence = 0.0
-                    trend_votes: Dict[str, float] = {"up": 0.0, "down": 0.0, "stable": 0.0}
+                    trend_votes_recovered: Dict[str, float] = {"up": 0.0, "down": 0.0, "stable": 0.0}
                     
                     for p in perceptions:
                         w = norm_weights.get(p.engine_name, 0.0)
                         fused_value += p.predicted_value * w
                         confidence = max(0.0, min(1.0, p.confidence))
                         fused_confidence += confidence * w
-                        trend_votes[p.trend] += w
+                        trend_votes_recovered[p.trend] += w
                     
                     # Re-apply spatial bias
                     if neighbor_trends and signal_std > EPSILON.DIVISION:
                         up_count = sum(1 for t in neighbor_trends.values() if t == "up")
                         down_count = sum(1 for t in neighbor_trends.values() if t == "down")
                         bias_factor = (up_count - down_count) / max(len(neighbor_trends), 1)
-                        fused_value += bias_factor * signal_std * 0.1
+                        fused_value += bias_factor * signal_std * SPATIAL_BIAS_RATIO
                     
-                    fused_trend = max(trend_votes, key=trend_votes.get)  # type: ignore[arg-type]
+                    fused_trend = max(trend_votes_recovered, key=lambda k: trend_votes_recovered[k])
                     selected = max(norm_weights, key=norm_weights.get)  # type: ignore[arg-type]
                     reason = self._build_reason(selected, norm_weights, inhibition_states)
                     
@@ -314,13 +326,13 @@ class WeightedFusion:
         )
         w_std = math.sqrt(w_var) if w_var > 0 else 0.0
 
-        if w_std <= 0.5:
+        if w_std <= STD_TOLERANCE_THRESHOLD:
             return 1.0
 
         # Penalización suave: sigmoide inversa
         # std=0.5 → 0.98, std=2.0 → 0.8, std=5.0 → 0.5, std=10.0 → 0.3
-        penalty = 1.0 / (1.0 + 0.3 * w_std)
-        return max(0.3, penalty)
+        penalty = 1.0 / (1.0 + DISCREPANCY_SLOPE * w_std)
+        return max(MIN_DISCREPANCY_PENALTY, penalty)
 
     # ── Penalización por entropía ──────────────────────────────────────
 
@@ -340,7 +352,7 @@ class WeightedFusion:
         # Normalizar a probabilidades
         total = sum(weights.values())
         if total < 1e-12:
-            return 0.5
+            return DEFAULT_ENTROPY_PENALTY
         probs = [v / total for v in weights.values()]
 
         # Entropía normalizada [0, 1]
@@ -351,7 +363,7 @@ class WeightedFusion:
         norm_entropy = entropy / math.log2(n) if n > 1 else 0.0
 
         # Mapear: entropía=0 → penalty=1.0, entropía=1 → penalty=0.5
-        penalty = 1.0 - norm_entropy * 0.5
+        penalty = 1.0 - norm_entropy * MAX_ENTROPY_ATTENUATION
         return penalty
 
     # ── Penalización por calidad de señal ──────────────────────────────
@@ -363,8 +375,8 @@ class WeightedFusion:
         Returns:
             Factor [0.6, 1.0] — 1.0 = señal estable.
         """
-        if signal_std <= 0.5:
+        if signal_std <= STD_TOLERANCE_THRESHOLD:
             return 1.0
         # std=0.5 → 0.95, std=2.0 → 0.8, std=5.0 → 0.6
-        penalty = 1.0 / (1.0 + 0.1 * signal_std)
-        return max(0.6, penalty)
+        penalty = 1.0 / (1.0 + SIGNAL_NOISE_SLOPE * signal_std)
+        return max(MIN_SIGNAL_PENALTY, penalty)

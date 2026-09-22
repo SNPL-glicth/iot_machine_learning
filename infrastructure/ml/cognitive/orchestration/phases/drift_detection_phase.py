@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from ...drift import PageHinkleyDetector, PageHinkleyConfig, ADWINDetector
 
@@ -95,6 +95,7 @@ class DriftDetectionPhase:
         self._ph_state_fallback: Dict[str, str] = {}
 
         # Initialise detector
+        self._detector: Union[ADWINDetector, PageHinkleyDetector]
         if enable_adwin:
             self._detector = ADWINDetector(
                 delta=adwin_delta,
@@ -205,17 +206,22 @@ class DriftDetectionPhase:
         redis_client = None
         # Try to get redis from detector's ephemeral access — we accept None
         raw = self._redis_load_ph_state(redis_client, series_id)
-        if raw:
+        if raw and isinstance(self._detector, PageHinkleyDetector):
             sum_, mean, n = self._deserialise_ph_state(raw)
-            self._detector._sum = sum_
-            self._detector._mean = mean
-            self._detector._n = n
+            ph = cast(PageHinkleyDetector, self._detector)
+            ph._sum = sum_
+            ph._mean = mean
+            ph._n = n
 
     def _save_ph_state(self, series_id: str) -> None:
         redis_client = None
-        state = self._serialise_ph_state(
-            self._detector._sum, self._detector._mean, self._detector._n
-        )
+        if isinstance(self._detector, PageHinkleyDetector):
+            ph = cast(PageHinkleyDetector, self._detector)
+            state = self._serialise_ph_state(
+                ph._sum, ph._mean, ph._n
+            )
+        else:
+            state = self._serialise_ph_state(0.0, 0.0, 0)
         self._redis_save_ph_state(redis_client, series_id, state)
 
     # ── EWMA gradual drift ──────────────────────────────────────
@@ -383,9 +389,13 @@ class DriftDetectionPhase:
         self._redis_save_reset(redis_client, series_key, now)
 
         # Persist PH state (so detector resumes after restart)
-        state = self._serialise_ph_state(
-            self._detector._sum, self._detector._mean, self._detector._n
-        )
+        if isinstance(self._detector, PageHinkleyDetector):
+            _ph = cast(PageHinkleyDetector, self._detector)
+            state = self._serialise_ph_state(
+                _ph._sum, _ph._mean, _ph._n
+            )
+        else:
+            state = self._serialise_ph_state(0.0, 0.0, 0)
         self._redis_save_ph_state(redis_client, ctx.series_id, state)
 
         # Increment dashboard counter
@@ -462,7 +472,11 @@ class DriftDetectionPhase:
 
         # Restore PH state from Redis on first call for this series
         # (we check if detector has zero observations to detect "fresh" state)
-        if self._detector._n == 0:
+        _has_obs = (
+            isinstance(self._detector, PageHinkleyDetector)
+            and cast(PageHinkleyDetector, self._detector)._n == 0
+        )
+        if _has_obs:
             self._restore_ph_state_from_redis(redis_client, ctx.series_id)
 
         # Compute drift score
@@ -472,7 +486,7 @@ class DriftDetectionPhase:
         signal_drift_detected = self._detector.update(signal_drift_score)
 
         # --- Gradual drift (EWMA) ---
-        ewma_val, ewma_consecutive = self._update_ewma(
+        _, ewma_consecutive = self._update_ewma(
             ctx.series_id, signal_drift_score
         )
         gradual_drift_detected = ewma_consecutive >= self._gradual_consecutive
@@ -623,12 +637,13 @@ class DriftDetectionPhase:
         self, redis_client: Any, series_id: str
     ) -> None:
         raw = self._redis_load_ph_state(redis_client, series_id)
-        if raw:
+        if raw and isinstance(self._detector, PageHinkleyDetector):
             sum_, mean, n = self._deserialise_ph_state(raw)
             if n > 0:
-                self._detector._sum = sum_
-                self._detector._mean = mean
-                self._detector._n = n
+                _ph = cast(PageHinkleyDetector, self._detector)
+                _ph._sum = sum_
+                _ph._mean = mean
+                _ph._n = n
                 logger.info(
                     "drift_ph_state_restored",
                     extra={
@@ -641,11 +656,15 @@ class DriftDetectionPhase:
     def _save_ph_state_to_redis(
         self, redis_client: Any, series_id: str
     ) -> None:
-        state = self._serialise_ph_state(
-            self._detector._sum,
-            self._detector._mean,
-            self._detector._n,
-        )
+        if isinstance(self._detector, PageHinkleyDetector):
+            _ph = cast(PageHinkleyDetector, self._detector)
+            state = self._serialise_ph_state(
+                _ph._sum,
+                _ph._mean,
+                _ph._n,
+            )
+        else:
+            state = self._serialise_ph_state(0.0, 0.0, 0)
         self._redis_save_ph_state(redis_client, series_id, state)
 
 

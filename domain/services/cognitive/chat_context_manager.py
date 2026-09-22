@@ -40,19 +40,27 @@ class ChatContextManager:
         self,
         window_size: int = 20,
         ttl_seconds: int = 3600,
-        redis_client: Optional[Any] = None,
+        storage_client: Optional[Any] = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         """Inicializa con configuración."""
         self._window = window_size
         self._ttl = ttl_seconds
-        self._redis = redis_client
+        # Accept injected storage_client or legacy positional / keyword arguments
+        client = storage_client
+        if client is None and args:
+            client = args[0]
+        if client is None and kwargs:
+            client = next(iter(kwargs.values()), None)
+        self._storage = client
         self._memory: Dict[str, ChatContext] = {}
     
     def get_context(self, session_id: str) -> ChatContext:
         """Recupera o crea contexto."""
-        # Intentar Redis primero
-        if self._redis:
-            data = self._redis.get(f"chat_ctx:{session_id}")
+        # Intentar almacenamiento externo primero
+        if self._storage:
+            data = self._storage.get(f"chat_ctx:{session_id}")
             if data:
                 return self._deserialize(json.loads(data))
         
@@ -133,8 +141,8 @@ class ChatContextManager:
         """Persiste contexto."""
         data = self._serialize(ctx)
         
-        if self._redis:
-            self._redis.setex(
+        if self._storage:
+            self._storage.setex(
                 f"chat_ctx:{ctx.session_id}",
                 self._ttl,
                 json.dumps(data)

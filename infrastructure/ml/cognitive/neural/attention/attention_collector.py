@@ -157,7 +157,6 @@ class AttentionContextCollector:
     
     def _detect_negations(self, text: str, sentences: List[str]) -> Dict[str, List[int]]:
         """Detect negation words and which sentences they affect."""
-        text_lower = text.lower()
         negations = {}
         for neg in self.negation_words:
             indices = [i for i, sent in enumerate(sentences) if neg in sent.lower()]

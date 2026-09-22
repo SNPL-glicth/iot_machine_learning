@@ -85,7 +85,7 @@ class TinyNN:
         patience = 30
         stall = 0
 
-        for epoch in range(epochs):
+        for _ in range(epochs):
             pred, a1 = self.forward(X)
             error = pred - y.reshape(-1, 1)
             loss = float(np.mean(error ** 2))

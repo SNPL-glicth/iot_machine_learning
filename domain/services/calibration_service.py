@@ -36,7 +36,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from iot_machine_learning.domain.entities.market.calibration import (
     AdaptiveCalibrator,
@@ -48,9 +48,9 @@ from iot_machine_learning.domain.entities.market.calibration import (
     compute_economic_edge,
     compute_wilson_lb,
 )
-from iot_machine_learning.infrastructure.persistence.sql.zenin_market.calibrator_repository_v2 import (
-    CalibratorRepositoryV2,
-    PredictionVersioning,
+from domain.ports.calibrator_repository_port import (
+    CalibratorRepositoryPort,
+    InMemoryCalibratorRepository,
 )
 
 
@@ -111,20 +111,32 @@ class CalibrationService:
     
     def __init__(
         self,
-        db_connection,
+        repository: Optional[Any] = None,
         min_confidence_threshold: float = 0.55,
         require_calibration: bool = True,  # Si True, NO_TRADE si no hay calibrador
+        db_connection: Optional[Any] = None,
     ) -> None:
-        self._db = db_connection
-        self._repo = CalibratorRepositoryV2(db_connection)
+        if isinstance(repository, CalibratorRepositoryPort):
+            self._repo: CalibratorRepositoryPort = repository
+            self._db = db_connection
+        elif repository is not None and hasattr(repository, "get_active_calibrator_v2"):
+            self._repo = repository
+            self._db = db_connection
+        else:
+            self._db = db_connection
+            self._repo = InMemoryCalibratorRepository()
+
         self._min_confidence = min_confidence_threshold
+        self._min_confidence_threshold = min_confidence_threshold
         self._require_calibration = require_calibration
         self._adaptive_calibrator: Optional[AdaptiveCalibrator] = None
-        self._calibrators_cache: dict[FallbackLevel, any] = {}
+        self._calibrators_cache: dict[FallbackLevel, Any] = {}
         self._current_calibrator_version: str | None = None
     
     def load_active_calibrator(self) -> bool:
         """Carga el calibrador activo desde BD."""
+        if self._repo is None:
+            return False
         active = self._repo.get_active_calibrator_v2()
         
         if not active or active.verdict != CalibrationVerdict.ACCEPTED:
@@ -177,7 +189,8 @@ class CalibrationService:
             FallbackLevel.GLOBAL: context_calibrator,
         }
         
-        self._adaptive_calibrator._calibrators = self._calibrators_cache
+        if self._adaptive_calibrator is not None:
+            self._adaptive_calibrator._calibrators = self._calibrators_cache
     
     def apply_calibration(
         self,
@@ -299,19 +312,20 @@ class CalibrationService:
         self,
         new_data: list[tuple[ContextKey, float, bool]],
         description: str,
-    ) -> tuple[str | None, dict[str, any] | None]:
+        since_date: str = "recent",
+    ) -> tuple[str | None, dict[str, Any] | None]:
         """Propone nuevo calibrador con datos recientes (OOS evaluation).
         
         Returns:
             (calibrator_id, comparison) si ACCEPTED, (None, comparison) si REJECTED
         """
-        if not self._adaptive_calibrator:
+        if not self._adaptive_calibrator or self._repo is None:
             return None, None
         
         # Entrenar y evaluar con nuevos datos
         calibrators, comparisons = self._adaptive_calibrator.train_and_evaluate(new_data)
         
-        if not calibrators:
+        if not calibrators or not comparisons:
             return None, {"error": "Insufficient data for new calibrator"}
         
         # Verificar si al menos un fallback level fue ACCEPTED

@@ -159,18 +159,9 @@ class TextCognitiveEngine:
 
     @staticmethod
     def _is_enabled() -> bool:
-        """Check feature flag ML_ENABLE_TEXT_ANALYSIS via global singleton.
-
-        Usa get_feature_flags() (loader singleton con soporte de env vars)
-        en vez de crear una instancia FeatureFlags() directa, para que
-        el flag responda a la variable de entorno ML_ENABLE_TEXT_ANALYSIS.
-        """
-        try:
-            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
-            flags = get_feature_flags()
-            return bool(getattr(flags, _FLAG_KEY, False))
-        except Exception:
-            return False
+        """Check feature flag ML_ENABLE_TEXT_ANALYSIS via env var."""
+        import os
+        return os.getenv(_FLAG_KEY, "false").lower() in ("true", "1", "yes")
 
     @staticmethod
     def _normalize_sentiment(score: float) -> float:

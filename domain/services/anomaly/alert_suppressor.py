@@ -5,10 +5,6 @@ Reglas de supresión con overrides de seguridad:
 2. CRITICALITY OVERRIDE (nunca suprimir)
 3. PRIORITY ESCALATION (nunca suprimir)
 4. COOLDOWN (suprimir si idéntica dentro de ventana)
-
-Estado de última alerta en Redis:
-  key: last_alert:{series_id} → JSON {action, priority, timestamp, severity}
-  TTL: 1 hora
 """
 
 from __future__ import annotations
@@ -18,9 +14,10 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from ...entities.decision import Decision, DecisionContext
-
-from ._alert_config_mixin import _AlertConfigMixin
-from ._alert_store_mixin import _AlertStoreMixin
+from ...ports.alert_state_repository_port import (
+    AlertStateRepositoryPort,
+    InMemoryAlertStateRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -31,25 +28,40 @@ class SuppressionResult:
     suppressed_count: int
 
 
-class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
+class AlertSuppressor:
     """Evalúa si una alerta debe suprimirse según reglas contextuales.
 
-    Stateless: recibe todo el estado necesario como parámetros.
-    El estado de última alerta se guarda externamente en Redis.
-
-    Feature flag: ML_DECISION_SUPPRESSION_WINDOW_MINUTES (leído en cada evaluación)
+    Stateless en lógica de decisión; delega la persistencia de estado a AlertStateRepositoryPort.
     """
 
     def __init__(
         self,
-        redis_client: Optional[Any] = None,
+        state_repository: Optional[AlertStateRepositoryPort] = None,
+        escalation_threshold: int = 5,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         """Initialize suppressor.
 
         Args:
-            redis_client: Redis client para estado de alertas (optional)
+            state_repository: Port for alert suppression state persistence.
+            escalation_threshold: Number of consecutive anomalies before escalation override.
         """
-        self._redis = redis_client
+        if state_repository is not None:
+            self._state_repository = state_repository
+        elif "state_store" in kwargs and isinstance(kwargs["state_store"], AlertStateRepositoryPort):
+            self._state_repository = kwargs["state_store"]
+        else:
+            self._state_repository = InMemoryAlertStateRepository()
+        self._escalation_threshold = escalation_threshold
+
+    def _get_escalation_threshold(self) -> int:
+        """Obtener umbral de escalación."""
+        return self._escalation_threshold
+
+    def get_suppressed_count(self, series_id: str) -> int:
+        """Obtener contador de alertas suprimidas para una serie."""
+        return self._state_repository.get_suppressed_count(series_id)
 
     def evaluate(
         self,
@@ -71,7 +83,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
         # REGLA 1: ESCALATION OVERRIDE
         # consecutive_anomalies > threshold → nunca suprimir
         if context.consecutive_anomalies > self._get_escalation_threshold():
-            self._save_alert(series_id, decision.action, decision.priority, severity)
+            self._state_repository.save_alert(series_id, decision.action, decision.priority, severity)
             return SuppressionResult(
                 should_emit=True,
                 reason="escalation_override",
@@ -81,7 +93,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
         # REGLA 2: CRITICALITY OVERRIDE
         # severity == CRITICAL → nunca suprimir
         if severity.upper() == "CRITICAL":
-            self._save_alert(series_id, decision.action, decision.priority, severity)
+            self._state_repository.save_alert(series_id, decision.action, decision.priority, severity)
             return SuppressionResult(
                 should_emit=True,
                 reason="criticality_override",
@@ -89,7 +101,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
             )
         
         # Recuperar última alerta
-        last_alert = self._get_last_alert(series_id)
+        last_alert = self._state_repository.get_last_alert(series_id)
         now = time.time()
         
         # REGLA 3: PRIORITY ESCALATION
@@ -97,7 +109,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
         if last_alert is not None:
             last_priority = last_alert.get("priority", 5)
             if decision.priority < last_priority:
-                self._save_alert(series_id, decision.action, decision.priority, severity)
+                self._state_repository.save_alert(series_id, decision.action, decision.priority, severity)
                 return SuppressionResult(
                     should_emit=True,
                     reason="priority_escalation",
@@ -115,7 +127,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
             
             if time_diff < window_seconds and decision.action == last_action:
                 # Suprimir esta alerta
-                suppressed_count = self._increment_suppressed(series_id)
+                suppressed_count = self._state_repository.increment_suppressed(series_id)
                 return SuppressionResult(
                     should_emit=False,
                     reason="cooldown",
@@ -123,7 +135,7 @@ class AlertSuppressor(_AlertConfigMixin, _AlertStoreMixin):
                 )
         
         # DEFAULT: Emitir
-        self._save_alert(series_id, decision.action, decision.priority, severity)
+        self._state_repository.save_alert(series_id, decision.action, decision.priority, severity)
         return SuppressionResult(
             should_emit=True,
             reason="default_emit",

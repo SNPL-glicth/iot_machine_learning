@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import List, Sequence
 
-from .algorithms.ports.expert_jury import ExpertJuryPort
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
 
 logger = logging.getLogger(__name__)
 

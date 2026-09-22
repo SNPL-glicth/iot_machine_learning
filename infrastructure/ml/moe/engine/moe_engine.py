@@ -86,7 +86,6 @@ class MoEPredictionEngine(PredictionEngine):
         selected_experts, shadow_metadata = self._gating_executor.execute_gating(
             feature_context, self._sparsity_k
         )
-        regime = self._gating_executor.get_regime(feature_context)
         
         # 2. Dispatch experts
         window = self._make_window(values, timestamps, series_id)

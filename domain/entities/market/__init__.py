@@ -1,7 +1,7 @@
 """Entidades de dominio ZENIN Market.
 
 Observaciones y perfiles de proveedores, inmutables y sin dependencias
-de infraestructura (regla: domain no conoce pymysql/sqlalchemy/redis/
+de infraestructura (regla: domain no conoce pymysql/sqlalchemy/external-storage/
 providers/weaviate).
 """
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from threading import Lock
 
 logger = logging.getLogger(__name__)
@@ -213,7 +213,7 @@ class PatternPlasticityTracker:
             if self._domain_last_access:
                 lru_domain = min(
                     self._domain_last_access,
-                    key=self._domain_last_access.get
+                    key=lambda k: self._domain_last_access[k],
                 )
                 self._weights.pop(lru_domain, None)
                 self._domain_last_access.pop(lru_domain, None)
@@ -259,7 +259,7 @@ class PatternPlasticityTracker:
         uniform = 1.0 / len(ALL_PATTERNS)
         return {p: uniform for p in ALL_PATTERNS}
 
-    def get_stats(self, domain: Optional[str] = None) -> Dict[str, any]:
+    def get_stats(self, domain: Optional[str] = None) -> Dict[str, Any]:
         """Get tracker statistics for debugging/monitoring.
 
         Args:

@@ -7,7 +7,7 @@ Contains all information needed to understand, audit, and act.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from ..severity import SeverityResult
 from .outcome import SimulatedOutcome
@@ -23,10 +23,10 @@ class Decision:
 
     Attributes:
         action: Recommended action code ("monitor", "investigate", "intervene", "escalate")
-        priority: Priority level 1-4 (1=highest/critical, 4=lowest/info)
-        confidence: Confidence in this decision [0, 1]
-        reason: Human-readable justification
-        strategy_used: Which strategy produced this decision
+        priority: Urgency level (1=critical, 2=high, 3=medium, 4=low)
+        confidence: Confidence in the recommendation [0.0, 1.0]
+        reason: Human-readable explanation of why this action is recommended
+        strategy_used: Decision strategy that produced this ("hybrid", "rule_based", "simulation")
         simulated_outcomes: Evidence from scenario simulation
         source_ml_outputs: References to upstream ML results
         audit_trace_id: Trace ID for audit logging
@@ -39,9 +39,9 @@ class Decision:
     reason: str = ""
     strategy_used: str = "unknown"
     simulated_outcomes: List[SimulatedOutcome] = field(default_factory=list)
-    source_ml_outputs: Dict[str, Any] = field(default_factory=dict)
+    source_ml_outputs: Mapping[str, Any] = field(default_factory=dict)
     audit_trace_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     # Priority constants for validation
     PRIORITY_CRITICAL = 1

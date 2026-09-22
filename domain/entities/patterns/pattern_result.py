@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict
+from typing import Dict, Mapping
 
 
 class PatternType(Enum):
@@ -38,4 +38,4 @@ class PatternResult:
     pattern_type: PatternType
     confidence: float
     description: str = ""
-    metadata: Dict[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, object] = field(default_factory=dict)

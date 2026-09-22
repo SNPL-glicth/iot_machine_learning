@@ -58,12 +58,12 @@ max_history_size: Maximum number of states to keep per series
         
         if current_state is None:
             # First state
-            self._add_state(sensor_id, new_regime, current_timestamp)
+            self._add_state(series_id, new_regime, current_timestamp)
             return new_regime
         
         # If same regime, update timestamp
         if current_state.regime == new_regime:
-            self._update_state(sensor_id, current_timestamp)
+            self._update_state(series_id, current_timestamp)
             return new_regime
         
         # If different regime, check minimum duration
@@ -73,7 +73,7 @@ max_history_size: Maximum number of states to keep per series
             return current_state.regime
         
         # Valid transition, add new state
-        self._add_state(sensor_id, new_regime, current_timestamp)
+        self._add_state(series_id, new_regime, current_timestamp)
         return new_regime
     
     def get_previous_regime(self, series_id: int) -> Optional[str]:

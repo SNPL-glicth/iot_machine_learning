@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 import numpy as np
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 
 
 class MasterDecisionPort(ABC):

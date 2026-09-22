@@ -256,7 +256,7 @@ def export_calibrator_state(calibrator: AdaptiveCalibrator) -> Dict[str, Any]:
     """Serializa el calibrador activo (solo niveles ACCEPTED ya almacenados)."""
     from .context_types import CalibrationMethod
 
-    levels: Dict[str, Any] = {}
+    levels: dict[str, dict] = {}
     for level, context_calibrator in calibrator._calibrators.items():  # noqa: SLF001
         levels[level.value] = {
             str(context): _calibration_params_to_dict(params)

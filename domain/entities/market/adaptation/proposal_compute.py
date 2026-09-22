@@ -41,7 +41,7 @@ def bounded_update(
     """Acota |Δ| <= max_change, aplica piso y suma exacta 1.
 
     Los tres constraints pueden chocar (softmax ambicioso + piso +
-    cota): se resuelve por redistribución iterativa determinista —
+    cota): se resuelve por reasignación iterativa determinista —
     el excedente se reparte entre los expertos con margen para bajar,
     proporcional a su margen (Δ + max_change). Si no hay solución
     factible, se conservan los pesos actuales (no cambiar es seguro).

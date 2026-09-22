@@ -88,7 +88,7 @@ class EnsembleCalibrator:
         profile_map = {p.detector_name: p for p in detection_profiles}
         calibration_factors = {}
         
-        for name, raw_weight in raw_weights.items():
+        for name in raw_weights:
             if name not in profile_map:
                 calibration_factors[name] = 1.0
                 continue

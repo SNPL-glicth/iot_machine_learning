@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 from sqlalchemy.engine import Connection
 
@@ -34,6 +34,7 @@ try:
     from .model_manager import ModelManager
     from .event_writer import EventWriter
     from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
+    from iot_machine_learning.infrastructure.adapters.iot import SeveritySqlAdapter
     from .regression_prediction_service import RegressionPredictionService
     from .prediction_narrator import PredictionNarrator
 except ImportError:
@@ -42,6 +43,7 @@ except ImportError:
     from model_manager import ModelManager
     from event_writer import EventWriter
     from iot_machine_learning.infrastructure.ml.cognitive.severity_classifier import SeverityClassifier
+    from infrastructure.adapters.iot import SeveritySqlAdapter
     from regression_prediction_service import RegressionPredictionService
     from prediction_narrator import PredictionNarrator
 
@@ -78,7 +80,7 @@ class SensorProcessor:
     ):
         self._storage_adapter = storage_adapter
         self._event_writer = event_writer or EventWriter()
-        self._severity_classifier = severity_classifier or SeverityClassifier()
+        self._severity_classifier = severity_classifier or SeverityClassifier(SeveritySqlAdapter())
         self._regression_service = regression_service or RegressionPredictionService()
         self._model_manager = model_manager or ModelManager()
         self._narrator = narrator or PredictionNarrator(self._severity_classifier)
@@ -205,7 +207,7 @@ class SensorProcessor:
                 pred_result, "confidence",
                 getattr(pred_result, "confidence_score", 0.0),
             ),
-            trend=pred_result.trend or "stable",
+            trend=pred_result.trend if pred_result.trend in ("up", "down", "stable") else "stable",
             engine_name=engine_name,
             horizon_steps=1,
             metadata={

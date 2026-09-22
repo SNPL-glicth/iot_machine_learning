@@ -102,8 +102,8 @@ class TestBayesianWeightTracker:
         assert posterior_cache is not None
 
     def test_redis_client(self):
-        from iot_machine_learning.infrastructure.ml.cognitive.bayesian_weight_tracker import redis_client
-        assert redis_client is not None
+        from iot_machine_learning.infrastructure.adapters.iot.persistence import weight_tracker_redis_adapter
+        assert weight_tracker_redis_adapter is not None
 
     def test_regularization(self):
         from iot_machine_learning.infrastructure.ml.cognitive.bayesian_weight_tracker import regularization

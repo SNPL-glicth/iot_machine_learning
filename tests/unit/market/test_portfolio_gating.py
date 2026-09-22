@@ -124,15 +124,15 @@ async def test_live_runner_multi_asset_initialization():
 def test_can_execute_with_real_trajectory_object():
     """can_execute safely extracts side from a real Trajectory with TerminalState without AttributeError."""
     import numpy as np
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+    from iot_machine_learning.domain.entities.rosa_roja.execution import (
         ActionEnvelope,
         ExecutionPlan,
     )
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import (
+    from iot_machine_learning.domain.entities.rosa_roja.movement import (
         Movement,
         RhythmSignature,
     )
-    from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import (
+    from iot_machine_learning.domain.entities.rosa_roja.trajectory import (
         TerminalState,
         Trajectory,
     )

@@ -6,7 +6,7 @@ Reemplaza el modelo IoT legacy (sensor_id:int) con el modelo Zenin (series_id:UU
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from uuid import UUID
 
 
@@ -26,7 +26,7 @@ class DataPoint:
     value: float
     timestamp: float
     quality: float = 1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -79,4 +79,4 @@ class TimeWindow:
         """Duración de la ventana en segundos."""
         if len(self.points) < 2:
             return 0.0
-        return self.points[-1].timestamp - self.points[0].timestamp
+        return float(self.points[-1].timestamp - self.points[0].timestamp)

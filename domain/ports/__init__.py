@@ -25,6 +25,11 @@ from .recent_anomaly_tracker_port import (
     NullAnomalyTracker,
 )
 from .expert_port import ExpertPort, ExpertOutput, ExpertCapability
+from .iot_ports import (
+    SensorDataPort,
+    TelemetryStoragePort,
+    ActuatorCommandPort,
+)
 
 __all__ = [
     "PredictionPort",
@@ -47,4 +52,7 @@ __all__ = [
     "ExpertPort",
     "ExpertOutput",
     "ExpertCapability",
+    "SensorDataPort",
+    "TelemetryStoragePort",
+    "ActuatorCommandPort",
 ]

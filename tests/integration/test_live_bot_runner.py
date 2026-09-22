@@ -16,7 +16,7 @@ from iot_machine_learning.infrastructure.adapters.market.binance.ws_feed import 
 from iot_machine_learning.infrastructure.adapters.market.binance.order_client import BinanceOrderClient
 from iot_machine_learning.infrastructure.adapters.market.binance.account import BinanceAccount
 from iot_machine_learning.domain.entities.market.observations import Quote, Trade, Candle
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
+from iot_machine_learning.domain.entities.rosa_roja.execution import ExecutionPlan, ActionEnvelope
 
 
 @pytest.fixture

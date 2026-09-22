@@ -5,7 +5,7 @@ This is a domain entity for representing temporal operational patterns.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class TemporalPattern:
     confidence: float
     is_pre_anomaly: bool
     timestamp: float
-    pattern_metadata: Dict[str, Any] = field(default_factory=dict)
+    pattern_metadata: Mapping[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""

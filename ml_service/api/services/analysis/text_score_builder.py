@@ -89,9 +89,14 @@ def _extract_entities(full_text: str, payload: Dict[str, Any]) -> list:
 
         flags = FeatureFlags()
         if getattr(flags, "ML_ENABLE_HYBRID_EMBEDDINGS", False):
+            from iot_machine_learning.infrastructure.adapters.cognitive.weaviate_vector_adapter import (
+                WeaviateVectorMemoryAdapter,
+            )
             detector = HybridEntityDetector(
                 domain_hint=payload.get("domain", "general"),
                 magnitude_threshold=getattr(flags, "ML_HYBRID_ENTITY_THRESHOLD", 0.3),
+                vector_memory=WeaviateVectorMemoryAdapter(),
+                hybrid_enabled=True,
             )
             entity_result = detector.extract_entities(full_text)
             entities = entity_result.to_list()

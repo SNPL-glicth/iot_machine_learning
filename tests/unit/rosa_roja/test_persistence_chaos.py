@@ -20,7 +20,7 @@ from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-from infrastructure.ml.adapters.ml_state_store import InMemoryMLStateStore, RedisMLStateStore
+from infrastructure.adapters.iot.ml_state_store_adapter import InMemoryMLStateStore, RedisMLStateStore
 from tests.unit.rosa_roja.synthetic.envs import PATTERN_A, PATTERN_B, SwitchingPatternEnv
 
 
@@ -169,7 +169,7 @@ class TestDriftDetectorPersistence:
             restored.import_state(bad)
 
     def test_sensor_adapter_per_channel_round_trip(self):
-        from infrastructure.ml.adapters.drift_adapter import IoTDriftSensorAdapter
+        from infrastructure.adapters.iot import IoTDriftSensorAdapter
 
         def make():
             return IoTDriftSensorAdapter(
@@ -193,7 +193,7 @@ class TestDriftDetectorPersistence:
             assert s_stats["n_updates"] == r_stats["n_updates"]
 
     def test_detector_type_mismatch_rejected(self):
-        from infrastructure.ml.adapters.drift_adapter import IoTDriftSensorAdapter
+        from infrastructure.adapters.iot import IoTDriftSensorAdapter
 
         ph = IoTDriftSensorAdapter(name="x", channels=["c"], detector_type="page_hinkley")
         ed = IoTDriftSensorAdapter(name="x", channels=["c"], detector_type="error_drift", window_size=20)

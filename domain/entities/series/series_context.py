@@ -19,7 +19,7 @@ Diseño agnóstico:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -28,15 +28,17 @@ class Threshold:
 
     Attributes:
         warning_low: Límite inferior de warning (None = sin límite).
-        warning_high: Límite superior de warning.
-        critical_low: Límite inferior de critical.
-        critical_high: Límite superior de critical.
+        warning_high: Límite superior de warning (None = sin límite).
+        critical_low: Límite inferior crítico (None = sin límite).
+        critical_high: Límite superior crítico (None = sin límite).
+        unit: Unidad de medida (solo display).
     """
 
     warning_low: Optional[float] = None
     warning_high: Optional[float] = None
     critical_low: Optional[float] = None
     critical_high: Optional[float] = None
+    unit: str = ""
 
     def is_within_normal(self, value: float) -> bool:
         """True si el valor está dentro del rango normal (no warning ni critical)."""
@@ -58,20 +60,23 @@ class Threshold:
             return "warning"
         return "normal"
 
+    def classify(self, value: float) -> str:
+        """Clasifica un valor según los umbrales configurados."""
+        return self.severity_for(value)
+
 
 @dataclass(frozen=True)
 class SeriesContext:
-    """Contexto semántico de una serie temporal — se inyecta en Nivel 2.
+    """Contexto semántico inyectable para una serie temporal.
 
     Attributes:
-        domain_name: Dominio de aplicación ("iot", "finance", "network", etc.).
-        entity_type: Tipo de entidad que genera la serie ("temperature_sensor",
-            "stock_price", "cpu_latency", etc.).
-        entity_id: Identificador de la entidad en el dominio (sensor_id, ticker, etc.).
-        unit: Unidad de medida ("°C", "USD", "ms", etc.).
-        description: Descripción legible de la serie.
-        threshold: Umbrales configurados por el usuario/negocio.
-        business_rules: Reglas de negocio específicas del dominio.
+        domain_name: Nombre del dominio ("iot", "finance", "network", etc.)
+        entity_type: Tipo de entidad ("temperature_sensor", "stock", etc.)
+        entity_id: Identificador de la entidad en su dominio ("sensor_42")
+        unit: Unidad de medida (°C, USD, ms, etc.)
+        description: Descripción legible para humanos
+        threshold: Umbral configurado para esta serie
+        business_rules: Reglas de negocio específicas del dominio
         metadata: Metadata adicional libre.
     """
 
@@ -81,8 +86,8 @@ class SeriesContext:
     unit: str = ""
     description: str = ""
     threshold: Optional[Threshold] = None
-    business_rules: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    business_rules: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
     def for_iot_sensor(

@@ -9,7 +9,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional
 
 
 class AnomalySeverity(Enum):
@@ -82,7 +82,7 @@ class AnomalyResult:
     confidence: float = 0.0
     explanation: str = ""
     severity: AnomalySeverity = AnomalySeverity.NONE
-    context: Dict[str, object] = field(default_factory=dict)
+    context: Mapping[str, object] = field(default_factory=dict)
     audit_trace_id: Optional[str] = None
 
     @classmethod

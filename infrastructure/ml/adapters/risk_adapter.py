@@ -12,8 +12,8 @@ import math
 from typing import Any, Dict, Optional, Sequence
 import numpy as np
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory
-from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
+from domain.entities.rosa_roja.trajectory import Trajectory
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
 from core.parameters.numerical_constants import EPSILON
 
 logger = logging.getLogger(__name__)

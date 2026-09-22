@@ -30,7 +30,8 @@ from .updater import (
     compute_weights_from_accuracy,
     should_use_per_sensor,
 )
-from .persistence import WeightTrackerCheckpoint, WeightTrackerPersistence, WeightTrackerRedisClient
+from .persistence import WeightTrackerCheckpoint, WeightTrackerPersistence
+from .storage_interface import IWeightCache, InMemoryWeightCache
 from .drift_response import GradualDriftResponse
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,12 @@ class BayesianWeightTracker:
 
         self._lock = threading.RLock()
         self._persistence = WeightTrackerPersistence(repository)
-        self._redis = WeightTrackerRedisClient(redis_client, scope)
+        if isinstance(redis_client, IWeightCache):
+            self._redis = redis_client
+        elif redis_client is not None and hasattr(redis_client, "get_weights"):
+            self._redis = redis_client  # Duck-typed weight cache
+        else:
+            self._redis = InMemoryWeightCache()
         self._checkpoint = WeightTrackerCheckpoint(repository)
 
         # Warm start
@@ -197,11 +203,10 @@ class BayesianWeightTracker:
         drift_score: Optional[float] = None,
     ) -> None:
         namespaced = build_regime_key(self._domain_namespace, regime, series_id)
-        fallback_key = build_fallback_key(self._domain_namespace, regime)
 
         # LRU eviction
         if namespaced not in self._accuracy and len(self._accuracy) >= self._config.max_regimes:
-            coldest = min(self._regime_last_access, key=self._regime_last_access.get)
+            coldest = min(self._regime_last_access, key=lambda k: self._regime_last_access[k])
             del self._accuracy[coldest]
             del self._regime_last_access[coldest]
             self._regime_last_update.pop(coldest, None)
@@ -209,8 +214,6 @@ class BayesianWeightTracker:
         now = time.monotonic()
         self._regime_last_access[namespaced] = now
         self._regime_last_update[namespaced] = now
-
-        effective_alpha = alpha if alpha is not None else self._config.get_regime_alpha(regime)
 
         accuracy = compute_accuracy(
             prediction_error,
@@ -235,7 +238,7 @@ class BayesianWeightTracker:
         posterior = self._bayesian.update(
             self._priors[namespaced][engine_name], obs, sigma2_obs=sigma2_obs,
         )
-        self._priors[namespaced][engine_name] = posterior.to_prior()
+        self._priors[namespaced][engine_name] = posterior
 
         new_acc = posterior.mu_0
         if not math.isfinite(new_acc):

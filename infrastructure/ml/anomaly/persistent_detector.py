@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from iot_machine_learning.domain.entities.anomaly import AnomalyResult
 from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
@@ -18,9 +18,27 @@ from iot_machine_learning.domain.ports.anomaly_detection_port import AnomalyDete
 
 from .core.detector import VotingAnomalyDetector
 from .core.config import AnomalyDetectorConfig
-from iot_machine_learning.infrastructure.persistence.sql.zenin_ml.model_repository import ModelRepository
 
 logger = logging.getLogger(__name__)
+
+SKLEARN_PERSISTENT_METHODS: frozenset[str] = frozenset({
+    "isolation_forest",
+    "isolation_forest_temporal",
+    "local_outlier_factor",
+    "lof_temporal",
+})
+
+
+class _NullModelRepository:
+    """Fallback in-memory repository when no external persistence is injected."""
+    def __init__(self) -> None:
+        self._store: dict[str, Any] = {}
+
+    def save_model(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def load_model(self, *args: Any, **kwargs: Any) -> Optional[Any]:
+        return None
 
 
 class PersistentAnomalyDetector(AnomalyDetectionPort):
@@ -43,7 +61,7 @@ class PersistentAnomalyDetector(AnomalyDetectionPort):
         series_id: str,
         domain_type: str = "sensor",
         config: Optional[AnomalyDetectorConfig] = None,
-        model_repo: Optional[ModelRepository] = None,
+        model_repo: Optional[Any] = None,
         auto_save: bool = True,
         auto_load: bool = True,
     ) -> None:
@@ -58,7 +76,7 @@ class PersistentAnomalyDetector(AnomalyDetectionPort):
             auto_load: Auto-load models on first detect
         """
         self._detector = VotingAnomalyDetector(config=config)
-        self._model_repo = model_repo or ModelRepository()
+        self._model_repo = model_repo if model_repo is not None else _NullModelRepository()
         self._series_id = series_id
         self._domain_type = domain_type
         self._auto_save = auto_save
@@ -68,6 +86,10 @@ class PersistentAnomalyDetector(AnomalyDetectionPort):
     @property
     def name(self) -> str:
         return "persistent_anomaly_detector"
+
+    def is_trained(self) -> bool:
+        """Indica si el detector interno fue entrenado."""
+        return self._detector.is_trained()
 
     def train(
         self,
@@ -120,30 +142,23 @@ class PersistentAnomalyDetector(AnomalyDetectionPort):
         try:
             # Save each sub-detector that has a trained model
             for detector in self._detector._sub_detectors:
-                if not detector.is_trained:
+                if not detector.is_trained or detector.method_name not in SKLEARN_PERSISTENT_METHODS:
                     continue
 
-                # Only save sklearn models (IF, LOF)
-                if detector.method_name in [
-                    "isolation_forest",
-                    "isolation_forest_temporal",
-                    "local_outlier_factor",
-                    "lof_temporal",
-                ]:
-                    model_obj = getattr(detector, "_model", None)
-                    if model_obj is not None:
-                        # Extract hyperparameters
-                        hyperparameters = self._extract_hyperparameters(detector)
+                model_obj = getattr(detector, "_model", None)
+                if model_obj is None:
+                    continue
 
-                        self._model_repo.save_model(
-                            model_name=detector.method_name,
-                            series_id=self._series_id,
-                            domain_type=self._domain_type,
-                            model_obj=model_obj,
-                            training_points=training_points,
-                            hyperparameters=hyperparameters,
-                            training_duration_ms=training_duration_ms,
-                        )
+                hyperparameters = self._extract_hyperparameters(detector)
+                self._model_repo.save_model(
+                    model_name=detector.method_name,
+                    series_id=self._series_id,
+                    domain_type=self._domain_type,
+                    model_obj=model_obj,
+                    training_points=training_points,
+                    hyperparameters=hyperparameters,
+                    training_duration_ms=training_duration_ms,
+                )
 
             logger.info(
                 "anomaly_models_persisted",
@@ -169,20 +184,18 @@ class PersistentAnomalyDetector(AnomalyDetectionPort):
             loaded_count = 0
 
             for detector in self._detector._sub_detectors:
-                if detector.method_name in [
-                    "isolation_forest",
-                    "isolation_forest_temporal",
-                    "local_outlier_factor",
-                    "lof_temporal",
-                ]:
-                    model_obj = self._model_repo.load_model(
-                        series_id=self._series_id,
-                        model_name=detector.method_name,
-                    )
+                if detector.method_name not in SKLEARN_PERSISTENT_METHODS:
+                    continue
 
-                    if model_obj is not None:
-                        detector._model = model_obj
-                        loaded_count += 1
+                model_obj = self._model_repo.load_model(
+                    series_id=self._series_id,
+                    model_name=detector.method_name,
+                )
+                if model_obj is None:
+                    continue
+
+                setattr(detector, "_model", model_obj)
+                loaded_count += 1
 
             if loaded_count > 0:
                 self._detector._trained_flag = True

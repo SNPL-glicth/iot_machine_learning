@@ -19,8 +19,8 @@ from iot_machine_learning.infrastructure.ml.adapters import (
     StatisticalExpertAdapter,
 )
 from iot_machine_learning.infrastructure.ml.engines.kalman.engine import KalmanPredictionEngine
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+from iot_machine_learning.domain.entities.rosa_roja.movement import Movement
+from iot_machine_learning.domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating

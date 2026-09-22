@@ -58,7 +58,7 @@ class ClassicalStage:
         """
         vector = np.zeros(self.n_input)
         
-        for idx, (analyzer_name, score) in enumerate(analysis_scores.items()):
+        for idx, (_, score) in enumerate(analysis_scores.items()):
             if idx < self.n_input:
                 vector[idx] = score
         

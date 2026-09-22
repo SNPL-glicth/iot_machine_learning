@@ -11,10 +11,9 @@ import time
 from .models.dynamic_features import DynamicFeatures
 from .models.feature_config import FeatureConfig
 from .rolling_window_engine import RollingWindowEngine
-
-from ml_service.features.dynamic.derivative_computer import DerivativeCalculator
-from ml_service.features.dynamic.lag_feature_generator import LagFeatureGenerator
-from ml_service.features.dynamic.cross_feature_generator import CrossFeatureGenerator
+from .derivative_computer import DerivativeCalculator
+from .lag_feature_generator import LagFeatureGenerator
+from .cross_feature_generator import CrossFeatureGenerator
 
 
 class DynamicFeaturePipeline:

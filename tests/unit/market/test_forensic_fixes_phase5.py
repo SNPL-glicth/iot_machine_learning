@@ -23,16 +23,16 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_r
 from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import (
     RosaRojaMarketExecutionHandler,
 )
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from domain.entities.rosa_roja.execution import (
     ActionEnvelope,
     ExecutionPlan,
 )
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.state_machine import (
+from domain.entities.rosa_roja.state_machine import (
     PipelineState,
     StateMachine,
     TrackingState,
 )
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory_tracker import (
+from domain.entities.rosa_roja.trajectory_tracker import (
     TrajectoryTracker,
 )
 from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine

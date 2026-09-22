@@ -268,7 +268,7 @@ class RegexEntityExtractor(EntityExtractorPort):
 
         Bridge method para enrich_phase.py — no parte del port.
         """
-        from iot_machine_learning.application.semantic_extraction import (
+        from iot_machine_learning.domain.services.semantic_extraction import (
             EntityPrioritizer,
         )
         from iot_machine_learning.domain.entities.semantic_extraction import (

@@ -19,10 +19,11 @@ from infrastructure.ml.adapters import (
     TaylorExpertAdapter,
     KalmanExpertAdapter,
     StatisticalExpertAdapter,
+)
+from infrastructure.adapters.iot import (
     IoTDriftSensorAdapter,
     IoTActuatorHandler,
     ActuatorConfig,
-    ActuatorType,
     MockActuatorClient,
 )
 # MoE expert adapter (challenger mode)
@@ -67,7 +68,7 @@ class RosaRojaEngineFactory:
         store_config = self.config.get("state_store")
         if store_config:
             try:
-                from infrastructure.ml.adapters.ml_state_store import create_state_store
+                from infrastructure.adapters.iot.ml_state_store_adapter import create_state_store
                 state_store = create_state_store(store_config)
             except Exception as e:
                 logger.warning(f"Failed to create ML state store, persistence disabled: {e}")
@@ -282,26 +283,16 @@ class RosaRojaEngineFactory:
             actuator_configs = {
                 "actuator_1": ActuatorConfig(
                     actuator_id="actuator_1",
-                    actuator_type=ActuatorType.GENERIC,
                     device_id=device_id,
                     min_setpoint=0.0,
                     max_setpoint=100.0,
-                    unit="%",
-                    safety_min=0.0,
-                    safety_max=100.0,
-                    rate_limit=5.0,
                     mqtt_topic=f"{device_id}/actuator_1/set",
                 ),
                 "actuator_2": ActuatorConfig(
                     actuator_id="actuator_2",
-                    actuator_type=ActuatorType.GENERIC,
                     device_id=device_id,
                     min_setpoint=0.0,
                     max_setpoint=100.0,
-                    unit="%",
-                    safety_min=0.0,
-                    safety_max=100.0,
-                    rate_limit=10.0,
                     mqtt_topic=f"{device_id}/actuator_2/set",
                 ),
             }
@@ -358,7 +349,7 @@ def create_rosa_roja_moe_expert(
         engine: Pre-created RosaRojaEngine instance (creates new if None)
         config: Configuration dict with optional keys:
             - min_history_points: Minimum data points required (default 50)
-            - enabled: Feature flag, default False (challenger mode)
+            - enabled: Feature flag, default True (challenger mode)
     
     Returns:
         RosaRojaExpert instance or None if not available/disabled.
@@ -368,7 +359,10 @@ def create_rosa_roja_moe_expert(
         return None
     
     cfg = config or {}
-    enabled = cfg.get("rosa_roja_moe_enabled", False)  # OFF by default
+    enabled = cfg.get(
+        "rosa_roja_moe_enabled",
+        os.environ.get("ML_ENABLE_ROSA_ROJA_EXPERT", "true").lower() in ("true", "1", "yes"),
+    )
     
     if not enabled:
         logger.info("Rosa Roja MoE expert disabled (feature flag OFF)")

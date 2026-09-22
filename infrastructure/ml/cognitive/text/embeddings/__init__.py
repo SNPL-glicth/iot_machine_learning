@@ -1,48 +1,38 @@
-"""HybridEntityDetector — entity extraction with optional Weaviate server-side enrichment.
+"""HybridEntityDetector — entity extraction with optional vector memory enrichment.
 
 Design:
   ML_ENABLE_HYBRID_EMBEDDINGS=false (default):
     Pure regex passthrough — delegates to RegexEntityExtractor without
-    duplicating its logic.  Zero new dependencies.
+    duplicating its logic. Zero new dependencies.
 
   ML_ENABLE_HYBRID_EMBEDDINGS=true:
-    Uses Weaviate's server-side text2vec-transformers to retrieve
-    semantically similar stored documents via nearText, then extracts
-    entities from those documents (same RegexEntityExtractor on document
-    text).  The result is the union of input-text entities and
-    semantically-backed stored-document entities, deduplicated.
-    magnitude_threshold controls min_certainty = 1 - threshold.
+    Uses VectorMemoryPort to retrieve semantically similar stored documents,
+    then extracts entities from those documents. The result is the union of
+    input-text entities and semantically-backed stored-document entities, deduplicated.
 
-  On any error (Weaviate unavailable, timeout, no data): safe fallback
-  to regex-only result.  Never raises, never returns None.
+  On any error (unavailable, timeout, no data): safe fallback
+  to regex-only result. Never raises, never returns None.
 
-  No heavy ML deps — no sentence-transformers, no torch, consistent with
-  the "zero heavy deps outside scikit-learn" rule.
+  Pure algorithmic layer — no network calls, no HTTP requests, no database drivers.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from iot_machine_learning.domain.ports.vector_memory_port import VectorMemoryPort
 from iot_machine_learning.infrastructure.ml.cognitive.text.semantic_extraction.composite_entity_extractor import (
     RegexEntityExtractor,
 )
 
 logger = logging.getLogger(__name__)
 
-_WEAVIATE_TIMEOUT = 10
-_WEAVIATE_QUERY_LIMIT = 5
-
 
 @dataclass
 class EntityResult:
-    """Result container matching the original HybridEntityDetector contract.
+    """Result container matching the HybridEntityDetector contract.
 
     Attributes:
         entities: List of SemanticEntity objects.
@@ -60,33 +50,39 @@ class EntityResult:
 
 
 class HybridEntityDetector:
-    """Entity detector with hybrid regex + Weaviate server-side enrichment.
+    """Entity detector with hybrid regex + VectorMemoryPort enrichment.
 
     Args:
         domain_hint: Domain context passed to RegexEntityExtractor.
-        magnitude_threshold: Minimum semantic certainty for Weaviate-backed
+        magnitude_threshold: Minimum semantic certainty for vector-backed
             entities (converted to min_certainty = 1 - threshold).
+        vector_memory: Optional VectorMemoryPort for semantic retrieval.
+        hybrid_enabled: Explicit boolean to enable hybrid vector memory search.
     """
 
     def __init__(
         self,
         domain_hint: str = "general",
         magnitude_threshold: float = 0.3,
+        vector_memory: Optional[VectorMemoryPort] = None,
+        hybrid_enabled: bool = False,
     ) -> None:
         self._domain = domain_hint
         self._threshold = magnitude_threshold
+        self._vector_memory = vector_memory
+        self._hybrid_enabled = hybrid_enabled
         self._regex = RegexEntityExtractor(domain_hint=domain_hint)
 
     # ── Public API ──────────────────────────────────────────────
 
     def extract_entities(self, text: str) -> EntityResult:
-        """Extract entities using regex or hybrid regex+Weaviate.
+        """Extract entities using regex or hybrid regex+vector memory.
 
         Steps:
           1. Always extract regex entities from the input text.
-          2. If ML_ENABLE_HYBRID_EMBEDDINGS=false, return regex result.
-          3. If true, query Weaviate nearText for semantically similar
-             stored documents, extract entities from their explanationText,
+          2. If vector memory is not enabled or not provided, return regex result.
+          3. If enabled, query vector memory for semantically similar
+             stored documents, extract entities from their text,
              merge with input entities, deduplicate.
           4. On any error, safe fallback to regex-only result.
 
@@ -101,105 +97,45 @@ class HybridEntityDetector:
 
         regex_entities = self._extract_regex(text)
 
-        if not self._is_hybrid_enabled():
+        if not self._hybrid_enabled or self._vector_memory is None:
             return EntityResult(regex_entities)
 
         try:
-            weaviate_entities = self._enrich_via_weaviate(text)
-            if not weaviate_entities:
+            vector_entities = self._enrich_via_vector_memory(text)
+            if not vector_entities:
                 return EntityResult(regex_entities)
-            merged = self._merge_entity_lists(regex_entities, weaviate_entities)
+            merged = self._merge_entity_lists(regex_entities, vector_entities)
             return EntityResult(merged)
         except Exception as exc:
-            logger.debug("hybrid_weaviate_fallback: %s", exc)
+            logger.debug("hybrid_vector_fallback: %s", exc)
             return EntityResult(regex_entities)
 
     # ── Internals ───────────────────────────────────────────────
-
-    @staticmethod
-    def _is_hybrid_enabled() -> bool:
-        try:
-            from iot_machine_learning.ml_service.config.feature_flags import (
-                get_feature_flags,
-            )
-
-            flags = get_feature_flags()
-            return bool(getattr(flags, "ML_ENABLE_HYBRID_EMBEDDINGS", False))
-        except Exception:
-            return False
 
     def _extract_regex(self, text: str) -> list[Any]:
         result = self._regex.extract(text)
         return list(result.entities)
 
-    def _enrich_via_weaviate(self, text: str) -> list[Any]:
-        url = self._resolve_weaviate_url()
-        if not url:
+    def _enrich_via_vector_memory(self, text: str) -> list[Any]:
+        if self._vector_memory is None:
             return []
 
         concept = " ".join(text.split()[:200])
         min_certainty = max(0.0, 1.0 - self._threshold)
-        query = self._build_near_text_query(concept, min_certainty)
 
-        graphql_url = f"{url.rstrip('/')}/v1/graphql"
-        body = json.dumps({"query": query}).encode("utf-8")
-        req = urllib.request.Request(
-            graphql_url,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
+        explanation_texts = self._vector_memory.search_similar_explanations(
+            concept=concept,
+            min_certainty=min_certainty,
+            limit=5,
         )
 
-        try:
-            with urllib.request.urlopen(req, timeout=_WEAVIATE_TIMEOUT) as resp:
-                data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
-        except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
-            logger.debug("weaviate_query_failed: %s", exc)
-            return []
-
-        items: list[dict[str, Any]] = []
-        try:
-            items = data["data"]["Get"]["MLExplanation"]
-        except (KeyError, TypeError):
-            errors = data.get("errors", [])
-            if errors:
-                logger.debug("weaviate_graphql_errors: %s", [e.get("message", "") for e in errors[:3]])
-            return []
-
-        if not items:
-            return []
-
         entities: list[Any] = []
-        for item in items:
-            expl_text = item.get("explanationText", "")
+        for expl_text in explanation_texts:
             if expl_text:
                 result = self._regex.extract(expl_text)
                 entities.extend(result.entities)
 
         return entities
-
-    @staticmethod
-    def _resolve_weaviate_url() -> Optional[str]:
-        enabled = (
-            os.environ.get("WEAVIATE_ENABLED", "false").lower() == "true"
-        )
-        if not enabled:
-            return None
-        url = os.environ.get("WEAVIATE_URL", "http://localhost:8080").rstrip("/")
-        return url
-
-    @staticmethod
-    def _build_near_text_query(concept: str, certainty: float) -> str:
-        concept_escaped = json.dumps(concept)
-        return (
-            "{ Get { MLExplanation("
-            f'nearText: {{ concepts: [{concept_escaped}], certainty: {certainty} }}, '
-            f"limit: {_WEAVIATE_QUERY_LIMIT}"
-            ") { "
-            "seriesId explanationText "
-            "_additional { id certainty } "
-            "} } }"
-        )
 
     @staticmethod
     def _merge_entity_lists(

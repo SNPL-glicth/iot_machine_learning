@@ -29,7 +29,7 @@ from iot_machine_learning.infrastructure.adapters.market.alpaca.order_client imp
 from iot_machine_learning.infrastructure.adapters.market.alpaca.account import AlpacaAccount, create_account
 from iot_machine_learning.infrastructure.adapters.market.alpaca.ws_feed import AlpacaWSFeed
 from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
+from iot_machine_learning.domain.entities.rosa_roja.execution import ExecutionPlan, ActionEnvelope
 
 # ============================================================================
 # Fixtures

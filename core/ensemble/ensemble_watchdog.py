@@ -103,7 +103,6 @@ class EnsembleWatchdog:
         max_suppression = max(suppressions.values()) if suppressions else 0.0
         
         active_ratio = active_engines / total_engines if total_engines > 0 else 0.0
-        suppressed_ratio = suppressed_engines / total_engines if total_engines > 0 else 0.0
         
         # Determine health status
         if active_ratio == 0.0:

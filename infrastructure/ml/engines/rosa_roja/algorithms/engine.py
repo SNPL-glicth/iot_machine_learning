@@ -9,17 +9,17 @@ from collections.abc import Sequence
 from typing import Any
 import numpy as np
 
-from .domain.engine_persistence import RosaRojaPersistenceMixin
-from .domain.execution import ActionEnvelope, ExecutionPlan
-from .domain.state_machine import StateMachine
-from .domain.trajectory_tracker import TrajectoryTracker
-from .domain.validation import ValidationResult
+from domain.entities.rosa_roja.engine_persistence import RosaRojaPersistenceMixin
+from domain.entities.rosa_roja.execution import ActionEnvelope, ExecutionPlan
+from domain.entities.rosa_roja.state_machine import StateMachine
+from domain.entities.rosa_roja.trajectory_tracker import TrajectoryTracker
+from domain.entities.rosa_roja.validation import ValidationResult
 from .modules.module1_ingestion import MahalanobisFilter
 from .modules.module3_moe_gating import MultiplicativeMoEGating
 from .modules.rhythm_generator import RhythmTrajectoryGenerator
-from .ports.drift_sensor import DriftSensorPort
-from .ports.expert_jury import ExpertJuryPort
-from .ports.state_store import MLStateStore
+from domain.ports.rosa_roja.drift_sensor import DriftSensorPort
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
+from domain.ports.rosa_roja.state_store import MLStateStore
 
 logger = logging.getLogger(__name__)
 

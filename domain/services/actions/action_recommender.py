@@ -59,48 +59,41 @@ def recommend_actions(analysis_result) -> List[str]:
 
 def _get_critical_pattern_actions(patterns: List, domain: str) -> List[str]:
     """Get critical actions from interpreted patterns."""
-    actions = []
-
     if not patterns:
-        return actions
+        return []
 
     for pattern in patterns:
-        severity_hint = getattr(pattern, 'severity_hint', '')
-        pattern_type = getattr(pattern, 'pattern_type', '')
-        if severity_hint == "critical":
-            if "spike" in pattern_type:
-                actions.append("→ Investigate anomalous spike immediately")
-                break
-            elif "escalation" in pattern_type:
-                actions.append("→ Escalate incident response team")
-                break
-            elif "degradation" in pattern_type:
-                actions.append("→ Initiate recovery procedures")
-                break
+        if getattr(pattern, 'severity_hint', '') != "critical":
+            continue
 
-    return actions
+        pattern_type = getattr(pattern, 'pattern_type', '')
+        if "spike" in pattern_type:
+            return ["→ Investigate anomalous spike immediately"]
+        if "escalation" in pattern_type:
+            return ["→ Escalate incident response team"]
+        if "degradation" in pattern_type:
+            return ["→ Initiate recovery procedures"]
+
+    return []
 
 
 def _get_warning_pattern_actions(patterns: List, domain: str) -> List[str]:
     """Get warning actions from interpreted patterns."""
-    actions = []
-
     if not patterns:
-        return actions
+        return []
 
     for pattern in patterns:
-        severity_hint = getattr(pattern, 'severity_hint', '')
-        pattern_type = getattr(pattern, 'pattern_type', '')
-        if severity_hint == "warning":
-            if "drift" in pattern_type:
-                actions.append("→ Monitor drift trend closely")
-            elif "regime" in pattern_type:
-                actions.append("→ Verify operational regime change")
-            else:
-                actions.append("→ Schedule review within 24 hours")
-            break
+        if getattr(pattern, 'severity_hint', '') != "warning":
+            continue
 
-    return actions
+        pattern_type = getattr(pattern, 'pattern_type', '')
+        if "drift" in pattern_type:
+            return ["→ Monitor drift trend closely"]
+        if "regime" in pattern_type:
+            return ["→ Verify operational regime change"]
+        return ["→ Schedule review within 24 hours"]
+
+    return []
 
 
 def _get_critical_actions(domain: str = "general") -> List[str]:

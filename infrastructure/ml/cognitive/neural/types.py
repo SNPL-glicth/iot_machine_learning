@@ -6,9 +6,14 @@ Pure value objects for neural analysis results and internal state.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
 from ..universal.analysis.types import InputType
+
+
+class _HasToDict(Protocol):
+    """Structural protocol for objects that can be serialized to dict."""
+    def to_dict(self) -> Dict[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -100,7 +105,7 @@ class NeuralResult:
     classical_output: float = 0.0
     hybrid_weight_snn: float = 0.5
     hybrid_weight_classical: float = 0.5
-    monte_carlo: Optional[object] = None
+    monte_carlo: Optional[_HasToDict] = None
     
     def to_dict(self) -> dict:
         """Serialize for API responses."""

@@ -1,14 +1,25 @@
 """Reset mixin for BayesianWeightTracker."""
 from __future__ import annotations
+
 import logging
+import threading
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ResetMixin:
     """Mixin providing regime reset functionality."""
+
+    # Declare expected parent attributes for mypy
+    _lock: threading.Lock
+    _accuracy: Dict[str, Any]
+    _priors: Dict[str, Any]
+    _regime_last_access: Dict[str, Any]
+    _regime_last_update: Dict[str, Any]
+    _domain_namespace: str
+    _drift_response: Any
 
     def reset(self, regime: Optional[str] = None) -> None:
         """Clear accumulated accuracy data."""

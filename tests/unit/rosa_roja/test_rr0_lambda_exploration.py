@@ -7,7 +7,7 @@ import random
 import numpy as np
 import pytest
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
+from domain.entities.rosa_roja.movement import Movement, RhythmSignature
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 
 

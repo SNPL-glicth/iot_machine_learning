@@ -7,7 +7,7 @@ upstream ML pipeline without dependencies on specific ML types.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from ..severity import SeverityResult
 from .outcome import SimulatedOutcome
@@ -58,13 +58,13 @@ class DecisionContext:
     confidence: float = 0.0
     is_anomaly: bool = False
     anomaly_score: float = 0.0
-    patterns: List[Dict[str, Any]] = field(default_factory=list)
+    patterns: List[Mapping[str, Any]] = field(default_factory=list)
     predicted_value: Optional[float] = None
     trend: str = "stable"
     monte_carlo_outcomes: Optional[List[SimulatedOutcome]] = None
     domain: str = ""
     audit_trace_id: Optional[str] = None
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, Any] = field(default_factory=dict)
 
     # Contexto enriquecido para decisiones contextuales (Paso 2)
     # Historial de anomalías de la serie (ventana 2 horas)

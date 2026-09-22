@@ -52,7 +52,8 @@ class TestWeightedFusionBasic:
         val, conf, trend, weights, selected, reason = fusion.fuse(
             perceptions, states)
         assert val == pytest.approx(15.0)
-        assert conf == pytest.approx(0.7)
+        # 0.7 raw confidence * 0.4 discrepancy penalty (std=5.0) * 0.5 entropy penalty (equal weights)
+        assert conf == pytest.approx(0.14)
 
     def test_unequal_weights(self) -> None:
         fusion = WeightedFusion()

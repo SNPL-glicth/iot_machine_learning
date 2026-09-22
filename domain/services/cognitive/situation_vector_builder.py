@@ -40,7 +40,7 @@ def build_situation_vector(
 
     # --- 0-5: Regime vector ---
     signal = explanation.signal
-    rv = signal.regime_vector if signal else []
+    rv = list(signal.regime_vector) if signal and getattr(signal, "regime_vector", None) else []
     for i, val in enumerate((rv + [0.0] * 6)[:6]):
         # regime_vector values are raw floats; soft-clamp to [-10, 10]
         # then scale to [0, 1] via tanh-like mapping: (x/(1+|x|) + 1) / 2

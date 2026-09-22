@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 
 class PhaseKind(str, Enum):
@@ -51,11 +51,11 @@ class ReasoningPhase:
     """
 
     kind: PhaseKind
-    summary: Dict[str, Any] = field(default_factory=dict)
-    inputs: Dict[str, Any] = field(default_factory=dict)
-    outputs: Dict[str, Any] = field(default_factory=dict)
+    summary: Mapping[str, Any] = field(default_factory=dict)
+    inputs: Mapping[str, Any] = field(default_factory=dict)
+    outputs: Mapping[str, Any] = field(default_factory=dict)
     duration_ms: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         d: dict = {
@@ -131,8 +131,8 @@ class ReasoningTrace:
         return cls()
 
 
-def _safe_serialize(data: Dict[str, Any]) -> dict:
-    """Serializa un dict asegurando que los valores son JSON-safe.
+def _safe_serialize(data: Mapping[str, Any]) -> dict:
+    """Serializa un dict o Mapping asegurando que los valores son JSON-safe.
 
     Convierte objetos con ``to_dict()`` y deja pasar primitivos.
     """
@@ -145,7 +145,7 @@ def _safe_serialize(data: Dict[str, Any]) -> dict:
                 item.to_dict() if hasattr(item, "to_dict") else item
                 for item in v
             ]
-        elif isinstance(v, dict):
+        elif isinstance(v, (dict, Mapping)):
             result[k] = _safe_serialize(v)
         else:
             result[k] = v

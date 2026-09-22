@@ -93,7 +93,7 @@ def analyze_with_universal(
     analysis_engine: UniversalAnalysisEngine,
     comparative_engine: Optional[UniversalComparativeEngine],
     cognitive_memory: Optional[object],
-) -> tuple[Any, Optional[Any]]:
+) -> tuple[Any, Optional[Any], Optional[str]]:
     """Analyze using UniversalAnalysisEngine + UniversalComparativeEngine.
     
     Args:
@@ -106,13 +106,13 @@ def analyze_with_universal(
         cognitive_memory: Optional cognitive memory port
         
     Returns:
-        Tuple of (analysis_result, comparison_result)
+        Tuple of (analysis_result, comparison_result, semantic_conclusion)
     """
     # Extract raw data from payload
     raw_data = extract_raw_data(payload, content_type)
     
     # Auto-detect input type if not explicitly provided
-    detected_type = detect_input_type(raw_data)
+    detected_type, _ = detect_input_type(raw_data)
     
     # Extract pre-computed scores for text content
     pre_computed_scores = {}  # ROOT FIX 1: Never None, always empty dict minimum
@@ -143,9 +143,14 @@ def analyze_with_universal(
                 
                 flags = FeatureFlags()
                 if getattr(flags, 'ML_ENABLE_HYBRID_EMBEDDINGS', False):
+                    from iot_machine_learning.infrastructure.adapters.cognitive.weaviate_vector_adapter import (
+                        WeaviateVectorMemoryAdapter,
+                    )
                     detector = HybridEntityDetector(
                         domain_hint=payload.get("domain", "general"),
                         magnitude_threshold=getattr(flags, 'ML_HYBRID_ENTITY_THRESHOLD', 0.3),
+                        vector_memory=WeaviateVectorMemoryAdapter(),
+                        hybrid_enabled=True,
                     )
                     entity_result = detector.extract_entities(full_text)
                     entities = entity_result.to_list()

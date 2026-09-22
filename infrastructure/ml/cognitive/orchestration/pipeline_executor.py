@@ -95,14 +95,14 @@ class PipelineExecutor:
     def _create_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
         return PredictionResult(
-            predicted_value=ctx.orchestrator._last_explanation.predicted_value if ctx.orchestrator._last_explanation else None,
-            confidence=0.2, trend="unknown", metadata=ctx.metadata)
+            predicted_value=float(ctx.orchestrator._last_explanation.predicted_value) if ctx.orchestrator._last_explanation and ctx.orchestrator._last_explanation.predicted_value is not None else 0.0,
+            confidence=0.2, trend="stable", metadata=ctx.metadata)
     def _create_over_budget_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
         return PredictionResult(
-            predicted_value=ctx.orchestrator._last_explanation.predicted_value if ctx.orchestrator._last_explanation else None,
+            predicted_value=float(ctx.orchestrator._last_explanation.predicted_value) if ctx.orchestrator._last_explanation and ctx.orchestrator._last_explanation.predicted_value is not None else 0.0,
             confidence=0.15,
-            trend="unknown",
+            trend="stable",
             metadata={
                 **ctx.metadata,
                 "is_over_budget_fallback": True,
@@ -112,7 +112,7 @@ class PipelineExecutor:
     def _create_quality_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
         return PredictionResult(
-            predicted_value=None, confidence=0.0, trend="unknown",
+            predicted_value=0.0, confidence=0.0, trend="stable",
             metadata={
                 "is_quality_fallback": True,
                 "rejection_reason": "quality_too_low_log_only",
@@ -125,7 +125,7 @@ class PipelineExecutor:
     def _create_sanitize_fallback_result(self, ctx: PipelineContext) -> PredictionResult:
         from ...interfaces import PredictionResult
         return PredictionResult(
-            predicted_value=None, confidence=0.0, trend="unknown",
+            predicted_value=0.0, confidence=0.0, trend="stable",
             metadata={"is_sanitize_fallback": True, "rejection_reason": "nan_or_inf_rejected",
                       "sanitization_flags": list(ctx.sanitization_flags)})
 

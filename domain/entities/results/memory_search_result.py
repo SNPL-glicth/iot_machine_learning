@@ -10,7 +10,7 @@ No contiene tipos ni imports de infraestructura.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -23,15 +23,15 @@ class MemorySearchResult:
     Attributes:
         memory_id: Identificador opaco del registro en memoria cognitiva.
             Internamente puede ser un UUID de Weaviate, un doc_id de
-            Elasticsearch, etc.  El dominio no interpreta este valor.
-        series_id: Identificador UTSAE de la serie asociada.
-        text: Texto que coincidió con la búsqueda semántica.
-        certainty: Similitud semántica (0.0–1.0).  1.0 = coincidencia
-            perfecta.  El umbral mínimo lo decide el consumidor.
-        source_record_id: Referencia cruzada al registro en el sistema
-            transaccional (e.g. ``predictions.id``, ``ml_events.id``,
-            ``decision_actions.id`` en SQL Server).  ``None`` si el
-            registro solo existe en memoria cognitiva.
+            Elasticsearch o una clave de Redis.  El dominio lo trata como
+            cadena opaca.
+        series_id: Identificador de la serie temporal a la que pertenece
+            el registro original.
+        text: Texto asociado al registro (ej. descripción del evento).
+        certainty: Puntuación de similitud semántica en el rango [0.0, 1.0].
+            1.0 = coincidencia idéntica; 0.0 = sin relación.
+        source_record_id: ID del registro transaccional original (ej. ID de
+            anomalía o predicción en Postgres), si aplica.
         created_at: Timestamp ISO 8601 de creación del registro original.
         metadata: Propiedades adicionales del registro.  Estructura
             variable según la clase de memoria consultada.
@@ -43,7 +43,7 @@ class MemorySearchResult:
     certainty: float
     source_record_id: Optional[int] = None
     created_at: Optional[str] = None
-    metadata: Dict[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
     @property
     def has_source_record(self) -> bool:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory
+from domain.entities.rosa_roja.trajectory import Trajectory
 from .base_adapter import BaseExpertAdapter
 from infrastructure.ml.interfaces import PredictionEngine
 
@@ -30,10 +30,3 @@ class KalmanExpertAdapter(BaseExpertAdapter):
         """Accumulate projected deltas into position levels for the 2D CV Kalman filter."""
         deltas = super()._trajectory_to_values(trajectory)
         return np.cumsum(deltas)
-
-
-def create_kalman_adapter(**engine_kwargs) -> KalmanExpertAdapter:
-    """Factory to create Kalman adapter with engine."""
-    from infrastructure.ml.engines.kalman.engine import KalmanPredictionEngine
-    engine = KalmanPredictionEngine(**engine_kwargs)
-    return KalmanExpertAdapter(engine)

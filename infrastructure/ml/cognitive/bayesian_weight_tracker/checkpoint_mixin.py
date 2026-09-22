@@ -1,10 +1,24 @@
 """Checkpoint mixin for BayesianWeightTracker."""
 from __future__ import annotations
+
+import threading
+from typing import Any, Dict
+
 from .checkpoint import WeightTrackerCheckpoint
 
 
 class CheckpointMixin:
     """Mixin providing checkpoint export/import."""
+
+    # Declare expected parent attributes for mypy
+    _persistence: Any
+    _accuracy: Dict[str, Any]
+    _priors: Dict[str, Any]
+    _regime_last_access: Dict[str, Any]
+    _regime_last_update: Dict[str, Any]
+    _lock: threading.Lock
+    _scope: str
+    _config: Any
 
     def persist_immediately(self, engine_name: str, regime: str) -> None:
         """Immediately persist state."""

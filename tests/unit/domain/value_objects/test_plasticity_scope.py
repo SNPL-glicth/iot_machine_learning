@@ -10,19 +10,19 @@ from iot_machine_learning.domain.value_objects.plasticity_scope import Plasticit
 class TestPlasticityScope:
     """Test suite for PlasticityScope."""
 
-    def test_default_scope_redis_key(self) -> None:
+    def test_default_scope_storage_key(self) -> None:
         """Default scope (no domain) produces backward-compatible key."""
         scope = PlasticityScope(regime="STABLE")
         
-        assert scope.redis_key == "plasticity:STABLE"
+        assert scope.storage_key == "plasticity:STABLE"
         assert scope.sql_scope == ""
         assert scope.is_default is True
 
-    def test_scoped_redis_key(self) -> None:
-        """Scoped plasticity includes domain in Redis key."""
+    def test_scoped_storage_key(self) -> None:
+        """Scoped plasticity includes domain in storage key."""
         scope = PlasticityScope(domain="iot", regime="STABLE")
         
-        assert scope.redis_key == "plasticity:iot:STABLE"
+        assert scope.storage_key == "plasticity:iot:STABLE"
         assert scope.sql_scope == "iot"
         assert scope.is_default is False
 
@@ -33,9 +33,9 @@ class TestPlasticityScope:
         default_scope = PlasticityScope(regime="STABLE")
         
         # All have same regime but different keys
-        assert iot_scope.redis_key != finance_scope.redis_key
-        assert iot_scope.redis_key != default_scope.redis_key
-        assert finance_scope.redis_key != default_scope.redis_key
+        assert iot_scope.storage_key != finance_scope.storage_key
+        assert iot_scope.storage_key != default_scope.storage_key
+        assert finance_scope.storage_key != default_scope.storage_key
 
     def test_with_regime(self) -> None:
         """Can create new scope with different regime but same domain."""
@@ -44,7 +44,7 @@ class TestPlasticityScope:
         
         assert trending_scope.domain == "iot"
         assert trending_scope.regime == "TRENDING"
-        assert trending_scope.redis_key == "plasticity:iot:TRENDING"
+        assert trending_scope.storage_key == "plasticity:iot:TRENDING"
 
     def test_str_representation(self) -> None:
         """String representation is readable."""

@@ -12,8 +12,9 @@ import logging
 import numpy as np
 from scipy.linalg import inv
 
-from ..domain.movement import Movement, RhythmSignature
-from ..domain.state_persistence import (
+from iot_machine_learning.core.parameters.numerical_constants import DIV_BY_ZERO_EPSILON
+from domain.entities.rosa_roja.movement import Movement, RhythmSignature
+from domain.entities.rosa_roja.state_persistence import (
     STATE_SCHEMA_VERSION,
     movement_to_raw,
     movements_from_raw,
@@ -22,6 +23,15 @@ from ..domain.state_persistence import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_NOISE_THRESHOLD: float = 3.0
+DEFAULT_HISTORY_WINDOW: int = 100
+DEFAULT_MIN_SAMPLES_FOR_COV: int = 20
+DEFAULT_RECOMPUTE_INTERVAL: int = 100
+DEFAULT_REGULARIZATION_EPSILON: float = 1e-6
+DEFAULT_MAX_CONDITION_NUMBER: float = 1e12
+DEFAULT_PINV_RCOND: float = 1e-10
 
 
 @dataclass
@@ -35,9 +45,14 @@ class MahalanobisFilter:
     Equation: D_t = D_{t-1} ∪ {(U_t, Y_t) · I(d_Mahalanobis(M_t) ≤ τ_noise)}
     """
     
-    noise_threshold: float = 3.0        # τ_noise (χ² quantile)
-    history_window: int = 100           # Covariance estimation window
-    min_samples_for_cov: int = 20       # Minimum samples before filtering active
+    noise_threshold: float = DEFAULT_NOISE_THRESHOLD        # τ_noise (χ² quantile)
+    history_window: int = DEFAULT_HISTORY_WINDOW           # Covariance estimation window
+    min_samples_for_cov: int = DEFAULT_MIN_SAMPLES_FOR_COV       # Minimum samples before filtering active
+    recompute_interval: int = DEFAULT_RECOMPUTE_INTERVAL       # Exact recompute interval for stability
+    regularization_epsilon: float = DEFAULT_REGULARIZATION_EPSILON # Covariance regularization epsilon
+    max_condition_number: float = DEFAULT_MAX_CONDITION_NUMBER  # Threshold for singular matrix condition
+    pinv_rcond: float = DEFAULT_PINV_RCOND          # Pinv rcond for singular inversion
+    division_epsilon: float = DIV_BY_ZERO_EPSILON # Epsilon to prevent division by zero
     
     def __post_init__(self):
         self._history: deque[Movement] = deque(maxlen=self.history_window)
@@ -80,7 +95,7 @@ class MahalanobisFilter:
         )
         
         # Check if outlier - ensure Python bool return
-        is_outlier = bool(mahal_dist > self.noise_threshold)
+        is_outlier = mahal_dist > self.noise_threshold
         
         if not is_outlier:
             # Accept into historical prior D_t
@@ -104,7 +119,7 @@ class MahalanobisFilter:
             diff = x - self._mean
             # d² = (x - μ)ᵀ Σ⁻¹ (x - μ)
             d2 = float(diff @ self._cov_inv @ diff)
-            return np.sqrt(max(0.0, d2))
+            return float(np.sqrt(max(0.0, d2)))
         except Exception:
             return 0.0
     
@@ -141,37 +156,18 @@ class MahalanobisFilter:
         cov = self._M2 / (self._n - 1)
         
         # Regularization
-        reg = 1e-6 * np.eye(cov.shape[0], dtype=np.float64)
+        reg = self.regularization_epsilon * np.eye(cov.shape[0], dtype=np.float64)
         cov_reg = cov + reg
         
         # Inverse update strategy:
-        # - Exact recompute every 100 steps for numerical stability
+        # - Exact recompute every recompute_interval steps for numerical stability
         # - Diagonal approximation for intermediate steps (fast O(d))
-        if self._n % 100 == 0:
-            # Exact recompute every 100 steps for numerical stability
+        if self._n % self.recompute_interval == 0:
             self._cov_inv = inv(cov_reg)
         else:
-            # Diagonal approximation: update inverse diagonal from variance changes
-            # This is O(d) instead of O(d³)
             var_new = np.diag(cov_reg)
-            diag_inv = 1.0 / (var_new + 1e-12)
+            diag_inv = 1.0 / (var_new + self.division_epsilon)
             self._cov_inv = np.diag(diag_inv)
-    
-    def _compute_mahalanobis(self, delta_state: np.ndarray) -> float:
-        """Compute Mahalanobis distance from current mean."""
-        if self._mean is None or self._cov_inv is None:
-            return 0.0
-        
-        if self._n < self.min_samples_for_cov:
-            return 0.0
-        
-        try:
-            x = delta_state.astype(np.float64)
-            diff = x - self._mean
-            d2 = float(diff @ self._cov_inv @ diff)
-            return np.sqrt(max(0.0, d2))
-        except Exception:
-            return 0.0
     
     def _update_covariance(self) -> None:
         """Legacy full recompute - kept for compatibility."""
@@ -225,13 +221,13 @@ class MahalanobisFilter:
                         delta2 = x - self._mean
                         self._M2 += np.outer(delta, delta2)
             
-            if self._n >= self.min_samples_for_cov:
+            if self._M2 is not None and self._n >= self.min_samples_for_cov:
                 cov = self._M2 / (self._n - 1)
-                reg = 1e-6 * np.eye(cov.shape[0], dtype=np.float64)
+                reg = self.regularization_epsilon * np.eye(cov.shape[0], dtype=np.float64)
                 cov_reg = cov + reg
                 cond = np.linalg.cond(cov_reg)
-                if cond > 1e12 or np.isnan(cond):
-                    self._cov_inv = np.linalg.pinv(cov_reg, rcond=1e-10)
+                if cond > self.max_condition_number or np.isnan(cond):
+                    self._cov_inv = np.linalg.pinv(cov_reg, rcond=self.pinv_rcond)
                 else:
                     self._cov_inv = inv(cov_reg)
 

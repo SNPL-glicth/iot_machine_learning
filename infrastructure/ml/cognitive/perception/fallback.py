@@ -48,6 +48,6 @@ def create_fallback_result(
     return PredictionResult(
         predicted_value=predicted,
         confidence=0.2,
-        trend="unknown",
+        trend="stable",
         metadata=metadata,
     )

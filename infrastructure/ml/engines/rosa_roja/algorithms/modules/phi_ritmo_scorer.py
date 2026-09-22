@@ -6,7 +6,7 @@ import math
 from typing import Optional
 import numpy as np
 
-from ..domain.trajectory import Trajectory, TerminalState
+from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
 
 
 class PhiRitmoScorer:

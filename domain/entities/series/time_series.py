@@ -11,7 +11,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from .temporal_features import TemporalFeatures
+    from .structural_analysis import StructuralAnalysis
 
 
 @dataclass(frozen=True)

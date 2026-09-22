@@ -23,10 +23,3 @@ class TaylorExpertAdapter(BaseExpertAdapter):
             threshold=threshold,
             weight=weight,
         )
-
-
-def create_taylor_adapter(**engine_kwargs) -> TaylorExpertAdapter:
-    """Factory to create Taylor adapter with engine."""
-    from infrastructure.ml.engines.taylor.engine import TaylorPredictionEngine
-    engine = TaylorPredictionEngine(**engine_kwargs)
-    return TaylorExpertAdapter(engine)

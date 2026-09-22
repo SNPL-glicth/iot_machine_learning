@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 
 logger = logging.getLogger(__name__)
 

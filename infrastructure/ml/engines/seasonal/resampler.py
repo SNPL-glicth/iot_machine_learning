@@ -12,6 +12,29 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+def _interpolate_point(
+    t: float,
+    seg_ts: List[float],
+    seg_values: List[float],
+) -> float:
+    """Interpola linealmente el valor para el timestamp t con guard clauses."""
+    if t <= seg_ts[0]:
+        return seg_values[0]
+    if t >= seg_ts[-1]:
+        return seg_values[-1]
+
+    for j in range(len(seg_ts) - 1):
+        if not (seg_ts[j] <= t <= seg_ts[j + 1]):
+            continue
+        dt_local = seg_ts[j + 1] - seg_ts[j]
+        if dt_local == 0:
+            return seg_values[j]
+        frac = (t - seg_ts[j]) / dt_local
+        return seg_values[j] + frac * (seg_values[j + 1] - seg_values[j])
+
+    return seg_values[-1]
+
+
 def resample_to_uniform(
     values: List[float],
     timestamps: Optional[List[float]],
@@ -38,8 +61,10 @@ def resample_to_uniform(
     except (FileNotFoundError, json.JSONDecodeError):
         pass
 
-    max_gap_multiplier = cfg.get("max_gap_multiplier", 5)
-    min_points = cfg.get("min_points_after_resample", 6)
+    raw_multiplier = cfg.get("max_gap_multiplier", 5)
+    max_gap_multiplier = float(raw_multiplier) if raw_multiplier is not None else 5.0
+    raw_min_points = cfg.get("min_points_after_resample", 6)
+    min_points = int(raw_min_points) if raw_min_points is not None else 6
 
     # Build continuous segments
     dts = [timestamps[i] - timestamps[i - 1] for i in range(1, len(timestamps))]
@@ -68,23 +93,4 @@ def resample_to_uniform(
     # Linear interpolation to uniform grid
     target_dt = median_dt
     uniform_ts = [seg_ts[0] + i * target_dt for i in range(len(seg_values))]
-    resampled: List[float] = []
-    for t in uniform_ts:
-        if t <= seg_ts[0]:
-            resampled.append(seg_values[0])
-        elif t >= seg_ts[-1]:
-            resampled.append(seg_values[-1])
-        else:
-            for j in range(len(seg_ts) - 1):
-                if seg_ts[j] <= t <= seg_ts[j + 1]:
-                    dt_local = seg_ts[j + 1] - seg_ts[j]
-                    if dt_local == 0:
-                        resampled.append(seg_values[j])
-                    else:
-                        frac = (t - seg_ts[j]) / dt_local
-                        resampled.append(
-                            seg_values[j]
-                            + frac * (seg_values[j + 1] - seg_values[j])
-                        )
-                    break
-    return resampled
+    return [_interpolate_point(t, seg_ts, seg_values) for t in uniform_ts]

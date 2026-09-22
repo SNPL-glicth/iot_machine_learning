@@ -1,42 +1,21 @@
-"""Accuracy computation mixin for BayesianWeightTracker."""
+"""Accuracy mixin for BayesianWeightTracker."""
 from __future__ import annotations
-import logging
+
 import math
-from typing import Dict, List, Optional
-import numpy as np
+from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
-
-_ERROR_STORE_PERCENTILE: float = 99.0
-_ERROR_STORE_CAP_MULTIPLIER: float = 3.0
-_ERROR_STORE_MIN_SAMPLES: int = 10
+_ERROR_STORE_MIN_SAMPLES: int = 30
 _PERCENTILE_SAMPLE_SIZE: int = 100
-_MAD_K_SMALL: float = 9.0
-_MAD_K_LARGE: float = 6.0
-_MAD_EPSILON: float = 1e-12
 
 
 class AccuracyMixin:
-    """Mixin providing accuracy computation with robust MAD-based capping."""
+    """Mixin providing accuracy computation functionality."""
 
-    def _compute_robust_cap(self, history: List[float]) -> float:
-        """Robust outlier cap using Median Absolute Deviation (MAD)."""
-        if not history:
-            return float("inf")
-        arr = np.asarray(history, dtype=np.float64)
-        n = len(arr)
-        median = float(np.median(arr))
-        abs_dev = np.abs(arr - median)
-        mad = float(np.median(abs_dev))
-        k = _MAD_K_SMALL if n < 50 else _MAD_K_LARGE
-        if mad < _MAD_EPSILON:
-            mean_ad = float(np.mean(abs_dev))
-            if mean_ad < _MAD_EPSILON:
-                return median * 2.0 if median > 0 else float("inf")
-            return median + k * mean_ad
-        return median + k * mad
+    # Declare expected parent attributes for mypy
+    _error_store: Any
+    _error_history: Dict[str, List[float]]
 
-    def _compute_accuracy(
+    def compute_accuracy(
         self,
         prediction_error: float,
         regime: str,
@@ -71,3 +50,11 @@ class AccuracyMixin:
             self._error_history[regime].pop(0)
         accuracy = 1.0 / (1.0 + abs_error)
         return float(max(0.0, min(1.0, accuracy)))
+
+    def _compute_robust_cap(self, errors: List[float]) -> float:
+        """Compute robust error cap using percentile."""
+        if not errors:
+            return float("inf")
+        sorted_errors = sorted(errors)
+        p90_idx = int(len(sorted_errors) * 0.9)
+        return sorted_errors[min(p90_idx, len(sorted_errors) - 1)]

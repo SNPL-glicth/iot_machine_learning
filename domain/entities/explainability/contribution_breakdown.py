@@ -14,7 +14,7 @@ Domain-pure.  Sin dependencias de infraestructura.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class EngineContribution:
     inhibition_reason: str = "none"
     local_fit_error: float = 0.0
     stability: float = 0.0
-    metadata: Dict[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
     @property
     def weighted_contribution(self) -> float:

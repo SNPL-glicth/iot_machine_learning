@@ -182,7 +182,7 @@ class TemporalPatternMiner:
         # Mine frequent sequences of length 3-5
         frequent_sequences = self._mine_frequent_sequences()
         
-        for sequence, frequency, _ in frequent_sequences:
+        for sequence, _, _ in frequent_sequences:
             if 3 <= len(sequence) <= 5:
                 motifs.append(sequence)
         

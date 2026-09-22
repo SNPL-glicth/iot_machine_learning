@@ -18,56 +18,9 @@ from iot_machine_learning.domain.ports.plasticity_repository_port import (
 )
 
 from .updater import GaussianPrior
-from .config import _REDIS_CACHE_TTL_SECONDS, _PERSIST_EVERY_N_UPDATES
+from .config import _PERSIST_EVERY_N_UPDATES
 
 logger = logging.getLogger(__name__)
-
-
-# ── WeightTrackerRedisClient ────────────────────────────────────────
-
-
-class WeightTrackerRedisClient:
-    """Redis caching for weight tracker state."""
-
-    def __init__(
-        self,
-        redis_client: Optional[Any] = None,
-        scope: Optional[Any] = None,
-    ) -> None:
-        self._redis = redis_client
-        self._scope = scope
-
-    def get_weights(
-        self,
-        regime_key: str,
-        engine_names: List[str],
-        min_weight: float,
-    ) -> Optional[Dict[str, float]]:
-        if self._redis is None:
-            return None
-        try:
-            raw = self._redis.get(f"bwt:w:{regime_key}")
-            if raw is None:
-                return None
-            data = json.loads(raw)
-            return {e: max(min_weight, float(data.get(e, min_weight))) for e in engine_names}
-        except Exception:
-            return None
-
-    def update_weight(self, regime_key: str, engine: str, weight: float) -> None:
-        if self._redis is None:
-            return
-        try:
-            key = f"bwt:w:{regime_key}"
-            raw = self._redis.get(key)
-            if raw:
-                data = json.loads(raw)
-            else:
-                data = {}
-            data[engine] = weight
-            self._redis.setex(key, int(_REDIS_CACHE_TTL_SECONDS), json.dumps(data))
-        except Exception:
-            pass
 
 
 # ── WeightTrackerPersistence ────────────────────────────────────────
@@ -78,7 +31,7 @@ class WeightTrackerPersistence:
 
     def __init__(self, repository: Optional[PlasticityRepositoryPort] = None) -> None:
         if repository is None:
-            from iot_machine_learning.infrastructure.persistence.inmemory.plasticity_repository import (
+            from iot_machine_learning.domain.ports.plasticity_repository_port import (
                 InMemoryPlasticityRepository,
             )
             self._repository: PlasticityRepositoryPort = InMemoryPlasticityRepository()

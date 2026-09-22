@@ -5,7 +5,7 @@ This is a domain entity for representing causal correlations between sensors.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class CausalCorrelation:
     confidence: float
     propagation_likelihood: float
     timestamp: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""

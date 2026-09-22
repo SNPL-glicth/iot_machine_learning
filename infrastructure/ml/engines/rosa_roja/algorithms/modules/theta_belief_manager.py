@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Optional
 import numpy as np
 
-from ..domain.movement import Movement
-from ..domain.theta_belief import StateKey, ThetaBelief
+from domain.entities.rosa_roja.movement import Movement
+from domain.entities.rosa_roja.theta_belief import StateKey, ThetaBelief
 
 
 class ThetaBeliefManager:

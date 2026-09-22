@@ -38,12 +38,20 @@ from .phases.adapt_phase import AdaptPhase
 from .phases.inhibit_phase import InhibitPhase
 from .phases.fuse_phase import FusePhase
 
-# PIPE-3: Fases opcionales instanciadas solo si flag activo.
-# Nota: AdaptPhase, FusePhase e InhibitPhase tienen estado
-# compartido a nivel módulo — NO son candidatas a lazy init.
-from ml_service.config.feature_flags import get_feature_flags
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _DefaultPipelineFlags:
+    """Default feature flags for pipeline execution when not explicitly provided."""
+    ML_DECISION_ARBITER_ENABLED: bool = True
+    ML_COHERENCE_CHECK_ENABLED: bool = True
+    ML_CONFIDENCE_CALIBRATION_ENABLED: bool = True
+    ML_ACTION_GUARD_ENABLED: bool = True
+    ML_EXPLAINABILITY_ENABLED: bool = True
+    ML_NARRATIVE_ENABLED: bool = True
 
 
 class PipelineExecutorFactory:
@@ -61,9 +69,9 @@ class PipelineExecutorFactory:
 
         Args:
             flags_snapshot: Feature-flag snapshot for this run. If None,
-                flags are read fresh from the environment.
+                standard default pipeline flags are used.
         """
-        flags = flags_snapshot or get_feature_flags()
+        flags = flags_snapshot if flags_snapshot is not None else _DefaultPipelineFlags()
 
         phases = [
             SanitizePhase(),

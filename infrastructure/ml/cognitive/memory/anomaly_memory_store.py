@@ -99,7 +99,7 @@ class AnomalyMemoryStore:
             )
             
             logger.info(f"Stored event {object_id} for series {event.series_id}")
-            return object_id
+            return str(object_id) if object_id is not None else None
             
         except Exception as e:
             logger.error(f"Failed to store event: {e}")
@@ -113,6 +113,9 @@ class AnomalyMemoryStore:
         series_type: Optional[str] = None,
         top_k: int = 5,
         time_window: Optional[tuple] = None,
+        *,
+        sensor_id: Optional[int] = None,
+        sensor_type: Optional[str] = None,
     ) -> List[MemoryEvent]:
         """
         Retrieve similar events with filters.
@@ -128,12 +131,19 @@ class AnomalyMemoryStore:
         Returns:
             List of similar MemoryEvents
         """
+        eff_series_id = series_id if series_id is not None else sensor_id
+        eff_series_type = series_type if series_type is not None else sensor_type
         if not self._client:
             logger.warning("Weaviate client not available")
             return []
         
         try:
-            where_filter = self._build_filter(series_id, regime, series_type, time_window)
+            where_filter = self._build_filter(
+                series_id=eff_series_id,
+                regime=regime,
+                series_type=eff_series_type,
+                time_window=time_window,
+            )
             
             # Build properties list from mapping values
             properties_list = list(self._property_mapping.values())
@@ -211,43 +221,52 @@ class AnomalyMemoryStore:
     
     def _build_filter(
         self,
-        series_id: Optional[int],
-        regime: Optional[str],
-        series_type: Optional[str],
-        time_window: Optional[tuple],
+        series_id: Optional[int] = None,
+        regime: Optional[str] = None,
+        series_type: Optional[str] = None,
+        time_window: Optional[tuple] = None,
+        *,
+        sensor_id: Optional[int] = None,
+        sensor_type: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Build filter for Weaviate query."""
+        eff_series_id = series_id if series_id is not None else sensor_id
+        eff_series_type = series_type if series_type is not None else sensor_type
         filters = []
         
-        if series_id is not None:
+        if eff_series_id is not None:
+            field_name = self._property_mapping.get("series_id", "series_id")
             filters.append({
-                "path": [self._property_mapping["series_id"]],
+                "path": [field_name],
                 "operator": "Equal",
-                "valueInt": series_id,
+                "valueInt": eff_series_id,
             })
         
         if regime is not None:
+            field_name = self._property_mapping.get("regime", "regime")
             filters.append({
-                "path": [self._property_mapping["regime"]],
+                "path": [field_name],
                 "operator": "Equal",
                 "valueString": regime,
             })
         
-        if series_type is not None:
+        if eff_series_type is not None:
+            field_name = self._property_mapping.get("series_type", "series_type")
             filters.append({
-                "path": [self._property_mapping["series_type"]],
+                "path": [field_name],
                 "operator": "Equal",
-                "valueString": series_type,
+                "valueString": eff_series_type,
             })
         
         if time_window is not None:
+            ts_field = self._property_mapping.get("timestamp", "timestamp")
             filters.append({
-                "path": [self._property_mapping["timestamp"]],
+                "path": [ts_field],
                 "operator": "GreaterThan",
                 "valueNumber": time_window[0],
             })
             filters.append({
-                "path": [self._property_mapping["timestamp"]],
+                "path": [ts_field],
                 "operator": "LessThan",
                 "valueNumber": time_window[1],
             })
@@ -257,18 +276,20 @@ class AnomalyMemoryStore:
     def _result_to_event(self, result: Dict[str, Any]) -> MemoryEvent:
         """Convert Weaviate result to MemoryEvent."""
         props = result["properties"]
-        # Reverse mapping: Weaviate property -> MemoryEvent field
-        reverse_mapping = {v: k for k, v in self._property_mapping.items()}
+        sid = props.get("series_id", props.get("sensor_id", 0))
+        stype = props.get("series_type", props.get("sensor_type", "sensor"))
         return MemoryEvent(
-            series_id=props[reverse_mapping["series_id"]],
-            series_type=props[reverse_mapping["series_type"]],
-            timestamp=props[reverse_mapping["timestamp"]],
-            event_type=props[reverse_mapping["event_type"]],
-            semantic_text=props[reverse_mapping["semantic_text"]],
-            regime=props[reverse_mapping["regime"]],
-            anomaly_score=props[reverse_mapping["anomaly_score"]],
-            dynamic_features=props.get(reverse_mapping["dynamic_features"], {}),
-            metadata=props.get(reverse_mapping["metadata"], {}),
+            series_id=sid,
+            series_type=stype,
+            sensor_id=sid,
+            sensor_type=stype,
+            timestamp=props.get("timestamp", 0.0),
+            event_type=props.get("event_type", ""),
+            semantic_text=props.get("semantic_text", ""),
+            regime=props.get("regime", "STABLE"),
+            anomaly_score=props.get("anomaly_score", 0.0),
+            dynamic_features=props.get("dynamic_features", {}),
+            metadata=props.get("metadata", {}),
         )
     
     def enable_storage(self, enabled: bool) -> None:

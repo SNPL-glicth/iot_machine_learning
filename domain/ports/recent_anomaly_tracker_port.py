@@ -3,7 +3,7 @@
 Port para mantener ventana deslizante de anomalías recientes (2 horas).
 Usado por ContextualDecisionEngine para calcular scores contextuales.
 
-Backend: Redis SortedSet o memoria (configurable vía ML_ANOMALY_TRACKER_BACKEND).
+Backend: Almacenamiento externo o memoria (configurable vía ML_ANOMALY_TRACKER_BACKEND).
 """
 
 from __future__ import annotations

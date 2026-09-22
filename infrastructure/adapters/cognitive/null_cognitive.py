@@ -18,11 +18,11 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional
 
-from ...domain.entities.anomaly import AnomalyResult
-from ...domain.entities.memory_search_result import MemorySearchResult
-from ...domain.entities.pattern import PatternResult
-from ...domain.entities.prediction import Prediction
-from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
+from iot_machine_learning.domain.entities.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.memory_search_result import MemorySearchResult
+from iot_machine_learning.domain.entities.pattern import PatternResult
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.ports.cognitive_memory_port import CognitiveMemoryPort
 
 logger = logging.getLogger(__name__)
 

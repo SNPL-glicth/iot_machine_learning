@@ -38,7 +38,7 @@ class RegimeType(Enum):
     @property
     def value_lower(self) -> str:
         """Valor en lowercase para compatibilidad legacy."""
-        return self.value.lower()
+        return str(self.value).lower()
 
 
 @dataclass(frozen=True)
@@ -73,16 +73,13 @@ class StructuralAnalysis:
     trend_strength: float = 0.0
     n_points: int = 0
     time_step: Optional[TimeStep] = None
-    
-    @property
-    def dt(self) -> float:
-        """Legacy dt property for backward compatibility (ARCH-SEV-3).
-        
-        Returns time_step in seconds, or 1.0 if not set.
-        """
-        if self.time_step is None:
-            return 1.0
-        return self.time_step.to_seconds()
+    dt: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.time_step is not None and self.dt == 1.0:
+            object.__setattr__(self, "dt", self.time_step.to_seconds())
+        elif self.time_step is None and self.dt != 1.0:
+            object.__setattr__(self, "time_step", TimeStep.from_seconds(self.dt))
 
     @property
     def is_stable(self) -> bool:
@@ -106,20 +103,22 @@ class StructuralAnalysis:
 
     def to_dict(self) -> dict:
         """Serializa para audit logging / metadata."""
-        return {
+        d = {
             "slope": round(self.slope, 8),
             "curvature": round(self.curvature, 8),
             "stability": round(self.stability, 6),
             "accel_variance": round(self.accel_variance, 8),
             "noise_ratio": round(self.noise_ratio, 6),
-            "regime": self.regime.value if hasattr(self.regime, 'value') else str(self.regime),
+            "regime": self.regime.value_lower if hasattr(self.regime, 'value_lower') else (self.regime.value.lower() if hasattr(self.regime, 'value') else str(self.regime).lower()),
             "mean": round(self.mean, 8),
             "std": round(self.std, 8),
             "trend_strength": round(self.trend_strength, 6),
             "n_points": self.n_points,
             "dt": self.dt,  # Legacy field
-            "time_step": str(self.time_step) if self.time_step else None,
         }
+        if self.time_step is not None:
+            d["time_step"] = str(self.time_step)
+        return d
 
     def to_feature_vector(self) -> List[float]:
         """Vector de features para modelos ML.

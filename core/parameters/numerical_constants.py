@@ -129,3 +129,22 @@ STAT_THRESHOLDS = StatisticalThresholds()
 CONFIDENCE = ConfidenceConfig()
 INHIBITION_THRESHOLDS = _InhibitionThresholds()
 PENALTY_THRESHOLDS = _PenaltyThresholds()
+
+# Global tolerance constants for unified mathematical operations
+EPSILON_DEFAULT: Final[float] = 1e-9
+DIV_BY_ZERO_EPSILON: Final[float] = 1e-12
+MATRIX_SINGULAR_EPSILON: Final[float] = 1e-12
+
+__all__ = [
+    "EpsilonConfig",
+    "StatisticalThresholds",
+    "ConfidenceConfig",
+    "EPSILON",
+    "STAT_THRESHOLDS",
+    "CONFIDENCE",
+    "INHIBITION_THRESHOLDS",
+    "PENALTY_THRESHOLDS",
+    "EPSILON_DEFAULT",
+    "DIV_BY_ZERO_EPSILON",
+    "MATRIX_SINGULAR_EPSILON",
+]

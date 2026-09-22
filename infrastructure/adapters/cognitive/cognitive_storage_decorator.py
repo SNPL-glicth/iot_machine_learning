@@ -39,14 +39,14 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional
 
-from ...domain.entities.anomaly import AnomalyResult
-from ...domain.entities.patterns.pattern_result import PatternResult
-from ...domain.entities.prediction import Prediction
-from ...domain.entities.sensor_reading import SensorWindow
-from ...domain.entities.time_series import TimeSeries
-from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
-from ...domain.ports.storage_port import StoragePort
-from ...ml_service.config.feature_flags import FeatureFlags
+from iot_machine_learning.domain.entities.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.patterns.pattern_result import PatternResult
+from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.time_series import TimeSeries
+from iot_machine_learning.domain.ports.cognitive_memory_port import CognitiveMemoryPort
+from iot_machine_learning.domain.ports.storage_port import StoragePort
+from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
 

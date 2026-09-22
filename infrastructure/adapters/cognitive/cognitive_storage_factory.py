@@ -22,10 +22,10 @@ import logging
 
 from sqlalchemy.engine import Connection
 
-from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
-from ...domain.ports.storage_port import StoragePort
-from ...ml_service.config.feature_flags import FeatureFlags
-from ..persistence.sql.storage import SqlServerStorageAdapter
+from iot_machine_learning.domain.ports.cognitive_memory_port import CognitiveMemoryPort
+from iot_machine_learning.domain.ports.storage_port import StoragePort
+from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
+from iot_machine_learning.infrastructure.persistence.sql.storage import SqlServerStorageAdapter
 from .cognitive_storage_decorator import CognitiveStorageDecorator
 from .null_cognitive import NullCognitiveAdapter
 from .weaviate import WeaviateCognitiveAdapter

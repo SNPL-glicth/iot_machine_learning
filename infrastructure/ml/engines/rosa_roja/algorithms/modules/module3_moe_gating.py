@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Optional, Sequence
 import numpy as np
 
-from ..domain.trajectory import Trajectory
-from ..domain.validation import ValidationResult, VetoDetails
-from ..ports.expert_jury import ExpertJuryPort
-from ..domain.execution import ActionEnvelope
+from domain.entities.rosa_roja.trajectory import Trajectory
+from domain.entities.rosa_roja.validation import ValidationResult, VetoDetails
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
+from domain.entities.rosa_roja.execution import ActionEnvelope
 
 
 @dataclass

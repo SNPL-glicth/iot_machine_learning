@@ -80,7 +80,7 @@ class STDPLearning:
         
         # Update weight with bounds
         new_weight = weight + delta_w
-        return np.clip(new_weight, self.w_min, self.w_max)
+        return float(np.clip(new_weight, self.w_min, self.w_max))
 
 
 class SNNLayer:
@@ -224,6 +224,8 @@ class SNNLayer:
     
     def _apply_stdp_learning(self) -> None:
         """Apply STDP to all synaptic weights."""
+        if self.stdp is None:
+            return
         # Update input → hidden weights
         for i, input_neuron in enumerate(self.input_neurons):
             for j, hidden_neuron in enumerate(self.hidden_neurons):
@@ -248,7 +250,7 @@ class SNNLayer:
     ) -> Dict[int, List[float]]:
         """Map input spike trains to neuron indices."""
         result = {}
-        for idx, (analyzer_name, spike_times) in enumerate(input_spike_trains.items()):
+        for idx, (_, spike_times) in enumerate(input_spike_trains.items()):
             if idx < self.n_input:
                 result[idx] = spike_times
         return result

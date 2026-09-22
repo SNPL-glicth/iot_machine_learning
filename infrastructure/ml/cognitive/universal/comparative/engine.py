@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 from .types import ComparisonContext, ComparisonResult
 from .memory_comparator import fetch_similar_from_memory
@@ -12,6 +13,15 @@ from .delta_analyzer import build_delta_conclusion, estimate_resolution
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ColdStartResult:
+    """Returned when insufficient history exists for comparison."""
+    reason: str
+    docs_found: int
+    docs_needed: int
+    message: str
 
 
 class UniversalComparativeEngine:
@@ -26,10 +36,12 @@ class UniversalComparativeEngine:
     Graceful-fail: Returns None if memory unavailable or no matches.
     """
 
+    _min_similar_docs: int = 3
+
     def compare(
         self,
         ctx: ComparisonContext,
-    ) -> Optional[ComparisonResult]:
+    ) -> Union[ComparisonResult, ColdStartResult, None]:
         """Run comparative analysis.
 
         Args:
@@ -151,17 +163,4 @@ class UniversalComparativeEngine:
         
         return f"domain:{result.domain} regime:{signal.get('regime', 'unknown')}"
 
-    def _build_query_from_result(self, result) -> str:
-        """Extract query string from UniversalResult."""
-        analysis = result.analysis
-        
-        if "full_text" in analysis:
-            return str(analysis["full_text"])[:500]
-        
-        if "conclusion" in analysis:
-            return str(analysis["conclusion"])[:500]
-        
-        explanation_dict = result.explanation.to_dict()
-        signal = explanation_dict.get("signal", {})
-        
-        return f"domain:{result.domain} regime:{signal.get('regime', 'unknown')}"
+

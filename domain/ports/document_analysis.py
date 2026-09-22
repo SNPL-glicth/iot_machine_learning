@@ -74,20 +74,29 @@ class AnalysisOutput:
                 else:
                     narrative = f"{domain.title()} incident — {severity.title()} | Confidence: {confidence:.1%}"
             else:
-                # UniversalResult — call format_conclusion with pre-extracted entities
-                from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
-                from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
-                    extract_entities,
-                    extract_urgency_sentiment,
-                )
-                entity_list, word_count = extract_entities(result)
-                urgency_score, sentiment_label = extract_urgency_sentiment(result)
+                analysis_dict = getattr(result, "analysis", {})
+                if not isinstance(analysis_dict, dict):
+                    analysis_dict = {}
+                entity_list = list(analysis_dict.get("entities", []))
+                word_count = int(analysis_dict.get("word_count", 0))
+                urgency_score = float(analysis_dict.get("urgency_score", 0.0))
+                sentiment_label = str(analysis_dict.get("sentiment_label", "neutral"))
+
+                if not entity_list and hasattr(result, "explanation"):
+                    exp = getattr(result, "explanation", None)
+                    if hasattr(exp, "to_dict"):
+                        try:
+                            entity_list = exp.to_dict().get("entities", [])
+                        except Exception:
+                            entity_list = []
+
                 entities_dict: Dict[str, Any] = {
                     "entities": entity_list,
                     "word_count": word_count,
                     "urgency_score": urgency_score,
                     "sentiment_label": sentiment_label,
                 }
+                from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
                 narrative = format_conclusion(result, entities_dict)
         except Exception as exc:
             logger.error(

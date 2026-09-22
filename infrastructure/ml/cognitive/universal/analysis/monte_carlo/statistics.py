@@ -26,7 +26,7 @@ def compute_distribution(
         Dict mapping severity → probability
     """
     total = len(severity_samples)
-    counts = {}
+    counts: Dict[str, int] = {}
     
     for severity in severity_samples:
         counts[severity] = counts.get(severity, 0) + 1

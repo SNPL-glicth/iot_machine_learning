@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 from core.parameters.numerical_constants import EPSILON
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.master_engine.master_equation import (
     compute_certeza,

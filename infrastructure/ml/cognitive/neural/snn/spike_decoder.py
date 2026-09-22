@@ -5,7 +5,7 @@ Decodes output neuron spike patterns into classification results.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from core.parameters.numerical_constants import EPSILON
 from ..types import SpikePattern
@@ -23,7 +23,7 @@ class SpikeDecoder:
     
     def __init__(
         self,
-        severity_levels: List[str] = None,
+        severity_levels: Optional[List[str]] = None,
     ) -> None:
         self.severity_levels = severity_levels or [
             "info", "low", "medium", "high", "critical"
@@ -56,7 +56,7 @@ class SpikeDecoder:
         if not firing_rates:
             return "info", 0.5
         
-        winner = max(firing_rates, key=firing_rates.get)
+        winner = max(firing_rates, key=lambda k: firing_rates[k])
         winner_rate = firing_rates[winner]
         
         # Map neuron to severity
@@ -80,7 +80,7 @@ class SpikeDecoder:
         try:
             idx = int(neuron_id.split("_")[-1])
             if 0 <= idx < len(self.severity_levels):
-                return self.severity_levels[idx]
+                return str(self.severity_levels[idx])
         except (ValueError, IndexError):
             pass
         

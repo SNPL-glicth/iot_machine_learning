@@ -41,9 +41,8 @@ class UpdateMixin:
         series_id: Optional[str] = None,
         drift_score: Optional[float] = None,
     ) -> None:
-        from .per_sensor_key import build_regime_key, build_fallback_key
+        from .per_sensor_key import build_regime_key
         namespaced_regime = build_regime_key(self._domain_namespace, regime, series_id)
-        global_key = build_fallback_key(self._domain_namespace, regime)
         if namespaced_regime not in self._accuracy and len(self._accuracy) >= self._config.max_regimes:
             coldest = min(self._regime_last_access, key=self._regime_last_access.get)
             del self._accuracy[coldest]
@@ -52,7 +51,6 @@ class UpdateMixin:
         now = time.monotonic()
         self._regime_last_access[namespaced_regime] = now
         self._regime_last_update[namespaced_regime] = now
-        effective_alpha = alpha if alpha is not None else self._config.get_regime_alpha(regime)
         accuracy = self._compute_accuracy(
             prediction_error, regime, series_id=series_id, engine_name=engine_name
         )

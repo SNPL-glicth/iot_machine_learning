@@ -124,6 +124,24 @@ class EntityExtractorPort(ABC):
         """
         return True
 
+    def to_enrichment_result(
+        self,
+        extraction: EntityExtractionResult,
+        urgency_context: float = 0.0,
+    ) -> Any:
+        """Convert an extraction result to an enrichment result."""
+        from iot_machine_learning.domain.entities.semantic_extraction import (
+            SemanticEnrichmentResult,
+        )
+        return SemanticEnrichmentResult(
+            entities=extraction.entities,
+            critical_entities=extraction.critical_entities,
+            entity_count=extraction.entity_count,
+            equipment_metric_pairs=[],
+            domain_detected=extraction.domain_detected,
+            enrichment_confidence=extraction.confidence_aggregate,
+        )
+
 
 class PriorityScorerPort(ABC):
     """Port for entity prioritization scoring strategies."""

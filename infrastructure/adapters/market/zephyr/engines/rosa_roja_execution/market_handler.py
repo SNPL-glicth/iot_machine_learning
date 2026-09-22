@@ -6,8 +6,8 @@ import logging
 import time
 from typing import Any, Protocol
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
-from infrastructure.ml.engines.rosa_roja.algorithms.ports.execution_port import ExecutionPort
+from domain.entities.rosa_roja.execution import ExecutionPlan
+from domain.ports.rosa_roja.execution_port import ExecutionPort
 from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja_execution.liquidation import (
     execute_emergency_flush, execute_trailing_and_stop_loss_check, is_close_confirmed,
 )

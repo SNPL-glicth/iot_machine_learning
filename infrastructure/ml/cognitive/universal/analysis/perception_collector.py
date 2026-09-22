@@ -70,10 +70,8 @@ class UniversalPerceptionCollector:
         self,
         scores: Dict[str, Any],
     ) -> List[EnginePerception]:
-        """Build text perceptions if ML_ENABLE_TEXT_PERCEPTION is True."""
-        from ml_service.config.feature_flags import get_feature_flags
-        flags = get_feature_flags()
-        if not flags.ML_ENABLE_TEXT_PERCEPTION:
+        import os
+        if os.getenv("ML_ENABLE_TEXT_PERCEPTION", "true").lower() in ("false", "0", "no"):
             return []
 
         sentiment_score = scores.get("sentiment_score", 0.0)

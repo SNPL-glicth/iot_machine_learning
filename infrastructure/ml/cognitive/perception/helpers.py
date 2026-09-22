@@ -172,7 +172,7 @@ def _collect_perceptions_hybrid(
             future_to_meta[future] = (idx, eng.name, time.monotonic())
         
         # Collect results with per-engine timeout
-        for future, (idx, name, submit_time) in future_to_meta.items():
+        for future, (idx, name, _) in future_to_meta.items():
             try:
                 # Wait for this specific engine with timeout
                 perception = future.result(timeout=per_engine_timeout_ms / 1000.0)

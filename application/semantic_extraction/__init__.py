@@ -1,7 +1,8 @@
-"""Semantic extraction application layer."""
-
-from .entity_prioritizer import EntityPrioritizer, PrioritizationResult, RankedEntity
-from .priority_scorers import (
+"""Semantic extraction application layer (re-exports from domain services)."""
+from iot_machine_learning.domain.services.semantic_extraction import (
+    EntityPrioritizer,
+    PrioritizationResult,
+    RankedEntity,
     TypeBasedScorer,
     MetricAnomalyScorer,
     ContextProximityScorer,

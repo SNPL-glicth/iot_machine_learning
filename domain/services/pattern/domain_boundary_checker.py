@@ -68,8 +68,6 @@ class DomainBoundaryChecker:
         from ....domain.entities.results.boundary_result import BoundaryResult
 
         warnings: List[str] = []
-        rejection_reason: Optional[str] = None
-        within_domain: bool = True
 
         # Convert to numpy array for efficient analysis
         arr = np.asarray(values, dtype=np.float64)

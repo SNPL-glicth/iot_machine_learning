@@ -25,9 +25,9 @@ from .updater import (
 )
 from .persistence import (
     WeightTrackerPersistence,
-    WeightTrackerRedisClient,
     WeightTrackerCheckpoint,
 )
+from .storage_interface import IWeightCache, InMemoryWeightCache
 from .config import BayesianWeightConfig, WeightTrackerConfig
 from .drift_response import GradualDriftResponse
 
@@ -40,7 +40,6 @@ from .factory import build_advanced_bayesian, null_advanced_bayesian
 # Backward-compatible aliases from old architecture
 PlasticityTracker = BayesianWeightTracker
 PlasticityConfig = WeightTrackerConfig
-PlasticityRedisClient = WeightTrackerRedisClient
 PlasticityPersistence = WeightTrackerPersistence
 PlasticityCheckpoint = WeightTrackerCheckpoint
 build_advanced_plasticity = build_advanced_bayesian
@@ -50,7 +49,8 @@ __all__ = [
     "BayesianWeightTracker",
     "BayesianWeightConfig",
     "WeightTrackerConfig",
-    "WeightTrackerRedisClient",
+    "IWeightCache",
+    "InMemoryWeightCache",
     "WeightTrackerPersistence",
     "WeightTrackerCheckpoint",
     "GradualDriftResponse",
@@ -71,7 +71,6 @@ __all__ = [
     "should_use_per_sensor",
     "PlasticityTracker",
     "PlasticityConfig",
-    "PlasticityRedisClient",
     "PlasticityPersistence",
     "PlasticityCheckpoint",
     "build_advanced_plasticity",

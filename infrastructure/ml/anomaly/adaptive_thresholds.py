@@ -41,35 +41,14 @@ class AdaptiveThresholdManager:
             max_history: Maximum history per series (default from config).
             percentiles: Severity percentiles. Defaults from ThresholdConfig.
         """
-        # Lazy-load defaults from centralized config to avoid cross-layer imports at import time.
-        try:
-            from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
-            defaults = FeatureFlags()
-        except Exception:
-            defaults = None
-
-        self._warmup = (
-            warmup_samples
-            if warmup_samples is not None
-            else getattr(defaults, "ML_ADAPTIVE_WARMUP_SAMPLES", 30)
-        )
-        self._max_history = (
-            max_history
-            if max_history is not None
-            else getattr(defaults, "ML_ADAPTIVE_MAX_HISTORY", 200)
-        )
-
-        if percentiles is not None:
-            self._percentiles = percentiles
-        elif defaults is not None:
-            self._percentiles = defaults.adaptive_percentiles
-        else:
-            self._percentiles = {
-                "LOW": 75.0,
-                "MEDIUM": 85.0,
-                "HIGH": 95.0,
-                "CRITICAL": 99.0,
-            }
+        self._warmup = warmup_samples if warmup_samples is not None else 30
+        self._max_history = max_history if max_history is not None else 200
+        self._percentiles = percentiles if percentiles is not None else {
+            "LOW": 75.0,
+            "MEDIUM": 85.0,
+            "HIGH": 95.0,
+            "CRITICAL": 99.0,
+        }
         
         # Per-series score history (bounded deque)
         self._history: Dict[str, deque] = defaultdict(
@@ -118,18 +97,12 @@ class AdaptiveThresholdManager:
         if len(history) < self._warmup:
             if fallback is not None:
                 return fallback
-            # Default static fallbacks from centralized config
-            try:
-                from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
-                defaults = FeatureFlags()
-                static = defaults.adaptive_fallbacks
-            except Exception:
-                static = {
-                    "LOW": 0.5,
-                    "MEDIUM": 0.7,
-                    "HIGH": 0.85,
-                    "CRITICAL": 0.95,
-                }
+            static = {
+                "LOW": 0.5,
+                "MEDIUM": 0.7,
+                "HIGH": 0.85,
+                "CRITICAL": 0.95,
+            }
             return static.get(severity, 0.8)
         
         # Adaptive: compute percentile

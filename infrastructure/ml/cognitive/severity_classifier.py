@@ -1,33 +1,14 @@
-"""Severity classifier for IoT sensor predictions.
+"""Severity classifier for sensor predictions in ML Core.
 
-This module implements severity classification combining statistical anomalies with physical risk.
-Part of the ZENIN ML cognitive pipeline for risk assessment and alerting.
-
-REFACTORED: Delegates business rules to domain/services/severity_rules.py.
-
-Before (3 mixed responsibilities):
-  - Business rules: DEFAULT_RANGES, compute_risk_level, compute_severity
-  - I/O: get_user_defined_range, is_value_within_user_thresholds (SQL)
-  - Narrative: recommended_action generation
-
-Now (1 responsibility):
-  - I/O only (SQL queries) + delegation to domain rules
-
-Extracted modules:
-  - domain/entities/sensor_ranges.py (DEFAULT_RANGES as domain entity)
-  - domain/services/severity_rules.py (pure rules: risk_level, severity, classify)
-
-Security: No PII processed. Sensor values are validated and sanitized before classification.
-All database queries use parameterized statements to prevent injection.
+Combines statistical anomalies with physical risk rules.
+Strictly decoupled from databases, SQL, and external protocols.
+Delegates threshold lookups to an injected ThresholdProvider.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional, Tuple
-
-from sqlalchemy import text
-from sqlalchemy.engine import Connection
+from typing import Any, Optional, Protocol, Tuple, runtime_checkable
 
 from iot_machine_learning.domain.services.severity_rules import (
     SeverityResult,
@@ -40,101 +21,65 @@ from iot_machine_learning.domain.entities.sensor_ranges import get_default_range
 
 logger = logging.getLogger(__name__)
 
-# Re-export para compatibilidad con imports existentes
-__all__ = ["SeverityClassifier", "SeverityResult"]
+__all__ = ["SeverityClassifier", "SeverityResult", "ThresholdProvider"]
 
 
-class SeverityClassifier:
-    """Clasifica severidad combinando anomalía estadística y riesgo físico.
-
-    Responsabilidad: I/O (queries SQL) + delegación a domain rules.
-    No contiene reglas de negocio — esas están en domain/services/severity_rules.py.
-    """
+@runtime_checkable
+class ThresholdProvider(Protocol):
+    """Protocol for external sources providing sensor alert thresholds."""
 
     def get_user_defined_range(
         self,
-        conn: Connection,
+        conn: Any,
         sensor_id: int,
     ) -> Optional[Tuple[float, float]]:
-        """Obtiene el rango definido por el usuario desde alert_thresholds.
-
-        Responsabilidad: solo I/O (SQL query).
-        """
-        row = conn.execute(
-            text(
-                """
-                SELECT
-                    threshold_value_min,
-                    threshold_value_max
-                FROM dbo.alert_thresholds
-                WHERE sensor_id = :sensor_id
-                  AND is_active = 1
-                  AND condition_type = 'out_of_range'
-                ORDER BY
-                    CASE severity WHEN 'warning' THEN 0 ELSE 1 END,
-                    id ASC
-                """
-            ),
-            {"sensor_id": sensor_id},
-        ).fetchone()
-
-        if not row:
-            return None
-
-        min_val = float(row[0]) if row[0] is not None else None
-        max_val = float(row[1]) if row[1] is not None else None
-
-        if min_val is None and max_val is None:
-            return None
-
-        if min_val is None:
-            min_val = float('-inf')
-        if max_val is None:
-            max_val = float('inf')
-
-        return (min_val, max_val)
+        """Retrieves user-defined threshold range (min, max)."""
+        ...
 
     def is_value_within_user_thresholds(
         self,
-        conn: Connection,
+        conn: Any,
         sensor_id: int,
         value: float,
     ) -> bool:
-        """Verifica si el valor está dentro de los umbrales WARNING del usuario.
+        """Checks if value is within user-defined warning range."""
+        ...
 
-        Responsabilidad: solo I/O (SQL query).
-        """
-        row = conn.execute(
-            text(
-                """
-                SELECT
-                    threshold_value_min,
-                    threshold_value_max
-                FROM dbo.alert_thresholds
-                WHERE sensor_id = :sensor_id
-                  AND is_active = 1
-                  AND severity = 'warning'
-                  AND condition_type = 'out_of_range'
-                ORDER BY id ASC
-                """
-            ),
-            {"sensor_id": sensor_id},
-        ).fetchone()
 
-        if not row:
-            return False
+class SeverityClassifier:
+    """Classifies prediction severity combining statistical and physical risk.
 
-        warning_min = float(row[0]) if row[0] is not None else None
-        warning_max = float(row[1]) if row[1] is not None else None
+    Pure mathematical and cognitive evaluation. Accepts an optional ThresholdProvider
+    for retrieving external user threshold configurations.
+    """
 
-        if warning_min is None and warning_max is None:
-            return False
+    def __init__(
+        self,
+        threshold_provider: Optional[ThresholdProvider] = None,
+    ) -> None:
+        self._threshold_provider = threshold_provider
 
-        if warning_min is not None and value < warning_min:
-            return False
-        if warning_max is not None and value > warning_max:
-            return False
+    def get_user_defined_range(
+        self,
+        conn: Any,
+        sensor_id: int,
+    ) -> Optional[Tuple[float, float]]:
+        """Retrieves user-defined range via injected provider if available."""
+        if self._threshold_provider is not None:
+            return self._threshold_provider.get_user_defined_range(conn, sensor_id)
+        return None
 
+    def is_value_within_user_thresholds(
+        self,
+        conn: Any,
+        sensor_id: int,
+        value: float,
+    ) -> bool:
+        """Checks threshold validity via injected provider if available."""
+        if self._threshold_provider is not None:
+            return self._threshold_provider.is_value_within_user_thresholds(
+                conn, sensor_id, value
+            )
         return True
 
     def classify(
@@ -150,13 +95,7 @@ class SeverityClassifier:
         horizon_minutes: int,
         user_defined_range: Optional[Tuple[float, float]] = None,
     ) -> SeverityResult:
-        """Clasifica severidad completa — delega a domain rules.
-
-        Mantiene la misma API pública para compatibilidad.
-
-        Returns:
-            SeverityResult con risk_level, severity, action_required, recommended_action
-        """
+        """Evaluates prediction severity against domain rules."""
         return classify_severity(
             sensor_type=sensor_type,
             location=location,

@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_rosa_roja_enabled() -> bool:
-    return os.environ.get("ML_ENABLE_ROSA_ROJA_EXPERT", "").lower() == "true"
+    return os.environ.get("ML_ENABLE_ROSA_ROJA_EXPERT", "true").lower() in ("true", "1", "yes")
 
 
 def _is_neural_enabled() -> bool:

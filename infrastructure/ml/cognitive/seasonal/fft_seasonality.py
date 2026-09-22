@@ -57,20 +57,13 @@ class FFTSeasonalityDetector:
             return None
         
         try:
-            # Import cycle detector from existing seasonal engine
+            # Import cycle detector and config from seasonal engine
             from iot_machine_learning.infrastructure.ml.engines.seasonal.cycle_detector import (
                 detect_cycle,
             )
-            from dataclasses import dataclass
+            from iot_machine_learning.infrastructure.ml.engines.seasonal.engine import SeasonalConfig
             
-            # Create config compatible with cycle_detector
-            @dataclass
-            class Config:
-                min_period: int
-                max_period: int
-                fft_threshold: float
-            
-            config = Config(
+            config = SeasonalConfig(
                 min_period=self._min_period,
                 max_period=self._max_period,
                 fft_threshold=self._fft_threshold,

@@ -6,15 +6,15 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.validation import ValidationResult, VetoDetails
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan, ActionEnvelope
+from domain.entities.rosa_roja.movement import Movement, RhythmSignature
+from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
+from domain.entities.rosa_roja.validation import ValidationResult, VetoDetails
+from domain.entities.rosa_roja.execution import ExecutionPlan, ActionEnvelope
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
-from infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
+from domain.ports.rosa_roja.drift_sensor import DriftSensorPort
 from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 
 

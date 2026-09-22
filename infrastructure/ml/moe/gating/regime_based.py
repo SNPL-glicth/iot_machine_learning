@@ -46,14 +46,13 @@ class RegimeRoutingRule:
         Returns:
             Dict con probabilidad para cada experto (0.0 si no en regla).
         """
-        total = sum(self.expert_weights.values())
+        active_weights = {expert_id: self.expert_weights.get(expert_id, 0.0) for expert_id in all_experts}
+        total = sum(active_weights.values())
+        if total <= 0:
+            n = len(all_experts)
+            return {expert_id: 1.0 / n for expert_id in all_experts} if n > 0 else {}
         
-        probs = {}
-        for expert_id in all_experts:
-            weight = self.expert_weights.get(expert_id, 0.0)
-            probs[expert_id] = weight / total if total > 0 else 0.0
-        
-        return probs
+        return {expert_id: w / total for expert_id, w in active_weights.items()}
 
 
 class RegimeBasedGating(GatingNetwork):
@@ -85,8 +84,10 @@ class RegimeBasedGating(GatingNetwork):
                 "baseline": 0.85,
                 "statistical": 0.10,
                 "taylor": 0.05,
+                "kalman": 0.15,
+                "rosa_roja": 0.08,
             },
-            rationale="Régimen estable: Baseline dominante (85%), mínimo costo computacional"
+            rationale="Régimen estable: Baseline dominante, con Kalman y Rosa Roja como soporte continuo"
         ),
         "trending": RegimeRoutingRule(
             regime="trending",
@@ -94,8 +95,10 @@ class RegimeBasedGating(GatingNetwork):
                 "statistical": 0.60,
                 "taylor": 0.30,
                 "baseline": 0.10,
+                "kalman": 0.05,
+                "rosa_roja": 0.10,
             },
-            rationale="Régimen con tendencia: Statistical lidera (60%), Taylor apoya (30%)"
+            rationale="Régimen con tendencia: Statistical lidera, Taylor y Rosa Roja acompañan dinámica"
         ),
         "volatile": RegimeRoutingRule(
             regime="volatile",
@@ -103,8 +106,10 @@ class RegimeBasedGating(GatingNetwork):
                 "taylor": 0.70,
                 "statistical": 0.20,
                 "baseline": 0.10,
+                "kalman": 0.15,
+                "rosa_roja": 0.25,
             },
-            rationale="Régimen volátil: Taylor dominante (70%), maneja no-linealidades"
+            rationale="Régimen volátil: Taylor dominante, Rosa Roja atractor no-lineal y Kalman filtro"
         ),
     }
     

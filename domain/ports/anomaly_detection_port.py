@@ -69,11 +69,11 @@ class AnomalyDetectionPort(ABC):
 
         Implementación por defecto delega a ``detect`` vía bridge.
         """
-        from ..entities.sensor_reading import SensorReading
+        from ..entities.sensor_reading import Reading
 
         readings = [
-            SensorReading(
-                sensor_id=safe_series_id_to_int(series.series_id),
+            Reading(
+                series_id=series.series_id,
                 value=p.v,
                 timestamp=p.t,
             )

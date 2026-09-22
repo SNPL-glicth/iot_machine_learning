@@ -6,18 +6,39 @@ from dataclasses import dataclass
 from typing import Any, Optional
 import numpy as np
 
-from ..domain.movement import Movement
-from ..domain.trajectory import Trajectory, TerminalState
-from ..domain.theta_belief import StateKey
+from domain.entities.rosa_roja.movement import Movement
+from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
+from domain.entities.rosa_roja.theta_belief import StateKey
+
+
+DEFAULT_MAX_STEPS: int = 100
+DEFAULT_MIN_TRAJECTORY_LEN: int = 11
+DEFAULT_MAX_TRAJECTORY_LEN: int = 15
+DEFAULT_QUANTIZATION_DECIMALS: int = 2
+DEFAULT_RBF_BANDWIDTH: float = 0.5
+DEFAULT_LAMBDA_DETERMINISTIC_THRESHOLD: float = 0.1
+DEFAULT_VELOCITY_EPSILON: float = 1e-6
+DEFAULT_TEMPO_EPSILON: float = 1e-6
+DEFAULT_WEIGHT_VELOCITY: float = 0.4
+DEFAULT_WEIGHT_DIRECTION: float = 0.4
+DEFAULT_WEIGHT_TEMPO: float = 0.2
+DEFAULT_TEMPO_SIMILARITY: float = 0.5
 
 
 @dataclass
 class RandomWalkConfig:
-    max_random_walk_steps: int = 100
-    min_trajectory_len: int = 11
-    max_trajectory_len: int = 15
-    quantization_decimals: int = 2
-    rbf_bandwidth: float = 0.5
+    max_random_walk_steps: int = DEFAULT_MAX_STEPS
+    min_trajectory_len: int = DEFAULT_MIN_TRAJECTORY_LEN
+    max_trajectory_len: int = DEFAULT_MAX_TRAJECTORY_LEN
+    quantization_decimals: int = DEFAULT_QUANTIZATION_DECIMALS
+    rbf_bandwidth: float = DEFAULT_RBF_BANDWIDTH
+    deterministic_lambda_threshold: float = DEFAULT_LAMBDA_DETERMINISTIC_THRESHOLD
+    velocity_epsilon: float = DEFAULT_VELOCITY_EPSILON
+    tempo_epsilon: float = DEFAULT_TEMPO_EPSILON
+    weight_velocity: float = DEFAULT_WEIGHT_VELOCITY
+    weight_direction: float = DEFAULT_WEIGHT_DIRECTION
+    weight_tempo: float = DEFAULT_WEIGHT_TEMPO
+    default_tempo_similarity: float = DEFAULT_TEMPO_SIMILARITY
 
 
 class RandomWalkSampler:
@@ -63,10 +84,15 @@ class RandomWalkSampler:
         if n == 1:
             return np.array([1.0])
         uniform = np.full(n, 1.0 / n)
-        vel_sim = np.maximum(0.0, 1.0 - np.abs(cache["velocities"] - from_vel) / (abs(from_vel) + 1e-6))
+        cfg = self._config
+        vel_sim = np.maximum(0.0, 1.0 - np.abs(cache["velocities"] - from_vel) / (abs(from_vel) + cfg.velocity_epsilon))
         dir_sim = np.maximum(0.0, cache["directions"] @ from_dir)
-        tempo_sim = np.where((from_tempo > 1e-6) & (cache["tempos"] > 1e-6), 1.0 - np.minimum(1.0, np.abs(np.log(cache["tempos"] / from_tempo))), 0.5)
-        coherence = np.maximum(0.0, 0.4 * vel_sim + 0.4 * dir_sim + 0.2 * tempo_sim)
+        tempo_sim = np.where(
+            (from_tempo > cfg.tempo_epsilon) & (cache["tempos"] > cfg.tempo_epsilon),
+            1.0 - np.minimum(1.0, np.abs(np.log(cache["tempos"] / from_tempo))),
+            cfg.default_tempo_similarity,
+        )
+        coherence = np.maximum(0.0, cfg.weight_velocity * vel_sim + cfg.weight_direction * dir_sim + cfg.weight_tempo * tempo_sim)
         c_sum = coherence.sum()
         c_dist = coherence / c_sum if c_sum > 0 else uniform.copy()
 
@@ -101,7 +127,7 @@ class RandomWalkSampler:
             else:
                 post = self._theta.get_transition_probabilities(curr_key) if hasattr(self._theta, "get_transition_probabilities") else None
                 weights = self._compute_transition_weights_cached(from_vel, from_dir, from_tempo, cache, post, lambda_t)
-                idx = int(np.argmax(weights)) if lambda_t < 0.1 else int(np.random.choice(cache["n"], p=weights))
+                idx = int(np.argmax(weights)) if lambda_t < self._config.deterministic_lambda_threshold else int(np.random.choice(cache["n"], p=weights))
                 next_m = cache["movements"][idx]
 
             movements.append(next_m)
@@ -127,7 +153,7 @@ class RandomWalkSampler:
 
     def generate_candidates(self, start_movement: Movement, lambda_t: float, num_candidates: int) -> list[Trajectory]:
         self._ensure_cache_valid()
-        if lambda_t < 0.1:
+        if lambda_t < self._config.deterministic_lambda_threshold:
             traj = self._random_walk(start_movement, lambda_t=0.0)
             return [traj] * max(num_candidates, 1) if (1 <= len(traj.movements) <= self._config.max_trajectory_len) else []
 

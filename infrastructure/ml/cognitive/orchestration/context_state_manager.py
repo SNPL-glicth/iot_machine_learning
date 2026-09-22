@@ -9,11 +9,14 @@ Fase 5: Added async persistence support for Kubernetes recovery.
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from iot_machine_learning.infrastructure.ml.cognitive.analysis.types import EnginePerception
 

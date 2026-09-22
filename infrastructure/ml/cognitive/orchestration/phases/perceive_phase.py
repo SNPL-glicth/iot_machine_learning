@@ -377,7 +377,6 @@ class PerceivePhase:
         """
         key = self._regime_key(series_id)
         raw: Optional[str] = None
-        in_memory = False
 
         if redis_client is not None:
             try:
@@ -390,7 +389,6 @@ class PerceivePhase:
         if raw is None:
             entry = self._hysteresis_cache.get(series_id)
             if entry is not None:
-                in_memory = True
                 confirmed_reg, counter, challenger = entry
                 raw = f"{confirmed_reg}|{counter}|{challenger if challenger else ''}"
 
@@ -491,7 +489,7 @@ class PerceivePhase:
         if current_group == 0:
             return False
 
-        for nid, nreg in neighbor_regimes.items():
+        for _, nreg in neighbor_regimes.items():
             ng = _regime_group(nreg)
             if ng == 0:
                 continue

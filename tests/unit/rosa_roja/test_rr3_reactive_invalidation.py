@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.movement import Movement, RhythmSignature
+from domain.entities.rosa_roja.execution import ExecutionPlan
 from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator

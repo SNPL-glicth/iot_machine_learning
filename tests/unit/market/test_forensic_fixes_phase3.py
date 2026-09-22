@@ -15,7 +15,7 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.risk.portfolio_r
     PortfolioRiskManager,
 )
 from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roja.market_handler import RosaRojaMarketExecutionHandler
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 
 
 # ============================================================================

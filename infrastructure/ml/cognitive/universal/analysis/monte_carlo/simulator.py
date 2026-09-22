@@ -101,7 +101,7 @@ class MonteCarloSimulator:
         conf_interval = compute_confidence_interval(severity_score_samples)
         
         # Determine expected severity and confidence
-        expected_severity = max(distribution, key=distribution.get)
+        expected_severity = max(distribution, key=lambda k: distribution[k])
         confidence_score = distribution[expected_severity]
         
         # Classify uncertainty level

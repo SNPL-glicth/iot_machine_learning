@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Mapping, Optional, Tuple
 
 
 class PredictionConfidence(Enum):
@@ -80,8 +80,13 @@ class Prediction:
     horizon_steps: int = 1
     confidence_interval: Optional[Tuple[float, float]] = None
     feature_contributions: Dict[str, float] = field(default_factory=dict)
-    metadata: Dict[str, object] = field(default_factory=dict)
+    metadata: Mapping[str, object] = field(default_factory=dict)
     audit_trace_id: Optional[str] = None
+
+    @property
+    def confidence(self) -> float:
+        """Alias de compatibilidad para confidence_score."""
+        return self.confidence_score
 
     @property
     def confidence_level(self) -> PredictionConfidence:

@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
 from iot_machine_learning.domain.entities.explainability.explanation import Explanation
 from iot_machine_learning.domain.services.severity_rules import SeverityResult
 from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import InterpretedPattern
+
+
+class _HasToDict(Protocol):
+    """Structural protocol for objects that can be serialized to dict."""
+    def to_dict(self) -> Dict[str, Any]: ...
 
 
 class InputType(Enum):
@@ -69,7 +74,7 @@ class UniversalResult:
     input_type: InputType
     pipeline_timing: Dict[str, float] = field(default_factory=dict)
     recall_context: Optional[Dict[str, Any]] = None
-    monte_carlo: Optional[object] = None
+    monte_carlo: Optional[_HasToDict] = None
     patterns: List[InterpretedPattern] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:

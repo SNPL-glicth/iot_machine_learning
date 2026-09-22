@@ -10,7 +10,7 @@ Diseñado siguiendo ISO 42001 (AI governance) para trazabilidad de decisiones.
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable, Dict, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..entities.sensor_reading import SensorWindow
 
@@ -37,7 +37,7 @@ class ExpertOutput:
     latency_ms: float = 0.0
     stability: float = 0.0
     local_fit_error: float = 0.0
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def __post_init__(self):
         # Validación post-inicialización para ISO 42001 compliance

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from ..series.temporal_features import TemporalFeatures
+    from ..series.structural_analysis import StructuralAnalysis
+    from ..series.time_series import TimeSeries
 
 
 @dataclass(frozen=True, slots=True)

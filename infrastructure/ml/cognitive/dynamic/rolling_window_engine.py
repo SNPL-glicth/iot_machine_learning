@@ -34,7 +34,6 @@ class SensorRollingWindow:
         # Remove old values if deque is full
         if len(self.values) == self.max_size:
             old_value = self.values[0]
-            old_timestamp = self.timestamps[0]
             self._sum -= old_value
             self._sum_sq -= old_value * old_value
             self._count -= 1
@@ -49,7 +48,7 @@ class SensorRollingWindow:
         """Remove values older than max_age_seconds."""
         while self.timestamps and (current_timestamp - self.timestamps[0]) > self.max_age_seconds:
             old_value = self.values.popleft()
-            old_timestamp = self.timestamps.popleft()
+            self.timestamps.popleft()
             self._sum -= old_value
             self._sum_sq -= old_value * old_value
             self._count -= 1

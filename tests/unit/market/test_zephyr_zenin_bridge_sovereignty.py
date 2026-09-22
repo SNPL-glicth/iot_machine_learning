@@ -13,7 +13,7 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.engines.rosa_roj
 from iot_machine_learning.infrastructure.adapters.market.zephyr.execution import (
     process_observation_pipeline,
 )
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from iot_machine_learning.domain.entities.rosa_roja.execution import (
     ActionEnvelope,
     ExecutionPlan,
 )

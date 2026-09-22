@@ -5,7 +5,7 @@ This is a domain entity for representing operational dependency graphs.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Mapping
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class OperationalDependencyGraph:
     timestamp: float
     nodes: List[int]  # sensor IDs
     edges: List[DependencyEdge]
-    graph_metadata: Dict[str, Any] = field(default_factory=dict)
+    graph_metadata: Mapping[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""

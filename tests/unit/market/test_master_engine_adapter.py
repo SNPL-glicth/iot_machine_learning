@@ -20,7 +20,7 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.master_engine_ad
     extract_decision_trace_metrics,
     resolve_plan_action_trigger,
 )
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from iot_machine_learning.domain.entities.rosa_roja.execution import (
     ActionEnvelope,
     ExecutionPlan,
 )

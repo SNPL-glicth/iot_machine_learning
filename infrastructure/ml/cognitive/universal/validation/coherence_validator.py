@@ -159,21 +159,21 @@ class CoherenceValidator:
         if hasattr(result, 'severity'):
             severity_obj = result.severity
             if hasattr(severity_obj, 'severity'):
-                return severity_obj.severity
+                return str(severity_obj.severity)
             elif isinstance(severity_obj, str):
                 return severity_obj
         return None
     
     def _extract_confidence(self, result: Any) -> Optional[float]:
         """Extract primary confidence from result."""
-        if hasattr(result, 'confidence'):
-            return result.confidence
+        if hasattr(result, 'confidence') and result.confidence is not None:
+            return float(result.confidence)
         return None
     
     def _extract_patterns(self, result: Any) -> List[Any]:
         """Extract patterns from result."""
         if hasattr(result, 'patterns') and result.patterns:
-            return result.patterns
+            return list(result.patterns)
         return []
     
     def _extract_analysis(self, result: Any) -> Dict[str, Any]:

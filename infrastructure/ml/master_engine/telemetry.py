@@ -7,7 +7,7 @@ import struct
 from typing import Any
 import numpy as np
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 
 
 def compute_telemetry_hash(delta_state: np.ndarray, delta_time: float) -> str:

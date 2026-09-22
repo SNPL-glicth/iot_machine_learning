@@ -12,6 +12,7 @@ from typing import Optional
 import numpy as np
 
 from iot_machine_learning.domain.entities.series.structural_analysis import RegimeType
+from iot_machine_learning.domain.entities.plasticity.signal_context import SignalContext
 
 logger = logging.getLogger(__name__)
 

@@ -130,20 +130,23 @@ class UniversalAnalysisEngine:
             
             # Pattern interpretation after perception collection
             interpreted_patterns = []
+            scores = pre_computed_scores or {}
             try:
                 interpreter = PatternInterpreter()
                 interpreted_patterns = interpreter.interpret(
-                    raw_patterns=pre_computed_scores.get("patterns", {}),
+                    raw_patterns=scores.get("patterns", {}),
                     input_type=input_type.value,
                     domain=domain,
-                    urgency_score=pre_computed_scores.get("urgency_score", 0.0),
-                    sentiment_label=pre_computed_scores.get("sentiment_label", ""),
+                    urgency_score=scores.get("urgency_score", 0.0),
+                    sentiment_label=scores.get("sentiment_label", ""),
                 )
             except Exception as e:
                 logger.warning(f"pattern_interpretation_failed: {e}")
                 # Graceful-fail - continue without patterns
                 # OBSERVABILITY: Track silent failure
-                from iot_machine_learning.ml_service.metrics.observability import get_observability
+                from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                    get_observability,
+                )
                 get_observability().silent_failures.record(
                     "pattern_interpretation", str(e), {"domain": domain}
                 )
@@ -195,7 +198,7 @@ class UniversalAnalysisEngine:
             )
             
             # COHERENCE VALIDATION (after result creation)
-            coherence_report = self._coherence_validator.validate(final_result)
+            self._coherence_validator.validate(final_result)
             
             # After analysis completes, update pattern plasticity
             if self._pattern_plasticity and interpreted_patterns:
@@ -211,7 +214,9 @@ class UniversalAnalysisEngine:
         except Exception as e:
             logger.error(f"universal_analysis_failed: {e}", exc_info=True)
             # OBSERVABILITY: Track silent failure in main pipeline
-            from iot_machine_learning.ml_service.metrics.observability import get_observability
+            from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                get_observability,
+            )
             get_observability().silent_failures.record(
                 "universal_analysis", str(e), {"input_type": getattr(input_type, 'value', str(input_type))}
             )

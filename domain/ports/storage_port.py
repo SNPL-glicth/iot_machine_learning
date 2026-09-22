@@ -1,6 +1,6 @@
 """Port de almacenamiento — contrato para persistencia.
 
-Desacopla el dominio de SQL Server, Redis o cualquier otro backend.
+Desacopla el dominio de SQL Server, key-value stores o cualquier otro backend.
 Los adaptadores implementan este port en la capa de infraestructura.
 
 Dual interface:
@@ -12,8 +12,6 @@ Dual interface:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
-
 from typing import Dict, List, Optional
 
 from ..entities.anomaly import AnomalyResult
@@ -28,7 +26,7 @@ class StoragePort(ABC):
     """Contrato para persistencia de datos ML.
 
     Operaciones agrupadas por entidad.  Cada implementación concreta
-    (SQL Server, Redis, archivo) decide cómo mapear a su backend.
+    (SQL Server, key-value stores, archivo) decide cómo mapear a su backend.
 
     Dual interface:
         - ``load_sensor_window(sensor_id: int)`` — legacy IoT.
@@ -152,7 +150,8 @@ class StoragePort(ABC):
         """
         sensor_id = safe_series_id_to_int(series_id)
         window = self.load_sensor_window(sensor_id, limit)
-        return window.to_time_series()
+        result: TimeSeries = window.to_time_series()  # type: ignore[assignment]
+        return result
 
     def list_active_series_ids(self) -> List[str]:
         """Retorna IDs de todas las series activas.

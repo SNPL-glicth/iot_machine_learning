@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import numpy as np
 
-from .algorithms.domain.execution import ExecutionPlan
+from domain.entities.rosa_roja.execution import ExecutionPlan
 from .algorithms.engine import RosaRojaEngine
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 

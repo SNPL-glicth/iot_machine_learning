@@ -9,9 +9,45 @@ Nada se descarta: todo se cuenta y se expone en el reporte.
 
 from __future__ import annotations
 
+from typing import Any, Callable
 from .types import AuditedEvent, FeedAnomaly, FeedAuditReport
 
 __all__ = ["audit_feed"]
+
+
+def _audit_sequence_step(
+    seq: int,
+    seen_seq: set[int],
+    last_seq: int | None,
+    record: Callable[[list[FeedAnomaly], FeedAnomaly], None],
+    anomalies: list[FeedAnomaly],
+) -> tuple[int, int, int]:
+    """Audita un paso de secuencia. Retorna (delta_duplicates, delta_gaps, delta_rewinds)."""
+    if seq in seen_seq:
+        record(anomalies, FeedAnomaly(
+            kind="seq_duplicate", received=float(seq),
+            detail=f"seq {seq} duplicada",
+        ))
+        return 1, 0, 0
+
+    seen_seq.add(seq)
+    if last_seq is None or seq == last_seq + 1:
+        return 0, 0, 0
+
+    if seq > last_seq + 1:
+        gaps = seq - last_seq - 1
+        record(anomalies, FeedAnomaly(
+            kind="seq_gap", expected=float(last_seq + 1),
+            received=float(seq),
+            detail=f"salto {last_seq}->{seq}",
+        ))
+        return 0, gaps, 0
+
+    record(anomalies, FeedAnomaly(
+        kind="seq_rewind", expected=float(last_seq),
+        received=float(seq), detail="secuencia retrocede",
+    ))
+    return 0, 0, 1
 
 
 def audit_feed(
@@ -61,8 +97,10 @@ def audit_feed(
                     kind="symbol_mix", received=ev.timestamp,
                     detail=f"símbolo {ev.symbol!r} en tramo {symbol!r}",
                 ))
+
         if ev.status not in statuses:
             statuses.append(ev.status)
+
         if ev.timestamp in seen_ts:
             duplicates += 1
             _record(anomalies, FeedAnomaly(
@@ -71,14 +109,17 @@ def audit_feed(
             ))
         else:
             seen_ts.add(ev.timestamp)
+
         if max_ts_so_far is not None and ev.timestamp < max_ts_so_far:
             out_of_order += 1
             _record(anomalies, FeedAnomaly(
                 kind="out_of_order", expected=max_ts_so_far,
                 received=ev.timestamp, detail="llegada tardía",
             ))
+
         if max_ts_so_far is None or ev.timestamp > max_ts_so_far:
             max_ts_so_far = ev.timestamp
+
         if ev.arrival_ts is not None:
             lag = ev.arrival_ts - ev.timestamp
             lags.append(lag)
@@ -89,31 +130,14 @@ def audit_feed(
                     received=ev.arrival_ts,
                     detail=f"lag {lag:.3f}s > umbral {stale_lag_seconds}s",
                 ))
+
         if ev.seq is not None:
-            if ev.seq in seen_seq:
-                seq_duplicates += 1
-                _record(anomalies, FeedAnomaly(
-                    kind="seq_duplicate", received=float(ev.seq),
-                    detail=f"seq {ev.seq} duplicada",
-                ))
-            else:
-                seen_seq.add(ev.seq)
-                if last_seq is not None:
-                    if ev.seq == last_seq + 1:
-                        pass
-                    elif ev.seq > last_seq + 1:
-                        seq_gaps += ev.seq - last_seq - 1
-                        _record(anomalies, FeedAnomaly(
-                            kind="seq_gap", expected=float(last_seq + 1),
-                            received=float(ev.seq),
-                            detail=f"salto {last_seq}->{ev.seq}",
-                        ))
-                    else:
-                        seq_rewinds += 1
-                        _record(anomalies, FeedAnomaly(
-                            kind="seq_rewind", expected=float(last_seq),
-                            received=float(ev.seq), detail="secuencia retrocede",
-                        ))
+            dup_d, gap_d, rew_d = _audit_sequence_step(
+                ev.seq, seen_seq, last_seq, _record, anomalies
+            )
+            seq_duplicates += dup_d
+            seq_gaps += gap_d
+            seq_rewinds += rew_d
             if last_seq is None or ev.seq > last_seq:
                 last_seq = ev.seq
 

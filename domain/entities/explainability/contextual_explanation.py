@@ -9,7 +9,7 @@ This is a domain entity for contextual explainability that incorporates:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Mapping
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class ContextualExplanation:
     current_regime: str
     anomaly_score: float
     primary_drivers: List[str]
-    dynamic_context: Dict[str, Any]
+    dynamic_context: Mapping[str, Any]
     
     # Historical context
     similar_event_count: int
@@ -41,7 +41,7 @@ class ContextualExplanation:
     suggested_actions: List[str]
     
     # Metadata
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""

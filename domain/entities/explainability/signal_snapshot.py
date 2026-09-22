@@ -13,7 +13,7 @@ Responsabilidad:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,12 @@ class SignalSnapshot:
     curvature: float = 0.0
     regime: str = "unknown"
     dt: float = 1.0
-    extra: Dict[str, object] = field(default_factory=dict)
+    regime_vector: tuple[float, ...] = field(default_factory=tuple)
+    extra: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.regime_vector, list):
+            object.__setattr__(self, "regime_vector", tuple(self.regime_vector))
 
     def to_dict(self) -> dict:
         d: dict = {
@@ -57,6 +62,8 @@ class SignalSnapshot:
             "regime": self.regime,
             "dt": self.dt,
         }
+        if self.regime_vector:
+            d["regime_vector"] = list(self.regime_vector)
         if self.extra:
             d["extra"] = dict(self.extra)
         return d
@@ -107,7 +114,7 @@ class FilterSnapshot:
     lag_estimate: int = 0
     signal_distortion: float = 0.0
     is_effective: bool = False
-    extra: Dict[str, object] = field(default_factory=dict)
+    extra: Mapping[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         d: dict = {

@@ -2,11 +2,10 @@
 
 Defines the contract that all sliding window implementations must follow.
 This unifies the 5 different window implementations across the system:
-1. SlidingWindowStore (ML consumer) — in-memory, per-sensor, LRU+TTL
-2. SlidingWindowBuffer (ML service) — in-memory, per-sensor, stats
-3. RedisWindowRepository (broker) — Redis ZSET, async
-4. RedisWindowStore (ML features) — Redis JSON persistence
-5. SensorWindow (ML domain) — value object container
+1. In-memory buffer — in-memory, per-sensor, LRU+TTL
+2. Broker window repository — sorted set, async
+3. Window persistence store — JSON persistence
+4. SensorWindow (domain) — value object container
 
 E-15: Consolidate sliding window implementations.
 """

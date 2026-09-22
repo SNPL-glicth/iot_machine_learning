@@ -10,9 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Optional
-
-from iot_machine_learning.ml_service.config.flags import FeatureFlags
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +22,7 @@ class FlagCache:
     
     Attributes:
         _ttl_seconds: Time-to-live for cached flags.
-        _cached_flags: Cached FeatureFlags instance.
+        _cached_flags: Cached flags instance.
         _cache_timestamp: Timestamp when cache was last updated.
         _lock: Thread lock for concurrent access.
     
@@ -42,11 +40,11 @@ class FlagCache:
             raise ValueError(f"ttl_seconds must be > 0, got {ttl_seconds}")
         
         self._ttl_seconds = ttl_seconds
-        self._cached_flags: Optional[FeatureFlags] = None
+        self._cached_flags: Optional[Any] = None
         self._cache_timestamp: float = 0.0
         self._lock = threading.Lock()
     
-    def get_or_load(self, loader_fn: callable) -> FeatureFlags:
+    def get_or_load(self, loader_fn: Callable[[], Any]) -> Any:
         """Get cached flags or reload if expired.
         
         Args:

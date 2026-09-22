@@ -14,11 +14,11 @@ from ...entities.threshold import Threshold
 # Re-export helpers so existing imports keep working.
 from .severity_helpers import (
     action_for_severity,
-    build_recommended_action,
     compute_risk_level_from_threshold,
     severity_from_risk,
 )
 from .severity_legacy import (
+    build_recommended_action,
     compute_risk_level,
     compute_severity,
     is_out_of_range,

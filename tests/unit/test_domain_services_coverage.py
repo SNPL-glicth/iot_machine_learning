@@ -38,13 +38,9 @@ class TestAnomalyDomainService:
         )
         assert AnomalyDomainService is not None
 
-    def test_alert_config_mixin(self):
-        from iot_machine_learning.domain.services.anomaly import _alert_config_mixin
-        assert _alert_config_mixin is not None
-
-    def test_alert_store_mixin(self):
-        from iot_machine_learning.domain.services.anomaly import _alert_store_mixin
-        assert _alert_store_mixin is not None
+    def test_alert_state_repository_port(self):
+        from iot_machine_learning.domain.ports import alert_state_repository_port
+        assert alert_state_repository_port is not None
 
     def test_reexport(self):
         from iot_machine_learning.domain.services import anomaly_domain_service

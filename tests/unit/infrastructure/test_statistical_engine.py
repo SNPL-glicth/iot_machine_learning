@@ -176,8 +176,8 @@ class TestStatisticalConfidenceRegression:
         """Integration with StatisticalExpertAdapter over synthetic trajectory."""
         import numpy as np
         from infrastructure.ml.adapters.statistical_adapter import StatisticalExpertAdapter
-        from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement
-        from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+        from domain.entities.rosa_roja.movement import Movement
+        from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
 
         rng = np.random.default_rng(42)
         # Smooth directional trend in delta_states

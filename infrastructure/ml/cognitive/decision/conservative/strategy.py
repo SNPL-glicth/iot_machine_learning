@@ -44,39 +44,27 @@ class ConservativeStrategy(DecisionEnginePort):
     def __init__(
         self,
         version: str = "1.0.0",
-        confidence_threshold: float | None = None,
-        safety_margin: float | None = None,
+        confidence_threshold: float = 0.8,
+        safety_margin: float = 1.2,
     ) -> None:
         """Initialize ConservativeStrategy.
 
         Args:
             version: Version string for audit trails
-            confidence_threshold: Confidence threshold for "intervene" action (None = read from flags)
-            safety_margin: Multiplier applied to risk in worst-case analysis (None = read from flags)
+            confidence_threshold: Confidence threshold for "intervene" action (default: 0.8)
+            safety_margin: Multiplier applied to risk in worst-case analysis (default: 1.2)
         """
         self._version = version
         self._confidence_threshold = confidence_threshold
         self._safety_margin = safety_margin
 
     def _get_confidence_threshold(self) -> float:
-        """Get confidence threshold from flags or fallback (hot-reload)."""
-        if self._confidence_threshold is not None:
-            return self._confidence_threshold
-        try:
-            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
-            return get_feature_flags().ML_DECISION_CONSERVATIVE_THRESHOLD
-        except Exception:
-            return 0.8  # fallback
+        """Get confidence threshold."""
+        return self._confidence_threshold
 
     def _get_safety_margin(self) -> float:
-        """Get safety margin from flags or fallback (hot-reload)."""
-        if self._safety_margin is not None:
-            return self._safety_margin
-        try:
-            from iot_machine_learning.ml_service.config.feature_flags import get_feature_flags
-            return get_feature_flags().ML_DECISION_CONSERVATIVE_SAFETY_MARGIN
-        except Exception:
-            return 1.2  # fallback
+        """Get safety margin."""
+        return self._safety_margin
 
     @property
     def strategy_name(self) -> str:

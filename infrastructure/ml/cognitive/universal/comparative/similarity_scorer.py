@@ -91,15 +91,15 @@ def _severity_to_score(severity: str) -> float:
 
 def _extract_severity_from_analysis(analysis: Dict[str, Any]) -> str:
     """Extract severity from current analysis."""
-    return analysis.get("severity", "info")
+    return str(analysis.get("severity", "info"))
 
 
 def _extract_urgency_from_historical(historical: Dict[str, Any]) -> float:
     """Extract urgency score from historical match (fallback to severity)."""
     if "urgency_score" in historical:
-        return historical["urgency_score"]
+        return float(historical["urgency_score"])
     
-    severity = historical.get("severity", "info")
+    severity = str(historical.get("severity", "info"))
     return _severity_to_score(severity) / 3.0
 
 

@@ -30,6 +30,7 @@ from iot_machine_learning.domain.entities.market.calibration import (
     ContextCalibrator,
     ContextKey,
 )
+from iot_machine_learning.domain.ports.calibrator_repository_port import CalibratorRepositoryPort
 
 
 __all__ = [
@@ -89,7 +90,7 @@ class PredictionVersioning:
     applied_at: str
 
 
-class CalibratorRepositoryV2:
+class CalibratorRepositoryV2(CalibratorRepositoryPort):
     """Repositorio V2 con versionado real y sistema de rechazo."""
     
     def __init__(self, connection: pymysql.Connection) -> None:

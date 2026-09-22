@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 import numpy as np
 
-from ..domain.movement import Movement
-from ..domain.trajectory import Trajectory
-from ..domain.theta_belief import StateKey
-from ..domain.state_persistence import (
+from domain.entities.rosa_roja.movement import Movement
+from domain.entities.rosa_roja.trajectory import Trajectory
+from domain.entities.rosa_roja.theta_belief import StateKey
+from domain.entities.rosa_roja.state_persistence import (
     STATE_SCHEMA_VERSION,
     movement_to_raw,
     movements_from_raw,
@@ -25,6 +25,7 @@ class RhythmTrajectoryGenerator:
 
     min_trajectory_len: int = 11
     max_trajectory_len: int = 15
+    max_history_len: int = 200
     top_k: int = 5
     rhythm_weight: float = 0.5
     max_entropy: float = 1.0
@@ -105,7 +106,7 @@ class RhythmTrajectoryGenerator:
 
     def generate_candidate_trajectories(self, latest_movement: Movement, drift_score: float) -> list[Trajectory]:
         self._history.append(latest_movement)
-        if len(self._history) > 200:
+        if len(self._history) > self.max_history_len:
             self._history.pop(0)
         self._update_transition_graph()
         self._latest_state_key = self._quantize_state(latest_movement.delta_state)

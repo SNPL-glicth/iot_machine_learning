@@ -87,6 +87,9 @@ class GaussianPrior:
     def to_dict(self) -> dict:
         return {"mu_0": self.mu_0, "sigma2_0": self.sigma2_0}
 
+    def to_prior(self) -> GaussianPrior:
+        return self
+
     @classmethod
     def from_dict(cls, d: dict) -> GaussianPrior:
         return cls(mu_0=d.get("mu_0", 0.0), sigma2_0=d.get("sigma2_0", 1.0))

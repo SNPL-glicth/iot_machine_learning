@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Deque, Literal, Optional
+from typing import Any, Deque, Literal, Optional, Union
 
 from core.parameters.numerical_constants import EPSILON
 
@@ -35,16 +35,9 @@ class ErrorDriftDetector:
         adwin_delta: Optional[float] = None,
         adwin_max_window: Optional[int] = None,
         zscore_threshold: Optional[float] = None,
-        flags: Optional["FeatureFlags"] = None,
+        flags: Optional[Any] = None,
     ) -> None:
-        # Lazy-load defaults from centralized config
         cfg = flags
-        if cfg is None:
-            try:
-                from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
-                cfg = FeatureFlags()
-            except Exception:
-                cfg = None
         
         self._error_window = ErrorWindow(window_size)
         self._detector_type = detector_type
@@ -53,6 +46,7 @@ class ErrorDriftDetector:
             else getattr(cfg, "ML_DRIFT_ZSCORE_THRESHOLD", 3.0)
         )
         
+        self._detector: Union[PageHinkleyDetector, ADWINDetector]
         if detector_type == "page_hinkley":
             config = PageHinkleyConfig(
                 delta=ph_delta if ph_delta is not None else getattr(cfg, "ML_DRIFT_PH_DELTA", 0.005),
@@ -87,7 +81,7 @@ class ErrorDriftDetector:
             self._error_window.n_updates,
         )
         drift_now = self._detector.update(normalized)
-        self._last_drift_result = bool(drift_now)
+        self._last_drift_result = drift_now
     
     def is_drift_detected(self) -> bool:
         return self._last_drift_result

@@ -43,12 +43,12 @@ from core.tuning.dynamic_tuning import DynamicTuner
 from iot_machine_learning.domain.ports.plasticity_repository_port import PlasticityRepositoryPort
 from iot_machine_learning.domain.value_objects.plasticity_scope import PlasticityScope
 from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
-from iot_machine_learning.infrastructure.ml.inference.bayesian.prior import GaussianPrior
+from .updater import GaussianPrior
 
 from ..error_store import EngineErrorStore
 from .bayesian_weight_config import BayesianWeightConfig
 from .constants import _PERSIST_EVERY_N_UPDATES
-from .redis_client import WeightTrackerRedisClient
+from .storage_interface import IWeightCache, InMemoryWeightCache
 from .persistence import WeightTrackerPersistence
 from .checkpoint import WeightTrackerCheckpoint
 from .drift_response import GradualDriftResponse
@@ -136,9 +136,14 @@ class BayesianWeightTracker(
         import threading
         self._lock = threading.RLock()
 
-        # Components
+        # Weight cache component
         self._persistence = WeightTrackerPersistence(repository)
-        self._redis = WeightTrackerRedisClient(redis_client, scope)
+        if isinstance(redis_client, IWeightCache):
+            self._redis = redis_client
+        elif redis_client is not None and hasattr(redis_client, "get_weights"):
+            self._redis = redis_client  # Duck-typed weight cache
+        else:
+            self._redis = InMemoryWeightCache()
         self._dynamic_tuner = dynamic_tuner  # FASE-9: Optional dynamic tuning
 
         # Warm start
@@ -181,7 +186,7 @@ class BayesianWeightTracker(
         cv = std_dev / mean_weight
         
         # Converged if CV < threshold
-        return cv < self._config.convergence_cv_threshold
+        return bool(cv < self._config.convergence_cv_threshold)
     
     def _estimate_data_variance(
         self, engine_name: str, min_samples: int = 5, series_id: Optional[str] = None

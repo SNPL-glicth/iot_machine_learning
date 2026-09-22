@@ -20,31 +20,11 @@ from ..entities.results.anomaly import AnomalySeverity
 from .policy_result import SeverityPolicyResult
 
 logger = logging.getLogger(__name__)
-def _load_defaults() -> Tuple[Tuple[float, ...], Tuple[float, ...], Tuple[float, ...]]:
-    """Load defaults from centralized config if available, else hardcoded fallbacks.
 
-    Keeps domain layer loosely coupled to config (import is lazy).
-    """
-    try:
-        from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
-        cfg = FeatureFlags()
-        score = (
-            cfg.ML_SEVERITY_NONE_MAX,
-            cfg.ML_SEVERITY_LOW_MAX,
-            cfg.ML_SEVERITY_MEDIUM_MAX,
-            cfg.ML_SEVERITY_HIGH_MAX,
-        )
-        text_w = (cfg.ML_TEXT_WEIGHT_URGENCY, cfg.ML_TEXT_WEIGHT_SENTIMENT, cfg.ML_TEXT_WEIGHT_IMPACT)
-        text_t = (cfg.ML_TEXT_THRESHOLD_INFO, cfg.ML_TEXT_THRESHOLD_WARNING, cfg.ML_TEXT_THRESHOLD_CRITICAL)
-        return score, text_w, text_t
-    except Exception:
-        # Fallbacks matching original hardcoded values
-        return (0.3, 0.5, 0.7, 0.9), (0.45, 0.20, 0.35), (0.15, 0.35, 0.55)
-
-# Default thresholds tuned for IoT sensor anomaly detection.
-_DEFAULT_SCORE_THRESHOLDS: Tuple[float, float, float, float] = _load_defaults()[0]
-_DEFAULT_TEXT_WEIGHTS: Tuple[float, float, float] = _load_defaults()[1]
-_DEFAULT_TEXT_THRESHOLDS: Tuple[float, float, float] = _load_defaults()[2]
+# Default thresholds tuned for IoT sensor anomaly detection (Domain Defaults)
+_DEFAULT_SCORE_THRESHOLDS: Tuple[float, float, float, float] = (0.3, 0.5, 0.7, 0.9)
+_DEFAULT_TEXT_WEIGHTS: Tuple[float, float, float] = (0.45, 0.20, 0.35)
+_DEFAULT_TEXT_THRESHOLDS: Tuple[float, float, float] = (0.15, 0.35, 0.55)
 
 @dataclass(frozen=True)
 class ThresholdPolicy:

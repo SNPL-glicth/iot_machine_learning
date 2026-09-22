@@ -15,7 +15,6 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from .context import PipelineContext
-from iot_machine_learning.application.explainability.explanation_renderer import ExplanationRenderer
 
 from ...analysis.types import MetaDiagnostic
 

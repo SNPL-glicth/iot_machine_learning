@@ -154,7 +154,7 @@ class PredictPhase:
                     "budget_ms": ctx.timer.budget_ms,
                 },
             )
-            result, diag, expl, reg, perc = handle_fallback(
+            _, diag, expl, _, _ = handle_fallback(
                 ctx.values, ctx.profile, builder, ctx.timer, "budget_exceeded",
             )
             return ctx.with_field(
@@ -177,7 +177,7 @@ class PredictPhase:
                 _record_failure(e.name, "cannot_handle")
 
         if not capable:
-            result, diag, expl, reg, perc = handle_fallback(
+            _, diag, expl, _, _ = handle_fallback(
                 ctx.values, ctx.profile, builder, ctx.timer, "no_valid_perceptions",
             )
             return ctx.with_field(
@@ -199,7 +199,7 @@ class PredictPhase:
         engine_failures = consume_engine_failures()
 
         if not perceptions:
-            result, diag, expl, reg, perc = handle_fallback(
+            _, diag, expl, _, _ = handle_fallback(
                 ctx.values, ctx.profile, builder, ctx.timer, "no_valid_perceptions",
             )
             return ctx.with_field(

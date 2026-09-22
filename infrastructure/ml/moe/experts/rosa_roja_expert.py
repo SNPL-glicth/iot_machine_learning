@@ -31,26 +31,26 @@ class RosaRojaResult:
 
 # Import condicional - Rosa Roja vive en infrastructure/ml/engines/rosa_roja/algorithms
 try:
-    from infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
-    from infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief
-    from infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+    from domain.entities.rosa_roja.movement import Movement, RhythmSignature
+    from domain.entities.rosa_roja.theta_belief import ThetaBelief
+    from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
     from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
     from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
     from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-    from infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
-    from infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
+    from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
+    from domain.ports.rosa_roja.drift_sensor import DriftSensorPort
     from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
     ROSA_ROJA_AVAILABLE = True
 except ImportError:
     try:
-        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.movement import Movement, RhythmSignature
-        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief
-        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.trajectory import Trajectory, TerminalState
+        from iot_machine_learning.domain.entities.rosa_roja.movement import Movement, RhythmSignature
+        from iot_machine_learning.domain.entities.rosa_roja.theta_belief import ThetaBelief
+        from iot_machine_learning.domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
         from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
         from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
         from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.ports.expert_jury import ExpertJuryPort
-        from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.ports.drift_sensor import DriftSensorPort
+        from iot_machine_learning.domain.ports.rosa_roja.expert_jury import ExpertJuryPort
+        from iot_machine_learning.domain.ports.rosa_roja.drift_sensor import DriftSensorPort
         from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
         ROSA_ROJA_AVAILABLE = True
     except ImportError:
@@ -69,10 +69,20 @@ class RosaRojaExpert(ExpertPort):
         engine: Optional[Any] = None,
         min_history_points: int = 50,
         enabled: bool = True,
+        cv_volatile_threshold: float = 0.05,
+        cv_trending_threshold: float = 0.02,
+        recent_window_size: int = 10,
+        base_latency_ms: float = 5.0,
+        per_point_latency_ms: float = 0.02,
     ):
         self._enabled = enabled and ROSA_ROJA_AVAILABLE
         self._engine = engine
         self._min_history = min_history_points
+        self._cv_volatile_threshold = cv_volatile_threshold
+        self._cv_trending_threshold = cv_trending_threshold
+        self._recent_window_size = recent_window_size
+        self._base_latency_ms = base_latency_ms
+        self._per_point_latency_ms = per_point_latency_ms
         self._capabilities = ExpertCapability(
             regimes=("volatile", "trending", "stable", "noisy"),
             domains=("finance", "iot"),
@@ -164,7 +174,7 @@ class RosaRojaExpert(ExpertPort):
         return len(window.readings) >= self._min_history
 
     def estimate_latency_ms(self, n_points: int) -> float:
-        return 5.0 + (n_points * 0.02)
+        return self._base_latency_ms + (n_points * self._per_point_latency_ms)
 
     def _window_to_state(self, window: SensorWindow) -> Dict[str, Any]:
         """Convierte SensorWindow → estado vectorial S_t para Rosa Roja Core."""
@@ -180,15 +190,15 @@ class RosaRojaExpert(ExpertPort):
         }
 
     def _estimate_regime(self, values: list) -> str:
-        if len(values) < 10:
+        if len(values) < self._recent_window_size:
             return "stable"
-        recent = values[-10:]
+        recent = values[-self._recent_window_size:]
         vol = max(recent) - min(recent) if recent else 0
         mean_val = sum(recent) / len(recent) if recent else 1
         cv = vol / mean_val if mean_val != 0 else 0
-        if cv > 0.05:
+        if cv > self._cv_volatile_threshold:
             return "volatile"
-        elif cv > 0.02:
+        elif cv > self._cv_trending_threshold:
             return "trending"
         return "stable"
 

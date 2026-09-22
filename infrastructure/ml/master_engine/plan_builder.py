@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from domain.entities.rosa_roja.execution import (
     ActionEnvelope,
     ExecutionPlan,
 )

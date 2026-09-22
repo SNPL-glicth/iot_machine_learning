@@ -52,7 +52,7 @@ class OperationalRegimeClassifier:
         self._is_trained = False
         
         self._trainer = ModelTrainer(algorithm, n_components)
-        self._predictor = ModelPredictor(algorithm, REGIME_NAMES)
+        self._predictor = ModelPredictor(algorithm, self.REGIME_NAMES)
         self._heuristic = HeuristicClassifier()
     
     def train(
@@ -80,7 +80,7 @@ class OperationalRegimeClassifier:
         self,
         dynamic_features: 'DynamicFeatures',
         config: RegimeConfig,
-        current_value: float = None,
+        current_value: Optional[float] = None,
     ) -> RegimePrediction:
         """Classify DynamicFeatures into operational regime."""
         if not self._is_trained:

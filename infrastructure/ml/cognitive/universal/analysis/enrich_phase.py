@@ -73,17 +73,21 @@ class SemanticEnrichmentPhase:
         if not self._enabled or input_type != InputType.TEXT:
             timing["enrich"] = 0.0
             # OBSERVABILITY: Track skip reason
-            from iot_machine_learning.ml_service.metrics.observability import get_observability
+            from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                get_observability,
+            )
             reason = "disabled" if not self._enabled else "not_text"
             get_observability().semantic.record_skip(reason)
             return metadata, None
         
         # Skip if text too short
-        text = str(raw_data) if isinstance(raw_data, str) else ""
+        text = raw_data if isinstance(raw_data, str) else ""
         if len(text) < self._min_length:
             timing["enrich"] = 0.0
             # OBSERVABILITY: Track skip due to short text
-            from iot_machine_learning.ml_service.metrics.observability import get_observability
+            from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                get_observability,
+            )
             get_observability().semantic.record_skip(f"short_text_{len(text)}")
             return metadata, None
         
@@ -104,7 +108,7 @@ class SemanticEnrichmentPhase:
             )
             
             # Prioritize entities
-            from iot_machine_learning.application.semantic_extraction import (
+            from iot_machine_learning.domain.services.semantic_extraction import (
                 EntityPrioritizer,
             )
             prioritizer = EntityPrioritizer()
@@ -126,7 +130,9 @@ class SemanticEnrichmentPhase:
             timing["enrich"] = (time.monotonic() - t0) * 1000
             
             # OBSERVABILITY: Track semantic enrichment execution
-            from iot_machine_learning.ml_service.metrics.observability import get_observability
+            from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                get_observability,
+            )
             has_critical = any(e.is_critical for e in result.entities) if result.entities else False
             get_observability().semantic.record_execution(result.entity_count, has_critical)
             
@@ -138,7 +144,9 @@ class SemanticEnrichmentPhase:
             enriched = dict(metadata)
             enriched["semantic_enrichment_error"] = str(e)
             # OBSERVABILITY: Track semantic enrichment error
-            from iot_machine_learning.ml_service.metrics.observability import get_observability
+            from iot_machine_learning.infrastructure.ml.cognitive.observability.pipeline_observability import (
+                get_observability,
+            )
             get_observability().semantic.record_error(str(e))
             return enriched, None
     

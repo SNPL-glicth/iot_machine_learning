@@ -15,7 +15,7 @@ from .algorithms.modules.module3_moe_gating import (
 from .algorithms.modules.rhythm_generator import (
     RhythmTrajectoryGenerator,
 )
-from .algorithms.ports.expert_jury import ExpertJuryPort
+from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
 from iot_machine_learning.infrastructure.ml.engines.core.factory import register_engine
 from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,

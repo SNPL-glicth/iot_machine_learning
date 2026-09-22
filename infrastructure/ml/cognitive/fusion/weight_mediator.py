@@ -70,7 +70,6 @@ class WeightMediator:
         for state in inhibition_states:
             name = state.engine_name
             plastic_w = plasticity_weights.get(name, 0.0)
-            inhibited_w = state.inhibited_weight
             
             plastic_force = plastic_w
             inhibition_force = state.suppression_factor

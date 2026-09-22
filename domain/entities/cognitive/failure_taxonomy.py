@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 
 class FailureReason(str, Enum):
@@ -30,7 +30,7 @@ class FailureDiagnostic:
     expert_variance: float
     confidence_at_time: float
     entropy_lambda: float
-    details: Dict[str, Any]
+    details: Mapping[str, Any]
 
     @property
     def is_failure(self) -> bool:

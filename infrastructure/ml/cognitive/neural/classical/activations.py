@@ -5,6 +5,8 @@ Pure numpy implementations — no external dependencies.
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
 
@@ -19,7 +21,7 @@ def relu(x: np.ndarray) -> np.ndarray:
     Returns:
         Activated array
     """
-    return np.maximum(0, x)
+    return cast(np.ndarray, np.maximum(0, x))
 
 
 def sigmoid(x: np.ndarray) -> np.ndarray:
@@ -33,7 +35,7 @@ def sigmoid(x: np.ndarray) -> np.ndarray:
     Returns:
         Activated array (values in [0, 1])
     """
-    return 1.0 / (1.0 + np.exp(-np.clip(x, -500, 500)))
+    return cast(np.ndarray, 1.0 / (1.0 + np.exp(-np.clip(x, -500, 500))))
 
 
 def softmax(x: np.ndarray) -> np.ndarray:
@@ -52,7 +54,7 @@ def softmax(x: np.ndarray) -> np.ndarray:
     # Numerical stability: subtract max
     x_shifted = x - np.max(x, axis=-1, keepdims=True)
     exp_x = np.exp(x_shifted)
-    return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+    return cast(np.ndarray, exp_x / np.sum(exp_x, axis=-1, keepdims=True))
 
 
 def tanh(x: np.ndarray) -> np.ndarray:
@@ -66,7 +68,7 @@ def tanh(x: np.ndarray) -> np.ndarray:
     Returns:
         Activated array (values in [-1, 1])
     """
-    return np.tanh(x)
+    return cast(np.ndarray, np.tanh(x))
 
 
 def linear(x: np.ndarray) -> np.ndarray:
@@ -80,4 +82,4 @@ def linear(x: np.ndarray) -> np.ndarray:
     Returns:
         Unchanged array
     """
-    return x
+    return cast(np.ndarray, x)

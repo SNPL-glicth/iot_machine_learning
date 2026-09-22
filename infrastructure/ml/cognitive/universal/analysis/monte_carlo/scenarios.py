@@ -10,7 +10,6 @@ from typing import Any, Dict, List
 import numpy as np
 
 from ..types import InputType
-from .noise_model import get_noise_sigma
 
 
 def simulate_future_scenarios(
@@ -30,7 +29,6 @@ def simulate_future_scenarios(
     Returns:
         Dict with best_case, worst_case, most_likely scenarios
     """
-    sigma = get_noise_sigma(input_type)
     scores_array = np.array(severity_scores)
     
     # Best case: 10th percentile (optimistic)

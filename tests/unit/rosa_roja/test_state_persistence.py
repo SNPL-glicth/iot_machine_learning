@@ -13,8 +13,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.theta_belief import ThetaBelief
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.state_machine import (
+from domain.entities.rosa_roja.theta_belief import ThetaBelief
+from domain.entities.rosa_roja.state_machine import (
     IngestionState,
     PipelineState,
     StateMachine,
@@ -23,7 +23,7 @@ from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.rhythm_generator import RhythmTrajectoryGenerator
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module3_moe_gating import MultiplicativeMoEGating
-from infrastructure.ml.adapters.ml_state_store import InMemoryMLStateStore
+from infrastructure.adapters.iot.ml_state_store_adapter import InMemoryMLStateStore
 from tests.unit.rosa_roja.synthetic.envs import PATTERN_A, PATTERN_B, SwitchingPatternEnv
 
 

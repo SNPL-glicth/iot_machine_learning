@@ -21,7 +21,7 @@ from iot_machine_learning.infrastructure.adapters.market.zephyr.telemetry.server
     TelemetryBroadcaster,
     create_telemetry_server,
 )
-from infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from domain.entities.rosa_roja.execution import (
     ActionEnvelope,
     ExecutionPlan,
 )

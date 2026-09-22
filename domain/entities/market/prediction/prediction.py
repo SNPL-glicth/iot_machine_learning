@@ -1,7 +1,7 @@
 """Entidad de predicción de mercado (FASE 3).
 
 Contract v1 — dominio puro, en memoria: no conoce proveedores, MySQL,
-Redis ni Weaviate. La matemática y el ciclo temporal se validan aquí
+key-value stores ni Weaviate. La matemática y el ciclo temporal se validan aquí
 antes de cualquier persistencia.
 
 Responsabilidad única: la entidad ``Prediction`` y sus transiciones.

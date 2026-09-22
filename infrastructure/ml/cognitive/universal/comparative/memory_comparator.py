@@ -97,6 +97,6 @@ def _extract_severity_from_memory(result) -> str:
     metadata = getattr(result, 'metadata', {})
     
     if isinstance(metadata, dict):
-        return metadata.get('severity', 'info')
+        return str(metadata.get('severity', 'info'))
     
     return 'info'

@@ -18,13 +18,13 @@ class PlasticityScope:
     
     Examples:
         >>> scope = PlasticityScope(domain="iot", regime="STABLE")
-        >>> scope.redis_key
+        >>> scope.storage_key
         'plasticity:iot:STABLE'
         >>> scope.sql_scope
         'iot'
         
         >>> default = PlasticityScope(regime="STABLE")  # no domain
-        >>> default.redis_key
+        >>> default.storage_key
         'plasticity:STABLE'
     """
     
@@ -37,14 +37,19 @@ class PlasticityScope:
             raise ValueError("regime cannot be empty")
     
     @property
-    def redis_key(self) -> str:
-        """Redis key for this scoped plasticity.
+    def storage_key(self) -> str:
+        """Storage key for this scoped plasticity.
         
         Format: plasticity:{domain}:{regime} or plasticity:{regime}
         """
         if self.domain:
             return f"plasticity:{self.domain}:{self.regime}"
         return f"plasticity:{self.regime}"
+
+    @property
+    def scope_key(self) -> str:
+        """Alias for storage_key."""
+        return self.storage_key
     
     @property
     def sql_scope(self) -> str:

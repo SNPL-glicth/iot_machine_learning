@@ -10,7 +10,7 @@ import logging
 from typing import Any, cast
 import numpy as np
 
-from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.domain.execution import (
+from iot_machine_learning.domain.entities.rosa_roja.execution import (
     ExecutionPlan,
 )
 
