@@ -181,6 +181,11 @@ Los pesos fijos asumen que un motor siempre es mejor. La EMA simple olvida que u
 
 Predecir no es suficiente; el sistema debe aprender de sus propios procesos de razonamiento. Mediante `PostMortemEvaluator` y `FailureTaxonomy` (`domain/entities/cognitive/`), ZENIN audita diferidamente qué modelo acertó, clasifica la causa raíz del error (ruptura de inercia, disrupción de régimen, exceso de confianza del árbitro) y calcula el **Índice de Meta-Competencia ($\Omega_t$)**. Si detecta **ceguera sistémica** (todos los expertos fallando simultáneamente en un régimen), eleva automáticamente $\lambda_t \to 1.0$ forzando abstención (`HOLD`) y redistribuye los pesos plásticos mediante `RegimePlasticityManager` con circuit-breakers.
 
+### ¿Por qué GuidedFieldPort y EnsembleGuidedFieldAdapter (Rosa Roja)?
+
+Para resolver el problema del `dead_end` en la simulación estocástica cuando la memoria local reciente ($\le 200$ ticks) se agota, el generador de trayectorias requiere conocimiento macro global (tendencia armónica de Fourier y priors bayesianos de régimen). Bajo la regla estricta de arquitectura hexagonal (*Domain nunca importa infraestructura*), el motor estocástico no puede acoplarse directamente a `SeasonalPredictorEngine` ni `NaiveBayesClassifier`.
+La solución introduce `GuidedFieldPort` (`domain/ports/rosa_roja/guided_field.py`) en el dominio puro y `EnsembleGuidedFieldAdapter` (`infrastructure/ml/adapters/guided_field_adapter.py`) en la capa de adaptadores externos, permitiendo síntesis estocástica guiada sin violar la soberanía del dominio.
+
 ---
 
 ## 5. Límites de Dependencia por Capa

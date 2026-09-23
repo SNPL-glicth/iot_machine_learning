@@ -9,6 +9,7 @@ import numpy as np
 from domain.entities.rosa_roja.movement import Movement
 from domain.entities.rosa_roja.trajectory import Trajectory, TerminalState
 from domain.entities.rosa_roja.theta_belief import StateKey
+from domain.ports.rosa_roja.guided_field import GuidedFieldPort
 
 
 DEFAULT_MAX_STEPS: int = 100
@@ -44,15 +45,27 @@ class RandomWalkConfig:
 class RandomWalkSampler:
     """Generates trajectories along manifold flow without fabricating phase-shifted transitions."""
 
-    def __init__(self, config: RandomWalkConfig, transition_graph: dict[StateKey, list[Movement]], theta_belief: Any, quantize_state_func: Any) -> None:
+    def __init__(
+        self,
+        config: RandomWalkConfig,
+        transition_graph: dict[StateKey, list[Movement]],
+        theta_belief: Any,
+        quantize_state_func: Any,
+        guided_field: Optional[GuidedFieldPort] = None,
+    ) -> None:
         self._config = config
         self._transition_graph = transition_graph
         self._theta = theta_belief
         self._quantize_state = quantize_state_func
+        self._guided_field = guided_field
         self._graph_version = 0
         self._cache_version = -1
         self._candidate_cache: dict[Any, dict[str, Any]] = {}
         self._precompute_candidate_data()
+
+    def set_guided_field(self, guided_field: Optional[GuidedFieldPort]) -> None:
+        """Attach or update the GuidedFieldPort provider."""
+        self._guided_field = guided_field
 
     def update_transition_graph(self, transition_graph: dict[StateKey, list[Movement]]) -> None:
         self._transition_graph = transition_graph
@@ -120,9 +133,44 @@ class RandomWalkSampler:
         for _ in range(self._config.max_random_walk_steps):
             cache = self._candidate_cache.get(curr_key)
             if cache is None:
-                stop_reason = "dead_end"
-                break
-            if cache["n"] == 1:
+                if self._guided_field is None:
+                    stop_reason = "dead_end"
+                    break
+
+                # Guided Importance Sampling: query macro gradient and prior distribution
+                macro_dir, conf = self._guided_field.get_macro_gradient(movements[-1].timestamp)
+                motif_priors = self._guided_field.get_motif_prior("default")
+
+                norm_macro = float(np.linalg.norm(macro_dir))
+                if norm_macro <= 1e-6 and conf <= 0.0 and not motif_priors:
+                    stop_reason = "dead_end"
+                    break
+
+                # Synthesize next state along joint alignment (Fourier trend + kinematic momentum)
+                if norm_macro > 1e-6:
+                    unit_macro = macro_dir / norm_macro
+                    if unit_macro.shape != from_dir.shape:
+                        if unit_macro.size == 1 and from_dir.size > 0:
+                            unit_macro = np.sign(float(unit_macro[0])) * from_dir
+                        else:
+                            unit_macro = from_dir
+                    alpha = float(np.clip(conf, 0.2, 0.8))
+                    blended = (1.0 - alpha) * from_dir + alpha * unit_macro
+                    norm_b = float(np.linalg.norm(blended))
+                    eff_dir = blended / norm_b if norm_b > 1e-6 else from_dir
+                else:
+                    eff_dir = from_dir
+
+                dt = start.delta_time if start.delta_time > 0 else 1.0
+                mag = max(float(from_vel) * dt, 1e-4) if from_vel > 0 else (float(np.linalg.norm(start.delta_state)) or 1e-3)
+                synth_delta = eff_dir * mag
+                next_m = Movement.from_raw(
+                    delta_state=synth_delta,
+                    delta_time=dt,
+                    timestamp=movements[-1].timestamp + dt,
+                    prev_movement=movements[-1],
+                )
+            elif cache["n"] == 1:
                 next_m = cache["movements"][0]
             else:
                 post = self._theta.get_transition_probabilities(curr_key) if hasattr(self._theta, "get_transition_probabilities") else None

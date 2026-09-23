@@ -9,6 +9,7 @@ import numpy as np
 from domain.entities.rosa_roja.movement import Movement
 from domain.entities.rosa_roja.trajectory import Trajectory
 from domain.entities.rosa_roja.theta_belief import StateKey
+from domain.ports.rosa_roja.guided_field import GuidedFieldPort
 from domain.entities.rosa_roja.state_persistence import (
     STATE_SCHEMA_VERSION,
     movement_to_raw,
@@ -34,6 +35,7 @@ class RhythmTrajectoryGenerator:
     invalidation_threshold: float = 0.5
     theta_alpha: float = 0.95
     quantization_decimals: int = 2
+    guided_field: Optional[GuidedFieldPort] = None
 
     def __post_init__(self) -> None:
         self._history: list[Movement] = []
@@ -53,8 +55,14 @@ class RhythmTrajectoryGenerator:
             transition_graph=self._transition_graph,
             theta_belief=self._theta_manager.theta,
             quantize_state_func=self._quantize_state,
+            guided_field=self.guided_field,
         )
         self._scorer = PhiRitmoScorer(rhythm_weight=self.rhythm_weight, invalidation_threshold=self.invalidation_threshold)
+
+    def set_guided_field(self, guided_field: Optional[GuidedFieldPort]) -> None:
+        """Attach or update the GuidedFieldPort provider."""
+        self.guided_field = guided_field
+        self._walk_sampler.set_guided_field(guided_field)
 
     # Backward compatibility properties
     @property

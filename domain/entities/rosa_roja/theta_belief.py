@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 from .state_persistence import STATE_SCHEMA_VERSION
+from .motif import TopologicalMotifKey
 
-StateKey = Tuple[float, ...]
+StateKeyUnion = Union[TopologicalMotifKey, Tuple[float, ...], int, str]
+StateKey = StateKeyUnion
 
 
 @dataclass
@@ -21,12 +23,12 @@ class ThetaBelief:
     transition table. Every observation of a transition S_{t-1} -> S_t decays
     all previously observed transitions from S_{t-1} by alpha, so probability
     mass migrates organically to the current regime instead of being trapped
-    in stale statistics.
+    in stale statistics. Supports polymorphic StateKeyUnion (topological motifs or legacy tuples).
     """
 
     alpha: float = 0.95                    # Decay factor for temporal forgetting
     min_weight_threshold: float = 1e-4     # Pruning threshold for stale transitions
-    _transitions: Dict[StateKey, Dict[StateKey, float]] = field(default_factory=dict)
+    _transitions: Dict[StateKeyUnion, Dict[StateKeyUnion, float]] = field(default_factory=dict)
     _total_updates: int = 0
 
     @property
@@ -34,7 +36,7 @@ class ThetaBelief:
         """Number of transition observations absorbed so far."""
         return self._total_updates
 
-    def update(self, from_state: StateKey, to_state: StateKey) -> None:
+    def update(self, from_state: StateKeyUnion, to_state: StateKeyUnion) -> None:
         """Updates belief with a new observed transition S_{t-1} -> S_t applying decay.
         
         After decay and pruning, re-normalizes remaining weights to preserve
@@ -69,7 +71,7 @@ class ThetaBelief:
         self._transitions[from_state][to_state] = current_w + 1.0
         self._total_updates += 1
 
-    def get_transition_probabilities(self, from_state: StateKey) -> Dict[StateKey, float]:
+    def get_transition_probabilities(self, from_state: StateKeyUnion) -> Dict[StateKeyUnion, float]:
         """Returns posterior probabilities P(S_{t+1} | S_t = from_state, Theta_t)."""
         if from_state not in self._transitions or not self._transitions[from_state]:
             return {}
@@ -81,7 +83,7 @@ class ThetaBelief:
 
         return {s_next: w / total_w for s_next, w in weights.items()}
 
-    def compute_entropy(self, current_state: Optional[StateKey] = None) -> float:
+    def compute_entropy(self, current_state: Optional[StateKeyUnion] = None) -> float:
         """
         Computes normalized posterior entropy H(Theta | D_t) in [0.0, 1.0].
         If current_state is provided and known, computes local transition entropy;
@@ -125,11 +127,29 @@ class ThetaBelief:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _encode_key(key: StateKey) -> str:
+    def _encode_key(key: StateKeyUnion) -> str:
+        if isinstance(key, TopologicalMotifKey):
+            return f"M:{key.motif_id}:{key.direction_index}:{key.acceleration_mode}:{key.tempo_band}"
+        if isinstance(key, str):
+            return f"S:{key}"
+        if isinstance(key, int):
+            return f"I:{key}"
         return "|".join(format(float(v), ".10g") for v in key)
 
     @staticmethod
-    def _decode_key(encoded: str) -> StateKey:
+    def _decode_key(encoded: str) -> StateKeyUnion:
+        if encoded.startswith("M:"):
+            parts = encoded.split(":")
+            return TopologicalMotifKey(
+                motif_id=int(parts[1]),
+                direction_index=int(parts[2]),
+                acceleration_mode=int(parts[3]),
+                tempo_band=int(parts[4]),
+            )
+        if encoded.startswith("S:"):
+            return encoded[2:]
+        if encoded.startswith("I:"):
+            return int(encoded[2:])
         return tuple(float(v) for v in encoded.split("|"))
 
     def export_state(self) -> Dict[str, Any]:
@@ -165,7 +185,7 @@ class ThetaBelief:
         if not isinstance(transitions_raw, dict):
             raise ValueError("ThetaBelief payload 'transitions' must be a dict")
 
-        restored: Dict[StateKey, Dict[StateKey, float]] = {}
+        restored: Dict[StateKeyUnion, Dict[StateKeyUnion, float]] = {}
         for enc_from, inner in transitions_raw.items():
             if not isinstance(inner, dict):
                 raise ValueError("ThetaBelief transition weights must be dicts")
@@ -178,3 +198,4 @@ class ThetaBelief:
         self._transitions.clear()
         self._transitions.update(restored)
         self._total_updates = int(payload.get("total_updates", 0))
+

@@ -4,7 +4,8 @@ from .movement import Movement, RhythmSignature
 from .trajectory import Trajectory, TerminalState
 from .validation import ValidationResult, VetoDetails
 from .execution import ExecutionPlan, ActionEnvelope
-from .theta_belief import StateKey, ThetaBelief
+from .motif import TopologicalMotifKey
+from .theta_belief import StateKey, StateKeyUnion, ThetaBelief
 from .trajectory_tracker import DeviationStatus, TrajectoryTracker
 from .ml_taxonomy import (
     PredictionConfidence,
@@ -39,7 +40,9 @@ __all__ = [
     "VetoDetails",
     "ExecutionPlan",
     "ActionEnvelope",
+    "TopologicalMotifKey",
     "StateKey",
+    "StateKeyUnion",
     "ThetaBelief",
     "DeviationStatus",
     "TrajectoryTracker",

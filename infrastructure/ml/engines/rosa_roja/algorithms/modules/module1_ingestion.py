@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 import logging
+import math
+from typing import Any, Dict, List, Optional
 import numpy as np
-from scipy.linalg import inv
+from numpy.linalg import inv
 
 from iot_machine_learning.core.parameters.numerical_constants import DIV_BY_ZERO_EPSILON
 from domain.entities.rosa_roja.movement import Movement, RhythmSignature
@@ -80,6 +81,7 @@ class MahalanobisFilter:
             self._M2 = np.zeros((self._state_dim, self._state_dim), dtype=np.float64)
             self._n = 0
             self._cov_inv = np.eye(self._state_dim, dtype=np.float64)
+            self._reg_matrix = self.regularization_epsilon * np.eye(self._state_dim, dtype=np.float64)
         
         # Compute Mahalanobis distance if we have enough history
         mahal_dist = self._compute_mahalanobis(delta_state)
@@ -124,17 +126,24 @@ class MahalanobisFilter:
             return 0.0
     
     def _update_covariance_incremental(self, x: np.ndarray) -> None:
-        """
-        True O(1) incremental update using Welford + diagonal inverse approximation.
-        
-        Welford's algorithm for mean/covariance:
-        n_new = n + 1
-        δ = x - μ_old
-        μ_new = μ_old + δ / n_new
-        M2_new = M2_old + δ ⊗ (x - μ_new)
-        
-        Covariance inverse: diagonal approximation updated every step,
-        exact recomputation every 100 steps.
+        """Incremental Welford covariance update with Sherman-Morrison rank-1 inverse.
+
+        Welford's algorithm updates mean and outer-product scatter M2 online:
+            n_new = n + 1
+            δ = x - μ_old
+            μ_new = μ_old + δ / n_new
+            δ_2 = x - μ_new
+            M2_new = M2_old + δ ⊗ δ_2
+
+        Inverse covariance is updated via the Sherman-Morrison formula in O(d^2):
+            Σ_n = c_n · Σ_{n-1} + u_n u_n^T
+            where c_n = (n - 2) / (n - 1), u_n = [sqrt(n) / (n - 1)] · δ_2
+            Σ_n^-1 = (1 / c_n) · [Σ_{n-1}^-1 - (z_0 z_0^T) / (c_n + u_n^T z_0)]
+            with z_0 = Σ_{n-1}^-1 · u_n.
+
+        Exact full inversion is anchored at n=2 and periodically every
+        recompute_interval steps to prevent numerical eigenvalue drift.
+        Active symmetrization is enforced after each step to prevent IEEE 754 drift.
         """
         # Welford's online algorithm
         self._n += 1
@@ -142,32 +151,58 @@ class MahalanobisFilter:
             # First sample: mean = x, M2 = 0, cov_inv = I
             self._mean = x.copy().astype(np.float64)
             return
-        
+
         delta = x - self._mean
         self._mean += delta / self._n
         delta2 = x - self._mean
         self._M2 += np.outer(delta, delta2)
-        
+
         # Need at least 2 samples for covariance
         if self._n < 2:
             return
-        
-        # Covariance matrix
-        cov = self._M2 / (self._n - 1)
-        
-        # Regularization
-        reg = self.regularization_epsilon * np.eye(cov.shape[0], dtype=np.float64)
-        cov_reg = cov + reg
-        
-        # Inverse update strategy:
-        # - Exact recompute every recompute_interval steps for numerical stability
-        # - Diagonal approximation for intermediate steps (fast O(d))
-        if self._n % self.recompute_interval == 0:
-            self._cov_inv = inv(cov_reg)
+
+        # Re-anchor exact inversion during initial subspace warmup (n <= dim + 1),
+        # uninitialized state, or periodic checkpoint
+        dim_thresh = (self._state_dim + 1) if self._state_dim is not None else 10
+        warmup_thresh = min(self.min_samples_for_cov, dim_thresh)
+
+        if self._n <= warmup_thresh or self._cov_inv is None or self._n % self.recompute_interval == 0:
+            cov = self._M2 / (self._n - 1)
+            reg = getattr(self, "_reg_matrix", None)
+            if reg is None or reg.shape != cov.shape:
+                reg = self.regularization_epsilon * np.eye(cov.shape[0], dtype=np.float64)
+                self._reg_matrix = reg
+            cov_reg = cov + reg
+            try:
+                self._cov_inv = inv(cov_reg)
+            except Exception:
+                self._cov_inv = np.linalg.pinv(cov_reg, rcond=self.pinv_rcond)
+            self._cov_inv = 0.5 * (self._cov_inv + self._cov_inv.T)
+            return
+
+        # Exact rank-1 update via Sherman-Morrison formula:
+        c_n = (self._n - 2.0) / (self._n - 1.0)
+        u_n = (math.sqrt(float(self._n)) / (self._n - 1.0)) * delta2
+
+        z_0 = self._cov_inv @ u_n
+        denom = c_n + float(np.dot(u_n, z_0))
+
+        # Safe division guard: protect against near-singular colinear vectors
+        if denom > self.division_epsilon:
+            self._cov_inv = (self._cov_inv - np.outer(z_0, z_0) / denom) / c_n
+            # Active symmetrization to prevent IEEE 754 drift
+            self._cov_inv = 0.5 * (self._cov_inv + self._cov_inv.T)
         else:
-            var_new = np.diag(cov_reg)
-            diag_inv = 1.0 / (var_new + self.division_epsilon)
-            self._cov_inv = np.diag(diag_inv)
+            logger.warning(
+                "Sherman-Morrison rank-1 update skipped due to near-singular denominator %.4e", denom
+            )
+            try:
+                cov = self._M2 / (self._n - 1)
+                cov_reg = cov + getattr(self, "_reg_matrix", self.regularization_epsilon * np.eye(cov.shape[0]))
+                self._cov_inv = inv(cov_reg)
+                self._cov_inv = 0.5 * (self._cov_inv + self._cov_inv.T)
+            except Exception:
+                pass
     
     def _update_covariance(self) -> None:
         """Legacy full recompute - kept for compatibility."""

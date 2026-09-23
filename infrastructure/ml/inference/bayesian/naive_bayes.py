@@ -44,7 +44,7 @@ class NaiveBayesClassifier:
         # probs.winner = "security"
     """
     
-    def __init__(self, classes: list[str] = None):
+    def __init__(self, classes: list[str] | None = None):
         """Initialize with optional class list.
         
         Args:
@@ -174,7 +174,7 @@ class NaiveBayesClassifier:
         }
         
         # Find winner
-        winner = max(probabilities, key=probabilities.get)
+        winner = max(probabilities, key=lambda c: probabilities[c])
         confidence = probabilities[winner]
         
         return ClassProbabilities(
