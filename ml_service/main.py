@@ -41,21 +41,29 @@ app = FastAPI(
 from .config.loader import get_feature_flags
 _flags = get_feature_flags()
 ALLOWED_ORIGINS = os.getenv("ML_CORS_ORIGINS", _flags.ML_CORS_ORIGINS).split(",")
+if "http://localhost:5173" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("http://localhost:5173")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["X-API-Key", "Content-Type"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Include routers
 from .api.routes import router
 from .api.routes_cognitive import router as cognitive_router
+from .api.routes_zephyr import router as zephyr_router
+from .api.routes_zephyr_control import router as zephyr_control_router
 
 app.include_router(router)
 app.include_router(cognitive_router)
+app.include_router(zephyr_router)
+app.include_router(zephyr_router, prefix="/api")
+app.include_router(zephyr_control_router)
+app.include_router(zephyr_control_router, prefix="/api")
 
 try:
     from .api.routes_governance import router as governance_router
