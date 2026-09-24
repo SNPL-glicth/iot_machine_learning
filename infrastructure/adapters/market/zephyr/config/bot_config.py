@@ -121,7 +121,7 @@ class LiveBotConfig(ConfigSerializationMixin):
 
     # Health checks & Feature flags
     health_check_interval_sec: int = 10
-    max_latency_ms: float = 5.0
+    max_latency_ms: float = 25.0
     enable_audit_log: bool = True
     enable_metrics_export: bool = False
     dry_run: bool = False

@@ -64,7 +64,11 @@ async def process_observation_pipeline(obs: Any, runner: Any) -> None:
     # 1. Sovereign Evaluation & Translation via MasterEngineAdapter
     adapter = _get_or_create_adapter(runner, sym, engine)
     current_pos = runner._state.get_position(sym) if hasattr(runner._state, "get_position") else 0.0
+    t_start = time.perf_counter_ns()
     plan, directive = adapter.evaluate_directive(delta_state, delta_time, current_position=current_pos)
+    elapsed_ms = (time.perf_counter_ns() - t_start) / 1_000_000.0
+    if hasattr(runner, "_latency_samples") and runner._latency_samples is not None:
+        runner._latency_samples.append(elapsed_ms)
     runner._state.last_phi_moe = directive.confidence
     runner._state.last_phi_ritmo = (
         plan.chosen_trajectory.coherence_score if getattr(plan, "chosen_trajectory", None) else 0.0

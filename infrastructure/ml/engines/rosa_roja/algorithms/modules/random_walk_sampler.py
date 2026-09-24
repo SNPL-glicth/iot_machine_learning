@@ -132,6 +132,9 @@ class RandomWalkSampler:
 
         for _ in range(self._config.max_random_walk_steps):
             cache = self._candidate_cache.get(curr_key)
+            if cache is None and curr_key in self._transition_graph:
+                self._precompute_candidate_data()
+                cache = self._candidate_cache.get(curr_key)
             if cache is None:
                 if self._guided_field is None:
                     stop_reason = "dead_end"

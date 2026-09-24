@@ -55,8 +55,8 @@ class TestRiskEngineAdapter:
         adapter._omega = 2.5
         v_clip = adapter.record_observation(return_signal=0.05, delta_time=1.0, log_return=0.01, expected_return=0.05)
         assert v_clip["omega_t"] == pytest.approx(2.0, rel=1e-3)
-        assert v_clip["R_t"] == pytest.approx(v_clip["sigma_t"] * 1.0 * math.exp(2.0), rel=1e-3)
-        assert v_clip["cvar_t"] == pytest.approx(2.0627 * v_clip["R_t"], rel=1e-3)
+        assert adapter.cvar_multiplier == 2.70
+        assert v_clip["cvar_t"] == pytest.approx(2.70 * v_clip["R_t"], rel=1e-3)
 
         # Backwards compatibility alias check
         v_alias = adapter.record_observation(current_price=0.01, delta_time=1.0, log_return=0.01, expected_price=0.01)

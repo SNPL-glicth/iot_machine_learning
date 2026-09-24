@@ -18,6 +18,7 @@ from domain.entities.rosa_roja.state_persistence import (
 from .theta_belief_manager import ThetaBeliefManager
 from .random_walk_sampler import RandomWalkSampler, RandomWalkConfig
 from .phi_ritmo_scorer import PhiRitmoScorer
+from .voronoi_classifier import VoronoiMotifClassifier, DEFAULT_N_CENTROIDS
 
 
 @dataclass
@@ -35,6 +36,7 @@ class RhythmTrajectoryGenerator:
     invalidation_threshold: float = 0.5
     theta_alpha: float = 0.95
     quantization_decimals: int = 2
+    n_centroids: int = DEFAULT_N_CENTROIDS
     guided_field: Optional[GuidedFieldPort] = None
 
     def __post_init__(self) -> None:
@@ -44,7 +46,13 @@ class RhythmTrajectoryGenerator:
         self._symbol: Optional[str] = None
         self._exploration_boost: int = 0
 
-        self._theta_manager = ThetaBeliefManager(theta_alpha=self.theta_alpha, quantization_decimals=self.quantization_decimals)
+        self._motif_classifier = VoronoiMotifClassifier(n_centroids=self.n_centroids)
+        self._theta_manager = ThetaBeliefManager(
+            theta_alpha=self.theta_alpha,
+            quantization_decimals=self.quantization_decimals,
+            motif_classifier=self._motif_classifier,
+            n_centroids=self.n_centroids,
+        )
         self._walk_sampler = RandomWalkSampler(
             config=RandomWalkConfig(
                 max_random_walk_steps=self.max_random_walk_steps,
@@ -64,38 +72,23 @@ class RhythmTrajectoryGenerator:
         self.guided_field = guided_field
         self._walk_sampler.set_guided_field(guided_field)
 
-    # Backward compatibility properties
     @property
-    def _theta(self) -> Any:
-        return self._theta_manager.theta
-
+    def _theta(self) -> Any: return self._theta_manager.theta
     @property
-    def _compute_entropy(self) -> Any:
-        return self._theta_manager.compute_entropy
-
+    def _compute_entropy(self) -> Any: return self._theta_manager.compute_entropy
     @_compute_entropy.setter
-    def _compute_entropy(self, func: Any) -> None:
-        self._theta_manager.compute_entropy = func
-
+    def _compute_entropy(self, func: Any) -> None: self._theta_manager.compute_entropy = func
     @property
-    def _random_walk(self) -> Any:
-        return self._walk_sampler._random_walk
-
+    def _random_walk(self) -> Any: return self._walk_sampler._random_walk
     @property
-    def _phi_ritmo(self) -> Any:
-        return self._scorer.score_trajectory
-
+    def _phi_ritmo(self) -> Any: return self._scorer.score_trajectory
     @property
-    def _find_invalidation_step(self) -> Any:
-        return self._scorer._find_invalidation_step_vectorized
-
+    def _find_invalidation_step(self) -> Any: return self._scorer._find_invalidation_step_vectorized
     @property
-    def _compute_transition_weights(self) -> Any:
-        return self._walk_sampler.compute_transition_weights
+    def _compute_transition_weights(self) -> Any: return self._walk_sampler.compute_transition_weights
 
     def _quantize_state(self, state: np.ndarray) -> StateKey:
-        arr = np.asarray(state, dtype=np.float64).flatten()
-        return tuple(round(float(v), self.quantization_decimals) for v in arr)
+        return self._motif_classifier.classify(state, update=False)
 
     def set_symbol(self, symbol: str) -> None:
         if self._symbol != symbol:
@@ -106,6 +99,7 @@ class RhythmTrajectoryGenerator:
         self._history.clear()
         self._transition_graph.clear()
         self._theta_manager.reset()
+        self._motif_classifier.reset()
         self._latest_state_key = None
         self._exploration_boost = 0
 
@@ -116,6 +110,7 @@ class RhythmTrajectoryGenerator:
         self._history.append(latest_movement)
         if len(self._history) > self.max_history_len:
             self._history.pop(0)
+        self._motif_classifier.learn_sample(latest_movement.delta_state)
         self._update_transition_graph()
         self._latest_state_key = self._quantize_state(latest_movement.delta_state)
         self._theta_manager.update_from_history(self._history)

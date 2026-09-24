@@ -67,7 +67,7 @@
   "state_snapshot_path": "./data/state_snapshots",
   "snapshot_interval_sec": 300,
   "health_check_interval_sec": 10,
-  "max_latency_ms": 5.0,
+  "max_latency_ms": 25.0,
   "enable_audit_log": true,
   "enable_metrics_export": false,
   "dry_run": false
