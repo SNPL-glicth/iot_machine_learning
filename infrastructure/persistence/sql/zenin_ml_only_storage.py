@@ -12,9 +12,9 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.engine import Connection
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 from iot_machine_learning.domain.ports.storage_port import StoragePort
 
 from .storage import SqlServerStorageAdapter

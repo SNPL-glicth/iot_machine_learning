@@ -15,8 +15,8 @@ from iot_machine_learning.application.dto.prediction_dto import PredictionDTO
 from iot_machine_learning.application.use_cases.predict_sensor_value import (
     PredictSensorValueUseCase,
 )
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )

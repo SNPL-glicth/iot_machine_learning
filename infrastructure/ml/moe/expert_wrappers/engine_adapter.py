@@ -12,7 +12,7 @@ from typing import Optional, TYPE_CHECKING
 
 from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 if TYPE_CHECKING:
     from iot_machine_learning.infrastructure.ml.moe.experts.rosa_roja_expert import RosaRojaExpert

@@ -152,7 +152,7 @@ class TestCognitiveOrchestratorInjection:
         mock_baseline.name = "baseline_moving_average"
         mock_baseline.can_handle.return_value = True
 
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
         fallback_prediction = Prediction(
             series_id="1",
             predicted_value=25.0,

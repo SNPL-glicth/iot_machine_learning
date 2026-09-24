@@ -26,7 +26,7 @@ _MIN_POINTS_FOR_ANOMALY = 20
 _ml_engines_available = True
 try:
     from iot_machine_learning.domain.validators.structural_analysis import compute_structural_analysis
-    from iot_machine_learning.domain.entities.structural_analysis import StructuralAnalysis
+    from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 except Exception as exc:
     _ml_engines_available = False
     logger.warning("[NUMERIC_ANALYZER] ML engines not available: %s", exc)

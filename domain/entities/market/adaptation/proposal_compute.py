@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Mapping
+from collections.abc import Iterable, Mapping
 
 from .expert_scores import ExpertScore
 

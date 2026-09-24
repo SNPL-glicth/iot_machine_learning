@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput
 
 from ..fusion.discrepancy_aware import DiscrepancyAwareFusion

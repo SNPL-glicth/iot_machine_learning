@@ -30,3 +30,6 @@ class SensorProfile:
     def relative_deviation(self, current_std: float) -> float:
         """Compute relative deviation from noise floor."""
         return (current_std - self.noise_floor) / max(self.setpoint_tolerance, 1e-9)
+
+
+__all__ = ["SensorProfile"]

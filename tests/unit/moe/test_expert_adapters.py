@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
 
 from infrastructure.ml.moe.experts.baseline_expert import BaselineExpert

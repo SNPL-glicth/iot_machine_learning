@@ -63,7 +63,7 @@ class TestBridgesUseSafeConversion:
     def test_storage_port_bridge_non_numeric(self) -> None:
         """StoragePort.load_series_window handles non-numeric series_id."""
         from iot_machine_learning.domain.ports.storage_port import StoragePort
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorWindow,
         )
 
@@ -130,7 +130,7 @@ class TestDataclassesReplace:
 
     def test_replace_preserves_all_fields(self) -> None:
         """dataclasses.replace() on Prediction preserves all fields."""
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
 
         original = Prediction(
             series_id="42",
@@ -160,7 +160,7 @@ class TestDataclassesReplace:
         assert updated.metadata == {"key": "value"}
 
     def test_replace_multiple_fields(self) -> None:
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
 
         original = Prediction(
             series_id="1",
@@ -183,8 +183,8 @@ class TestDataclassesReplace:
 
     def test_prediction_domain_service_sets_trace_id(self) -> None:
         """PredictionDomainService enriches prediction with trace_id."""
-        from iot_machine_learning.domain.entities.prediction import Prediction
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )

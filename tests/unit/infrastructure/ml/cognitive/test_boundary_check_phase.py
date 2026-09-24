@@ -25,7 +25,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.orchestration.phases impor
     create_initial_context,
 )
 from iot_machine_learning.domain.entities.results.boundary_result import BoundaryResult
-from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 from iot_machine_learning.domain.value_objects.equipment_class import EquipmentClass
 
 _PROFILE_KWARGS = dict(

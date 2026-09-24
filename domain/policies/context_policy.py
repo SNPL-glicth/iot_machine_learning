@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Optional
 from ..entities.results.anomaly import AnomalySeverity
-from ..entities.severity import SeverityResult
+from ..entities.results.severity import SeverityResult
 from .action_builders import build_action
 from .policy_helpers import _regime_policy, _severity_to_risk_level
 from .policy_result import SeverityPolicyResult

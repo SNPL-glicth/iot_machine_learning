@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 _WEIGHTS_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "infrastructure", "ml", "weights", "neural_expert_v1")

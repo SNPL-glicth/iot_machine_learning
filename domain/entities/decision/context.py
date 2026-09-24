@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
 
-from ..severity import SeverityResult
+from ..results.severity import SeverityResult
 from .outcome import SimulatedOutcome
 
 

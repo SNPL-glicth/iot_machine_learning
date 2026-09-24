@@ -251,8 +251,8 @@ class TestDynamicSparsityK:
             MoEMetadata,
             PredictionEnricher,
         )
-        from iot_machine_learning.domain.entities.prediction import Prediction
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
         
         # Create mock objects
         mock_prediction = Prediction(

@@ -9,7 +9,7 @@ from iot_machine_learning.domain.validators.numeric import (
     clamp_prediction,
     validate_window,
 )
-from iot_machine_learning.domain.entities.structural_analysis import StructuralAnalysis
+from iot_machine_learning.domain.entities.series.structural_analysis import StructuralAnalysis
 from iot_machine_learning.infrastructure.ml.interfaces import PredictionResult
 
 from .types import DerivativeMethod, TaylorCoefficients

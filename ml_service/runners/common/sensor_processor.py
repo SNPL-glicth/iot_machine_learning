@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Literal, Optional
 from sqlalchemy.engine import Connection
 
 try:
-    from iot_machine_learning.domain.entities.prediction import Prediction
+    from iot_machine_learning.domain.entities.results.prediction import Prediction
     from iot_machine_learning.infrastructure.persistence.sql.storage import SqlServerStorageAdapter
     from .model_manager import ModelManager
     from .event_writer import EventWriter

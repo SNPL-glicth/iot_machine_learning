@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
 from iot_machine_learning.domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 @dataclass(frozen=True)
 class RosaRojaResult:

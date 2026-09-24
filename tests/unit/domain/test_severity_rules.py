@@ -15,7 +15,7 @@ from iot_machine_learning.domain.services.severity_rules import (
     compute_severity,
     is_out_of_range,
 )
-from iot_machine_learning.domain.entities.sensor_ranges import (
+from iot_machine_learning.domain.entities.iot.sensor_ranges import (
     DEFAULT_SENSOR_RANGES,
     get_default_range,
 )

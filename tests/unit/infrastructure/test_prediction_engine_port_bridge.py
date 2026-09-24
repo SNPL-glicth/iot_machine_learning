@@ -16,9 +16,9 @@ from typing import List, Optional
 
 import pytest
 
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import SensorReading, SensorWindow
-from iot_machine_learning.domain.entities.time_series import TimeSeries, TimePoint
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading, SensorWindow
+from iot_machine_learning.domain.entities.series.time_series import TimeSeries, TimePoint
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
 from iot_machine_learning.infrastructure.ml.interfaces import (
     PredictionEngine,

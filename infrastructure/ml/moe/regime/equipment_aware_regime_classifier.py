@@ -7,7 +7,7 @@ from typing import Optional, TYPE_CHECKING
 from iot_machine_learning.domain.entities.series.structural_analysis import RegimeType
 
 if TYPE_CHECKING:
-    from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+    from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 
 
 def classify_regime(

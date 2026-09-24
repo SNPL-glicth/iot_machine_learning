@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from typing import List
 
-from ..entities.structural_analysis import (
+from ..entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
     _classify_regime,

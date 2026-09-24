@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable, Dict, Any, Optional
 from dataclasses import dataclass, field
 
-from ..entities.sensor_reading import SensorWindow
+from ..entities.iot.sensor_reading import SensorWindow
 
 
 @dataclass(frozen=True)

@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult
-from iot_machine_learning.domain.entities.memory_search_result import MemorySearchResult
-from iot_machine_learning.domain.entities.pattern import PatternResult
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.results.memory_search_result import MemorySearchResult
+from iot_machine_learning.domain.entities.patterns.pattern_result import PatternResult
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.ports.cognitive_memory_port import CognitiveMemoryPort
 from iot_machine_learning.infrastructure.resilience.circuit_breaker import get_circuit_breaker
 from .memory_readers import (

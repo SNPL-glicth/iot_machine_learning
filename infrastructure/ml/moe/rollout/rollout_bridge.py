@@ -12,8 +12,8 @@ from __future__ import annotations
 from typing import Optional
 
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 from .rollout_decider import RolloutDecider
 

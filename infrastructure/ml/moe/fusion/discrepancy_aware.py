@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Optional
 
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput
 
 from .sparse_fusion import FusionWeights

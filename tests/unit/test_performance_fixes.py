@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )

@@ -17,7 +17,7 @@ from iot_machine_learning.domain.services.severity_rules import (
     compute_severity,
     is_out_of_range,
 )
-from iot_machine_learning.domain.entities.sensor_ranges import get_default_range
+from iot_machine_learning.domain.entities.iot.sensor_ranges import get_default_range
 
 logger = logging.getLogger(__name__)
 

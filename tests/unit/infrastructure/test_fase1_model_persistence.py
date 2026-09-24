@@ -302,7 +302,7 @@ class TestPersistentAnomalyDetector:
         from iot_machine_learning.infrastructure.ml.anomaly.persistent_detector import (
             PersistentAnomalyDetector,
         )
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorWindow,
             SensorReading,
         )

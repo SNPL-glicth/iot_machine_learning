@@ -14,7 +14,7 @@ import random
 
 import pytest
 
-from iot_machine_learning.domain.entities.pattern import ChangePointType
+from iot_machine_learning.domain.entities.patterns.change_point import ChangePointType
 from iot_machine_learning.infrastructure.ml.patterns.change_point_detector import (
     CUSUMDetector,
     PELTDetector,

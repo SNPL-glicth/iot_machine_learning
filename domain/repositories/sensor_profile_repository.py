@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Protocol
 
-from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 
 
 class SensorProfileRepository(Protocol):

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 import math
 
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput
 
 

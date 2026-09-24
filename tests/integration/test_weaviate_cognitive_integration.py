@@ -16,18 +16,18 @@ import urllib.request
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import (
+from iot_machine_learning.domain.entities.results.anomaly import (
     AnomalyResult,
     AnomalySeverity,
 )
-from iot_machine_learning.domain.entities.memory_search_result import (
+from iot_machine_learning.domain.entities.results.memory_search_result import (
     MemorySearchResult,
 )
 from iot_machine_learning.domain.entities.pattern import (
     PatternResult,
     PatternType,
 )
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.infrastructure.adapters.cognitive.weaviate import (
     WeaviateCognitiveAdapter,
 )

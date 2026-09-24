@@ -19,7 +19,7 @@ from typing import Optional
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult, AnomalySeverity
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult, AnomalySeverity
 from iot_machine_learning.domain.entities.decision import DecisionContext
 from iot_machine_learning.infrastructure.ml.cognitive.decision.contextual_decision_config import (
     ContextualDecisionConfig,

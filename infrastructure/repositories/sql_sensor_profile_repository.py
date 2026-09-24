@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 from iot_machine_learning.domain.value_objects.equipment_class import EquipmentClass
 
 logger = logging.getLogger(__name__)

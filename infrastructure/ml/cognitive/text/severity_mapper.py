@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from iot_machine_learning.domain.entities.severity import SeverityResult
+from iot_machine_learning.domain.entities.results.severity import SeverityResult
 from iot_machine_learning.domain.policies.threshold_policy import ThresholdPolicy
 
 _SENTIMENT_WEIGHT_MAP: dict[str, float] = {

@@ -146,7 +146,7 @@ class PredictionEnginePortBridge(PredictionPort):
 
     def predict(self, window: "SensorWindow") -> "Prediction":
         """Bridge: SensorWindow → values/timestamps, PredictionResult → Prediction."""
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
 
         values = window.values
         timestamps = window.timestamps if window.timestamps else None
@@ -163,7 +163,7 @@ class PredictionEnginePortBridge(PredictionPort):
 
     def predict_series(self, series: "TimeSeries") -> "Prediction":
         """Bridge: TimeSeries → values/timestamps, PredictionResult → Prediction."""
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
 
         values = [p.v for p in series.points]
         timestamps = [p.t for p in series.points]

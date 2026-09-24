@@ -19,7 +19,7 @@ import math
 
 import pytest
 
-from iot_machine_learning.domain.entities.temporal_features import TemporalFeatures
+from iot_machine_learning.domain.entities.series.temporal_features import TemporalFeatures
 from iot_machine_learning.domain.validators.temporal_features import (
     compute_temporal_features,
     _compute_dt_values,
@@ -333,7 +333,7 @@ class TestTimeSeriesTemporalFeatures:
     """Tests para TimeSeries.temporal_features property."""
 
     def test_temporal_features_from_time_series(self):
-        from iot_machine_learning.domain.entities.time_series import TimeSeries
+        from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 
         ts = TimeSeries.from_values(
             values=[0.0, 3.0, 6.0, 9.0],
@@ -346,7 +346,7 @@ class TestTimeSeriesTemporalFeatures:
         assert all(abs(v - 3.0) < 1e-9 for v in tf.velocities)
 
     def test_temporal_features_empty_series(self):
-        from iot_machine_learning.domain.entities.time_series import TimeSeries
+        from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 
         ts = TimeSeries(series_id="empty", points=[])
         tf = ts.temporal_features
@@ -361,7 +361,7 @@ class TestSensorWindowTemporalFeatures:
     """Tests para SensorWindow.temporal_features property."""
 
     def test_temporal_features_from_sensor_window(self):
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -379,7 +379,7 @@ class TestSensorWindowTemporalFeatures:
         assert all(abs(v - 5.0) < 1e-9 for v in tf.velocities)
 
     def test_temporal_features_empty_window(self):
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
         sw = SensorWindow(sensor_id=1, readings=[])
         tf = sw.temporal_features
@@ -387,7 +387,7 @@ class TestSensorWindowTemporalFeatures:
 
     def test_temporal_features_matches_time_series(self):
         """SensorWindow.temporal_features should match TimeSeries.temporal_features."""
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )

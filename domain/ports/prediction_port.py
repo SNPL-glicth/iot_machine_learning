@@ -11,10 +11,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional, Union
 
-from ..entities.prediction import Prediction
-from ..entities.sensor_reading import SensorWindow
+from ..entities.results.prediction import Prediction
+from ..entities.iot.sensor_reading import SensorWindow
 from ..validators.input_guard import safe_series_id_to_int
-from ..entities.time_series import TimeSeries
+from ..entities.series.time_series import TimeSeries
 
 
 class PredictionPort(ABC):
@@ -61,7 +61,7 @@ class PredictionPort(ABC):
         Returns:
             ``Prediction`` del dominio.
         """
-        from ..entities.sensor_reading import Reading
+        from ..entities.iot.sensor_reading import Reading
 
         readings = [
             Reading(

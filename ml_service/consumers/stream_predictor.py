@@ -92,7 +92,7 @@ def build_sensor_window(sensor_id: int, store: SlidingWindowStore,
     FIX P3-6: Si la ventana local tiene < min_window puntos y
     distributed_adapter está disponible, intenta migrar desde Redis.
     """
-    from iot_machine_learning.domain.entities.sensor_reading import (
+    from iot_machine_learning.domain.entities.iot.sensor_reading import (
         SensorReading, SensorWindow,
     )
     readings_raw = store.get_window(sensor_id)

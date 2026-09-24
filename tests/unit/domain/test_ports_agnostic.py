@@ -21,13 +21,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult, AnomalySeverity
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult, AnomalySeverity
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )
-from iot_machine_learning.domain.entities.time_series import TimeSeries
+from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 from iot_machine_learning.domain.ports.audit_port import AuditPort
 from iot_machine_learning.domain.ports.storage_port import StoragePort
 

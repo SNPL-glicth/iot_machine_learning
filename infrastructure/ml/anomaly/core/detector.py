@@ -10,8 +10,8 @@ from typing import Dict, List, Optional
 import numpy as np
 from sklearn.preprocessing import RobustScaler
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 from iot_machine_learning.domain.ports.anomaly_detection_port import AnomalyDetectionPort
 from iot_machine_learning.domain.policies.threshold_policy import ThresholdPolicy
 

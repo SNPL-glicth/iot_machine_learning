@@ -19,7 +19,7 @@ from uuid import UUID, uuid5, NAMESPACE_OID
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 
 logger = logging.getLogger(__name__)
 

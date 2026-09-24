@@ -20,7 +20,7 @@ from iot_machine_learning.infrastructure.ml.moe import (
 )
 from iot_machine_learning.infrastructure.ml.moe.gating.base import GatingProbs
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput, ExpertCapability
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow, Reading
 
 

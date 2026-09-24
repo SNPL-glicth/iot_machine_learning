@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+    from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
     from iot_machine_learning.domain.value_objects.industrial_event import EventContext
 
 

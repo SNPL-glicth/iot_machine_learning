@@ -7,7 +7,7 @@ y que el fallback a modo estándar funciona cuando está desactivado.
 import pytest
 from unittest.mock import MagicMock, patch
 
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 from iot_machine_learning.domain.ports.expert_port import ExpertOutput
 from iot_machine_learning.infrastructure.config.moe_factory import (
     create_moe_gateway,
@@ -93,7 +93,7 @@ class TestMoEGatewayPrediction:
             pytest.skip("MoE gateway no disponible (engines no encontrados)")
         
         # Crear ventana de prueba
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -124,7 +124,7 @@ class TestMoEGatewayPrediction:
         if gateway is None:
             pytest.skip("MoE gateway no disponible")
         
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )

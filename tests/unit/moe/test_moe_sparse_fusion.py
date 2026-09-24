@@ -10,7 +10,7 @@ Verifica:
 import pytest
 import math
 
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 from domain.ports.expert_port import ExpertOutput
 from infrastructure.ml.moe.fusion.sparse_fusion import SparseFusionLayer, FusionWeights
 

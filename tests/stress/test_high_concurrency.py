@@ -172,7 +172,7 @@ class TestAnomalyDetectorConcurrency:
         n_threads: int,
         windows_per_thread: int,
     ) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
         values = _synthetic_values(100)
         detector = VotingAnomalyDetector(

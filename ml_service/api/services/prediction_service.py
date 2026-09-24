@@ -71,7 +71,7 @@ class _CognitivePredictionPort:
         return self._orchestrator.can_handle(n_points)
 
     def predict(self, window):
-        from iot_machine_learning.domain.entities.prediction import Prediction
+        from iot_machine_learning.domain.entities.results.prediction import Prediction
 
         result = self._orchestrator.predict(
             series_id=str(window.sensor_id),

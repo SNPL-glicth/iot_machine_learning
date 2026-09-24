@@ -39,11 +39,11 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult
 from iot_machine_learning.domain.entities.patterns.pattern_result import PatternResult
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
-from iot_machine_learning.domain.entities.time_series import TimeSeries
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 from iot_machine_learning.domain.ports.cognitive_memory_port import CognitiveMemoryPort
 from iot_machine_learning.domain.ports.storage_port import StoragePort
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags

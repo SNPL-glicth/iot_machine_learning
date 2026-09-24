@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 
 class TestSeverityEntity:
     def test_severity_result_construction(self):
-        from iot_machine_learning.domain.entities.severity import SeverityResult
+        from iot_machine_learning.domain.entities.results.severity import SeverityResult
         sr = SeverityResult(
             risk_level="HIGH", severity="critical",
             action_required=True, recommended_action="Investigate now",
@@ -37,7 +37,7 @@ class TestSeverityEntity:
         assert sr.recommended_action == "Investigate now"
 
     def test_severity_result_frozen(self):
-        from iot_machine_learning.domain.entities.severity import SeverityResult
+        from iot_machine_learning.domain.entities.results.severity import SeverityResult
         sr = SeverityResult("LOW", "info", False, "Monitor")
         with pytest.raises(AttributeError):
             sr.risk_level = "MEDIUM"
@@ -45,7 +45,7 @@ class TestSeverityEntity:
 
 class TestThresholdEntity:
     def test_threshold_defaults(self):
-        from iot_machine_learning.domain.entities.threshold import Threshold
+        from iot_machine_learning.domain.entities.series.threshold import Threshold
         t = Threshold()
         assert t.value_min is None
         assert t.value_max is None
@@ -53,13 +53,13 @@ class TestThresholdEntity:
         assert t.severity == "critical"
 
     def test_threshold_severity_for_violated(self):
-        from iot_machine_learning.domain.entities.threshold import Threshold
+        from iot_machine_learning.domain.entities.series.threshold import Threshold
         t = Threshold(value_max=100.0, condition_type="greater_than", severity="warning")
         result = t.severity_for(150.0)
         assert result in ("warning", "none", "critical")
 
     def test_threshold_severity_for_ok(self):
-        from iot_machine_learning.domain.entities.threshold import Threshold
+        from iot_machine_learning.domain.entities.series.threshold import Threshold
         t = Threshold(value_max=100.0, condition_type="greater_than", severity="warning")
         result = t.severity_for(50.0)
         assert isinstance(result, str)
@@ -67,7 +67,7 @@ class TestThresholdEntity:
 
 class TestPredictionEntity:
     def test_prediction_reexport(self):
-        from iot_machine_learning.domain.entities.prediction import Prediction, PredictionConfidence
+        from iot_machine_learning.domain.entities.results.prediction import Prediction, PredictionConfidence
         assert Prediction is not None
         assert PredictionConfidence is not None
 
@@ -78,7 +78,7 @@ class TestPredictionEntity:
 
 class TestSensorReadingEntity:
     def test_sensor_reading_reexport(self):
-        from iot_machine_learning.domain.entities.sensor_reading import SensorReading, SensorWindow
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading, SensorWindow
         assert SensorReading is not None
         assert SensorWindow is not None
 
@@ -89,7 +89,7 @@ class TestSensorReadingEntity:
 
 class TestSensorRangesEntity:
     def test_sensor_ranges_reexport(self):
-        from iot_machine_learning.domain.entities.sensor_ranges import DEFAULT_SENSOR_RANGES, get_default_range
+        from iot_machine_learning.domain.entities.iot.sensor_ranges import DEFAULT_SENSOR_RANGES, get_default_range
         assert DEFAULT_SENSOR_RANGES is not None
         assert callable(get_default_range)
 
@@ -100,19 +100,19 @@ class TestSensorRangesEntity:
 
 class TestSeriesContextEntity:
     def test_series_context_reexport(self):
-        from iot_machine_learning.domain.entities.series_context import SeriesContext, Threshold
+        from iot_machine_learning.domain.entities.series.series_context import SeriesContext, Threshold
         assert SeriesContext is not None
 
 
 class TestSeriesProfileEntity:
     def test_series_profile_import(self):
-        from iot_machine_learning.domain.entities.series_profile import SeriesProfile
+        from iot_machine_learning.domain.entities.series.series_profile import SeriesProfile
         assert SeriesProfile is not None
 
 
 class TestTimeSeriesEntity:
     def test_time_series_reexport(self):
-        from iot_machine_learning.domain.entities.time_series import TimeSeries, TimePoint
+        from iot_machine_learning.domain.entities.series.time_series import TimeSeries, TimePoint
         assert TimeSeries is not None
         assert TimePoint is not None
 
@@ -120,7 +120,7 @@ class TestTimeSeriesEntity:
 class TestCanonicalSeriesEntity:
     def test_canonical_series_import(self):
         try:
-            from iot_machine_learning.domain.entities.canonical_series import CanonicalSeries
+            from iot_machine_learning.domain.entities.series.canonical_series import CanonicalSeries
             assert CanonicalSeries is not None
         except ImportError:
             pytest.skip("transitive import")
@@ -194,12 +194,12 @@ class TestExplainabilityEntities:
 
 class TestPatternEntities:
     def test_pattern_result_reexport(self):
-        from iot_machine_learning.domain.entities.pattern_result import PatternType, PatternResult
+        from iot_machine_learning.domain.entities.patterns.pattern_result import PatternType, PatternResult
         assert PatternType is not None
         assert PatternResult is not None
 
     def test_operational_regime_import(self):
-        from iot_machine_learning.domain.entities.operational_regime import OperationalRegime
+        from iot_machine_learning.domain.entities.patterns.operational_regime import OperationalRegime
         assert OperationalRegime is not None
 
     def test_patterns_subpackage(self):
@@ -209,11 +209,11 @@ class TestPatternEntities:
         assert OperationalRegime is not None
 
     def test_change_point_import(self):
-        from iot_machine_learning.domain.entities import change_point
+        from iot_machine_learning.domain.entities.patterns import change_point
         assert change_point is not None
 
     def test_delta_spike_import(self):
-        from iot_machine_learning.domain.entities import delta_spike
+        from iot_machine_learning.domain.entities.patterns import delta_spike
         assert delta_spike is not None
 
 
@@ -265,5 +265,5 @@ class TestSeriesSubpackage:
 
 class TestSensorProfile:
     def test_sensor_profile_import(self):
-        from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+        from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
         assert SensorProfile is not None

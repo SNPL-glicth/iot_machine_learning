@@ -25,7 +25,7 @@ from iot_machine_learning.infrastructure.ml.moe.gateway.prediction_enricher impo
     MoEMetadata,
 )
 from iot_machine_learning.infrastructure.ml.moe.registry import ExpertRegistry
-from iot_machine_learning.domain.entities.prediction import Prediction
+from iot_machine_learning.domain.entities.results.prediction import Prediction
 
 
 class TestFeatureContext:

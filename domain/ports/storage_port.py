@@ -14,11 +14,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
-from ..entities.anomaly import AnomalyResult
+from ..entities.results.anomaly import AnomalyResult
 from ..entities.patterns.pattern_result import PatternResult
-from ..entities.prediction import Prediction
-from ..entities.sensor_reading import SensorReading, SensorWindow
-from ..entities.time_series import TimeSeries
+from ..entities.results.prediction import Prediction
+from ..entities.iot.sensor_reading import SensorReading, SensorWindow
+from ..entities.series.time_series import TimeSeries
 from ..validators.input_guard import safe_series_id_to_int
 
 

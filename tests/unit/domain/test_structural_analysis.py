@@ -25,7 +25,7 @@ import random
 
 import pytest
 
-from iot_machine_learning.domain.entities.structural_analysis import (
+from iot_machine_learning.domain.entities.series.structural_analysis import (
     RegimeType,
     StructuralAnalysis,
     _classify_regime,
@@ -314,7 +314,7 @@ class TestTimeSeriesStructuralAnalysis:
     """Tests para TimeSeries.structural_analysis property."""
 
     def test_structural_from_time_series(self):
-        from iot_machine_learning.domain.entities.time_series import TimeSeries
+        from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 
         ts = TimeSeries.from_values(
             values=[100.0 + 2.0 * i for i in range(20)],
@@ -327,7 +327,7 @@ class TestTimeSeriesStructuralAnalysis:
         assert abs(sa.slope - 2.0) < 1e-9
 
     def test_structural_empty_series(self):
-        from iot_machine_learning.domain.entities.time_series import TimeSeries
+        from iot_machine_learning.domain.entities.series.time_series import TimeSeries
 
         ts = TimeSeries(series_id="empty", points=[])
         sa = ts.structural_analysis
@@ -341,7 +341,7 @@ class TestSensorWindowStructuralAnalysis:
     """Tests para SensorWindow.structural_analysis property."""
 
     def test_structural_from_sensor_window(self):
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -358,7 +358,7 @@ class TestSensorWindowStructuralAnalysis:
 
     def test_structural_matches_time_series(self):
         """SensorWindow.structural_analysis should match TimeSeries.structural_analysis."""
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )

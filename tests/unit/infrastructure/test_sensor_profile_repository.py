@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 from iot_machine_learning.domain.value_objects.equipment_class import EquipmentClass
 from iot_machine_learning.infrastructure.repositories.in_memory_sensor_profile_repository import (
     InMemorySensorProfileRepository,

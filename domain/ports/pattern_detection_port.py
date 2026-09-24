@@ -16,8 +16,8 @@ from ..entities.pattern import (
     OperationalRegime,
     PatternResult,
 )
-from ..entities.sensor_reading import SensorWindow
-from ..entities.time_series import TimeSeries
+from ..entities.iot.sensor_reading import SensorWindow
+from ..entities.series.time_series import TimeSeries
 
 
 class PatternDetectionPort(ABC):
@@ -46,7 +46,7 @@ class PatternDetectionPort(ABC):
 
         Implementación por defecto delega a ``detect_pattern`` vía bridge.
         """
-        from ..entities.sensor_reading import Reading
+        from ..entities.iot.sensor_reading import Reading
 
         readings = [
             Reading(

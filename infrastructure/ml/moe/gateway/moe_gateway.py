@@ -13,8 +13,8 @@ import time
 from typing import Dict, Optional, List, Any
 
 from iot_machine_learning.domain.ports.prediction_port import PredictionPort
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 from ..registry.expert_registry import ExpertRegistry
 from ..gating.base import GatingNetwork
@@ -140,7 +140,7 @@ class MoEGateway(PredictionPort):
             True si puede generar predicción.
         """
         # Verificar capacidad directamente via registry (dispatcher no expone esto)
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow, SensorReading
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow, SensorReading
         dummy_window = SensorWindow(
             series_id="_can_handle_check",
             readings=[SensorReading(value=0.0, timestamp=float(i)) for i in range(n_points)],

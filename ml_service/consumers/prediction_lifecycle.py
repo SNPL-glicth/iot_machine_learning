@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_sensor_window(store, sensor_id: int, min_window: int = 5):
-    from iot_machine_learning.domain.entities.sensor_reading import (
+    from iot_machine_learning.domain.entities.iot.sensor_reading import (
         SensorReading, SensorWindow,
     )
     readings_raw = store.get_window(sensor_id)

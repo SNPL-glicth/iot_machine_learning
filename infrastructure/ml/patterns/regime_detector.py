@@ -20,7 +20,7 @@ import logging
 import math
 from typing import List, Optional
 
-from iot_machine_learning.domain.entities.pattern import OperationalRegime
+from iot_machine_learning.domain.entities.patterns.operational_regime import OperationalRegime
 from iot_machine_learning.domain.ports.pattern_detection_port import RegimeDetectionPort
 
 logger = logging.getLogger(__name__)

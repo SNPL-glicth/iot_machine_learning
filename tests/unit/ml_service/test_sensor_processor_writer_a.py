@@ -54,7 +54,7 @@ class TestSensorProcessorUsesWriterA:
 
     def test_process_calls_save_prediction_on_writer_a(self, mock_conn, processor_deps):
         """Writer A (SqlServerStorageAdapter.save_prediction) must be called."""
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -154,7 +154,7 @@ class TestSensorProcessorUsesWriterA:
 
     def test_process_never_uses_prediction_writer(self, mock_conn, processor_deps):
         """Writer B (PredictionWriter) must NEVER be instantiated or called."""
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )

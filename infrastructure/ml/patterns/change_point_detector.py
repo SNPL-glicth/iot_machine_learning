@@ -20,7 +20,7 @@ import logging
 import math
 from typing import TYPE_CHECKING, List, Optional
 
-from iot_machine_learning.domain.entities.pattern import ChangePoint, ChangePointType
+from iot_machine_learning.domain.entities.patterns.change_point import ChangePoint, ChangePointType
 from iot_machine_learning.domain.ports.pattern_detection_port import ChangePointDetectionPort
 
 if TYPE_CHECKING:

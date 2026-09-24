@@ -17,7 +17,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from iot_machine_learning.domain.entities.series_profile import SeriesProfile
+    from iot_machine_learning.domain.entities.series.series_profile import SeriesProfile
     from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ def select_engine_for_series(
     Returns:
         Dict con ``engine_name`` y ``kwargs`` para creación.
     """
-    from iot_machine_learning.domain.entities.series_profile import (
+    from iot_machine_learning.domain.entities.series.series_profile import (
         StationarityHint,
         VolatilityLevel,
     )

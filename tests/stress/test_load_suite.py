@@ -32,7 +32,7 @@ from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
 from iot_machine_learning.infrastructure.ml.anomaly.core.config import (
     AnomalyDetectorConfig,
 )
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
 logger = logging.getLogger(__name__)
 

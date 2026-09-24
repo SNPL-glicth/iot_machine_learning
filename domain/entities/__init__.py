@@ -12,6 +12,7 @@ en los archivos raíz (e.g. ``from .anomaly import ...``).
 """
 
 # --- IoT (legacy boundary) ---
+from .iot.sensor_profile import SensorProfile
 from .iot.sensor_reading import SensorReading, SensorWindow
 
 # --- Results (inference output) ---
@@ -33,13 +34,14 @@ from .series.structural_analysis import StructuralAnalysis, RegimeType
 from .decision import Decision, DecisionContext, SimulatedOutcome
 
 # --- Threshold ---
-from .threshold import Threshold
+from .series.threshold import Threshold
 
 # --- Severity ---
-from .severity import SeverityResult
+from .results.severity import SeverityResult
 
 __all__ = [
     # IoT
+    "SensorProfile",
     "SensorReading",
     "SensorWindow",
     # Results

@@ -21,12 +21,12 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import (
+from iot_machine_learning.domain.entities.results.anomaly import (
     AnomalyResult,
     AnomalySeverity,
 )
-from iot_machine_learning.domain.entities.prediction import Prediction
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.results.prediction import Prediction
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )

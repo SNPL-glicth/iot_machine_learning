@@ -252,7 +252,7 @@ class TestBatchPropertyBuilders:
     
     def test_build_explanation_properties(self):
         """Test building explanation properties for batch."""
-        from iot_machine_learning.domain.entities.prediction import (
+        from iot_machine_learning.domain.entities.results.prediction import (
             Prediction,
             PredictionConfidence,
         )
@@ -283,7 +283,7 @@ class TestBatchPropertyBuilders:
     
     def test_build_anomaly_properties(self):
         """Test building anomaly properties for batch."""
-        from iot_machine_learning.domain.entities.anomaly import (
+        from iot_machine_learning.domain.entities.results.anomaly import (
             AnomalyResult,
             AnomalySeverity,
         )

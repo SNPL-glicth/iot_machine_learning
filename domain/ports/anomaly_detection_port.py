@@ -11,10 +11,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from ..entities.anomaly import AnomalyResult
-from ..entities.sensor_reading import SensorWindow
+from ..entities.results.anomaly import AnomalyResult
+from ..entities.iot.sensor_reading import SensorWindow
 from ..validators.input_guard import safe_series_id_to_int
-from ..entities.time_series import TimeSeries
+from ..entities.series.time_series import TimeSeries
 
 
 class AnomalyDetectionPort(ABC):
@@ -69,7 +69,7 @@ class AnomalyDetectionPort(ABC):
 
         Implementación por defecto delega a ``detect`` vía bridge.
         """
-        from ..entities.sensor_reading import Reading
+        from ..entities.iot.sensor_reading import Reading
 
         readings = [
             Reading(

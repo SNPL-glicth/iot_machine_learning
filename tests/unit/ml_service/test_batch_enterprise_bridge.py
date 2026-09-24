@@ -192,7 +192,7 @@ class TestEnterprisePredictionAdapter:
         from iot_machine_learning.ml_service.runners.adapters.enterprise_prediction import (
             EnterprisePredictionAdapter,
         )
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -266,7 +266,7 @@ class TestFallbackBaseline:
         from iot_machine_learning.ml_service.runners.adapters.fallback_baseline import (
             fallback_to_baseline,
         )
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -291,7 +291,7 @@ class TestFallbackBaseline:
         from iot_machine_learning.ml_service.runners.adapters.fallback_baseline import (
             fallback_to_baseline,
         )
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
         mock_storage = Mock()
         mock_storage.load_sensor_window.return_value = SensorWindow(

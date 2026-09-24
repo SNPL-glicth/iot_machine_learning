@@ -214,7 +214,7 @@ def evaluate_neural_series(expert, train_values, full_values, split_idx, series_
         regimes[ctx] = regimes.get(ctx, 0) + 1
         try:
             from iot_machine_learning.domain.entities.iot.sensor_reading import Reading
-            from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+            from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
             readings = [Reading(series_id=series_id, value=v, timestamp=float(t)) for t, v in enumerate(window_vals)]
             sw = SensorWindow(series_id=series_id, readings=readings)
             out = expert.predict(sw)

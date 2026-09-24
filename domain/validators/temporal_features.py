@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from typing import List
 
-from ..entities.temporal_features import TemporalFeatures
+from ..entities.series.temporal_features import TemporalFeatures
 
 
 def compute_temporal_features(

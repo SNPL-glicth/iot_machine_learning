@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from iot_machine_learning.domain.entities.sensor_profile import SensorProfile
+from iot_machine_learning.domain.entities.iot.sensor_profile import SensorProfile
 from iot_machine_learning.domain.value_objects.equipment_class import EquipmentClass
 from iot_machine_learning.infrastructure.ml.moe.feature_context import FeatureContext
 from iot_machine_learning.infrastructure.ml.moe.regime.equipment_aware_regime_classifier import classify_regime

@@ -14,8 +14,8 @@ import random
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import AnomalySeverity
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.results.anomaly import AnomalySeverity
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )

@@ -12,15 +12,15 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )
-from iot_machine_learning.domain.entities.prediction import (
+from iot_machine_learning.domain.entities.results.prediction import (
     Prediction,
     PredictionConfidence,
 )
-from iot_machine_learning.domain.entities.anomaly import (
+from iot_machine_learning.domain.entities.results.anomaly import (
     AnomalyResult,
     AnomalySeverity,
 )

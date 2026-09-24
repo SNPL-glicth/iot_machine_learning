@@ -26,10 +26,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 
-from ..entities.anomaly import AnomalyResult
-from ..entities.memory_search_result import MemorySearchResult
+from ..entities.results.anomaly import AnomalyResult
+from ..entities.results.memory_search_result import MemorySearchResult
 from ..entities.pattern import PatternResult
-from ..entities.prediction import Prediction
+from ..entities.results.prediction import Prediction
 
 
 class CognitiveMemoryPort(ABC):

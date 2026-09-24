@@ -12,16 +12,17 @@ Los tipos de apoyo viven en ``types``, la validación numérica en
 from __future__ import annotations
 
 from .prediction_entity import Prediction
+from .prediction_guards import guard_outcome
 from .prediction_transitions import (
     activate,
-    to_waiting_outcome,
-    evaluate,
-    issue_reward,
-    invalidate,
     archive,
     can_produce_reward,
+    evaluate,
+    invalidate,
+    issue_reward,
+    to_waiting_outcome,
 )
-from .prediction_guards import guard_outcome
+from .types import InputContext, PredictionInterval, Regime
 
 # Attach methods to Prediction class
 Prediction.activate = activate

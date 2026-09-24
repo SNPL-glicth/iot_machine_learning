@@ -30,7 +30,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.error_store import (
     EngineErrorStore,
 )
 from iot_machine_learning.domain.entities.iot.sensor_reading import Reading
-from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 from iot_machine_learning.infrastructure.ml.anomaly.core.detector import (
     VotingAnomalyDetector,
 )

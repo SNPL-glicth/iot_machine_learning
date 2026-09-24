@@ -151,25 +151,25 @@ class TestSensorReadingTimestampValidation:
     """Tests para la validación de timestamp en SensorReading."""
 
     def test_infinite_timestamp_raises(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorReading
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading
 
         with pytest.raises(ValueError, match="timestamp debe ser finito"):
             SensorReading(sensor_id=1, value=25.0, timestamp=float("inf"))
 
     def test_nan_timestamp_raises(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorReading
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading
 
         with pytest.raises(ValueError, match="timestamp debe ser finito"):
             SensorReading(sensor_id=1, value=25.0, timestamp=float("nan"))
 
     def test_valid_timestamp_passes(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorReading
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading
 
         r = SensorReading(sensor_id=1, value=25.0, timestamp=1000.0)
         assert r.timestamp == 1000.0
 
     def test_zero_timestamp_allowed(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorReading
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorReading
 
         r = SensorReading(sensor_id=1, value=25.0, timestamp=0.0)
         assert r.timestamp == 0.0
@@ -179,7 +179,7 @@ class TestSensorWindowTemporalDiagnostic:
     """Tests para SensorWindow.temporal_diagnostic."""
 
     def test_clean_window(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import (
+        from iot_machine_learning.domain.entities.iot.sensor_reading import (
             SensorReading,
             SensorWindow,
         )
@@ -193,7 +193,7 @@ class TestSensorWindowTemporalDiagnostic:
         assert diag.is_clean is True
 
     def test_empty_window(self) -> None:
-        from iot_machine_learning.domain.entities.sensor_reading import SensorWindow
+        from iot_machine_learning.domain.entities.iot.sensor_reading import SensorWindow
 
         window = SensorWindow(sensor_id=1, readings=[])
         diag = window.temporal_diagnostic

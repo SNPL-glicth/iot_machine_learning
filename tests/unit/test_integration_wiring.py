@@ -17,9 +17,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from iot_machine_learning.domain.entities.anomaly import AnomalyResult, AnomalySeverity
-from iot_machine_learning.domain.entities.pattern import PatternResult, PatternType
-from iot_machine_learning.domain.entities.sensor_reading import (
+from iot_machine_learning.domain.entities.results.anomaly import AnomalyResult, AnomalySeverity
+from iot_machine_learning.domain.entities.patterns.pattern_result import PatternResult, PatternType
+from iot_machine_learning.domain.entities.iot.sensor_reading import (
     SensorReading,
     SensorWindow,
 )
@@ -76,7 +76,7 @@ class TestDeprecationWarnings:
     """Verifica que legacy code emite DeprecationWarning."""
 
     def test_get_default_range_warns(self):
-        from iot_machine_learning.domain.entities.sensor_ranges import (
+        from iot_machine_learning.domain.entities.iot.sensor_ranges import (
             get_default_range,
         )
 
