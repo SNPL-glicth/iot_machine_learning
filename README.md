@@ -1,5 +1,4 @@
 # ZENIN: Topological Inference Engine & Continuous Geometric Orchestrator
-
 > **Motor Agnóstico de Inferencia Continua basado en Variedades Riemannianas, Caos Determinista y Sistemas Dinámicos**
 
 ZENIN no opera mediante heurísticas estáticas, aproximaciones lineales o árboles de decisión booleanos. Es un orquestador matemático diseñado para tomar decisiones autónomas bajo incertidumbre extrema, modelando las variables del entorno no como números aislados, sino como un **flujo continuo sobre una variedad geométrica**.
@@ -93,7 +92,7 @@ Esto permite evaluar la Tensión Métrica sin inversión de matrices costosas, a
 
 ## Certificación y Testing Institucional
 
-El núcleo matemático de ZENIN opera bajo los estándares de tolerancia a fallos numéricos y explicabilidad determinista (ISO/IEC 25010 & 22989), con cero regresiones y cero fragmentación de memoria (_Zero GC Jitter_).
+El núcleo matemático de ZENIN opera bajo los estándares de tolerancia a fallos numéricos y explicabilidad determinista (ISO/IEC 25010 & 22989), con cero regresiones y cero fragmentación de memoria (*Zero GC Jitter*).
 
 ```bash
 # Validar invarianzas de la Variedad Geométrica y Proyección Ramanujan
@@ -105,4 +104,3 @@ pytest -v iot_machine_learning/tests/unit/market/test_takens_infra.py \
 
 # Ejecutar auditoría completa y paridad de Orquestador (700+ tests institucionales)
 pytest -v iot_machine_learning/tests/unit/market/
-```
