@@ -12,35 +12,56 @@ La ejecución de una acción no depende de un simple cruce de indicadores, sino 
 El orquestador emite comandos al entorno a través de una función de estado continuo modulada por la inercia geométrica del sistema. Para evitar "alucinaciones de certeza" en la cúspide de bifurcaciones ocultas, la certeza nominal se somete al **Teorema de Liouville**:
 
 $$
-\mathcal{C}_{\text{sovereign}}(t) = \mathcal{C}_{\text{nominal}}(t) \cdot \exp\Big( -\max\big(0, \; \operatorname{div}\mathbf{F}\big) \Big)
+\mathcal{C}_{\text{sovereign}}(t) = \mathcal{C}_{\text{nominal}}(t) \cdot \exp\Big( -\max\big(0, \; \text{div}\,\mathbf{F}\big) \Big)
 $$
 
-- $\mathcal{C}_{\text{nominal}}(t)$: Interferencia constructiva de la inercia temporal, el riesgo asimétrico y el consenso experto de la red (MoE).
-- $\operatorname{div}\mathbf{F} = \operatorname{Tr}(\mathbf{J})$: **Brújula de Divergencia**. Mide la tasa instantánea de expansión volumétrica del espacio de fases.
+Donde la certeza nominal se define como:
 
-> **Interpretación Física:** Si el sistema evoluciona hacia un atractor estable ($\operatorname{div}\mathbf{F} \le 0$), el volumen de incertidumbre se contrae y la certeza se mantiene intacta ($\exp(0)=1$). Si el sistema detecta turbulencia estructural y el caos se expande ($\operatorname{div}\mathbf{F} > 0$), la certeza sufre una **supresión exponencial inmediata**, silenciando la ejecución antes de que la anomalía se manifieste físicamente.
+$$
+\mathcal{C}_{\text{nominal}}(t) = I_{\text{CVaR}} \cdot \Lambda(t) \cdot \Phi_{\text{MoE,base}} \cdot \big(r(t) \cdot \alpha_{\text{align}}\big)
+$$
+
+Esta certeza nominal combina dos componentes clave:
+
+**Interferencia constructiva — Parámetro de Orden de Kuramoto.** Mide la sincronización de fase entre los osciladores del sistema:
+
+$$
+r(t) = \left\lvert \frac{1}{N}\sum_{k=1}^N e^{i \theta_k(t)} \right\rvert = \sqrt{ \left(\frac{1}{N}\sum_{k=1}^N \cos\theta_k\right)^2 + \left(\frac{1}{N}\sum_{k=1}^N \sin\theta_k\right)^2 }
+$$
+
+**Brújula de Divergencia.** $\text{div}\,\mathbf{F} = \text{Tr}(\mathbf{J})$ mide la tasa instantánea de expansión volumétrica del espacio de fases.
+
+> **Interpretación Física:** Si el sistema evoluciona hacia un atractor estable ($\text{div}\,\mathbf{F} \le 0$), el volumen de incertidumbre se contrae y la certeza se mantiene intacta ($\exp(0)=1$). Si el sistema detecta turbulencia estructural y el caos se expande ($\text{div}\,\mathbf{F} > 0$), la certeza sufre una **supresión exponencial inmediata**, silenciando la ejecución antes de que la anomalía se manifieste físicamente.
 
 ---
 
 ## 2. La Variedad Geométrica Continua y el Tensor Jacobiano
 
-El estado dinámico instantáneo de ZENIN evoluciona como una partícula sobre una variedad riemanniana tridimensional $\mathcal{M} \subset \mathbb{R}^3$, coordinando tres fuerzas fundamentales:
+El estado dinámico instantáneo de ZENIN evoluciona como una partícula sobre una variedad riemanniana tridimensional $\mathcal{M} \subset \mathbb{R}^3$:
 
 $$
-\mathbf{x}(t) = \begin{bmatrix} x_1(t) \\ x_2(t) \\ x_3(t) \end{bmatrix} = \begin{bmatrix} d_M(t) & \text{[Tensión Métrica de Mahalanobis]} \\ r(t) & \text{[Coherencia de Fase de Kuramoto]} \\ P(t) & \text{[Creencia Epistémica Bayesiana]} \end{bmatrix}
+\mathbf{x}(t) = \begin{bmatrix} x_1(t) \\ x_2(t) \\ x_3(t) \end{bmatrix}
 $$
+
+Donde cada coordenada representa una fuerza fundamental del sistema:
+
+| Coordenada | Significado |
+| :--- | :--- |
+| $x_1(t) = d_M(t)$ | Tensión Métrica de Mahalanobis |
+| $x_2(t) = r(t)$ | Coherencia de Fase de Kuramoto |
+| $x_3(t) = P(t)$ | Creencia Epistémica Bayesiana |
 
 La coordinación entre estas variables no admite colisiones por umbrales rígidos. Es un sistema dinámico disipativo acoplado donde el **Tensor Jacobiano analítico** $\mathbf{J}(\mathbf{x}) = \nabla\mathbf{F}$ actúa como una matriz de adyacencia y amortiguación multidimensional:
 
 $$
 \mathbf{J}(\mathbf{x}) = \begin{bmatrix}
-\frac{\partial F_1}{\partial x_1} & \frac{\partial F_1}{\partial x_2} & \frac{\partial F_1}{\partial x_3} \\[6pt]
-\frac{\partial F_2}{\partial x_1} & \frac{\partial F_2}{\partial x_2} & \frac{\partial F_2}{\partial x_3} \\[6pt]
+\frac{\partial F_1}{\partial x_1} & \frac{\partial F_1}{\partial x_2} & \frac{\partial F_1}{\partial x_3} \\
+\frac{\partial F_2}{\partial x_1} & \frac{\partial F_2}{\partial x_2} & \frac{\partial F_2}{\partial x_3} \\
 \frac{\partial F_3}{\partial x_1} & \frac{\partial F_3}{\partial x_2} & \frac{\partial F_3}{\partial x_3}
 \end{bmatrix}
 $$
 
-Si una anomalía métrica estalla, las derivadas cruzadas del tensor (ej. $\mathbf{J}_{21}$) drenan suavemente la sincronización de osciladores y ajustan la creencia Bayesiana de forma no lineal, absorbiendo el choque sin paralizar el motor.
+Si una anomalía métrica estalla, las derivadas cruzadas del tensor (ej. $\mathbf{J}_{21}$) drenan suavemente la sincronización de osciladores de Kuramoto y ajustan la creencia Bayesiana de forma no lineal, absorbiendo el choque sin paralizar el motor.
 
 ---
 
@@ -59,7 +80,7 @@ Este motor evalúa la Dimensión Efectiva de Participación ($D_{\text{eff}}$) d
 El Experto de Takens posee **Poder de Veto Absoluto** sobre el Mixture of Experts:
 
 $$
-\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \mathcal{K}_{\text{crít}}} \mathbb{I}\Big(\Psi_k(T) \ge \tau_k\Big) \right] \cdot \frac{\sum_{e} w_e \Psi_e(T)}{1 + \gamma \operatorname{Var}(\Psi)}
+\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \mathcal{K}_{\text{crít}}} \mathbb{I}\Big(\Psi_k(T) \ge \tau_k\Big) \right] \cdot \frac{\sum_{e} w_e \Psi_e(T)}{1 + \gamma \text{Var}(\Psi)}
 $$
 
 Si el motor detecta que el atractor multidimensional se está doblando sobre sí mismo (una catástrofe inminente que en 1D parece una línea suave), emite un cero rotundo ($\Omega_{\text{FNN}} \ge \tau_{\text{FNN}} \implies \mathbb{I} = 0$), vetando el consenso de los expertos clásicos y abortando la operación.
@@ -71,7 +92,7 @@ Si el motor detecta que el atractor multidimensional se está doblando sobre sí
 Cuando la divergencia explota en 3D y el espacio de fases enfrenta una singularidad irreducible (un nudo caótico), ZENIN no calcula el infinito. Utilizando la velocidad de deformación del tensor métrico $\| \dot{\mathbf{J}} \|_F$, el sistema proyecta el estado a una **4ta dimensión extrínseca**:
 
 $$
-\mathbf{J}_{4D} = \begin{bmatrix} \mathbf{J}_{3D} & \mathbf{c} \\ \mathbf{r}^T & -\lambda_4 \end{bmatrix} \quad \implies \quad \operatorname{Tr}(\mathbf{J}_{4D}) = \operatorname{Tr}(\mathbf{J}_{3D}) - \lambda_4 < 0
+\mathbf{J}_{4D} = \begin{bmatrix} \mathbf{J}_{3D} & \mathbf{c} \\ \mathbf{r}^T & -\lambda_4 \end{bmatrix} \quad \implies \quad \text{Tr}(\mathbf{J}_{4D}) = \text{Tr}(\mathbf{J}_{3D}) - \lambda_4 < 0
 $$
 
 Esta inmersión garantiza una divergencia idénticamente negativa (estrictamente contractiva). ZENIN se desliza por una geodésica suave en $\mathbb{R}^4$ mediante un propagador de Padé truncado, sorteando la singularidad tridimensional y aterrizando con precisión quirúrgica en la coordenada de resolución.
@@ -104,3 +125,4 @@ pytest -v iot_machine_learning/tests/unit/market/test_takens_infra.py \
 
 # Ejecutar auditoría completa y paridad de Orquestador (700+ tests institucionales)
 pytest -v iot_machine_learning/tests/unit/market/
+```
