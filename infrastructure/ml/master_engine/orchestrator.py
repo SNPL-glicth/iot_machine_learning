@@ -44,20 +44,24 @@ class MasterEquationOrchestrator(MasterDecisionPort):
         *,
         manifold_engine: Any | None = None,
         shadow_mode: bool = False,
+        manifold_shadow_mode: bool = True,
         tau_mom: float = 0.5,
         sigma_mom: float = 0.001,
+        gamma_exec: float | None = None,
     ) -> None:
         self._rosa_roja = rosa_roja_engine
         self._risk_adapter = risk_adapter
         self._temporal_adapter = temporal_adapter
-        self._manifold_engine = manifold_engine or GeometricManifoldAdapter()
+        self._manifold_engine = manifold_engine
         self._shadow_mode = shadow_mode
+        self._manifold_shadow_mode = manifold_shadow_mode
         self._tau_mom = tau_mom
         self._sigma_mom = sigma_mom
+        self._gamma_exec = gamma_exec
 
     @property
     def gamma_exec(self) -> float:
-        return getattr(self._rosa_roja, "gamma_exec", 0.5)
+        return float(self._gamma_exec) if self._gamma_exec is not None else getattr(self._rosa_roja, "gamma_exec", 0.5)
 
     @property
     def state_machine(self) -> Any:
@@ -69,7 +73,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
     def reset(self) -> None:
         self._rosa_roja.reset()
         for adapter in (self._risk_adapter, self._temporal_adapter, self._manifold_engine):
-            if hasattr(adapter, "reset"):
+            if adapter is not None and hasattr(adapter, "reset"):
                 adapter.reset()
 
     def process_event(self, delta_state: np.ndarray, delta_time: float) -> ExecutionPlan:
@@ -113,11 +117,12 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             phi_moe_base=phi_moe_base,
             i_cvar=i_cvar,
             lambda_t_crono=lambda_t_crono,
-            kuramoto_r=1.0,
+            kuramoto_r=float(base_trace.get("kuramoto_r", 1.0)),
             phase_alignment=alignment,
             manifold_engine=self._manifold_engine,
             delta_time=dt,
             mahalanobis_d=mahal_d,
+            manifold_shadow_mode=self._manifold_shadow_mode,
         )
 
         eff_sigma_dr = max(0.1, state_dispersion * 2.0)
@@ -126,7 +131,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
 
         jury = getattr(self._rosa_roja, "_jury", [])
         magnitud_objetivo = extract_expert_target_magnitude(jury, plan_base)
-        if not self._shadow_mode and comp.is_4d_projected and comp.magnitud_objetivo > 0.0:
+        if not self._shadow_mode and not self._manifold_shadow_mode and comp.is_4d_projected and comp.magnitud_objetivo > 0.0:
             magnitud_objetivo = comp.magnitud_objetivo
 
         momentum_veto = compute_momentum_veto(
@@ -152,6 +157,8 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             telemetry_hash=telemetry_hash,
             manifold_audit=comp.manifold_audit,
         )
+        if comp.geometric_manifold_shadow:
+            master_trace["geometric_manifold_shadow"] = comp.geometric_manifold_shadow
 
         return build_orchestrated_execution_plan(
             plan_base=plan_base,

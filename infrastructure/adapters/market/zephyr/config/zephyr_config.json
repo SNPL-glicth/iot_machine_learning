@@ -18,6 +18,7 @@
   "rosa_roja_min_history": 50,
   "use_master_orchestrator": true,
   "master_shadow_mode": false,
+  "manifold_shadow_mode": true,
   "tau_mom": 0.5,
   "sigma_mom": 0.001,
   "max_position_pct": 0.05,

@@ -35,6 +35,7 @@ class MasterEquationComponents:
     manifold_audit: Any | None = None
     divergence: float = 0.0
     is_4d_projected: bool = False
+    geometric_manifold_shadow: dict[str, Any] | None = None
 
 
 def compute_certeza(
@@ -60,20 +61,14 @@ def compute_certeza(
 
     epistemic_clamped = max(0.0, min(1.0, float(certeza_epistemica)))
     v_s, v_r = float(ds_dt), float(dr_dt)
-    delta_v = v_s - v_r
-
-    if abs(delta_v) < 1e-7 or abs(v_s) < 1e-9:
+    if abs(v_s - v_r) < 1e-7 or abs(v_s) < 1e-9:
         kuramoto_r = 1.0
     else:
-        theta_1 = 0.0
-        theta_2 = math.atan2(delta_v, denominator)
-        theta_3 = math.atan2(v_s, max(1e-4, abs(epistemic_clamped - 0.5)))
-        re_z = (math.cos(theta_1) + math.cos(theta_2) + math.cos(theta_3)) / 3.0
-        im_z = (math.sin(theta_1) + math.sin(theta_2) + math.sin(theta_3)) / 3.0
-        kuramoto_r = min(1.0, math.hypot(re_z, im_z))
+        t2 = math.atan2(v_s - v_r, denominator)
+        t3 = math.atan2(v_s, max(1e-4, abs(epistemic_clamped - 0.5)))
+        kuramoto_r = min(1.0, math.hypot((1.0 + math.cos(t2) + math.cos(t3)) / 3.0, (math.sin(t2) + math.sin(t3)) / 3.0))
 
-    psi_r = kuramoto_r * kuramoto_r
-    certeza = a_risk * lambda_crono * epistemic_clamped * psi_r
+    certeza = a_risk * lambda_crono * epistemic_clamped * (kuramoto_r * kuramoto_r)
     return float(max(0.0, min(1.0, certeza)))
 
 
@@ -92,9 +87,7 @@ def compute_magnitud_objetivo(
     if weights_arr.size != preds_arr.size:
         return float(np.mean(preds_arr))
     total_weight = float(np.sum(weights_arr))
-    if total_weight <= 1e-12:
-        return float(default)
-    return float(np.sum(weights_arr * preds_arr) / total_weight)
+    return float(default) if total_weight <= 1e-12 else float(np.sum(weights_arr * preds_arr) / total_weight)
 
 
 def compute_momentum_veto(
@@ -105,14 +98,9 @@ def compute_momentum_veto(
     sigma_market: float | None = None,
 ) -> float:
     """Calculates continuous momentum confirmation score in [0.0, 1.0]."""
-    effective_sigma = (
-        max(float(sigma_mom), float(sigma_market))
-        if (sigma_market is not None and sigma_market > 0)
-        else float(sigma_mom)
-    )
-    deadband = float(tau_mom) * effective_sigma
-    kinetic_flux = float(ds_dt_ema) * float(magnitud)
-    net_signal = kinetic_flux - deadband
+    eff_sig = max(float(sigma_mom), float(sigma_market)) if (sigma_market and sigma_market > 0) else float(sigma_mom)
+    deadband = float(tau_mom) * eff_sig
+    net_signal = (float(ds_dt_ema) * float(magnitud)) - deadband
     if net_signal <= 0.0 or deadband <= 0.0:
         return 0.0
     return float(max(0.0, min(1.0, net_signal / deadband)))
@@ -127,37 +115,40 @@ def compute_master_equation(
     manifold_engine: ManifoldEnginePort | None = None,
     delta_time: float = 0.01,
     mahalanobis_d: float | None = None,
+    manifold_shadow_mode: bool = True,
 ) -> MasterEquationComponents:
-    """Continuous composite evaluator with Manifold Engine sovereign active modulation."""
+    """Continuous composite evaluator with dedicated manifold shadow observation mode."""
     clamped_phi = max(0.0, min(1.0, float(phi_moe_base)))
     risk_factor = max(0.0, min(1.0, float(i_cvar)))
     clamped_lambda = max(0.0, min(1.0, float(lambda_t_crono)))
-    r = max(0.0, min(1.0, float(kuramoto_r)))
-    align = max(0.0, min(1.0, float(phase_alignment)))
+    r, align = max(0.0, min(1.0, float(kuramoto_r))), max(0.0, min(1.0, float(phase_alignment)))
 
-    resonance = risk_factor * clamped_lambda * clamped_phi * (r * align)
-    final_certeza = float(max(0.0, min(1.0, resonance)))
-
-    audit: Any = None
-    div_val = 0.0
-    is_4d = False
-    obj_mag = 0.0
+    nominal_certeza = float(max(0.0, min(1.0, risk_factor * clamped_lambda * clamped_phi * (r * align))))
+    final_certeza = nominal_certeza
+    audit, div_val, is_4d, obj_mag = None, 0.0, False, 0.0
+    geo_shadow: dict[str, Any] = {}
 
     if manifold_engine is not None:
         try:
             d_val = float(mahalanobis_d) if mahalanobis_d is not None else (1.0 - risk_factor) * 2.0
             audit = manifold_engine.step(
-                mahalanobis_d=d_val,
-                kuramoto_r=r,
-                bayesian_p=clamped_phi,
-                delta_time=float(delta_time),
+                mahalanobis_d=d_val, kuramoto_r=r, bayesian_p=clamped_phi, delta_time=float(delta_time)
             )
             div_val = float(audit.divergence)
             is_4d = bool(audit.is_4d_projected)
-            # Sovereign Active Modulation: suppress certainty under chaotic expansion
-            final_certeza = float(max(0.0, min(1.0, final_certeza * math.exp(-max(0.0, div_val)))))
-            if is_4d and audit.state_4d is not None:
-                obj_mag = float(audit.state_4d.mahalanobis_d)
+            suppressed = float(max(0.0, min(1.0, nominal_certeza * math.exp(-max(0.0, div_val)))))
+            geo_shadow = {
+                "manifold_shadow_mode": bool(manifold_shadow_mode),
+                "nominal_certeza": nominal_certeza,
+                "suppressed_certeza": suppressed,
+                "suppression_delta": float(nominal_certeza - suppressed),
+                "divergence": div_val,
+                "is_4d_projected": is_4d,
+            }
+            if not manifold_shadow_mode:
+                final_certeza = suppressed
+                if is_4d and audit.state_4d is not None:
+                    obj_mag = float(audit.state_4d.mahalanobis_d)
         except Exception:
             pass
 
@@ -174,4 +165,5 @@ def compute_master_equation(
         manifold_audit=audit,
         divergence=div_val,
         is_4d_projected=is_4d,
+        geometric_manifold_shadow=geo_shadow if geo_shadow else None,
     )

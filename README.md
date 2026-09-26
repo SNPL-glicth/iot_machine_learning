@@ -111,18 +111,51 @@ Esto permite evaluar la Tensión Métrica sin inversión de matrices costosas, a
 
 ---
 
+## 6. Inventario de Modos Sombra y Plan de Validación
+
+Para garantizar máxima seguridad operativa y cero sorpresas en producción, ZENIN desacopla la soberanía general del orquestador de la modulación geométrica individual.
+
+### Banderas de Configuración (Estado por Defecto)
+
+| Bandera | Ubicación | Default | Estado Actual | Efecto Operativo |
+| :--- | :--- | :--- | :--- | :--- |
+| `master_shadow_mode` | `bot_config.py` / `zephyr_config.json` | `False` | **Activo (Veto Real)** | Gobierna si la Ecuación Maestra ($\Phi_{\text{RedRose}}$) determina las acciones de `can_execute()` y sizing o si solo observa. |
+| `manifold_shadow_mode` | `bot_config.py` / `orchestrator.py` | `True` | **Modo Sombra (Observación)** | Calcula $J$, $\text{div}\,\mathbf{F}$, saltos 4D y telemetría diagnóstica bajo `geometric_manifold_shadow` sin atenuar la certeza real ni mutar magnitudes. |
+
+### Inventario de Capas: Veto Real vs. Modo Sombra
+
+1. **Filtro Mahalanobis (Ingestión):** Veto Real Activo (`EMERGENCY_FLUSH` ante outliers $\chi^2$).
+2. **Experto Topológico de Takens (MoE):** Veto Real Activo ($\mathbb{I}(\Omega_{\text{FNN}} < \tau_{\text{FNN}})$ anula consenso en caso de plegamiento del atractor).
+3. **Umbral MoE Gating ($\gamma_{\text{exec}}$):** Veto Real Activo (Emite `HOLD` si $\Phi_{\text{MoE}} < \gamma_{\text{exec}}$).
+4. **Motor de Riesgo Estocástico ($I_{\text{CVaR}}$):** Veto Real Activo ($I_{\text{CVaR}} = 0$ ante ruptura de tolerancia $L_{\text{max}}$).
+5. **Sincronía Temporal ($\Lambda(t)$):** Modulación Real Activa (Atenúa certeza según discrepancia $\partial S/\partial t$ vs $\partial R/\partial t$).
+6. **Veto Continuo de Momentum:** Veto Real Activo (Emite `HOLD` si señal no supera banda muerta).
+7. **Variedad Geométrica (Liouville & 4D):** **MODO SOMBRA DEDICADO (`manifold_shadow_mode=True`)**. Diagnóstico en paralelo sin interferencia.
+
+### Criterio Cuantitativo para Transición a Veto Real (`manifold_shadow_mode=False`)
+
+1. **Horizonte de Observación:** Mínimo **3 a 5 sesiones completas** de mercado en vivo (paper trading / datos de producción).
+2. **Métricas de Decisión:**
+   - **Tasa de Falsos Positivos ($FPR$):** $\frac{\text{Trades Ganadores Bloqueados}}{\text{Oportunidades Totales}} < 5\%$.
+   - **Precisión de Rescate ($RP$):** $\frac{\text{Trades Perdedores que habrían sido Atenuados/Vetados}}{\text{Total de Pérdidas de Régimen Caótico}} > 75\%$.
+   - **Expectativa Neta Contra-fáctica:** $\Delta \text{PnL} = \text{PnL}_{\text{Liouville}} - \text{PnL}_{\text{Base}} > 0$.
+
+---
+
 ## Certificación y Testing Institucional
 
 El núcleo matemático de ZENIN opera bajo los estándares de tolerancia a fallos numéricos y explicabilidad determinista (ISO/IEC 25010 & 22989), con cero regresiones y cero fragmentación de memoria (*Zero GC Jitter*).
 
 ```bash
 # Validar invarianzas de la Variedad Geométrica y Proyección Ramanujan
-pytest -v iot_machine_learning/tests/unit/market/test_geometric_manifold.py
+pytest -v tests/unit/market/test_geometric_manifold.py
+
+# Validar invarianza de Modo Sombra (35 ciclos exactos + Veto End-to-End)
+pytest -v tests/unit/market/test_manifold_shadow_invariance.py
 
 # Validar motor topológico de Takens (Cero-Copia Buffer e Inmersión Espectral)
-pytest -v iot_machine_learning/tests/unit/market/test_takens_infra.py \
-          iot_machine_learning/tests/unit/domain/test_takens_services.py
+pytest -v tests/unit/market/test_takens_infra.py tests/unit/domain/test_takens_*.py
 
-# Ejecutar auditoría completa y paridad de Orquestador (700+ tests institucionales)
-pytest -v iot_machine_learning/tests/unit/market/
+# Ejecutar suite completa institucional (709+ tests con cero fallos)
+pytest -v tests/unit/market/
 ```

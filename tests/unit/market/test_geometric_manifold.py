@@ -71,26 +71,47 @@ def test_sovereign_modulation_in_master_equation():
     assert res_nominal.certeza <= 0.90
     assert res_nominal.manifold_audit is not None
     
-    # 2. Expansive state: feed an escalating sequence to trigger expansion / 4D jump
+    # 2a. In shadow mode (default True): certeza is NOT suppressed, magnitude not mutated
+    adapter_shadow = GeometricManifoldAdapter()
     for d in [5.0, 10.0, 16.0, 20.0]:
-        adapter.step(mahalanobis_d=d, kuramoto_r=0.2, bayesian_p=0.3)
-    
-    audit = adapter.step(mahalanobis_d=25.0, kuramoto_r=0.1, bayesian_p=0.1)
-    res_divergent = compute_master_equation(
-        phi_moe_base=0.90,
-        i_cvar=1.0,
-        lambda_t_crono=1.0,
-        kuramoto_r=0.1,
-        phase_alignment=0.5,
-        manifold_engine=adapter,
-        mahalanobis_d=25.0,
+        adapter_shadow.step(mahalanobis_d=d, kuramoto_r=0.2, bayesian_p=0.3)
+    res_shadow = compute_master_equation(
+        phi_moe_base=0.90, i_cvar=1.0, lambda_t_crono=1.0, kuramoto_r=0.1,
+        phase_alignment=0.5, manifold_engine=adapter_shadow, mahalanobis_d=25.0,
+        manifold_shadow_mode=True,
     )
-    if audit.is_4d_projected and audit.state_4d is not None:
-        # In 4D projection, target magnitude is anchored to 4D coordinate
-        assert res_divergent.magnitud_objetivo == pytest.approx(audit.state_4d.mahalanobis_d, abs=1e-6)
-    
-    # Sovereignty ensures certainty was attenuated
-    assert res_divergent.certeza <= 0.90
+    assert res_shadow.magnitud_objetivo == 0.0
+    assert res_shadow.geometric_manifold_shadow is not None
+    assert res_shadow.geometric_manifold_shadow["manifold_shadow_mode"] is True
+    assert res_shadow.certeza == pytest.approx(0.90 * 0.1 * 0.5)
+
+    # 2b. In active mode (manifold_shadow_mode=False): 4D magnitude is enforced
+    adapter_active = GeometricManifoldAdapter()
+    for d in [5.0, 10.0, 16.0, 20.0]:
+        adapter_active.step(mahalanobis_d=d, kuramoto_r=0.2, bayesian_p=0.3)
+    res_active = compute_master_equation(
+        phi_moe_base=0.90, i_cvar=1.0, lambda_t_crono=1.0, kuramoto_r=0.1,
+        phase_alignment=0.5, manifold_engine=adapter_active, mahalanobis_d=25.0,
+        manifold_shadow_mode=False,
+    )
+    assert res_active.is_4d_projected is True
+    assert res_active.magnitud_objetivo == pytest.approx(25.0, abs=1e-6)
+
+    # 3. Positive divergence suppression: active mode attenuates certainty
+    ad_pos_shadow = GeometricManifoldAdapter()
+    res_pos_shadow = compute_master_equation(
+        phi_moe_base=0.1, i_cvar=1.0, lambda_t_crono=1.0, kuramoto_r=0.05,
+        phase_alignment=1.0, manifold_engine=ad_pos_shadow, mahalanobis_d=0.1,
+        manifold_shadow_mode=True,
+    )
+    ad_pos_active = GeometricManifoldAdapter()
+    res_pos_active = compute_master_equation(
+        phi_moe_base=0.1, i_cvar=1.0, lambda_t_crono=1.0, kuramoto_r=0.05,
+        phase_alignment=1.0, manifold_engine=ad_pos_active, mahalanobis_d=0.1,
+        manifold_shadow_mode=False,
+    )
+    assert res_pos_shadow.divergence > 0.0
+    assert res_pos_active.certeza < res_pos_shadow.certeza
 
 
 def test_ramanujan_projection_symplectic_invariance():

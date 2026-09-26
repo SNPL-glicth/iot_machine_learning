@@ -5,6 +5,7 @@ Single decision entrypoint and Master Equation orchestration layer.
 
 from __future__ import annotations
 
+from .geometric_manifold_adapter import GeometricManifoldAdapter
 from .master_equation import (
     MasterEquationComponents,
     compute_certeza,
@@ -16,6 +17,7 @@ from .orchestrator import MasterEquationOrchestrator
 from .port import MasterDecisionPort
 
 __all__ = [
+    "GeometricManifoldAdapter",
     "MasterDecisionPort",
     "MasterEquationOrchestrator",
     "MasterEquationComponents",
