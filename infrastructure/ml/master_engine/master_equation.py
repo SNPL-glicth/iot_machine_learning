@@ -1,7 +1,8 @@
-"""Master Equation and continuous wave resonance module.
+"""Master Equation and continuous wave resonance module (ZENIN v2.3+).
 
-Computes continuous dimensionless resonance certainty, state manifold target
-magnitude, and smooth momentum confirmation with Kuramoto phase coherence.
+Computes continuous dimensionless resonance certainty, state manifold target magnitude,
+and smooth momentum confirmation with Kuramoto phase coherence.
+Injects ManifoldEnginePort with Active Control sovereign modulation.
 """
 
 from __future__ import annotations
@@ -9,8 +10,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 import math
+from typing import TYPE_CHECKING, Any
 import numpy as np
+
 from core.parameters.numerical_constants import EPSILON
+
+if TYPE_CHECKING:
+    from domain.ports.manifold.manifold_engine_port import ManifoldEnginePort
 
 
 @dataclass(frozen=True)
@@ -26,6 +32,9 @@ class MasterEquationComponents:
     momentum_veto: float = 1.0
     kuramoto_r: float = 1.0
     phase_alignment: float = 1.0
+    manifold_audit: Any | None = None
+    divergence: float = 0.0
+    is_4d_projected: bool = False
 
 
 def compute_certeza(
@@ -36,21 +45,7 @@ def compute_certeza(
     sigma_dr: float = 1.0,
     epsilon: float = 1e-6,
 ) -> float:
-    """Calculates continuous wave resonance certainty Φ_certeza ∈ [0.0, 1.0] with Kuramoto coupling.
-
-    Mathematical framework:
-        Interfering complex wave amplitudes:
-            A1 = a_risk = clip(i_cvar, 0, 1)
-            A2 = lambda_crono = exp(-min(10.0, |(ds_dt / dr_dt) - 1.0|))
-            A3 = certeza_epistemica = clip(certeza_epistemica, 0, 1)
-        Local Phase-Space mapping:
-            theta_k = atan2(velocity, displacement_wrt_centroid)
-            Stationary protection: theta1 = theta2 = theta3 = 0 when dynamics are stationary / coherent (ds_dt ≈ dr_dt).
-        Kuramoto Order Parameter:
-            r(t) exp(i ψ) = (1/N) Σ exp(i θ_k)
-        Resonant Interference Certainty:
-            |S(t)| = A1 · A2 · A3 · r(t)^2 (or phase modulation)
-    """
+    """Calculates continuous wave resonance certainty Φ_certeza ∈ [0.0, 1.0]."""
     a_risk = max(0.0, min(1.0, float(i_cvar)))
     if a_risk <= 0.0:
         return 0.0
@@ -67,11 +62,9 @@ def compute_certeza(
     v_s, v_r = float(ds_dt), float(dr_dt)
     delta_v = v_s - v_r
 
-    # Stationary/synchronized check: preserve base product when no dynamic phase divergence
     if abs(delta_v) < 1e-7 or abs(v_s) < 1e-9:
         kuramoto_r = 1.0
     else:
-        # Phase space coordinates: theta_k = atan2(velocity, displacement)
         theta_1 = 0.0
         theta_2 = math.atan2(delta_v, denominator)
         theta_3 = math.atan2(v_s, max(1e-4, abs(epistemic_clamped - 0.5)))
@@ -89,22 +82,18 @@ def compute_magnitud_objetivo(
     pesos: Sequence[float] | np.ndarray | None = None,
     default: float = 0.0,
 ) -> float:
-    """Calculates weighted consensus target magnitude in state units: μ = (Σ w_i · y_i) / (Σ w_i)."""
+    """Calculates weighted consensus target magnitude: μ = (Σ w_i · y_i) / (Σ w_i)."""
     preds_arr = np.asarray(predicciones, dtype=np.float64).flatten()
     if preds_arr.size == 0:
         return float(default)
-
     if pesos is None:
         return float(np.mean(preds_arr))
-
     weights_arr = np.asarray(pesos, dtype=np.float64).flatten()
     if weights_arr.size != preds_arr.size:
         return float(np.mean(preds_arr))
-
     total_weight = float(np.sum(weights_arr))
     if total_weight <= 1e-12:
         return float(default)
-
     return float(np.sum(weights_arr * preds_arr) / total_weight)
 
 
@@ -124,12 +113,9 @@ def compute_momentum_veto(
     deadband = float(tau_mom) * effective_sigma
     kinetic_flux = float(ds_dt_ema) * float(magnitud)
     net_signal = kinetic_flux - deadband
-
     if net_signal <= 0.0 or deadband <= 0.0:
         return 0.0
-
-    normalized_score = net_signal / deadband
-    return float(max(0.0, min(1.0, normalized_score)))
+    return float(max(0.0, min(1.0, net_signal / deadband)))
 
 
 def compute_master_equation(
@@ -138,25 +124,54 @@ def compute_master_equation(
     lambda_t_crono: float,
     kuramoto_r: float = 1.0,
     phase_alignment: float = 1.0,
+    manifold_engine: ManifoldEnginePort | None = None,
+    delta_time: float = 0.01,
+    mahalanobis_d: float | None = None,
 ) -> MasterEquationComponents:
-    """Continuous composite evaluator for the Master Equation with Kuramoto coherence."""
-    clamped_phi_base = max(0.0, min(1.0, float(phi_moe_base)))
+    """Continuous composite evaluator with Manifold Engine sovereign active modulation."""
+    clamped_phi = max(0.0, min(1.0, float(phi_moe_base)))
     risk_factor = max(0.0, min(1.0, float(i_cvar)))
     clamped_lambda = max(0.0, min(1.0, float(lambda_t_crono)))
     r = max(0.0, min(1.0, float(kuramoto_r)))
     align = max(0.0, min(1.0, float(phase_alignment)))
 
-    resonance = risk_factor * clamped_lambda * clamped_phi_base * (r * align)
+    resonance = risk_factor * clamped_lambda * clamped_phi * (r * align)
     final_certeza = float(max(0.0, min(1.0, resonance)))
 
+    audit: Any = None
+    div_val = 0.0
+    is_4d = False
+    obj_mag = 0.0
+
+    if manifold_engine is not None:
+        try:
+            d_val = float(mahalanobis_d) if mahalanobis_d is not None else (1.0 - risk_factor) * 2.0
+            audit = manifold_engine.step(
+                mahalanobis_d=d_val,
+                kuramoto_r=r,
+                bayesian_p=clamped_phi,
+                delta_time=float(delta_time),
+            )
+            div_val = float(audit.divergence)
+            is_4d = bool(audit.is_4d_projected)
+            # Sovereign Active Modulation: suppress certainty under chaotic expansion
+            final_certeza = float(max(0.0, min(1.0, final_certeza * math.exp(-max(0.0, div_val)))))
+            if is_4d and audit.state_4d is not None:
+                obj_mag = float(audit.state_4d.mahalanobis_d)
+        except Exception:
+            pass
+
     return MasterEquationComponents(
-        phi_moe_base=clamped_phi_base,
+        phi_moe_base=clamped_phi,
         i_cvar=risk_factor,
         lambda_t_crono=clamped_lambda,
         phi_redrose=final_certeza,
         certeza=final_certeza,
-        magnitud_objetivo=0.0,
+        magnitud_objetivo=obj_mag,
         momentum_veto=1.0,
         kuramoto_r=r,
         phase_alignment=align,
+        manifold_audit=audit,
+        divergence=div_val,
+        is_4d_projected=is_4d,
     )

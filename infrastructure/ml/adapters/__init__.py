@@ -9,6 +9,7 @@ from .statistical_adapter import StatisticalExpertAdapter
 from .taylor_adapter import TaylorExpertAdapter
 from .temporal_adapter import TemporalEngineAdapter
 from .guided_field_adapter import EnsembleGuidedFieldAdapter
+from .takens_adapter import TakensExpertAdapter
 
 __all__ = [
     "BaseExpertAdapter",
@@ -18,4 +19,5 @@ __all__ = [
     "TaylorExpertAdapter",
     "TemporalEngineAdapter",
     "EnsembleGuidedFieldAdapter",
+    "TakensExpertAdapter",
 ]

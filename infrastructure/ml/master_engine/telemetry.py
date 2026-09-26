@@ -1,4 +1,4 @@
-"""Telemetry and decision trace utilities for Master Engine (ISO 22989)."""
+"""Telemetry and decision trace utilities for Master Engine (ISO/IEC 22989)."""
 
 from __future__ import annotations
 
@@ -41,9 +41,10 @@ def assemble_master_trace(
     risk_verdict: dict[str, Any],
     temporal_verdict: dict[str, Any],
     telemetry_hash: str,
+    manifold_audit: Any | None = None,
 ) -> dict[str, Any]:
-    """Assemble complete ISO 22989 decision trace dictionary."""
-    return {
+    """Assemble complete ISO 22989 decision trace dictionary with manifold diagnostics."""
+    trace: dict[str, Any] = {
         **base_trace,
         "telemetry_hash": telemetry_hash,
         "phi_moe_base": float(phi_moe_base),
@@ -58,3 +59,16 @@ def assemble_master_trace(
         "risk_engine_shadow": risk_verdict,
         "temporal_engine_shadow": temporal_verdict,
     }
+
+    if manifold_audit is not None:
+        try:
+            trace["manifold_divergence"] = float(manifold_audit.divergence)
+            trace["manifold_volume_rate"] = float(manifold_audit.volume_rate)
+            trace["manifold_regime"] = str(manifold_audit.stability_verdict)
+            trace["is_4d_projected"] = bool(manifold_audit.is_4d_projected)
+            if hasattr(manifold_audit, "to_telemetry_trace"):
+                trace["manifold_telemetry"] = manifold_audit.to_telemetry_trace()
+        except Exception:
+            pass
+
+    return trace

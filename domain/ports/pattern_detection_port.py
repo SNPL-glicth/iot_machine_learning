@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from ..validators.input_guard import safe_series_id_to_int
-from ..entities.pattern import (
+from ..entities.patterns import (
     ChangePoint,
     DeltaSpikeResult,
     OperationalRegime,

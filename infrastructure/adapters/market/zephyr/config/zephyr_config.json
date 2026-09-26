@@ -1,9 +1,8 @@
 {
-  "broker": "alpaca",
+  "broker": "binance",
   "symbol": "SPY",
   "symbols": [
-    "SPY",
-    "QQQ"
+    "SPY"
   ],
   "exchange": "binance",
   "testnet": true,
