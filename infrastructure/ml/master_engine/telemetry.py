@@ -42,6 +42,7 @@ def assemble_master_trace(
     temporal_verdict: dict[str, Any],
     telemetry_hash: str,
     manifold_audit: Any | None = None,
+    variable_destino: float | None = None,
 ) -> dict[str, Any]:
     """Assemble complete ISO 22989 decision trace dictionary with manifold diagnostics."""
     trace: dict[str, Any] = {
@@ -59,6 +60,9 @@ def assemble_master_trace(
         "risk_engine_shadow": risk_verdict,
         "temporal_engine_shadow": temporal_verdict,
     }
+    if variable_destino is not None:
+        trace["variable_destino"] = float(variable_destino)
+        trace["D_t"] = float(variable_destino)
 
     if manifold_audit is not None:
         try:

@@ -79,7 +79,7 @@ $$
 
 #### D. Modulación del Estado Objetivo y Blindaje de Escala Absoluta
 > **Espacio Matemático:** Variedad afín tangente $\mathbb{R}^d$ con invariante de escala positiva.  
-> **Ubicación en Código:** [`master_equation.py:L125-L138`](infrastructure/ml/master_engine/master_equation.py#L125-L138), [`orchestrator.py:L140-L165`](infrastructure/ml/master_engine/orchestrator.py#L140-L165).
+> **Ubicación en Código:** [`master_equation.py:L109-L135`](infrastructure/ml/master_engine/master_equation.py#L109-L135), [`orchestrator.py:L140-L155`](infrastructure/ml/master_engine/orchestrator.py#L140-L155).
 
 Sea $S_{\text{ref}} > 0$ la magnitud del estado de referencia actual, $y_1$ el objetivo proyectado por cinemática directa (Rosa Roja) y $y_2$ el objetivo de rebote conjugado (MRT). La polaridad soberana modula **estrictamente el diferencial de transición relativo ($\Delta S$)**, protegiendo la escala absoluta del sistema contra inversiones de signo espurias:
 
@@ -90,6 +90,25 @@ $$
 $$
 S_{\text{target}} = \max(10^{-6}, S_{\text{ref}} + \Delta S_{\text{sovereign}})
 $$
+
+#### E. Ecuación Unificadora Final: Variable Destino $\mathcal{D}(t)$
+> **Espacio Matemático:** Fibrado compuesto $\mathcal{M} \times (\mathbb{C}^2 \to S^2) \times \mathbb{R}$.  
+> **Ubicación en Código:** [`master_equation.py:L140-L165`](infrastructure/ml/master_engine/master_equation.py#L140-L165), [`orchestrator.py:L123-L158`](infrastructure/ml/master_engine/orchestrator.py#L123-L158).
+
+La directiva soberana de control continuo se colapsa en una **única variable de salida escalar unificada $\mathcal{D}(t)$**, componiendo multiplicativamente los cuatro pilares del sistema:
+
+$$
+\mathcal{D}(t) = \Big[\prod_{k} \mathbb{I}_k(t)\Big] \cdot e^{-\max(0,\, \operatorname{div}\mathbf{F}(t))} \cdot \Pi_{\text{sov}}(t) \cdot \big|S_3(t) + S_1(t)\big|
+$$
+
+##### Descomposición de los Cuatro Factores:
+1. **$\prod_{k} \mathbb{I}_k(t) \in \{0, 1\}$ (Veto de Admisibilidad Estricto):** Producto de cortafuegos booleanos:
+   - $\mathbb{I}_{\text{mahal}}(t)$: Filtro de ingesta Mahalanobis ($d_M^2 \le \chi^2$) en `module1_ingestion.py`.
+   - $\mathbb{I}_{\text{takens}}(t)$: Cortafuegos topológico de falsos vecinos ($\Omega_{\text{FNN}} < \tau_{\text{FNN}}$) de Takens.
+   - $\mathbb{I}_{\text{risk}}(t)$: Admisibilidad estocástica de cola CVaR ($I_{\text{cvar}} > 0$).
+2. **$e^{-\max(0,\, \operatorname{div}\mathbf{F}(t))}$ (Freno Disipativo de Liouville):** Amortiguamiento volumétrico sobre la variedad Riemanniana $\mathcal{M}$; si $\operatorname{div}\mathbf{F} > 0$ (expansión inestable de volumen), atenúa exponencialmente la emisión hacia el reposo.
+3. **$\Pi_{\text{sov}}(t) = \operatorname{sgn}(S_3 + S_1) \in \{-1, +1\}$ (Polaridad Soberana de Stokes):** Sentido direccional de fase de la Fibración de Hopf en $\mathbb{C}^2 \to S^2$.
+4. **$|S_3(t) + S_1(t)|$ (Certeza Soberana Acoplada):** Resonancia cuántica continua entre Rosa Roja ($z_1$) y MRT ($z_2$).
 
 ### El por qué: Justificación Física y Teórica
 
@@ -388,7 +407,7 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 | :--- | :--- | :--- | :--- |
 | **Espinor Cuántico e Invariante de Stokes** | Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$, $\pi: \mathbb{C}^2 \to S^2 \subset \mathbb{R}^3$ | [`hopf_spinor_state.py`](domain/entities/manifold/hopf_spinor_state.py) | [L17–L62](domain/entities/manifold/hopf_spinor_state.py#L17-L62) |
 | **Proyección Racional de Hopf** | Fibración de Hopf $\pi: S^3 \to S^2$ | [`mrt_hopf_fibration.py`](domain/services/manifold/mrt_hopf_fibration.py) | [L42–L130](domain/services/manifold/mrt_hopf_fibration.py#L42-L130) |
-| **Ecuación Soberana y Blindaje $\Delta S$** | Esfera de Stokes $S^2 \times \mathbb{R}^d$ | [`master_equation.py`](infrastructure/ml/master_engine/master_equation.py) | [L109–L140](infrastructure/ml/master_engine/master_equation.py#L109-L140) |
+| **Variable Destino $\mathcal{D}(t)$ y Ecuación Soberana** | Fibrado Compuesto $\mathcal{M} \times S^2 \times \mathbb{R}$ | [`master_equation.py`](infrastructure/ml/master_engine/master_equation.py) | [L87–L172](infrastructure/ml/master_engine/master_equation.py#L87-L172) |
 | **Motor Rosa Roja y MoE Gating** | Fibrado Tangente $T\mathcal{M}$ (Cinemática Directa $+x$) | [`engine.py`](infrastructure/ml/engines/rosa_roja/algorithms/engine.py) | [L27–L163](infrastructure/ml/engines/rosa_roja/algorithms/engine.py#L27-L163) |
 | **Generador de Trayectorias Rítmicas** | Espacio de Fases $T\mathcal{M}$ y Fase $U(1)$ | [`rhythm_generator.py`](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py) | [L18–L90](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py#L18-L90) |
 | **Vorticidad Rotacional de Maxwell** | Espacio de Fases $(x, v, a) \in \mathbb{R}^3$, Álgebra $\mathfrak{so}(3)$ | [`maxwell_curl_field.py`](infrastructure/ml/engines/mrt/algorithms/modules/maxwell_curl_field.py) | [L16–L74](infrastructure/ml/engines/mrt/algorithms/modules/maxwell_curl_field.py#L16-L74) |
@@ -415,6 +434,9 @@ pytest -v tests/unit/infrastructure/engines/test_mrt_algorithms.py tests/unit/in
 
 # Validar invarianza de la Fibración de Hopf y acoplamiento dual simétrico
 pytest -v tests/unit/market/test_mrt_hopf_fibration.py
+
+# Validar Variable Destino D(t), composición Liouville-MRT y desacoplamiento
+pytest -v tests/unit/market/test_unified_destination_variable.py
 
 # Validar invarianzas de Modo Sombra (35 ciclos exactos + Veto End-to-End)
 pytest -v tests/unit/market/test_manifold_shadow_invariance.py tests/unit/market/test_dual_engine_shadow_invariance.py

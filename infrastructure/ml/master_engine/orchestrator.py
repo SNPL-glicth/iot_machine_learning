@@ -121,6 +121,20 @@ class MasterEquationOrchestrator(MasterDecisionPort):
                 logger.debug("mrt_predict_error: %s", exc)
 
         mahal_d = float(base_trace.get("mahalanobis_dist", base_trace.get("mahal_dist", state_norm)))
+        ing = getattr(self._rosa_roja, "_ingestion", None)
+        i_mahal = 0.0 if mahal_d > float(getattr(ing, "noise_threshold", 3.0)) else 1.0
+        i_takens = 1.0
+        for exp in jury:
+            if getattr(exp, "name", "") == "ramanujan_takens" or hasattr(exp, "latest_audit"):
+                aud = getattr(exp, "latest_audit", None)
+                if aud is not None and getattr(aud, "is_manifold_veto", False):
+                    i_takens = 0.0
+                    break
+        v_det = getattr(plan_base, "veto_details", None)
+        if isinstance(v_det, dict) and ("fnn" in str(v_det).lower() or v_det.get("expert_name") == "ramanujan_takens"):
+            i_takens = 0.0
+        prod_i = float(i_mahal * i_takens * (1.0 if i_cvar > 0.0 else 0.0))
+
         comp = compute_master_equation(
             phi_moe_base=phi_moe_base, i_cvar=i_cvar, lambda_t_crono=lambda_t_crono,
             kuramoto_r=float(base_trace.get("kuramoto_r", 1.0)), phase_alignment=alignment,
@@ -129,6 +143,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             dual_engine_shadow_mode=self._dual_engine_shadow_mode,
             rosa_roja_output=plan_base, mrt_output=mrt_res,
             current_reference_price=expert_mag if expert_mag > 0 else state_norm,
+            i_admissibility=prod_i,
         )
 
         eff_sigma_dr = max(0.1, state_dispersion * 2.0)
@@ -151,6 +166,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             certeza=certeza, magnitud_objetivo=magnitud_objetivo, momentum_veto=momentum_veto,
             shadow_mode=self._shadow_mode, risk_verdict=risk_verdict, temporal_verdict=temporal_verdict,
             telemetry_hash=telemetry_hash, manifold_audit=comp.manifold_audit,
+            variable_destino=comp.variable_destino,
         )
         if comp.geometric_manifold_shadow:
             master_trace["geometric_manifold_shadow"] = comp.geometric_manifold_shadow
