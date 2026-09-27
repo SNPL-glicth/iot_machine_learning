@@ -23,7 +23,7 @@ from iot_machine_learning.domain.entities.results.anomaly import (
 from iot_machine_learning.domain.entities.results.memory_search_result import (
     MemorySearchResult,
 )
-from iot_machine_learning.domain.entities.pattern import (
+from iot_machine_learning.domain.entities.patterns import (
     PatternResult,
     PatternType,
 )

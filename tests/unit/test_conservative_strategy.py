@@ -13,7 +13,7 @@ import pytest
 from iot_machine_learning.domain.entities.decision import DecisionContext
 from iot_machine_learning.domain.entities.decision.priority import Priority
 from iot_machine_learning.domain.entities.results.anomaly import AnomalySeverity
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 from iot_machine_learning.infrastructure.ml.cognitive.decision import ConservativeStrategy
 
 

@@ -18,8 +18,8 @@ import uuid
 from dataclasses import replace
 from typing import List, Optional, Set
 
-from ...entities.prediction import Prediction
-from ...entities.sensor_reading import SensorWindow
+from ...entities.results.prediction import Prediction
+from ...entities.iot.sensor_reading import SensorWindow
 from ...ports.audit_port import AuditPort
 from ...ports.prediction_port import PredictionPort
 

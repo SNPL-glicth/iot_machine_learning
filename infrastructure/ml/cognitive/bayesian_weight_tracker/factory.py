@@ -26,7 +26,7 @@ def build_advanced_bayesian(
     from .adaptive_learning_rate import AdaptiveLearningRate
     from .contextual_weight_tracker import ContextualWeightTracker
     from ..monitoring.engine_health_monitor import EngineHealthMonitor
-    from iot_machine_learning.domain.services.asymmetric_penalty_service import AsymmetricPenaltyService
+    from iot_machine_learning.domain.services.anomaly.asymmetric_penalty_service import AsymmetricPenaltyService
     from .advanced_bayesian_coordinator import AdvancedBayesianCoordinator
 
     adaptive_lr = AdaptiveLearningRate()

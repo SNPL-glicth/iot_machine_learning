@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Protocol
 
 from iot_machine_learning.domain.entities.explainability.explanation import Explanation
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 from iot_machine_learning.infrastructure.ml.cognitive.universal.analysis.pattern_interpreter import InterpretedPattern
 
 

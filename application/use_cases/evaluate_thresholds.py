@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         ThresholdRepository,
     )
 
-from iot_machine_learning.domain.services.threshold_evaluator import (
+from iot_machine_learning.domain.services.anomaly.threshold_evaluator import (
     build_violation,
     is_threshold_violated,
     is_within_warning_range,

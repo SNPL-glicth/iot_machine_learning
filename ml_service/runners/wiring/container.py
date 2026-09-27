@@ -19,7 +19,7 @@ from sqlalchemy.engine import Connection, Engine
 
 from iot_machine_learning.domain.ports.audit_port import AuditPort
 from iot_machine_learning.domain.ports.storage_port import StoragePort
-from iot_machine_learning.domain.services.prediction_domain_service import (
+from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
     PredictionDomainService,
 )
 from iot_machine_learning.infrastructure.persistence.sql.storage import (

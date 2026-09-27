@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.signal_coherence_checker import (
+from iot_machine_learning.domain.services.pattern.signal_coherence_checker import (
     CoherenceResult,
     SignalCoherenceChecker,
 )

@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 from iot_machine_learning.domain.entities.decision import Decision, DecisionContext, SimulatedOutcome
 from iot_machine_learning.domain.ports.decision_port import DecisionEnginePort
-from iot_machine_learning.domain.services.cognitive_constants import (
+from iot_machine_learning.domain.services.cognitive.cognitive_constants import (
     get_confidence_ceiling,
     get_confidence_floor,
     get_confidence_reduction_sparse,

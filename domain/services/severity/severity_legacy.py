@@ -9,9 +9,9 @@ from __future__ import annotations
 import warnings
 from typing import Any, Optional, Tuple, Union
 
-from ...entities.severity import SeverityResult
-from ...entities.threshold import Threshold
-from ...entities.sensor_ranges import get_default_range
+from ...entities.results.severity import SeverityResult
+from ...entities.series.threshold import Threshold
+from ...entities.iot.sensor_ranges import get_default_range
 from .severity_helpers import compute_risk_level_from_threshold
 
 

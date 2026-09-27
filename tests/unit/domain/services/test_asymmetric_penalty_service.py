@@ -14,7 +14,7 @@ from iot_machine_learning.domain.entities.series.series_context import (
     SeriesContext,
     Threshold,
 )
-from iot_machine_learning.domain.services.asymmetric_penalty_service import (
+from iot_machine_learning.domain.services.anomaly.asymmetric_penalty_service import (
     AsymmetricPenaltyService,
 )
 

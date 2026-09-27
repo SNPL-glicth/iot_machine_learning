@@ -17,7 +17,7 @@ from iot_machine_learning.domain.ports.document_analysis import (
     DocumentPersistencePort,
     PlasticityPort,
 )
-from iot_machine_learning.domain.services.plasticity_feedback import (
+from iot_machine_learning.domain.services.cognitive.plasticity_feedback import (
     update_plasticity_from_result,
 )
 from iot_machine_learning.infrastructure.persistence.cache import (

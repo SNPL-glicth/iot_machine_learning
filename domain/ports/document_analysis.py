@@ -96,7 +96,7 @@ class AnalysisOutput:
                     "urgency_score": urgency_score,
                     "sentiment_label": sentiment_label,
                 }
-                from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
+                from iot_machine_learning.domain.services.cognitive.conclusion_formatter import format_conclusion
                 narrative = format_conclusion(result, entities_dict)
         except Exception as exc:
             logger.error(

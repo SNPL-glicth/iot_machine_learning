@@ -16,7 +16,7 @@ import time
 from typing import Optional
 
 from ...domain.ports.storage_port import StoragePort
-from ...domain.services.pattern_domain_service import PatternDomainService
+from ...domain.services.pattern.pattern_domain_service import PatternDomainService
 from ..dto.prediction_dto import PatternDTO
 
 logger = logging.getLogger(__name__)

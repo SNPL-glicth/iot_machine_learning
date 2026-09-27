@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.action_guard import (
+from iot_machine_learning.domain.services.actions.action_guard import (
     ActionGuard,
     GuardedAction,
 )

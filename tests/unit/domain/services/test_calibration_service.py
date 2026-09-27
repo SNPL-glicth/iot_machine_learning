@@ -9,7 +9,7 @@ from iot_machine_learning.domain.ports.calibrator_repository_port import (
     CalibratorRepositoryPort,
     InMemoryCalibratorRepository,
 )
-from iot_machine_learning.domain.services.calibration_service import (
+from iot_machine_learning.domain.services.calibration.calibration_service import (
     CalibratedPrediction,
     CalibrationContext,
     CalibrationService,

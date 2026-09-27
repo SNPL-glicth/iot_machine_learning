@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Optional
 
-from ...domain.entities.sensor_reading import SensorReading, SensorWindow
+from ...domain.entities.iot.sensor_reading import SensorReading, SensorWindow
 from ...domain.ports.audit_port import AuditPort
 from ...domain.ports.cognitive_memory_port import CognitiveMemoryPort
 from ...domain.ports.experiment_tracker_port import (
@@ -18,11 +18,11 @@ from ...domain.ports.experiment_tracker_port import (
     NullExperimentTracker,
 )
 from ...domain.ports.storage_port import StoragePort
-from ...domain.services.memory_recall_enricher import (
+from ...domain.services.cognitive.memory_recall_enricher import (
     MemoryRecallContext,
     MemoryRecallEnricher,
 )
-from ...domain.services.prediction_domain_service import PredictionDomainService
+from ...domain.services.prediction.prediction_domain_service import PredictionDomainService
 from ...domain.validators.data_sanitizer import DataSanitizer
 from ...ml_service.config.feature_flags import FeatureFlags
 from ..dto.prediction_dto import PredictionDTO

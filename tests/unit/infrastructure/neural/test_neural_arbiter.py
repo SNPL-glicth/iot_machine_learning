@@ -7,7 +7,7 @@ from infrastructure.ml.cognitive.neural.competition.outcome_tracker import Outco
 from infrastructure.ml.cognitive.neural.types import NeuralResult, InputType
 from infrastructure.ml.cognitive.universal.analysis.types import UniversalResult
 from iot_machine_learning.domain.entities.explainability import Explanation
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 
 
 class TestArbiterInitialization:

@@ -6,7 +6,7 @@ import pytest
 
 from iot_machine_learning.domain.entities.decision import Decision, DecisionContext
 from iot_machine_learning.domain.entities.results.severity import SeverityResult
-from iot_machine_learning.domain.services.alert_suppressor import AlertSuppressor
+from iot_machine_learning.domain.services.anomaly.alert_suppressor import AlertSuppressor
 
 
 class TestEscalationOverride:

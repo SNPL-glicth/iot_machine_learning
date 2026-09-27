@@ -13,7 +13,7 @@ from iot_machine_learning.domain.ports.analysis import (
     Signal,
 )
 
-from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion
+from iot_machine_learning.domain.services.cognitive.conclusion_formatter import format_conclusion
 # text/ module deleted - entity extraction removed
 # from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
 #     extract_entities,

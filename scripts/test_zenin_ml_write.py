@@ -17,7 +17,7 @@ from uuid import uuid4
 
 from sqlalchemy import create_engine, text
 
-from domain.entities.prediction import Prediction, PredictionConfidence
+from domain.entities.results.prediction import Prediction, PredictionConfidence
 from infrastructure.persistence.sql.dual_write_storage import DualWriteStorageAdapter
 
 logging.basicConfig(level=logging.INFO)

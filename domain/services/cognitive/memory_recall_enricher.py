@@ -23,8 +23,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from ...entities.memory_search_result import MemorySearchResult
-from ...entities.prediction import Prediction
+from ...entities.results.memory_search_result import MemorySearchResult
+from ...entities.results.prediction import Prediction
 from ...ports.cognitive_memory_port import CognitiveMemoryPort
 
 logger = logging.getLogger(__name__)

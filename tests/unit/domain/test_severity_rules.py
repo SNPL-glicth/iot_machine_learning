@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.severity_rules import (
+from iot_machine_learning.domain.services.severity.severity_rules import (
     SeverityResult,
     build_recommended_action,
     classify_severity,

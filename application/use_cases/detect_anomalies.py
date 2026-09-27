@@ -15,7 +15,7 @@ from typing import Optional
 
 from ...domain.ports.audit_port import AuditPort
 from ...domain.ports.storage_port import StoragePort
-from ...domain.services.anomaly_domain_service import AnomalyDomainService
+from ...domain.services.anomaly.anomaly_domain_service import AnomalyDomainService
 from ..dto.prediction_dto import AnomalyDTO
 
 logger = logging.getLogger(__name__)

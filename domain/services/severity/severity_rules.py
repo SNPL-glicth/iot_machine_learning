@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ...entities.severity import SeverityResult
-from ...entities.threshold import Threshold
+from ...entities.results.severity import SeverityResult
+from ...entities.series.threshold import Threshold
 
 # Re-export helpers so existing imports keep working.
 from .severity_helpers import (

@@ -10,7 +10,7 @@ from typing import Dict
 from domain.ports.prediction_port import PredictionPort
 from domain.ports.expert_port import ExpertPort, ExpertOutput, ExpertCapability
 from iot_machine_learning.domain.entities.results.prediction import Prediction
-from domain.entities.sensor_reading import SensorWindow
+from domain.entities.iot.sensor_reading import SensorWindow
 from domain.model.context_vector import ContextVector
 from infrastructure.ml.moe.registry.expert_registry import ExpertRegistry
 from infrastructure.ml.moe.gating.base import GatingNetwork, GatingProbs

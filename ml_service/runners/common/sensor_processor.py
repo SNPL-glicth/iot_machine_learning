@@ -38,7 +38,7 @@ try:
     from .regression_prediction_service import RegressionPredictionService
     from .prediction_narrator import PredictionNarrator
 except ImportError:
-    from domain.entities.prediction import Prediction
+    from domain.entities.results.prediction import Prediction
     from infrastructure.persistence.sql.storage import SqlServerStorageAdapter
     from model_manager import ModelManager
     from event_writer import EventWriter

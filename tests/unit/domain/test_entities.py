@@ -24,7 +24,7 @@ from iot_machine_learning.domain.entities.results.anomaly import (
     AnomalyResult,
     AnomalySeverity,
 )
-from iot_machine_learning.domain.entities.pattern import (
+from iot_machine_learning.domain.entities.patterns import (
     ChangePoint,
     ChangePointType,
     DeltaSpikeResult,

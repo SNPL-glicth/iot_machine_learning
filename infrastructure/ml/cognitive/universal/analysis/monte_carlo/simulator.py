@@ -10,7 +10,7 @@ import time
 from typing import Dict, Tuple
 
 from ..types import InputType
-from iot_machine_learning.domain.services.severity_rules import (
+from iot_machine_learning.domain.services.severity.severity_rules import (
     classify_severity_agnostic,
 )
 

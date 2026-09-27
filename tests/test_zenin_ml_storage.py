@@ -14,7 +14,7 @@ ZeninMLStorageAdapter = MagicMock
 _sensor_id_to_series_id = MagicMock
 _engine_series_to_model_id = MagicMock
 DualWriteStorageAdapter = MagicMock
-from domain.entities.prediction import Prediction, PredictionConfidence
+from domain.entities.results.prediction import Prediction, PredictionConfidence
 
 
 class TestSensorIdToSeriesId:

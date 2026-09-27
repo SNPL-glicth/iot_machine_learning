@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from iot_machine_learning.infrastructure.ml.cognitive.orchestration.phases.action_guard_phase import ActionGuardPhase
-from iot_machine_learning.domain.services.action_guard import GuardedAction
+from iot_machine_learning.domain.services.actions.action_guard import GuardedAction
 
 
 @pytest.fixture

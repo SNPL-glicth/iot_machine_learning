@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional, Protocol, Tuple, runtime_checkable
 
-from iot_machine_learning.domain.services.severity_rules import (
+from iot_machine_learning.domain.services.severity.severity_rules import (
     SeverityResult,
     classify_severity,
     compute_risk_level,

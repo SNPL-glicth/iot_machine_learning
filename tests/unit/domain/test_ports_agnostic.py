@@ -340,7 +340,7 @@ class TestDomainServicesUseSeries:
 
         audit.log_series_prediction = tracking_log
 
-        from iot_machine_learning.domain.services.prediction_domain_service import (
+        from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
             PredictionDomainService,
         )
         from iot_machine_learning.domain.ports.prediction_port import PredictionPort
@@ -387,7 +387,7 @@ class TestDomainServicesUseSeries:
 
         audit.log_series_anomaly = tracking_log
 
-        from iot_machine_learning.domain.services.anomaly_domain_service import (
+        from iot_machine_learning.domain.services.anomaly.anomaly_domain_service import (
             AnomalyDomainService,
         )
         from iot_machine_learning.domain.ports.anomaly_detection_port import (

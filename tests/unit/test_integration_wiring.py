@@ -26,10 +26,10 @@ from iot_machine_learning.domain.entities.iot.sensor_reading import (
 from iot_machine_learning.domain.ports.anomaly_detection_port import (
     AnomalyDetectionPort,
 )
-from iot_machine_learning.domain.services.anomaly_domain_service import (
+from iot_machine_learning.domain.services.anomaly.anomaly_domain_service import (
     AnomalyDomainService,
 )
-from iot_machine_learning.domain.services.pattern_domain_service import (
+from iot_machine_learning.domain.services.pattern.pattern_domain_service import (
     PatternDomainService,
 )
 

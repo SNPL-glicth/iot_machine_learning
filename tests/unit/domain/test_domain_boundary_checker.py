@@ -13,7 +13,7 @@ import math
 import numpy as np
 import pytest
 
-from iot_machine_learning.domain.services.domain_boundary_checker import (
+from iot_machine_learning.domain.services.pattern.domain_boundary_checker import (
     DomainBoundaryChecker,
 )
 from iot_machine_learning.domain.entities.results.boundary_result import BoundaryResult

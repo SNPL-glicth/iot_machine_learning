@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.narrative_unifier import (
+from iot_machine_learning.domain.services.cognitive.narrative_unifier import (
     NarrativeUnifier,
     NarrativeSource,
 )

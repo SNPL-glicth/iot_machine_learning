@@ -28,7 +28,7 @@ from typing import Dict, List, Optional
 
 from ..entities.results.anomaly import AnomalyResult
 from ..entities.results.memory_search_result import MemorySearchResult
-from ..entities.pattern import PatternResult
+from ..entities.patterns.pattern_result import PatternResult
 from ..entities.results.prediction import Prediction
 
 

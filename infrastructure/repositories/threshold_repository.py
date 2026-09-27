@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from ...domain.services.threshold_evaluator import (
+from ...domain.services.anomaly.threshold_evaluator import (
     ThresholdDefinition,
     ThresholdViolation,
 )

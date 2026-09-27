@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.engine_decision_arbiter import (
+from iot_machine_learning.domain.services.prediction.engine_decision_arbiter import (
     EngineDecision,
     EngineDecisionArbiter,
 )

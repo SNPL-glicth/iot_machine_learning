@@ -16,7 +16,7 @@ from iot_machine_learning.domain.entities.decision import (
 )
 from iot_machine_learning.domain.entities.decision.priority import Priority
 from iot_machine_learning.domain.entities.results.anomaly import AnomalySeverity
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 from iot_machine_learning.domain.ports.decision_port import (
     DecisionEnginePort,
     NullDecisionEngine,

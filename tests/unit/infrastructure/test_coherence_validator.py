@@ -10,7 +10,7 @@ from iot_machine_learning.infrastructure.ml.cognitive.universal.validation.coher
     CoherenceValidator,
     CoherenceReport,
 )
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 
 
 @dataclass

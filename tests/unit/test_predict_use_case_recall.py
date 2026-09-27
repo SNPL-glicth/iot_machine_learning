@@ -33,7 +33,7 @@ from iot_machine_learning.domain.ports.cognitive_memory_port import (
     CognitiveMemoryPort,
 )
 from iot_machine_learning.domain.ports.storage_port import StoragePort
-from iot_machine_learning.domain.services.prediction_domain_service import (
+from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
     PredictionDomainService,
 )
 from iot_machine_learning.ml_service.config.feature_flags import FeatureFlags

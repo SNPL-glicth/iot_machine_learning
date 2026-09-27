@@ -22,7 +22,7 @@ from iot_machine_learning.domain.entities.results.prediction import Prediction
 from iot_machine_learning.domain.ports.cognitive_memory_port import (
     CognitiveMemoryPort,
 )
-from iot_machine_learning.domain.services.memory_recall_enricher import (
+from iot_machine_learning.domain.services.cognitive.memory_recall_enricher import (
     MemoryRecallContext,
     MemoryRecallEnricher,
 )

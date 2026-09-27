@@ -16,8 +16,8 @@ import logging
 import uuid
 from typing import List, Optional
 
-from ...entities.anomaly import AnomalyResult, AnomalySeverity
-from ...entities.sensor_reading import SensorWindow
+from ...entities.results.anomaly import AnomalyResult, AnomalySeverity
+from ...entities.iot.sensor_reading import SensorWindow
 from ...ports.anomaly_detection_port import AnomalyDetectionPort
 from ...ports.audit_port import AuditPort
 

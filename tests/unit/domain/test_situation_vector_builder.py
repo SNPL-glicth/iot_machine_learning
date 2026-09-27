@@ -14,7 +14,7 @@ from iot_machine_learning.domain.entities.explainability.reasoning_trace import 
 from iot_machine_learning.domain.entities.explainability.signal_snapshot import (
     SignalSnapshot,
 )
-from iot_machine_learning.domain.services.situation_vector_builder import (
+from iot_machine_learning.domain.services.cognitive.situation_vector_builder import (
     _SITUATION_VECTOR_DIM,
     _clamp01,
     _circuit_to_numeric,

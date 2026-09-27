@@ -6,7 +6,7 @@ from threading import RLock
 from typing import Dict, List, Optional, Tuple
 
 from ...domain.ports.series_correlation_port import SeriesCorrelationPort
-from ...domain.services.interaction_field_service import InteractionFieldService
+from ...domain.services.cognitive.interaction_field_service import InteractionFieldService
 
 logger = logging.getLogger(__name__)
 

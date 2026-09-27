@@ -134,7 +134,7 @@ class TestCognitiveOrchestratorInjection:
 
     def test_fallback_to_baseline_when_cognitive_fails(self) -> None:
         """PredictionDomainService falls back to last engine when cognitive fails."""
-        from iot_machine_learning.domain.services.prediction_domain_service import (
+        from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
             PredictionDomainService,
         )
         from iot_machine_learning.ml_service.api.services.prediction_service import (

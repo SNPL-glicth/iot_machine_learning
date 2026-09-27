@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from iot_machine_learning.domain.services.severity_rules import (
+from iot_machine_learning.domain.services.severity.severity_rules import (
     SeverityResult,
     classify_severity_agnostic,
 )

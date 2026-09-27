@@ -4,12 +4,16 @@ Orquestan la lógica de negocio usando ports (interfaces).
 No conocen implementaciones concretas de infraestructura.
 
 Subdirectories:
-- prediction/ — predicción y calibración de confianza
-- anomaly/ — detección de anomalías y supresión de alertas
-- pattern/ — detección de patrones y coherencia
-- cognitive/ — narrativa, memoria, contexto
 - actions/ — recomendación de acciones
+- anomaly/ — detección de anomalías y supresión de alertas
+- calibration/ — calibración de evidencia y predicciones
+- cognitive/ — narrativa, memoria, contexto
+- manifold/ — geometría diferencial y variedades
+- pattern/ — detección de patrones y coherencia
+- prediction/ — predicción y toma de decisiones
+- semantic_extraction/ — extracción de entidades y priorización
 - severity/ — clasificación de severidad
+- takens/ — reconstrucción de espacio de fases y dimensión espectral
 """
 try:
     from .prediction.prediction_domain_service import PredictionDomainService

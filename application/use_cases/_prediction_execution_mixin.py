@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any
 
-from ...domain.entities.sensor_reading import SensorWindow
+from ...domain.entities.iot.sensor_reading import SensorWindow
 from ..dto.prediction_dto import PredictionDTO
 
 logger = logging.getLogger(__name__)

@@ -24,7 +24,7 @@ from iot_machine_learning.domain.ports.experiment_tracker_port import (
     ExperimentTrackerPort,
     NullExperimentTracker,
 )
-from iot_machine_learning.domain.services.prediction_domain_service import (
+from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
     PredictionDomainService,
 )
 

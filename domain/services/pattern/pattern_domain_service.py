@@ -17,7 +17,7 @@ import logging
 import uuid
 from typing import List, Optional
 
-from ...entities.pattern import (
+from ...entities.patterns import (
     ChangePoint,
     DeltaSpikeResult,
     OperationalRegime,
@@ -25,7 +25,7 @@ from ...entities.pattern import (
     PatternType,
     SpikeClassification,
 )
-from ...entities.sensor_reading import SensorWindow
+from ...entities.iot.sensor_reading import SensorWindow
 from ...ports.audit_port import AuditPort
 from ...ports.pattern_detection_port import (
     ChangePointDetectionPort,

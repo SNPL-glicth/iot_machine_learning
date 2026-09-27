@@ -38,7 +38,7 @@ from iot_machine_learning.application.use_cases.evaluate_thresholds import (
 from iot_machine_learning.application.use_cases.enrich_prediction import (
     EnrichPredictionUseCase,
 )
-from iot_machine_learning.domain.services.prediction_domain_service import (
+from iot_machine_learning.domain.services.prediction.prediction_domain_service import (
     PredictionDomainService,
 )
 from iot_machine_learning.domain.ports.storage_port import StoragePort

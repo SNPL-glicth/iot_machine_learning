@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from iot_machine_learning.domain.services.threshold_evaluator import (
+from iot_machine_learning.domain.services.anomaly.threshold_evaluator import (
     ThresholdDefinition,
     ThresholdViolation,
     build_violation,

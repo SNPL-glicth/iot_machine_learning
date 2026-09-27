@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from iot_machine_learning.domain.services.conclusion_formatter import format_conclusion, format_simple_conclusion
+from iot_machine_learning.domain.services.cognitive.conclusion_formatter import format_conclusion, format_simple_conclusion
 from iot_machine_learning.infrastructure.ml.cognitive.text.entity_extractor import (
     extract_entities,
     extract_urgency_sentiment,

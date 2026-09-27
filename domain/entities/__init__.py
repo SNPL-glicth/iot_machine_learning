@@ -1,14 +1,11 @@
 """Entidades y Value Objects del dominio UTSAE.
 
-Organización por subcarpetas:
+Organización por subcarpetas canónicas:
 - ``series/``   — Primitivos de series temporales (TimeSeries, TemporalFeatures, StructuralAnalysis, SeriesProfile, SeriesContext)
 - ``patterns/`` — Resultados de detección de patrones (PatternResult, ChangePoint, DeltaSpikeResult, OperationalRegime)
-- ``results/``  — Resultados de inferencia (AnomalyResult, Prediction, MemorySearchResult)
-- ``iot/``      — Entidades IoT legacy (SensorReading, SensorWindow, sensor_ranges)
+- ``results/``  — Resultados de inferencia (AnomalyResult, Prediction, MemorySearchResult, SeverityResult)
+- ``iot/``      — Entidades IoT (SensorProfile, SensorReading, SensorWindow, sensor_ranges)
 - ``decision/`` — Decision engine entities (Decision, DecisionContext, SimulatedOutcome)
-
-Todos los imports legacy siguen funcionando gracias a facades de re-export
-en los archivos raíz (e.g. ``from .anomaly import ...``).
 """
 
 # --- IoT (legacy boundary) ---

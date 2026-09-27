@@ -301,7 +301,7 @@ def test_versioning():
     print("TEST 7: Versioning Per Prediction")
     print("-" * 30)
     
-    from iot_machine_learning.domain.services.calibration_service import (
+    from iot_machine_learning.domain.services.calibration.calibration_service import (
         CalibrationService,
         CalibrationContext,
         EvidenceGateDecision,

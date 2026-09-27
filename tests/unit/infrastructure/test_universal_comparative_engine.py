@@ -17,7 +17,7 @@ from iot_machine_learning.domain.entities.explainability.explanation import (
     SignalSnapshot,
     Outcome,
 )
-from iot_machine_learning.domain.services.severity_rules import SeverityResult
+from iot_machine_learning.domain.services.severity.severity_rules import SeverityResult
 
 
 class TestUniversalComparativeEngineBasic:
