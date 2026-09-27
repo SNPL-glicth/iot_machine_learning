@@ -20,13 +20,18 @@ En cada instante temporal $t$, la acción del sistema dinámico está gobernada 
 
 $$
 \mathbf{U}(t) = \begin{cases}
-\text{EXECUTE}(S_{\text{target}}, \Pi_{\text{sovereign}}) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \land I_{\text{CVaR}} = 1 \land \Omega_{\text{FNN}} < \tau_{\text{FNN}} \\
-\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \lor V_{\text{momentum}} = 0 \\
-\text{EMERGENCY-FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \lor I_{\text{CVaR}} = 0
+\text{EXECUTE}(S_{\text{target}}, \Pi_{\text{sovereign}}) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \land \mathbb{I}_{\text{estable}} = 1 \land \Omega_{\text{FNN}} < \tau_{\text{FNN}} \land V_{\text{inercia}} > 0 \\
+\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \lor V_{\text{inercia}} = 0 \\
+\text{EMERGENCY-FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \lor \mathbb{I}_{\text{estable}} = 0
 \end{cases}
 $$
 
-Donde la directiva de ejecución no se basa en heurísticas discretas, sino en la interacción analítica continua de los dos polos dinámicos sobre la esfera de Stokes:
+Donde la directiva de ejecución no se basa en heurísticas discretas, sino en la interacción analítica continua de los dos polos dinámicos sobre la esfera de Stokes bajo condiciones de estabilidad topológica:
+* **$\Phi_{\text{sovereign}} \ge \gamma_{\text{exec}}$:** La certeza analítica supera el umbral crítico de activación variacional.
+* **$\mathbb{I}_{\text{estable}} = 1$:** Criterio de admisibilidad estocástica y estabilidad de Lyapunov activo.
+* **$\Omega_{\text{FNN}} < \tau_{\text{FNN}}$:** Ausencia de falsos vecinos más cercanos y preservación topológica del atractor.
+* **$V_{\text{inercia}} > 0$:** La inercia del flujo temporal supera la banda muerta del ruido del sistema.
+* **$d_M^2 \le \chi_{d, \alpha}^2$:** Confinamiento elíptico en la variedad métrica dentro del intervalo de confianza $\chi^2$.
 
 #### B. Representación Espinorial en $\mathbb{C}^2$ y Esfera de Stokes
 > **Espacio Matemático:** Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$ acoplado a la 3-esfera $S^3 \subset \mathbb{C}^2$.  
@@ -40,10 +45,10 @@ $$
 
 Las amplitudes de ambos modos conjugados se evalúan de forma analítica y continua:
 
-**Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el factor de riesgo $I_{\text{CVaR}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
+**Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el indicador de estabilidad $\mathbb{I}_{\text{estable}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
 
 $$
-|z_1| = \Phi_{\text{MoE, final}} \cdot I_{\text{CVaR}} \cdot \Lambda(t) \cdot (r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}})
+|z_1| = \Phi_{\text{MoE, final}} \cdot \mathbb{I}_{\text{estable}} \cdot \Lambda(t) \cdot (r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}})
 $$
 
 **Polo Negativo $z_2 \in \mathbb{C}$ (MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$:
@@ -371,7 +376,7 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 
 | Bandera | Ubicación | Default | Efecto Operativo Agnóstico |
 | :--- | :--- | :--- | :--- |
-| `master_shadow_mode` | `bot_config.py` | `False` | Gobierna si la certeza de la Ecuación Maestra define las directivas de ejecución activas o si opera en registro pasivo. |
+| `master_shadow_mode` | `orchestrator.py` | `False` | Gobierna si la certeza de la Ecuación Maestra define las directivas de ejecución activas o si opera en registro pasivo. |
 | `manifold_shadow_mode` | `orchestrator.py` | `True` | Ejecuta el acoplamiento dual Rosa Roja + MRT y telemetría diagnóstica en paralelo, sin alterar la magnitud de los actuadores hasta su activación institucional. |
 
 ---
