@@ -16,13 +16,13 @@ ZENIN gobierna la inferencia topológica unificando los dos motores canónicos d
 ### Lo que hay: Formulación Matemática de la Ecuación Maestra
 
 #### A. La Ecuación Maestra Unificada del Sistema
-En cada instante temporal $t$, la acción del sistema dinámico está gobernada por el **Operador Soberano de Decisión** $\mathbf{U}(t) \in \{\text{EXECUTE}, \text{HOLD}, \text{EMERGENCY\_FLUSH}\}$:
+En cada instante temporal $t$, la acción del sistema dinámico está gobernada por el **Operador Soberano de Decisión** $\mathbf{U}(t) \in \{\text{EXECUTE}, \text{HOLD}, \text{EMERGENCY-FLUSH}\}$:
 
 $$
 \mathbf{U}(t) = \begin{cases}
-\text{EXECUTE}\big(S_{\text{target}}, \; \Pi_{\text{sovereign}}, \; \Phi_{\text{sovereign}}\big) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \;\land\; I_{\text{CVaR}} = 1 \;\land\; \Omega_{\text{FNN}} < \tau_{\text{FNN}} \;\land\; V_{\text{momentum}} > 0 \\
-\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \;\lor\; V_{\text{momentum}} = 0 \\
-\text{EMERGENCY\_FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \;\lor\; I_{\text{CVaR}} = 0
+\text{EXECUTE}(S_{\text{target}}, \Pi_{\text{sovereign}}) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \land I_{\text{CVaR}} = 1 \land \Omega_{\text{FNN}} < \tau_{\text{FNN}} \\
+\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \lor V_{\text{momentum}} = 0 \\
+\text{EMERGENCY-FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \lor I_{\text{CVaR}} = 0
 \end{cases}
 $$
 
@@ -38,14 +38,19 @@ $$
 |\psi(t)\rangle = \begin{pmatrix} z_1(t) \\ z_2(t) \end{pmatrix} = \begin{pmatrix} |z_1|e^{i\theta_1} \\ |z_2|e^{i\theta_2} \end{pmatrix} \in \mathbb{C}^2
 $$
 
-* **$z_1 \in \mathbb{C}$ (Polo Positivo - Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el factor de riesgo $I_{\text{CVaR}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
-  $$
-  |z_1| = \Phi_{\text{MoE, final}} \cdot I_{\text{CVaR}} \cdot \Lambda(t) \cdot \big(r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}}\big)
-  $$
-* **$z_2 \in \mathbb{C}$ (Polo Negativo - MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$:
-  $$
-  |z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\text{Ramanujan}} \cdot C_{\text{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\text{frob}}}{\varepsilon_{\text{strain}}}
-  $$
+Las amplitudes de ambos modos conjugados se evalúan de forma analítica y continua:
+
+**Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el factor de riesgo $I_{\text{CVaR}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
+
+$$
+|z_1| = \Phi_{\text{MoE, final}} \cdot I_{\text{CVaR}} \cdot \Lambda(t) \cdot (r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}})
+$$
+
+**Polo Negativo $z_2 \in \mathbb{C}$ (MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$:
+
+$$
+|z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\text{Ramanujan}} \cdot C_{\text{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\text{frob}}}{\varepsilon_{\text{strain}}}
+$$
 
 A través de la proyección de Hopf $\pi: S^3 \to S^2$, el espinor se proyecta sobre la esfera de Stokes:
 
