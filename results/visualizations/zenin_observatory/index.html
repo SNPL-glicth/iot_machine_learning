@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZENIN v2.4+ — Observatorio de Decision Cuantica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-m">Z</div>
+    <div>
+      <div class="logo-n">ZENIN v2.4+ — Observatorio de Geometria y Decision Dinamica</div>
+      <div class="logo-s">Acoplamiento Dual Hopf (Rosa Roja z1 + MRT z2) | Mapeo Multirregimen en Tiempo Continuo</div>
+    </div>
+  </div>
+  <div class="chips">
+    <span class="chip chip-g">Invariante Casimir err &lt; 3.33e-16</span>
+    <span class="chip chip-b">Plotly WebGL 3D Desacoplado</span>
+    <span class="chip">220 pasos | dt = 0.05s</span>
+    <span class="chip chip-r">11 outliers Mahalanobis aislados</span>
+  </div>
+</header>
+
+<div class="ws">
+  <!-- MASTER TOOLBAR -->
+  <div class="tbar">
+    <div class="tbar-top">
+      <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('geo3d')">Geometria 3D y Espacio de Fases</button>
+        <button class="tab-btn" onclick="switchTab('signals')">Senales Dinamicas en Tiempo Real</button>
+        <button class="tab-btn" onclick="switchTab('bitacora')">Bitacora de Decisiones y Diagnostico</button>
+        <button class="tab-btn" onclick="switchTab('resumen')">Sustentacion y Resumen Ejecutivo</button>
+      </nav>
+      <div class="pbk">
+        <button class="btn btn-p" id="btnPlay" onclick="togglePlayback()">&#9654; Play General</button>
+        <button class="btn" onclick="stepSim(-10)">-10</button>
+        <button class="btn" onclick="stepSim(-1)">-1</button>
+        <button class="btn" onclick="stepSim(1)">+1</button>
+        <button class="btn" onclick="stepSim(10)">+10</button>
+        <div class="slw">
+          <input type="range" min="0" max="219" value="0" id="timeSlider" oninput="onSlider(this.value)">
+          <span class="tlbl" id="timeLabel">t = 0.00 s</span>
+        </div>
+        <select class="btn" id="speedSel" onchange="changeSpeed(this.value)">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="2">2.0x</option>
+          <option value="4">4.0x</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- HUD TELEMETRY -->
+    <div class="hud">
+      <div class="hc">
+        <div class="hl">Paso / Regimen de Mercado</div>
+        <div class="hv mono tc" id="hudStep">#000</div>
+        <div class="hsb" id="hudRegime">Laminar Steady Drift</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Estado x(t) [Precio Base]</div>
+        <div class="hv" id="hudX">100.000</div>
+        <div class="hsb" id="hudDx">dx = +0.0000</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Cinematica [Velocidad / Acel]</div>
+        <div class="hv" id="hudVA">v:0.00 a:0.00</div>
+        <div class="hsb">dx/dt y d²x/dt²</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Dist. Mahalanobis d(t)</div>
+        <div class="hv" id="hudMahal">0.0000</div>
+        <div class="hsb" id="hudMS">Filtro normal (tau=3.0)</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Riesgo CVaR(t) / Limite L_max</div>
+        <div class="hv" id="hudCvar">0.0000 / 0.020</div>
+        <div class="hsb" id="hudCS">Sin veto activo</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Sincronia Temporal Lambda(t)</div>
+        <div class="hv" id="hudLambda">0.8500</div>
+        <div class="hsb">Acople de ritmo [0..1]</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Espinor Stokes (S0 / S1 / S3)</div>
+        <div class="hv" id="hudSt">1.00/0.91/0.00</div>
+        <div class="hsb" id="hudS2">S2 = 0.0000</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Variable Destino D(t)</div>
+        <div class="hv tg" id="hudD">0.7900</div>
+        <div class="hsb" id="hudLv">Liouville = 1.0000</div>
+      </div>
+      <div class="hc">
+        <div class="hl">Decision de Ejecucion ZENIN</div>
+        <div class="hv" id="hudAction"><span class="b-exec">EXECUTE</span></div>
+        <div class="hsb" id="hudAR">Alta certeza — todo verde</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 1: GEOMETRIA 3D -->
+  <div id="pane-geo3d" class="tpane active">
+    <div class="ibanner">
+      <b>Interaccion Tridimensional Desacoplada y Fluida:</b>
+      <div class="ibc">
+        <span class="kkey">Click izquierdo + arrastrar</span> Rotacion 360 grados
+        <span class="kkey">Click derecho + arrastrar</span> Desplazamiento (Pan)
+        <span class="kkey">Rueda del raton</span> Zoom in / out
+        <span class="kkey">Doble click</span> Reiniciar angulo de camara
+        <button class="btn btn-s" id="btnGrot" onclick="toggleAllRotate()">Auto-giro: OFF</button>
+        <label style="font-size:.72rem;color:var(--td);display:flex;align-items:center;gap:6px;">
+          Giro: <input type="range" id="rotSpd" min="1" max="30" value="10" style="width:75px;height:4px;">
+        </label>
+      </div>
+    </div>
+
+    <div class="g3">
+      <!-- CARD 1: PHASE SPACE M^3 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct">
+            <span class="dot" style="background:var(--cy)"></span>
+            1. Atractor en Espacio de Fases
+          </div>
+          <div class="pcbtn">
+            <span class="pcbadge">M³(x, dx/dt, d²x/dt²)</span>
+            <button class="btn btn-s" onclick="toggleRotate('ph')">Girar</button>
+            <button class="btn btn-s" onclick="setView('ph','iso')">Iso</button>
+            <button class="btn btn-s" onclick="setView('ph','top')">Top</button>
+            <button class="btn btn-s" onclick="setView('ph','side')">Perfil</button>
+          </div>
+        </div>
+
+        <div id="p3d-ph" class="c3d"></div>
+
+        <!-- INDEPENDENT PLAYBACK BAR -->
+        <div class="plot-pbk">
+          <button class="btn btn-xs" id="ppbtn-ph" onclick="togglePlotPlay('ph')">▶ Play</button>
+          <button class="btn btn-xs" onclick="plotStep('ph', -1)">-1</button>
+          <button class="btn btn-xs" onclick="plotStep('ph', 1)">+1</button>
+          <input type="range" min="0" max="219" value="0" id="pslider-ph" oninput="onPlotSlider('ph', this.value)">
+          <span class="p-step" id="pstep-ph">#000 / 220</span>
+          <span class="p-regime" id="pregime-ph">Laminar Steady Drift</span>
+        </div>
+
+        <div class="lbar">
+          <span class="lg"><span class="lg-d" style="background:#38bdf8"></span> Orbita M³ coloreada por Certeza D(t)</span>
+          <span class="lg"><span class="lg-d" style="background:#10b981"></span> EXECUTE</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> HOLD</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> FLUSH</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: STOKES SPHERE S^2 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct">
+            <span class="dot" style="background:var(--pk)"></span>
+            2. Esfera de Stokes S² — Fibracion de Hopf
+          </div>
+          <div class="pcbtn">
+            <span class="pcbadge">(S1, S2, S3) / S0</span>
+            <button class="btn btn-s" onclick="toggleRotate('st')">Girar</button>
+            <button class="btn btn-s" onclick="setView('st','north')">Norte</button>
+            <button class="btn btn-s" onclick="setView('st','eq')">Ecuador</button>
+            <button class="btn btn-s" onclick="setView('st','iso')">Iso</button>
+          </div>
+        </div>
+
+        <div id="p3d-st" class="c3d"></div>
+
+        <!-- INDEPENDENT PLAYBACK BAR -->
+        <div class="plot-pbk">
+          <button class="btn btn-xs" id="ppbtn-st" onclick="togglePlotPlay('st')">▶ Play</button>
+          <button class="btn btn-xs" onclick="plotStep('st', -1)">-1</button>
+          <button class="btn btn-xs" onclick="plotStep('st', 1)">+1</button>
+          <input type="range" min="0" max="219" value="0" id="pslider-st" oninput="onPlotSlider('st', this.value)">
+          <span class="p-step" id="pstep-st">#000 / 220</span>
+          <span class="p-regime" id="pregime-st">Laminar Steady Drift</span>
+        </div>
+
+        <div class="lbar">
+          <span class="lg"><span class="lg-d" style="background:#ec4899"></span> Polo Norte: Rosa Roja (z1)</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> Polo Sur: MRT (z2)</span>
+          <span class="lg"><span class="lg-d" style="background:#38bdf8"></span> Trayectoria del Espinor</span>
+        </div>
+      </div>
+
+      <!-- CARD 3: DECISION SURFACE -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct">
+            <span class="dot" style="background:var(--gn)"></span>
+            3. Superficie de Certeza D(θ, ∇·F)
+          </div>
+          <div class="pcbtn">
+            <span class="pcbadge">Variable Destino: D(t)</span>
+            <button class="btn btn-s" onclick="toggleRotate('sf')">Girar</button>
+            <button class="btn btn-s" onclick="setView('sf','front')">Frontal</button>
+            <button class="btn btn-s" onclick="setView('sf','top')">Cenit</button>
+            <button class="btn btn-s" onclick="setView('sf','iso')">Iso</button>
+          </div>
+        </div>
+
+        <div id="p3d-sf" class="c3d"></div>
+
+        <!-- INDEPENDENT PLAYBACK BAR -->
+        <div class="plot-pbk">
+          <button class="btn btn-xs" id="ppbtn-sf" onclick="togglePlotPlay('sf')">▶ Play</button>
+          <button class="btn btn-xs" onclick="plotStep('sf', -1)">-1</button>
+          <button class="btn btn-xs" onclick="plotStep('sf', 1)">+1</button>
+          <input type="range" min="0" max="219" value="0" id="pslider-sf" oninput="onPlotSlider('sf', this.value)">
+          <span class="p-step" id="pstep-sf">#000 / 220</span>
+          <span class="p-regime" id="pregime-sf">Laminar Steady Drift</span>
+        </div>
+
+        <div class="lbar">
+          <span class="lg"><span class="lg-d" style="background:#10b981"></span> Pico: Certeza Soberana Alta</span>
+          <span class="lg"><span class="lg-d" style="background:#440154"></span> Valle: Disipacion Liouville / Choque</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 2: SENALES EN TIEMPO REAL -->
+  <div id="pane-signals" class="tpane">
+    <div class="g2">
+      <!-- P1 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--tx)"></span>Senal 1: Trayectoria de Precios x(t) y Acciones Operativas</div>
+          <span class="pcbadge">Cinematica x(t)</span>
+        </div>
+        <div id="p2d-1" class="c2d"></div>
+      </div>
+
+      <!-- P2 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--cy)"></span>Senal 2: Filtro de Ruido y Outliers — Distancia Mahalanobis d(t)</div>
+          <span class="pcbadge">Umbral tau = 3.0</span>
+        </div>
+        <div id="p2d-2" class="c2d"></div>
+      </div>
+
+      <!-- P3 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--am)"></span>Senal 3: Barrera Estocastica — Tubo de Riesgo R_t y CVaR(t)</div>
+          <span class="pcbadge">Freno de Riesgo L_max = 0.020</span>
+        </div>
+        <div id="p2d-3" class="c2d"></div>
+      </div>
+
+      <!-- P4 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--pu)"></span>Senal 4: Sincronia de Ritmo Lambda(t) y Consenso Jurado Phi_MoE</div>
+          <span class="pcbadge">Acople Cronico [0..1]</span>
+        </div>
+        <div id="p2d-4" class="c2d"></div>
+      </div>
+
+      <!-- P5 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--pk)"></span>Senal 5: Descomposicion Cuantica — Parametros de Stokes S0, S1, S2, S3</div>
+          <span class="pcbadge">Fibracion Hopf</span>
+        </div>
+        <div id="p2d-5" class="c2d"></div>
+      </div>
+
+      <!-- P6 -->
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--gn)"></span>Senal 6: Evaluacion Maestra — Certeza Consolidada D(t) y Factor Liouville</div>
+          <span class="pcbadge">Variable Destino D(t)</span>
+        </div>
+        <div id="p2d-6" class="c2d"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 3: BITACORA DE DECISIONES -->
+  <div id="pane-bitacora" class="tpane">
+    <div class="bitlyt">
+      <!-- TABLE WRAPPER -->
+      <div class="twrap">
+        <div class="ttbar">
+          <div>
+            <h3>Bitacora Operativa de Eventos y Decisiones Dinamicas</h3>
+            <p>Registro paso a paso de evaluacion en tiempo continuo. Haz clic en cualquier fila para saltar la simulacion.</p>
+          </div>
+          <div class="filters">
+            <button class="fbtn active" onclick="filterTable('ALL', this)">Todos (220)</button>
+            <button class="fbtn" onclick="filterTable('EXECUTE', this)">EXECUTE (74)</button>
+            <button class="fbtn" onclick="filterTable('HOLD', this)">HOLD (131)</button>
+            <button class="fbtn" onclick="filterTable('EMERGENCY_FLUSH', this)">FLUSH (15)</button>
+            <button class="fbtn" onclick="filterTable('OUTLIER', this)">Outliers (11)</button>
+            <button class="fbtn" onclick="filterTable('VETO', this)">Veto CVaR (20)</button>
+          </div>
+        </div>
+        <div class="scrl">
+          <table id="auditTable">
+            <thead>
+              <tr>
+                <th>Paso</th>
+                <th>Tiempo (s)</th>
+                <th>Regimen Activo</th>
+                <th>x(t)</th>
+                <th>dx</th>
+                <th>v = dx/dt</th>
+                <th>a = d²x/dt²</th>
+                <th>d Mahal</th>
+                <th>CVaR(t)</th>
+                <th>Lambda(t)</th>
+                <th>S0</th>
+                <th>S1</th>
+                <th>S2</th>
+                <th>S3</th>
+                <th>Variable D(t)</th>
+                <th>Liouville</th>
+                <th>Decision</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DECISION GUIDE PANEL -->
+      <div class="gpanel">
+        <div class="gph">
+          <h3>Guia Operativa de Decision</h3>
+          <p>Explicacion intuitiva de las variables y jerarquia de proteccion del sistema.</p>
+        </div>
+        <div class="gpb">
+          <div class="gsec">
+            <h4>1. Jerarquia Inviolable de Decision</h4>
+            <div class="fsteps">
+              <div class="fstep">
+                <div class="snum">1</div>
+                <div class="stxt"><b>Filtro de Anomalías (Mahalanobis):</b> Si el mercado salta abruptamente fuera de su comportamiento estadístico normal (d &gt; 3.0), se bloquea la entrada. Es un escudo contra datos erróneos o movimientos atípicos imprevistos.</div>
+              </div>
+              <div class="fstep">
+                <div class="snum">2</div>
+                <div class="stxt"><b>Freno de Emergencia (CVaR):</b> Si el riesgo de cola excede el límite máximo tolerado (CVaR &gt; 0.020), se activa un veto irrevocable. Ni el consenso ni la certeza pueden anular esta orden de abstención.</div>
+              </div>
+              <div class="fstep">
+                <div class="snum">3</div>
+                <div class="stxt"><b>Variable Destino D(t):</b> Combina la concordancia entre los dos motores (Rosa Roja y MRT) ponderada por la estabilidad del flujo de mercado (Liouville). Solo si supera 0.35 y no hay vetos, se emite una orden de ejecución activa.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gsec">
+            <h4>2. Glosario de Variables y Formulas</h4>
+            <div class="gi">
+              <div class="term">M³(x, dx/dt, d²x/dt²)</div>
+              <div class="plain">Espacio de estados físico. <b>x</b> es el precio actual, <b>dx/dt</b> es la velocidad con la que se mueve, y <b>d²x/dt²</b> es la aceleración o frenado repentino del precio.</div>
+            </div>
+            <div class="gi">
+              <div class="term">D(t) — Variable Destino</div>
+              <div class="plain">Certeza matemática consolidada en el rango [0, 1]. Si está cerca de 1.0, el modelo tiene certeza máxima y autoriza la ejecución. Si cae por debajo de 0.35, pasa a estado de espera preventiva (HOLD).</div>
+            </div>
+            <div class="gi">
+              <div class="term">Espinor de Stokes (S1, S2, S3)</div>
+              <div class="plain">Representa el diálogo entre los dos cerebros en una esfera 3D. <b>S1</b> mide la dirección predominante, <b>S2</b> la correlación cruzada, y <b>S3</b> la asimetría o quiralidad entre ambos.</div>
+            </div>
+            <div class="gi">
+              <div class="term">Disipacion Liouville exp(-div F)</div>
+              <div class="plain">Factor de seguridad geométrica. Si el mercado entra en un remolino o régimen turbulento (divergencia positiva), este factor colapsa a cero, anulando la certeza y protegiendo el capital.</div>
+            </div>
+          </div>
+
+          <div class="gsec">
+            <h4>3. Regímenes de Mercado Evaluados</h4>
+            <div class="rswatches">
+              <div class="ri"><span class="rsw" style="background:#38bdf8"></span> <b>0.0s – 2.5s:</b> Deriva Estacionaria Laminar (Ejecucion regular)</div>
+              <div class="ri"><span class="rsw" style="background:#a855f7"></span> <b>2.5s – 3.75s:</b> Inyeccion de Ruido (Filtro Mahalanobis activo)</div>
+              <div class="ri"><span class="rsw" style="background:#f43f5e"></span> <b>3.75s – 6.0s:</b> Caida Abrupta y Choque (EMERGENCY_FLUSH preventivo)</div>
+              <div class="ri"><span class="rsw" style="background:#f59e0b"></span> <b>6.0s – 8.25s:</b> Rebote Antifase MRT (Proteccion ante turbulencia)</div>
+              <div class="ri"><span class="rsw" style="background:#10b981"></span> <b>8.25s – 11.0s:</b> Recuperacion y Retorno al Atractor (Reanudacion)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE 4: SUSTENTACION Y RESUMEN EJECUTIVO -->
+  <div id="pane-resumen" class="tpane">
+    <div class="rgrid">
+      <!-- CARD A: SUSTENTACION MATEMATICA -->
+      <div class="rcard">
+        <h3>1. Sustentacion de Principios y Garantias Matematicas</h3>
+        <p>A diferencia de las redes neuronales convencionales de "caja negra" que alucinan o fallan silenciosamente ante escenarios extremos, el motor <b>ZENIN</b> implementa una arquitectura híbrida fundamentada en leyes de conservación geométrica y física estadística:</p>
+        <table class="mtab">
+          <tr>
+            <td>Conservación del Invariante de Casimir</td>
+            <td class="tg">|S₀² - (S₁² + S₂² + S₃²)| &lt; 3.33e-16</td>
+          </tr>
+          <tr>
+            <td>Aislamiento de Valores Atípicos</td>
+            <td>Filtro de Covarianza Inversa Mahalanobis (tau = 3.0)</td>
+          </tr>
+          <tr>
+            <td>Invarianza Temporal Continua</td>
+            <td>Compensador Fraccionario Cronos &lambda;(t) &in; [0, 1]</td>
+          </tr>
+          <tr>
+            <td>Freno Indeleble de Capital</td>
+            <td>CVaR de Cola Pesada (Student-t) con límite L_max</td>
+          </tr>
+          <tr>
+            <td>Fibración y Desacoplamiento Dual</td>
+            <td>Proyección de Hopf S³ &rarr; S² acoplando Rosa Roja y MRT</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- CARD B: METRICAS CONSOLIDADAS -->
+      <div class="rcard">
+        <h3>2. Balance y Comportamiento en la Simulacion</h3>
+        <p>En el experimento continuo multirregimen de <b>220 eventos cronológicos (11.00 segundos)</b>, la jerarquía de decisión demostró 100% de coherencia lógica sin rupturas de invariantes:</p>
+        <div class="sgrid">
+          <div class="sbox">
+            <div class="sv tg">74</div>
+            <div class="sl">EXECUTE (33.6%)</div>
+          </div>
+          <div class="sbox">
+            <div class="sv ta">131</div>
+            <div class="sl">HOLD (59.5%)</div>
+          </div>
+          <div class="sbox">
+            <div class="sv tr">15</div>
+            <div class="sl">FLUSH (6.8%)</div>
+          </div>
+          <div class="sbox">
+            <div class="sv tp">11</div>
+            <div class="sl">OUTLIERS (5.0%)</div>
+          </div>
+        </div>
+        <p style="margin-top:14px;">
+          Durante el régimen de caída aguda (pasos 75 a 120), el sistema cortó de inmediato el flujo de órdenes ejecutando <b>15 salidas preventivas de emergencia</b>, protegiendo el 100% del portafolio contra caídas libres del mercado.
+        </p>
+      </div>
+
+      <!-- CARD C: RESUMEN SENCILLO PARA TOMA DE DECISIONES -->
+      <div class="rcard fw">
+        <h3>3. Evaluacion para Comite Tecnico y Directivo (Lenguaje Sin Ecuaciones)</h3>
+        <p>
+          <b>¿Qué hace este sistema en palabras simples?</b> Es un copiloto inteligente de navegación para activos financieros. Actúa como el sistema de piloto automático de una aeronave moderna:
+        </p>
+        <div class="dtree">
+          <div class="drow de">
+            <div class="dlbl tg">MODO EJECUTAR</div>
+            <div class="ddsc">El avión vuela con cielo despejado, ambos motores marcan la misma altitud y velocidad, y no hay turbulencias. El sistema opera con tranquilidad y aprovecha la tendencia.</div>
+          </div>
+          <div class="drow dh">
+            <div class="dlbl ta">MODO ESPERA (HOLD)</div>
+            <div class="ddsc">Hay neblina o los dos sensores de vuelo tienen una ligera discrepancia. Ante la duda, el sistema no arriesga pasajeros ni combustible: mantiene la posición hasta que los datos vuelvan a ser claros.</div>
+          </div>
+          <div class="drow df">
+            <div class="dlbl tr">MODO EVACUAR (FLUSH)</div>
+            <div class="ddsc">Sensor de proximidad a tierra en rojo. Se detecta una corriente de aire descendente violenta que desafía las leyes normales de sustentación. El sistema frena de inmediato y desactiva operaciones en curso para evitar daños catastróficos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS IN MODULAR SEQUENCE -->
+<script src="data/simulation_data.js"></script>
+<script src="assets/plots3d.js"></script>
+<script src="assets/plots2d.js"></script>
+<script src="assets/table.js"></script>
+<script src="assets/hud.js"></script>
+
+<script>
+  // Global Entry Point
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      window.init3D();
+      window.init2D();
+      window.buildTable();
+      window.updateStep(0);
+      console.log("[OK] ZENIN Modular Observatory fully initialized.");
+    } catch(err) {
+      console.error("Initialization error:", err);
+    }
+  });
+</script>
+
+</body>
+</html>

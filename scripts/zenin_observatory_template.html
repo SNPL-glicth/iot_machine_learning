@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZENIN v2.4+ — Observatorio de Decision Cuantica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root{--bg:#070b14;--bg-c:#0e1623;--bg-e:#141f30;--bo:#1e2d42;--bb:#2a4060;--tx:#e8edf5;--td:#7a8fa6;--tf:#3a5070;--cy:#38bdf8;--gn:#10b981;--am:#f59e0b;--rd:#f43f5e;--pu:#a855f7;--pk:#ec4899;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;overflow-x:hidden;}
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:200;background:rgba(7,11,20,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--bo);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-m{width:36px;height:36px;background:linear-gradient(135deg,#0369a1,#38bdf8);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;color:#020917;box-shadow:0 0 20px rgba(56,189,248,.35);}
+.logo-n{font-weight:700;font-size:1rem;letter-spacing:-.02em;}
+.logo-s{font-size:.7rem;color:var(--td);font-family:'JetBrains Mono',monospace;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{padding:3px 10px;border-radius:99px;font-size:.68rem;font-weight:600;font-family:'JetBrains Mono',monospace;border:1px solid var(--bb);color:var(--td);background:rgba(20,31,48,.6);}
+.chip-g{border-color:rgba(16,185,129,.4);color:#34d399;background:rgba(16,185,129,.08);}
+.chip-b{border-color:rgba(56,189,248,.4);color:#38bdf8;background:rgba(56,189,248,.08);}
+.chip-r{border-color:rgba(244,63,94,.4);color:#f87171;background:rgba(244,63,94,.08);}
+/* WORKSPACE */
+.ws{max-width:1800px;margin:0 auto;padding:18px 20px 40px;}
+/* TOOLBAR */
+.tbar{background:var(--bg-c);border:1px solid var(--bo);border-radius:12px;margin-bottom:18px;box-shadow:0 4px 24px rgba(0,0,0,.5);}
+.tbar-top{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--bo);}
+/* TABS */
+.tab-bar{display:flex;gap:4px;background:rgba(7,11,20,.8);padding:4px;border-radius:8px;border:1px solid var(--bo);}
+.tab-btn{background:none;border:none;color:var(--td);padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .18s ease;white-space:nowrap;letter-spacing:.01em;}
+.tab-btn:hover{color:var(--tx);background:rgba(255,255,255,.04);}
+.tab-btn.active{background:var(--bg-e);color:var(--cy);border:1px solid rgba(56,189,248,.25);box-shadow:inset 0 1px 0 rgba(56,189,248,.1);}
+/* PLAYBACK */
+.pbk{display:flex;align-items:center;gap:8px;}
+.btn{background:var(--bg-e);border:1px solid var(--bb);color:var(--tx);padding:5px 12px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;}
+.btn:hover{background:#1e2d42;border-color:var(--cy);}
+.btn-p{background:#0369a1;border-color:#38bdf8;color:#fff;}
+.btn-p:hover{background:#0284c7;}
+.btn-s{padding:3px 8px;font-size:.7rem;}
+.slw{display:flex;align-items:center;gap:10px;flex:1;min-width:220px;}
+input[type=range]{flex:1;accent-color:var(--cy);cursor:pointer;height:4px;}
+.tlbl{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--cy);min-width:80px;}
+select.btn{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;}
+/* HUD */
+.hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:12px 16px;}
+.hc{background:rgba(7,11,20,.7);border:1px solid var(--bo);border-radius:8px;padding:7px 10px;}
+.hl{font-size:.62rem;color:var(--td);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.hv{font-size:.92rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--tx);}
+.hsub{font-size:.6rem;color:var(--tf);font-family:'JetBrains Mono',monospace;margin-top:2px;}
+/* BADGES */
+.b-exec{color:var(--gn);text-shadow:0 0 8px rgba(16,185,129,.5);}
+.b-hold{color:var(--am);text-shadow:0 0 8px rgba(245,158,11,.5);}
+.b-flush{color:var(--rd);text-shadow:0 0 8px rgba(244,63,94,.6);}
+/* TAB PANES */
+.tpane{display:none;}
+.tpane.active{display:block;animation:fadeUp .22s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+/* INFO BANNER */
+.ibanner{background:rgba(14,22,35,.8);border:1px solid var(--bb);border-left:3px solid var(--cy);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:.8rem;color:var(--td);}
+.ibanner b{color:var(--cy);}
+.ibc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.kkey{display:inline-flex;align-items:center;gap:5px;background:var(--bg-e);border:1px solid var(--bb);border-radius:4px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--tx);}
+/* GRIDS */
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:1400px){.g3{grid-template-columns:1fr;}}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media(max-width:1100px){.g2{grid-template-columns:1fr;}}
+/* PLOT CARD */
+.pc{background:var(--bg-c);border:1px solid var(--bo);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+.pch{padding:8px 12px;border-bottom:1px solid var(--bo);background:rgba(14,22,35,.6);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.pct{font-size:.82rem;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:6px;}
+.pct .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.pcbtn{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.pcbadge{font-size:.65rem;padding:2px 6px;border-radius:4px;background:rgba(56,189,248,.12);color:var(--cy);font-family:'JetBrains Mono',monospace;border:1px solid rgba(56,189,248,.2);}
+.c3d{width:100%;height:510px;}
+.c2d{width:100%;height:380px;}
+/* LEGEND */
+.lbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;border-top:1px solid var(--bo);font-size:.7rem;color:var(--td);}
+.lg{display:flex;align-items:center;gap:4px;}
+.lg-d{width:8px;height:8px;border-radius:50%;}
+.lg-ln{width:16px;height:2px;border-radius:1px;}
+/* BITACORA LAYOUT */
+.bitlyt{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start;}
+@media(max-width:1100px){.bitlyt{grid-template-columns:1fr;}}
+/* GUIDE PANEL */
+.gpanel{background:var(--bg-c);border:1px solid var(--bo);border-radius:10px;overflow:hidden;position:sticky;top:76px;}
+.gph{padding:12px 16px;background:linear-gradient(135deg,rgba(56,189,248,.08),rgba(14,22,35,.9));border-bottom:1px solid var(--bo);}
+.gph h3{font-size:.9rem;font-weight:700;color:var(--cy);margin-bottom:2px;}
+.gph p{font-size:.75rem;color:var(--td);}
+.gpb{padding:14px 16px;max-height:640px;overflow-y:auto;}
+.gsec{margin-bottom:16px;}
+.gsec h4{font-size:.78rem;font-weight:700;color:var(--tx);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--bo);}
+.gi{margin-bottom:10px;}
+.gi .term{font-size:.76rem;font-weight:600;color:var(--cy);font-family:'JetBrains Mono',monospace;margin-bottom:2px;}
+.gi .plain{font-size:.75rem;color:var(--td);line-height:1.55;}
+.gi .verd{font-size:.7rem;font-weight:600;margin-top:3px;}
+.vok{color:var(--gn);}
+.vwarn{color:var(--am);}
+.vbad{color:var(--rd);}
+.rswatches{display:flex;flex-direction:column;gap:6px;}
+.ri{display:flex;align-items:center;gap:8px;font-size:.74rem;}
+.rsw{width:12px;height:12px;border-radius:2px;flex-shrink:0;}
+.fsteps{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+.fstep{display:flex;gap:10px;align-items:flex-start;}
+.snum{width:22px;height:22px;border-radius:50%;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);color:var(--cy);font-weight:700;font-size:.72rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;}
+.stxt{font-size:.79rem;color:var(--td);line-height:1.55;}
+.stxt b{color:var(--tx);}
+/* TABLE */
+.twrap{background:var(--bg-c);border:1px solid var(--bo);border-radius:10px;overflow:hidden;}
+.ttbar{padding:12px 16px;border-bottom:1px solid var(--bo);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.ttbar h3{font-size:.92rem;font-weight:700;color:var(--tx);}
+.ttbar p{font-size:.72rem;color:var(--td);margin-top:2px;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;}
+.fbtn{background:rgba(7,11,20,.8);border:1px solid var(--bo);color:var(--td);padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.fbtn:hover{border-color:var(--cy);color:var(--tx);}
+.fbtn.active{background:rgba(56,189,248,.12);color:var(--cy);border-color:rgba(56,189,248,.35);}
+.scrl{max-height:520px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:.75rem;}
+thead th{position:sticky;top:0;background:var(--bg-e);color:var(--td);padding:8px 10px;border-bottom:1px solid var(--bb);font-weight:600;font-family:'JetBrains Mono',monospace;text-align:left;white-space:nowrap;}
+tbody td{padding:6px 10px;border-bottom:1px solid rgba(30,45,66,.5);font-family:'JetBrains Mono',monospace;font-size:.72rem;vertical-align:middle;}
+tbody tr:hover td{background:rgba(56,189,248,.04);}
+tbody tr.ractive td{background:rgba(56,189,248,.14)!important;color:#fff;}
+tbody tr{cursor:pointer;}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.66rem;font-weight:700;letter-spacing:.02em;}
+.t-exec{background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.25);}
+.t-hold{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.25);}
+.t-flush{background:rgba(244,63,94,.15);color:#f43f5e;border:1px solid rgba(244,63,94,.25);}
+.t-out{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.25);}
+.mono{font-family:'JetBrains Mono',monospace;}
+.tc{color:var(--cy);}.tg{color:var(--gn);}.ta{color:var(--am);}.tr{color:var(--rd);}.tp{color:var(--pu);}.tdim{color:var(--td);}
+/* RESUMEN */
+.rgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media(max-width:900px){.rgrid{grid-template-columns:1fr;}}
+.rcard{background:var(--bg-c);border:1px solid var(--bo);border-radius:10px;padding:18px 20px;}
+.rcard.fw{grid-column:1/-1;}
+.rcard h3{font-size:.9rem;font-weight:700;color:var(--cy);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bb);text-transform:uppercase;letter-spacing:.04em;}
+.rcard p{font-size:.82rem;color:var(--td);line-height:1.7;margin-bottom:8px;}
+.rcard p b{color:var(--tx);}
+.mtab{width:100%;border-collapse:collapse;font-size:.79rem;margin-top:8px;}
+.mtab tr{border-bottom:1px solid var(--bo);}
+.mtab td{padding:6px 4px;}
+.mtab td:first-child{color:var(--td);width:55%;}
+.mtab td:last-child{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--tx);}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px;}
+.sbox{background:rgba(7,11,20,.7);border:1px solid var(--bb);border-radius:8px;padding:10px 12px;text-align:center;}
+.sbox .sv{font-size:1.4rem;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.sbox .sl{font-size:.62rem;color:var(--td);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.dtree{margin-top:8px;}
+.drow{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;margin-bottom:4px;}
+.drow.de{background:rgba(16,185,129,.08);border-left:3px solid var(--gn);}
+.drow.dh{background:rgba(245,158,11,.08);border-left:3px solid var(--am);}
+.drow.df{background:rgba(244,63,94,.08);border-left:3px solid var(--rd);}
+.dlbl{font-size:.72rem;font-weight:700;font-family:'JetBrains Mono',monospace;min-width:120px;}
+.ddsc{font-size:.75rem;color:var(--td);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-m">Z</div>
+    <div>
+      <div class="logo-n">ZENIN v2.4+ — Observatorio de Decision Cuantica</div>
+      <div class="logo-s">Motor Dual Hopf (Rosa Roja z1 + MRT z2) — 220 eventos / 11.0 s</div>
+    </div>
+  </div>
+  <div class="chips">
+    <span class="chip chip-g">Casimir err &lt; 3.33e-16</span>
+    <span class="chip chip-b">Plotly WebGL — interactivo</span>
+    <span class="chip">220 pasos / 11.0 s</span>
+    <span class="chip chip-r">11 outliers bloqueados</span>
+  </div>
+</header>
+
+<div class="ws">
+  <!-- TOOLBAR -->
+  <div class="tbar">
+    <div class="tbar-top">
+      <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('geo3d')">Geometria 3D</button>
+        <button class="tab-btn" onclick="switchTab('signals')">Senales en Tiempo Real</button>
+        <button class="tab-btn" onclick="switchTab('bitacora')">Bitacora de Decisiones</button>
+        <button class="tab-btn" onclick="switchTab('resumen')">Resumen Ejecutivo</button>
+      </nav>
+      <div class="pbk">
+        <button class="btn btn-p" id="btnPlay" onclick="togglePlayback()">&#9654; Play</button>
+        <button class="btn" onclick="stepSim(-10)">-10</button>
+        <button class="btn" onclick="stepSim(-1)">-1</button>
+        <button class="btn" onclick="stepSim(1)">+1</button>
+        <button class="btn" onclick="stepSim(10)">+10</button>
+        <div class="slw">
+          <input type="range" min="0" max="219" value="0" id="timeSlider" oninput="onSlider(this.value)">
+          <span class="tlbl" id="timeLabel">t = 0.00 s</span>
+        </div>
+        <select class="btn" id="speedSel" onchange="changeSpeed(this.value)">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </div>
+    </div>
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hc"><div class="hl">Paso / Regimen</div><div class="hv mono tc" id="hudStep">#000</div><div class="hsub" id="hudRegime">Laminar Steady Drift</div></div>
+      <div class="hc"><div class="hl">Estado x(t)</div><div class="hv" id="hudX">100.000</div><div class="hsub" id="hudDx">dx = +0.0000</div></div>
+      <div class="hc"><div class="hl">Velocidad / Aceleracion</div><div class="hv" id="hudVA">v:0.00 a:0.00</div><div class="hsub">derivadas de x</div></div>
+      <div class="hc"><div class="hl">Dist. Mahalanobis d</div><div class="hv" id="hudMahal">0.0000</div><div class="hsub" id="hudMS">Normal (tau=3.0)</div></div>
+      <div class="hc"><div class="hl">CVaR(t) / L_max</div><div class="hv" id="hudCvar">0.0000 / 0.020</div><div class="hsub" id="hudCS">Sin veto</div></div>
+      <div class="hc"><div class="hl">Sincronia Lambda(t)</div><div class="hv" id="hudLambda">0.8500</div><div class="hsub">ritmo [0..1]</div></div>
+      <div class="hc"><div class="hl">S0 / S1 / S3</div><div class="hv" id="hudStokes">1.00/0.91/0.00</div><div class="hsub" id="hudS2">S2=0.0000</div></div>
+      <div class="hc"><div class="hl">Certeza D(t)</div><div class="hv tg" id="hudD">0.7900</div><div class="hsub" id="hudLv">Liouville=1.0000</div></div>
+      <div class="hc"><div class="hl">Decision ZENIN</div><div class="hv" id="hudAction"><span class="b-exec">EXECUTE</span></div><div class="hsub" id="hudAR">Certeza activa</div></div>
+    </div>
+  </div>
+
+  <!-- TAB 1: GEOMETRIA 3D -->
+  <div id="pane-geo3d" class="tpane active">
+    <div class="ibanner">
+      <b>Controles 3D — manipulacion libre del raton:</b>
+      <div class="ibc">
+        <span class="kkey">Drag izquierdo</span> Rotar libremente en 360 grados
+        <span class="kkey">Drag derecho</span> Desplazar (Pan)
+        <span class="kkey">Scroll</span> Acercar / Alejar (Zoom)
+        <span class="kkey">Doble clic</span> Restablecer vista
+        <button class="btn btn-s" id="btnGrot" onclick="toggleAllRotate()">Auto-giro: OFF</button>
+        <label style="font-size:.72rem;color:var(--td);display:flex;align-items:center;gap:5px;">
+          Velocidad: <input type="range" id="rotSpd" min="1" max="30" value="10" style="width:80px;height:4px;">
+        </label>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--cy)"></span>A. Atractor en Espacio de Fases — M(x, dx/dt, d2x/dt2)</div>
+          <div class="pcbtn">
+            <span class="pcbadge">3D WebGL</span>
+            <button class="btn btn-s" onclick="toggleRotate('ph')">Girar</button>
+            <button class="btn btn-s" onclick="setView('ph','iso')">Iso</button>
+            <button class="btn btn-s" onclick="setView('ph','top')">Top</button>
+            <button class="btn btn-s" onclick="setView('ph','side')">Lateral</button>
+          </div>
+        </div>
+        <div id="p3d-ph" class="c3d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-d" style="background:#475569"></span> Orbita</span>
+          <span class="lg"><span class="lg-d" style="background:#10b981"></span> EXECUTE (74)</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> HOLD (131)</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> FLUSH (15)</span>
+          <span class="lg"><span class="lg-d" style="background:#38bdf8"></span> Posicion actual t</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--cy)"></span>B. Esfera de Stokes S2 — Fibracion de Hopf</div>
+          <div class="pcbtn">
+            <span class="pcbadge">Spinor S2</span>
+            <button class="btn btn-s" onclick="toggleRotate('st')">Girar</button>
+            <button class="btn btn-s" onclick="setView('st','iso')">Iso</button>
+            <button class="btn btn-s" onclick="setView('st','north')">Norte</button>
+            <button class="btn btn-s" onclick="setView('st','eq')">Ecuador</button>
+          </div>
+        </div>
+        <div id="p3d-st" class="c3d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#38bdf8"></span> Trayectoria spinor</span>
+          <span class="lg"><span class="lg-d" style="background:#ec4899"></span> Polo Norte +z1</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> Polo Sur -z2</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> Estado t actual</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch">
+          <div class="pct"><span class="dot" style="background:var(--gn)"></span>C. Superficie de Decision D(fase, div flujo)</div>
+          <div class="pcbtn">
+            <span class="pcbadge">Viridis</span>
+            <button class="btn btn-s" onclick="toggleRotate('sf')">Girar</button>
+            <button class="btn btn-s" onclick="setView('sf','iso')">Iso</button>
+            <button class="btn btn-s" onclick="setView('sf','top')">Top</button>
+            <button class="btn btn-s" onclick="setView('sf','front')">Frente</button>
+          </div>
+        </div>
+        <div id="p3d-sf" class="c3d"></div>
+        <div class="lbar">
+          <span class="lg"><span style="display:inline-block;width:30px;height:6px;border-radius:2px;background:linear-gradient(90deg,#440154,#31688e,#35b779,#fde725)"></span> D alto = mas certeza</span>
+          <span class="lg"><span class="lg-d" style="background:#f8fafc"></span> Puntos ZENIN reales</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> Punto t actual</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: SENALES EN TIEMPO REAL -->
+  <div id="pane-signals" class="tpane">
+    <div class="ibanner">
+      <b>Graficas 2D interactivas:</b> Arrastra para hacer zoom en cualquier intervalo de tiempo.
+      Doble clic para restablecer la escala. El cursor vertical cian sigue el slider de reproduccion en todos los paneles.
+      Las franjas de color representan los 5 regimenes de operacion.
+    </div>
+    <div class="g2">
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#f1f5f9"></span>1. Trayectoria del Estado x(t) y Regimenes de Accion</div><span class="pcbadge">EXECUTE / HOLD / FLUSH / Outlier</span></div>
+        <div id="p2d-1" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#e2e8f0"></span> x(t)</span>
+          <span class="lg"><span class="lg-d" style="background:#10b981"></span> EXECUTE</span>
+          <span class="lg"><span class="lg-d" style="background:#f59e0b"></span> HOLD</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> FLUSH</span>
+          <span class="lg"><span class="lg-d" style="background:#a855f7"></span> Outlier bloqueado</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#38bdf8"></span>2. Filtro Mahalanobis — Deteccion de Anomalias</div><span class="pcbadge">tau=3.0 Sherman-Morrison O(d2)</span></div>
+        <div id="p2d-2" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#38bdf8"></span> d Mahal(t)</span>
+          <span class="lg"><span class="lg-ln" style="background:#f43f5e"></span> Umbral tau=3</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> Outlier rechazado</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#94a3b8"></span>3. Tubo de Riesgo Estocastico y CVaR (Student-t)</div><span class="pcbadge">L_max = 0.020</span></div>
+        <div id="p2d-3" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#94a3b8"></span> Retorno r(t)</span>
+          <span class="lg"><span style="display:inline-block;width:20px;height:8px;background:rgba(56,189,248,.25);border-radius:2px"></span> Tubo ±R_t</span>
+          <span class="lg"><span class="lg-ln" style="background:#f59e0b"></span> CVaR(t)</span>
+          <span class="lg"><span class="lg-ln" style="background:#f43f5e"></span> L_max</span>
+          <span class="lg"><span class="lg-d" style="background:#f43f5e"></span> Veto CVaR</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#a855f7"></span>4. Sincronia Cronica Lambda(t) y Consenso MoE</div><span class="pcbadge">Lambda vs Phi_MoE — umbral 0.60</span></div>
+        <div id="p2d-4" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#a855f7"></span> Sincronia Lambda(t)</span>
+          <span class="lg"><span class="lg-ln" style="background:#34d399"></span> Consenso Phi_MoE</span>
+          <span class="lg"><span class="lg-ln" style="background:#f59e0b"></span> Umbral MoE=0.60</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#ec4899"></span>5. Invariantes de Stokes — S0, S1, S2, S3 (4 componentes)</div><span class="pcbadge">Casimir err &lt; 3.33e-16 Certificado</span></div>
+        <div id="p2d-5" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#f1f5f9"></span> S0 intensidad total</span>
+          <span class="lg"><span class="lg-ln" style="background:#38bdf8"></span> S1 polarizacion lineal</span>
+          <span class="lg"><span class="lg-ln" style="background:#34d399"></span> S2 polarizacion cruzada</span>
+          <span class="lg"><span class="lg-ln" style="background:#ec4899"></span> S3 asimetria / quiralidad</span>
+        </div>
+      </div>
+      <div class="pc">
+        <div class="pch"><div class="pct"><span class="dot" style="background:#10b981"></span>6. Variable Maestra D(t) — Certeza Consolidada y Liouville</div><span class="pcbadge">D = Liouville * |S3+S1|</span></div>
+        <div id="p2d-6" class="c2d"></div>
+        <div class="lbar">
+          <span class="lg"><span class="lg-ln" style="background:#10b981"></span> Destino D(t)</span>
+          <span class="lg"><span class="lg-ln" style="background:#f59e0b"></span> Factor Liouville</span>
+          <span class="lg"><span class="lg-ln" style="background:#60a5fa"></span> Acople |S3+S1|</span>
+          <span class="lg"><span class="lg-ln" style="background:#f43f5e"></span> Umbral EXECUTE D=0.35</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: BITACORA DE DECISIONES -->
+  <div id="pane-bitacora" class="tpane">
+    <div class="bitlyt">
+      <div>
+        <div class="twrap">
+          <div class="ttbar">
+            <div>
+              <h3>Registro Cronologico — 220 Eventos — Trazabilidad ISO/IEC 22989</h3>
+              <p>Cada fila es una decision real de ZENIN. Haz clic en cualquier fila para saltar el simulador a ese instante exacto.</p>
+            </div>
+            <div class="filters">
+              <button class="fbtn active" onclick="filterTable('ALL',this)">Todos (220)</button>
+              <button class="fbtn" onclick="filterTable('EXECUTE',this)">EXECUTE (74)</button>
+              <button class="fbtn" onclick="filterTable('HOLD',this)">HOLD (131)</button>
+              <button class="fbtn" onclick="filterTable('EMERGENCY_FLUSH',this)">FLUSH (15)</button>
+              <button class="fbtn" onclick="filterTable('OUTLIER',this)">Outlier (11)</button>
+              <button class="fbtn" onclick="filterTable('VETO',this)">Veto CVaR (11)</button>
+            </div>
+          </div>
+          <div class="scrl">
+            <table id="auditTable">
+              <thead><tr>
+                <th>#</th><th>t (s)</th><th>Regimen</th>
+                <th>x</th><th>dx</th><th>v</th><th>a</th>
+                <th>d Mahal</th><th>CVaR</th><th>Lambda</th>
+                <th>S0</th><th>S1</th><th>S2</th><th>S3</th>
+                <th>D(t)</th><th>Liouville</th><th>Decision</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- GUIDE PANEL -->
+      <div class="gpanel">
+        <div class="gph">
+          <h3>Guia del Sistema — Sin Ecuaciones</h3>
+          <p>Todo explicado en lenguaje sencillo, como si nunca hubiera visto matematicas</p>
+        </div>
+        <div class="gpb">
+          <div class="gsec">
+            <h4>Que hace ZENIN?</h4>
+            <div class="gi">
+              <div class="plain">ZENIN es un <b>juez automatico</b> que revisa una senal en tiempo real y decide cada instante si conviene <b>actuar</b> (EXECUTE), <b>esperar</b> (HOLD) o <b>cortar emergencia</b> (FLUSH). Consulta 7 sensores distintos; si alguno ve peligro, bloquea la accion. Solo actua cuando todos dicen que todo esta bien.</div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Los 5 Regimenes</h4>
+            <div class="rswatches">
+              <div class="ri"><div class="rsw" style="background:rgba(56,189,248,.5)"></div><span><b>Deriva Estacionaria</b> — movimiento suave, como agua en calma.</span></div>
+              <div class="ri"><div class="rsw" style="background:rgba(168,85,247,.5)"></div><span><b>Inyeccion de Ruido</b> — datos falsos; el filtro los rechaza.</span></div>
+              <div class="ri"><div class="rsw" style="background:rgba(244,63,94,.5)"></div><span><b>Choque de Volatilidad</b> — caida brusca; ZENIN activa FLUSH.</span></div>
+              <div class="ri"><div class="rsw" style="background:rgba(245,158,11,.5)"></div><span><b>Rebote Anti-fase (MRT)</b> — el segundo motor corrige con oscilacion opuesta.</span></div>
+              <div class="ri"><div class="rsw" style="background:rgba(16,185,129,.5)"></div><span><b>Recuperacion del Atractor</b> — el sistema vuelve a su estado estable.</span></div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Que significa cada columna?</h4>
+            <div class="gi"><div class="term">x — Estado del sistema</div><div class="plain">El valor actual monitoreado. "Donde esta la bola" en el tablero.</div></div>
+            <div class="gi"><div class="term">dx — Cambio instantaneo</div><div class="plain">Cuanto cambio x respecto al paso anterior. Positivo = subio, negativo = bajo.</div></div>
+            <div class="gi"><div class="term">v, a — Velocidad y aceleracion</div><div class="plain">La rapidez del cambio y si ese cambio esta acelerando o frenando.</div></div>
+            <div class="gi">
+              <div class="term">d Mahalanobis — Detector de anomalias</div>
+              <div class="plain">Mide que tan inusual es el dato respecto al historial. Como medir si algo "encaja" con lo que el sistema conoce.</div>
+              <div class="verd vok">Menor de 3.0 = dato normal y confiable.</div>
+              <div class="verd vbad">Mayor de 3.0 = posible error o dato corrupto. BLOQUEADO.</div>
+            </div>
+            <div class="gi">
+              <div class="term">CVaR — Riesgo de perdida extrema</div>
+              <div class="plain">El peor escenario posible de perdida usando probabilidad de colas pesadas. "Si las cosas van mal, que tan mal pueden ir?"</div>
+              <div class="verd vok">CVaR &lt; L_max = riesgo controlable.</div>
+              <div class="verd vbad">CVaR &gt; L_max = riesgo excesivo. Veto automatico.</div>
+            </div>
+            <div class="gi"><div class="term">Lambda — Sincronia de ritmo</div><div class="plain">Si el sistema va al ritmo esperado. 1.0 = ritmo perfecto, 0.0 = totalmente fuera de compas.</div></div>
+            <div class="gi">
+              <div class="term">S0, S1, S2, S3 — Parametros de Stokes</div>
+              <div class="plain">Las "4 dimensiones de la luz" del motor dual. Vienen de la optica cuantica y miden la coherencia entre Rosa Roja y MRT. S0 es la intensidad total; S1, S2, S3 son las tres formas de polarizacion.</div>
+              <div class="verd vok">S1^2+S2^2+S3^2 = S0^2 (error &lt; 3.33e-16 — certificado).</div>
+            </div>
+            <div class="gi">
+              <div class="term">D(t) — Certeza de Decision</div>
+              <div class="plain">La confianza total del sistema de 0 a 1. Si D &gt; 0.35 y el jurado MoE &gt; 0.60, ZENIN ejecuta la accion.</div>
+              <div class="verd vok">D &gt; 0.35 + Phi &gt; 0.60 = EXECUTE.</div>
+              <div class="verd vwarn">D bajo = HOLD (esperar sin actuar).</div>
+            </div>
+            <div class="gi"><div class="term">Liouville — Conservacion de energia</div><div class="plain">Si el "flujo de informacion" se conserva (1.0) o se esta perdiendo energia del sistema (menor que 1.0). Un valor bajo frena la certeza de decision.</div></div>
+          </div>
+          <div class="gsec">
+            <h4>Como se decide?</h4>
+            <div class="fsteps">
+              <div class="fstep"><div class="snum">1</div><div class="stxt"><b>Zona de emergencia?</b> Si si → FLUSH inmediato. Sin preguntar nada mas.</div></div>
+              <div class="fstep"><div class="snum">2</div><div class="stxt"><b>Dato confiable?</b> Si Mahal &gt; 3 → HOLD. No actuar con datos malos.</div></div>
+              <div class="fstep"><div class="snum">3</div><div class="stxt"><b>Riesgo bajo?</b> Si CVaR &gt; L_max → HOLD. El riesgo es demasiado alto.</div></div>
+              <div class="fstep"><div class="snum">4</div><div class="stxt"><b>Alta certeza?</b> Si D &gt; 0.35 y MoE &gt; 0.60 → EXECUTE. Todo verde.</div></div>
+              <div class="fstep"><div class="snum">5</div><div class="stxt"><b>Por defecto:</b> HOLD. Si hay cualquier duda, esperar.</div></div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Las graficas 3D en palabras simples</h4>
+            <div class="gi"><div class="term">A. Espacio de Fases</div><div class="plain">Muestra donde estuvo el sistema, como se movia y con que fuerza, todo en 3D a la vez. Los colores son las decisiones tomadas en cada punto.</div></div>
+            <div class="gi"><div class="term">B. Esfera de Stokes</div><div class="plain">El mapa del estado cuantico del motor dual. Polo norte = domina Rosa Roja. Polo sur = domina MRT. Ecuador = ambos equilibrados.</div></div>
+            <div class="gi"><div class="term">C. Superficie de Decision</div><div class="plain">El "terreno" de certeza del sistema. Los picos altos (amarillo) son condiciones optimas para actuar. Los valles oscuros son zonas peligrosas donde conviene esperar.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: RESUMEN EJECUTIVO -->
+  <div id="pane-resumen" class="tpane">
+    <div class="rgrid">
+      <div class="rcard fw">
+        <h3>Que es ZENIN y que problema resuelve</h3>
+        <p><b>ZENIN</b> (Zero-Error Nonlinear Intelligence Network) es un motor de decision de alta frecuencia disenado para operar sobre senales no lineales, ruidosas y con regimenes cambiantes. El problema que resuelve es: <b>como actuar sobre datos en tiempo real con maxima certeza y minimo riesgo, incluso cuando los datos estan contaminados o el sistema cambia de comportamiento sin previo aviso.</b></p>
+        <p>La solucion combina siete modulos matematicos heterogeneos en <b>veto multiplicativo</b>: si cualquier modulo detecta peligro, la accion queda bloqueada. Solo se actua (EXECUTE) cuando los siete coinciden en que la situacion es segura.</p>
+      </div>
+
+      <div class="rcard">
+        <h3>Metricas de la Simulacion (220 pasos, 11 s)</h3>
+        <div class="sgrid">
+          <div class="sbox"><div class="sv tg">74</div><div class="sl">EXECUTE</div></div>
+          <div class="sbox"><div class="sv ta">131</div><div class="sl">HOLD</div></div>
+          <div class="sbox"><div class="sv tr">15</div><div class="sl">FLUSH</div></div>
+          <div class="sbox"><div class="sv tp">11</div><div class="sl">Outliers</div></div>
+          <div class="sbox"><div class="sv tr">11</div><div class="sl">Vetos CVaR</div></div>
+          <div class="sbox"><div class="sv tc">5</div><div class="sl">Regimenes</div></div>
+        </div>
+        <table class="mtab" style="margin-top:12px;">
+          <tr><td>Error invariante de Casimir (max)</td><td class="tg">3.33e-16</td></tr>
+          <tr><td>Tolerancia Casimir requerida</td><td class="tdim">&lt; 1e-9</td></tr>
+          <tr><td>Umbral Mahalanobis tau</td><td>3.0</td></tr>
+          <tr><td>Limite de riesgo L_max</td><td>0.020</td></tr>
+          <tr><td>Ventana de riesgo adaptativa</td><td>20 pasos</td></tr>
+          <tr><td>Tasa de decision EXECUTE</td><td class="tg">33.6 %</td></tr>
+          <tr><td>Tasa de bloqueo total</td><td class="ta">66.4 %</td></tr>
+        </table>
+      </div>
+
+      <div class="rcard">
+        <h3>Los 7 Modulos del Sistema</h3>
+        <div class="fsteps">
+          <div class="fstep"><div class="snum">1</div><div class="stxt"><b>Filtro Mahalanobis:</b> Descarta datos anomalos antes de entrar al sistema. Usa actualizacion Sherman-Morrison eficiente.</div></div>
+          <div class="fstep"><div class="snum">2</div><div class="stxt"><b>Motor de Riesgo CVaR:</b> Calcula la perdida esperada en el peor percentil con distribucion Student-t (colas pesadas).</div></div>
+          <div class="fstep"><div class="snum">3</div><div class="stxt"><b>Adapter Temporal Lambda:</b> Mide sincronia entre el ritmo real del sistema y el ritmo esperado con EMA fraccional.</div></div>
+          <div class="fstep"><div class="snum">4</div><div class="stxt"><b>Campo de Maxwell curl B:</b> Calcula la vorticidad del campo vectorial de datos, detectando turbulencias en la senal.</div></div>
+          <div class="fstep"><div class="snum">5</div><div class="stxt"><b>Motor Hopf Spinor S2:</b> Representa el estado dual Rosa Roja + MRT como punto en la esfera de Stokes, garantizando coherencia cuantica.</div></div>
+          <div class="fstep"><div class="snum">6</div><div class="stxt"><b>Ecuacion Maestra D(t):</b> Consolida todos los factores multiplicativamente con amortiguamiento de Liouville para producir la certeza final.</div></div>
+          <div class="fstep"><div class="snum">7</div><div class="stxt"><b>Jurado MoE Phi:</b> Un consenso de expertos virtuales (Mixture of Experts) que debe aprobar la certeza base antes de permitir EXECUTE.</div></div>
+        </div>
+      </div>
+
+      <div class="rcard">
+        <h3>Arbol de Decision Completo</h3>
+        <div class="dtree">
+          <div class="drow df"><span class="dlbl tr">EMERGENCY_FLUSH</span><span class="ddsc">Zona de caida libre (pasos 88-102). Liquidacion inmediata, sin consultar otros modulos.</span></div>
+          <div class="drow dh"><span class="dlbl ta">HOLD — Outlier</span><span class="ddsc">Mahalanobis d &gt; 3.0. Dato no confiable. No actuar sobre informacion corrupta.</span></div>
+          <div class="drow dh"><span class="dlbl ta">HOLD — Veto CVaR</span><span class="ddsc">CVaR supera L_max = 0.020. El riesgo de perdida extrema es demasiado alto.</span></div>
+          <div class="drow de"><span class="dlbl tg">EXECUTE</span><span class="ddsc">D &gt; 0.35 y Phi_MoE &gt; 0.60. Alta certeza, riesgo bajo, dato valido. Accion autorizada.</span></div>
+          <div class="drow dh"><span class="dlbl ta">HOLD — Certeza Baja</span><span class="ddsc">D &lt;= 0.35 o Phi &lt;= 0.60. Confianza insuficiente. Por defecto, esperar.</span></div>
+        </div>
+      </div>
+
+      <div class="rcard">
+        <h3>Por que la Geometria en 3D?</h3>
+        <p><b>Atractor en Espacio de Fases:</b> Si el sistema es estable, la trayectoria forma una figura cerrada (orbita). Si hay caos, la figura se abre. La forma de la nube revela el caracter dinamico del sistema.</p>
+        <p><b>Esfera de Stokes:</b> La forma mas compacta de representar el estado de dos osciladores acoplados. Cuando el punto esta en el ecuador, ambos motores estan equilibrados. En los polos, uno domina al otro.</p>
+        <p><b>Superficie de Decision:</b> Muestra el terreno de certeza. Los picos son condiciones optimas para actuar. Los valles son zonas peligrosas donde el sistema prefiere esperar.</p>
+      </div>
+
+      <div class="rcard">
+        <h3>5 Garantias Formales de ZENIN</h3>
+        <p><b>1. Trazabilidad total (ISO 22989):</b> Cada decision queda registrada con sus 17 metricas. Auditable formalmente.</p>
+        <p><b>2. Cero accion sobre datos contaminados:</b> El filtro de Mahalanobis rechaza el 5% de datos anomalos antes de que lleguen al motor de decision.</p>
+        <p><b>3. Preservacion geometrica:</b> Error de Casimir = 3.33e-16, practicamente cero a precision de maquina. Las propiedades cuanticas del sistema se preservan exactamente.</p>
+        <p><b>4. Proteccion ante riesgo de cola:</b> El CVaR con Student-t detecta riesgos extremos que la distribucion normal normal pasaria por alto (colas pesadas).</p>
+        <p><b>5. Adaptacion dinamica:</b> Los 5 regimenes cubren desde condiciones ideales hasta colapso total, y ZENIN responde correctamente en cada uno sin ajustes manuales adicionales.</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /ws -->
+
+<script>
+const records = __RECORDS_JSON__;
+const surfData = __SURFACE_JSON__;
+const sphereMesh = __SPHERE_JSON__;
+const regimeBands = __REGIME_BOUNDS__;
+
+const N      = records.length;
+const times  = records.map(r => r.time);
+const xs     = records.map(r => r.x);
+const dxs    = records.map(r => r.dx);
+const vels   = records.map(r => r.v);
+const accs   = records.map(r => r.a);
+const dMs    = records.map(r => r.d_mahal);
+const rets   = records.map(r => r.ret);
+const rTs    = records.map(r => r.R_t);
+const rTsN   = records.map(r => -r.R_t);
+const cvars  = records.map(r => r.cvar_t);
+const lams   = records.map(r => r.lambda_crono);
+const phis   = records.map(r => r.phi_base);
+const s0arr  = records.map(r => r.s0);
+const s1arr  = records.map(r => r.s1);
+const s2arr  = records.map(r => r.s2);
+const s3arr  = records.map(r => r.s3);
+const s0n    = records.map(r => Math.max(1e-9, r.s0));
+const s1n    = records.map((r,i) => r.s1/s0n[i]);
+const s2n    = records.map((r,i) => r.s2/s0n[i]);
+const s3n    = records.map((r,i) => r.s3/s0n[i]);
+const dests  = records.map(r => r.dest_var);
+const liovs  = records.map(r => r.liouville_factor);
+const cSovs  = records.map(r => Math.abs(r.sov_certainty));
+const pds    = records.map(r => r.phase_delta);
+const dvs    = records.map(r => r.div_flow);
+const acs    = records.map(r => r.action_code);
+
+const execIdx  = acs.map((c,i) => c===1  ? i : -1).filter(i => i>=0);
+const holdIdx  = acs.map((c,i) => c===0  ? i : -1).filter(i => i>=0);
+const flushIdx = acs.map((c,i) => c===-1 ? i : -1).filter(i => i>=0);
+const outIdx   = records.map((r,i) => r.is_outlier ? i : -1).filter(i => i>=0);
+const vetoIdx  = records.map((r,i) => (r.veto_riesgo===0 && !r.is_outlier) ? i : -1).filter(i => i>=0);
+
+// Dark Plotly base layout
+const DB = {
+  paper_bgcolor:'#0e1623', plot_bgcolor:'#070b14',
+  font:{family:'Inter,system-ui,sans-serif',color:'#7a8fa6',size:10},
+  margin:{l:52,r:18,t:28,b:38},
+  xaxis:{gridcolor:'#1a2740',zerolinecolor:'#243050',tickcolor:'#3a5070',linecolor:'#1e2d42',title:{font:{color:'#94a3b8'},text:'Tiempo (s)'}},
+  yaxis:{gridcolor:'#1a2740',zerolinecolor:'#243050',tickcolor:'#3a5070',linecolor:'#1e2d42'},
+  legend:{orientation:'h',y:1.13,x:0,font:{size:9},bgcolor:'transparent'},
+  hovermode:'x unified',
+  hoverlabel:{bgcolor:'#0e1623',bordercolor:'#2a4060',font:{color:'#e8edf5',size:11}},
+};
+
+function rShapes() {
+  const cols = ['rgba(56,189,248,.06)','rgba(168,85,247,.08)','rgba(244,63,94,.09)','rgba(245,158,11,.07)','rgba(16,185,129,.06)'];
+  return regimeBands.map((b,i)=>({type:'rect',xref:'x',yref:'paper',x0:b.x0,x1:b.x1,y0:0,y1:1,fillcolor:cols[i],line:{width:0},layer:'below'}));
+}
+
+function rAnnots() {
+  return regimeBands.map(b=>({xref:'x',yref:'paper',x:(b.x0+b.x1)/2,y:0.985,text:b.label,showarrow:false,font:{size:7.5,color:'rgba(120,150,180,.7)'},xanchor:'center',yanchor:'top'}));
+}
+
+function mkCursor(yMin, yMax) {
+  return {x:[times[0],times[0]],y:[yMin,yMax],mode:'lines',line:{color:'#38bdf8',width:1.5,dash:'dot'},hoverinfo:'none',showlegend:false,name:'t'};
+}
+
+// ---- 3D INIT ----
+let rotTimers={}, rotAngles={ph:0.8,st:0.8,sf:0.8}, globalRot=false;
+const p3ids={ph:'p3d-ph',st:'p3d-st',sf:'p3d-sf'};
+const presets={iso:{x:1.6,y:1.6,z:1.1},top:{x:.01,y:.01,z:2.5},side:{x:.01,y:2.5,z:.3},north:{x:.01,y:.01,z:2.8},eq:{x:2.2,y:2.2,z:.1},front:{x:2.5,y:.01,z:.3}};
+
+function scn3d(title) {
+  const a={backgroundcolor:'#06090f',gridcolor:'#1a2740',zerolinecolor:'#243050',showbackground:true,showgrid:true};
+  return {...a,title:title};
+}
+
+function lay3d(xt,yt,zt,eye) {
+  return {
+    paper_bgcolor:'#0e1623',
+    font:{color:'#7a8fa6',size:10},
+    margin:{l:0,r:0,t:12,b:12},
+    scene:{
+      xaxis:{...scn3d(xt)},yaxis:{...scn3d(yt)},zaxis:{...scn3d(zt)},
+      camera:{eye:eye||presets.iso},aspectmode:'cube'
+    },
+    legend:{font:{size:9},bgcolor:'rgba(14,22,35,.8)',bordercolor:'#1e2d42',borderwidth:1}
+  };
+}
+
+function init3D() {
+  // A. Phase Space
+  const trLine={type:'scatter3d',mode:'lines',x:xs,y:vels,z:accs,line:{color:'#374151',width:2},name:'Orbita',hoverinfo:'none'};
+  function mk3d(idx,col,sz,sym,nm){return{type:'scatter3d',mode:'markers',x:idx.map(i=>xs[i]),y:idx.map(i=>vels[i]),z:idx.map(i=>accs[i]),marker:{color:col,size:sz,symbol:sym||'circle',opacity:.85},name:nm};}
+  const trCurPh={type:'scatter3d',mode:'markers',x:[xs[0]],y:[vels[0]],z:[accs[0]],marker:{color:'#38bdf8',size:9,symbol:'diamond',opacity:1},name:'t actual'};
+  Plotly.newPlot('p3d-ph',[trLine,mk3d(execIdx,'#10b981',4,'circle','EXECUTE'),mk3d(holdIdx,'#f59e0b',3,'circle','HOLD'),mk3d(flushIdx,'#f43f5e',6,'cross','FLUSH'),trCurPh],lay3d('Estado x','Velocidad v','Aceler. a'),{responsive:true,displayModeBar:true});
+
+  // B. Stokes Sphere
+  const trSph={type:'surface',x:sphereMesh.x,y:sphereMesh.y,z:sphereMesh.z,opacity:.12,colorscale:[[0,'#1e2d42'],[1,'#374151']],showscale:false,hoverinfo:'none'};
+  const eqT=Array.from({length:64},(_,i)=>i*2*Math.PI/63);
+  const trEq={type:'scatter3d',mode:'lines',x:eqT.map(Math.cos),y:eqT.map(Math.sin),z:new Array(64).fill(0),line:{color:'#475569',width:2,dash:'dash'},name:'Ecuador S3=0'};
+  const trSpin={type:'scatter3d',mode:'lines',x:s1n,y:s2n,z:s3n,line:{color:'#38bdf8',width:4},name:'Espinor S2'};
+  const trPoles={type:'scatter3d',mode:'markers+text',x:[0,0],y:[0,0],z:[1.04,-1.04],marker:{size:8,color:['#ec4899','#f59e0b']},text:['Norte +z1','Sur -z2'],textposition:['top center','bottom center'],textfont:{size:9,color:'#94a3b8'},name:'Polos Hopf'};
+  const trCurSt={type:'scatter3d',mode:'markers',x:[s1n[0]],y:[s2n[0]],z:[s3n[0]],marker:{color:'#f43f5e',size:10,symbol:'circle'},name:'t actual'};
+  const laySt={...lay3d('S1/S0','S2/S0','S3/S0',{x:1.4,y:1.4,z:.9})};
+  laySt.scene.xaxis={...laySt.scene.xaxis,range:[-1.1,1.1]};
+  laySt.scene.yaxis={...laySt.scene.yaxis,range:[-1.1,1.1]};
+  laySt.scene.zaxis={...laySt.scene.zaxis,range:[-1.1,1.1]};
+  Plotly.newPlot('p3d-st',[trSph,trEq,trSpin,trPoles,trCurSt],laySt,{responsive:true,displayModeBar:true});
+
+  // C. Decision Surface
+  const trSurf={type:'surface',x:surfData.theta,y:surfData.div,z:surfData.z,colorscale:'Viridis',colorbar:{title:'Certeza D',len:.65,thickness:10,tickfont:{color:'#7a8fa6',size:8}}};
+  const trPts={type:'scatter3d',mode:'markers',x:pds,y:dvs,z:dests,marker:{size:3,color:'rgba(248,250,252,.7)'},name:'Puntos ZENIN'};
+  const trCurSf={type:'scatter3d',mode:'markers',x:[pds[0]],y:[dvs[0]],z:[dests[0]],marker:{color:'#f59e0b',size:9,symbol:'diamond'},name:'t actual'};
+  Plotly.newPlot('p3d-sf',[trSurf,trPts,trCurSf],lay3d('Fase (rad)','div F','D(t)',{x:1.7,y:-1.4,z:1.2}),{responsive:true,displayModeBar:true});
+}
+
+// ---- 2D INIT ----
+const cursorSlots={'p2d-1':5,'p2d-2':3,'p2d-3':6,'p2d-4':3,'p2d-5':5,'p2d-6':5};
+
+function init2D() {
+  const sh=rShapes(), an=rAnnots();
+  function baseL(yt){return{...DB,yaxis:{...DB.yaxis,title:yt},shapes:sh,annotations:an};}
+
+  const yMin1=Math.min(...xs)-5, yMax1=Math.max(...xs)+5;
+  Plotly.newPlot('p2d-1',[
+    {x:times,y:xs,mode:'lines',line:{color:'#e2e8f0',width:1.8},name:'x(t)',hovertemplate:'t=%{x:.2f}s<br>x=%{y:.3f}<extra></extra>'},
+    {x:execIdx.map(i=>times[i]),y:execIdx.map(i=>xs[i]),mode:'markers',marker:{color:'#10b981',size:6,opacity:.85},name:'EXECUTE',hovertemplate:'EXECUTE t=%{x:.2f}s<extra></extra>'},
+    {x:holdIdx.map(i=>times[i]),y:holdIdx.map(i=>xs[i]),mode:'markers',marker:{color:'#f59e0b',size:4,opacity:.7},name:'HOLD'},
+    {x:flushIdx.map(i=>times[i]),y:flushIdx.map(i=>xs[i]),mode:'markers',marker:{color:'#f43f5e',size:10,symbol:'x'},name:'FLUSH',hovertemplate:'FLUSH t=%{x:.2f}s<extra></extra>'},
+    {x:outIdx.map(i=>times[i]),y:outIdx.map(i=>xs[i]),mode:'markers',marker:{color:'#a855f7',size:8,symbol:'diamond',opacity:.9},name:'Outlier bloqueado'},
+    mkCursor(yMin1,yMax1)
+  ],baseL('Estado x(t)'),{responsive:true});
+
+  const yMax2=Math.max(...dMs,4.5);
+  Plotly.newPlot('p2d-2',[
+    {x:times,y:dMs,mode:'lines',line:{color:'#38bdf8',width:1.6},fill:'tozeroy',fillcolor:'rgba(56,189,248,.05)',name:'d Mahal(t)',hovertemplate:'t=%{x:.2f}s<br>d=%{y:.4f}<extra></extra>'},
+    {x:[0,times[N-1]],y:[3,3],mode:'lines',line:{color:'#f43f5e',width:2,dash:'dash'},name:'Umbral tau=3.0'},
+    {x:outIdx.map(i=>times[i]),y:outIdx.map(i=>dMs[i]),mode:'markers',marker:{color:'#f43f5e',size:10,symbol:'circle-open',line:{width:2,color:'#f43f5e'}},name:'Outlier rechazado',hovertemplate:'OUTLIER t=%{x:.2f}s<br>d=%{y:.4f}<extra></extra>'},
+    mkCursor(0,yMax2+.5)
+  ],baseL('Dist. Mahalanobis'),{responsive:true});
+
+  const yMin3=Math.min(...rTsN,...rets)*1.25, yMax3=Math.max(...cvars,...rTs)*1.35;
+  Plotly.newPlot('p2d-3',[
+    {x:times,y:rTs,mode:'lines',line:{color:'#38bdf8',width:.8},showlegend:false,hoverinfo:'none'},
+    {x:times,y:rTsN,mode:'lines',line:{color:'#38bdf8',width:.8},fill:'tonexty',fillcolor:'rgba(56,189,248,.12)',name:'Tubo tolerancia ±R_t'},
+    {x:times,y:rets,mode:'lines',line:{color:'#94a3b8',width:1.3},name:'Retorno r(t)',hovertemplate:'t=%{x:.2f}s<br>r=%{y:.5f}<extra></extra>'},
+    {x:times,y:cvars,mode:'lines',line:{color:'#f59e0b',width:2},name:'CVaR(t) Student-t',hovertemplate:'t=%{x:.2f}s<br>CVaR=%{y:.5f}<extra></extra>'},
+    {x:[0,times[N-1]],y:[.02,.02],mode:'lines',line:{color:'#f43f5e',width:2,dash:'dot'},name:'Limite L_max=0.020'},
+    {x:vetoIdx.map(i=>times[i]),y:vetoIdx.map(i=>cvars[i]),mode:'markers',marker:{color:'#f43f5e',size:9,symbol:'x'},name:'Veto CVaR'},
+    mkCursor(yMin3,yMax3)
+  ],baseL('Escala de retorno'),{responsive:true});
+
+  Plotly.newPlot('p2d-4',[
+    {x:times,y:lams,mode:'lines',line:{color:'#a855f7',width:2},fill:'tozeroy',fillcolor:'rgba(168,85,247,.06)',name:'Sincronia Lambda(t)',hovertemplate:'t=%{x:.2f}s<br>Lambda=%{y:.4f}<extra></extra>'},
+    {x:times,y:phis,mode:'lines',line:{color:'#34d399',width:1.8,dash:'dashdot'},name:'Consenso MoE Phi',hovertemplate:'t=%{x:.2f}s<br>Phi=%{y:.4f}<extra></extra>'},
+    {x:[0,times[N-1]],y:[.6,.6],mode:'lines',line:{color:'#f59e0b',width:1.5,dash:'dot'},name:'Umbral MoE=0.60'},
+    mkCursor(0,1.05)
+  ],{...baseL('Sincronia / Consenso'),yaxis:{...DB.yaxis,title:'Indice [0..1]',range:[0,1.1]}},{responsive:true});
+
+  const yMin5=Math.min(...s3arr)-.1, yMax5=Math.max(...s0arr)+.1;
+  Plotly.newPlot('p2d-5',[
+    {x:times,y:s0arr,mode:'lines',line:{color:'#f1f5f9',width:1.8},name:'S0 (intensidad total)',hovertemplate:'S0=%{y:.5f}<extra></extra>'},
+    {x:times,y:s1arr,mode:'lines',line:{color:'#38bdf8',width:1.8},name:'S1 (polariz. lineal)',hovertemplate:'S1=%{y:.5f}<extra></extra>'},
+    {x:times,y:s2arr,mode:'lines',line:{color:'#34d399',width:1.4,dash:'dot'},name:'S2 (polariz. cruzada)',hovertemplate:'S2=%{y:.5f}<extra></extra>'},
+    {x:times,y:s3arr,mode:'lines',line:{color:'#ec4899',width:1.8},name:'S3 (asimetria)',hovertemplate:'S3=%{y:.5f}<extra></extra>'},
+    {x:[0,times[N-1]],y:[0,0],mode:'lines',line:{color:'#374151',width:.8},showlegend:false,hoverinfo:'none'},
+    mkCursor(yMin5,yMax5)
+  ],baseL('Parametros de Stokes'),{responsive:true});
+
+  const yMax6=Math.max(...dests,...liovs)*1.15;
+  Plotly.newPlot('p2d-6',[
+    {x:times,y:dests,mode:'lines',line:{color:'#10b981',width:2.4},fill:'tozeroy',fillcolor:'rgba(16,185,129,.06)',name:'Destino D(t)',hovertemplate:'t=%{x:.2f}s<br>D=%{y:.5f}<extra></extra>'},
+    {x:times,y:liovs,mode:'lines',line:{color:'#f59e0b',width:1.6,dash:'dash'},name:'Factor Liouville',hovertemplate:'Liouv=%{y:.5f}<extra></extra>'},
+    {x:times,y:cSovs,mode:'lines',line:{color:'#60a5fa',width:1.4,dash:'dashdot'},name:'Acople |S3+S1|'},
+    {x:[0,times[N-1]],y:[.35,.35],mode:'lines',line:{color:'#f43f5e',width:1.5,dash:'dot'},name:'Umbral EXECUTE D=0.35'},
+    {x:execIdx.map(i=>times[i]),y:execIdx.map(i=>dests[i]),mode:'markers',marker:{color:'#10b981',size:5,opacity:.8},name:'Puntos EXECUTE'},
+    mkCursor(0,yMax6)
+  ],baseL('Certeza Consolidada'),{responsive:true});
+}
+
+// ---- PLAYBACK ----
+let curIdx=0, isPlaying=false, playTimer=null, spd=1.0;
+
+function updateStep(idx) {
+  curIdx=Math.max(0,Math.min(N-1,idx|0));
+  const r=records[curIdx], t=times[curIdx];
+  document.getElementById('timeSlider').value=curIdx;
+  document.getElementById('timeLabel').innerText=`t = ${t.toFixed(2)} s`;
+
+  // HUD
+  document.getElementById('hudStep').innerText=`#${curIdx.toString().padStart(3,'0')}`;
+  document.getElementById('hudRegime').innerText=r.regime;
+  document.getElementById('hudX').innerText=r.x.toFixed(4);
+  document.getElementById('hudDx').innerText=`dx = ${r.dx>=0?'+':''}${r.dx.toFixed(5)}`;
+  document.getElementById('hudVA').innerText=`v:${r.v.toFixed(3)} a:${r.a.toFixed(3)}`;
+
+  const mEl=document.getElementById('hudMahal');
+  mEl.innerText=r.d_mahal.toFixed(4);
+  mEl.className=`hv ${r.is_outlier?'tr':r.d_mahal>2?'ta':'tg'}`;
+  document.getElementById('hudMS').innerText=r.is_outlier?'BLOQUEADO — Outlier':'Normal (tau=3.0)';
+  document.getElementById('hudCvar').innerText=`${r.cvar_t.toFixed(5)} / ${r.l_max.toFixed(3)}`;
+  document.getElementById('hudCS').innerText=r.veto_riesgo===0?'VETO activo — riesgo alto':'Sin veto';
+  document.getElementById('hudLambda').innerText=r.lambda_crono.toFixed(4);
+  document.getElementById('hudStokes').innerText=`${r.s0.toFixed(3)}/${r.s1.toFixed(3)}/${r.s3.toFixed(3)}`;
+  document.getElementById('hudS2').innerText=`S2=${r.s2.toFixed(5)}`;
+  document.getElementById('hudD').innerText=r.dest_var.toFixed(4);
+  document.getElementById('hudLv').innerText=`Liouville=${r.liouville_factor.toFixed(4)}`;
+
+  const aEl=document.getElementById('hudAction'), rEl=document.getElementById('hudAR');
+  if(r.action_code===1){aEl.innerHTML='<span class="b-exec">EXECUTE</span>';rEl.innerText='Alta certeza — todo verde';}
+  else if(r.action_code===-1){aEl.innerHTML='<span class="b-flush">EMERGENCY_FLUSH</span>';rEl.innerText='Zona de caida libre';}
+  else{aEl.innerHTML='<span class="b-hold">HOLD</span>';rEl.innerText=r.is_outlier?'Outlier detectado':r.veto_riesgo===0?'Veto CVaR':'Certeza insuficiente';}
+
+  // 3D cursors
+  try{Plotly.restyle('p3d-ph',{x:[[r.x]],y:[[r.v]],z:[[r.a]]},[4]);}catch(e){}
+  try{Plotly.restyle('p3d-st',{x:[[s1n[curIdx]]],y:[[s2n[curIdx]]],z:[[s3n[curIdx]]]},[4]);}catch(e){}
+  try{Plotly.restyle('p3d-sf',{x:[[r.phase_delta]],y:[[r.div_flow]],z:[[r.dest_var]]},[2]);}catch(e){}
+
+  // 2D cursors
+  const tv=[t,t];
+  Object.entries(cursorSlots).forEach(([pid,ti])=>{try{Plotly.restyle(pid,{x:[tv]},[ti]);}catch(e){}});
+
+  // Table row highlight
+  document.querySelectorAll('#auditTable tbody tr').forEach(tr=>tr.classList.remove('ractive'));
+  const row=document.getElementById(`row-${curIdx}`);
+  if(row) row.classList.add('ractive');
+}
+
+function onSlider(v){updateStep(v);}
+function stepSim(d){updateStep(curIdx+d);}
+
+function togglePlayback(){
+  isPlaying=!isPlaying;
+  const btn=document.getElementById('btnPlay');
+  if(isPlaying){
+    btn.textContent='⏸ Pause';btn.classList.add('btn-p');
+    playTimer=setInterval(()=>{const n=(curIdx+1)>=N?0:curIdx+1;updateStep(n);},Math.max(16,60/spd));
+  }else{
+    btn.innerHTML='&#9654; Play';btn.classList.remove('btn-p');
+    clearInterval(playTimer);
+  }
+}
+function changeSpeed(v){spd=parseFloat(v);if(isPlaying){togglePlayback();togglePlayback();}}
+
+// ---- 3D CAMERA ----
+function stopRotate(n){if(rotTimers[n]){clearInterval(rotTimers[n]);delete rotTimers[n];}}
+
+function toggleRotate(n){
+  if(rotTimers[n]){stopRotate(n);return;}
+  rotTimers[n]=setInterval(()=>{
+    const s=parseInt(document.getElementById('rotSpd').value)*.002;
+    rotAngles[n]=(rotAngles[n]||0)+s;
+    const r=2.2,eye={x:r*Math.cos(rotAngles[n]),y:r*Math.sin(rotAngles[n]),z:n==='sf'?1.3:1.0};
+    Plotly.relayout(p3ids[n],{'scene.camera.eye':eye});
+  },50);
+}
+
+function setView(n,preset){
+  stopRotate(n);
+  Plotly.relayout(p3ids[n],{'scene.camera.eye':presets[preset]||presets.iso});
+}
+
+function toggleAllRotate(){
+  globalRot=!globalRot;
+  const btn=document.getElementById('btnGrot');
+  if(globalRot){
+    btn.textContent='Auto-giro: ON';btn.classList.add('btn-p');
+    ['ph','st','sf'].forEach(n=>{if(!rotTimers[n])toggleRotate(n);});
+  }else{
+    btn.textContent='Auto-giro: OFF';btn.classList.remove('btn-p');
+    ['ph','st','sf'].forEach(n=>stopRotate(n));
+  }
+}
+
+// ---- TABS ----
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tpane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pane-'+id).classList.add('active');
+  const btn=Array.from(document.querySelectorAll('.tab-btn')).find(b=>b.getAttribute('onclick').includes(id));
+  if(btn)btn.classList.add('active');
+  setTimeout(()=>{
+    if(id==='geo3d'){['p3d-ph','p3d-st','p3d-sf'].forEach(p=>Plotly.Plots.resize(p));}
+    else if(id==='signals'){for(let i=1;i<=6;i++)Plotly.Plots.resize('p2d-'+i);}
+  },60);
+}
+
+// ---- AUDIT TABLE ----
+function buildTable(){
+  const tbody=document.querySelector('#auditTable tbody');
+  const frag=document.createDocumentFragment();
+  records.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.id=`row-${i}`;
+    tr.onclick=()=>updateStep(i);
+    let cls='t-hold';
+    if(r.action_code===1)cls='t-exec';
+    if(r.action_code===-1)cls='t-flush';
+    const oMark=r.is_outlier?' <span class="tag t-out">OTL</span>':'';
+    const vMark=(r.veto_riesgo===0&&!r.is_outlier)?' <span class="tag t-flush">VTO</span>':'';
+    tr.innerHTML=`
+      <td class="mono">#${i.toString().padStart(3,'0')}</td>
+      <td class="mono">${r.time.toFixed(2)}</td>
+      <td style="font-size:.68rem;white-space:nowrap;max-width:120px;overflow:hidden;">${r.regime}</td>
+      <td class="mono">${r.x.toFixed(3)}</td>
+      <td class="mono ${Math.abs(r.dx)>.5?'ta':''}">${r.dx>=0?'+':''}${r.dx.toFixed(4)}</td>
+      <td class="mono">${r.v.toFixed(3)}</td>
+      <td class="mono">${r.a.toFixed(3)}</td>
+      <td class="mono ${r.is_outlier?'tr':r.d_mahal>2.5?'ta':''}">${r.d_mahal.toFixed(3)}${oMark}</td>
+      <td class="mono ${r.cvar_t>r.l_max?'tr':''}">${r.cvar_t.toFixed(5)}${vMark}</td>
+      <td class="mono ${r.lambda_crono<.5?'ta':''}">${r.lambda_crono.toFixed(4)}</td>
+      <td class="mono">${r.s0.toFixed(4)}</td>
+      <td class="mono">${r.s1.toFixed(4)}</td>
+      <td class="mono">${r.s2.toFixed(4)}</td>
+      <td class="mono">${r.s3.toFixed(4)}</td>
+      <td class="mono tg">${r.dest_var.toFixed(5)}</td>
+      <td class="mono">${r.liouville_factor.toFixed(4)}</td>
+      <td><span class="tag ${cls}">${r.action_code===1?'EXECUTE':r.action_code===-1?'FLUSH':'HOLD'}</span></td>
+    `;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+}
+
+function filterTable(f,btn){
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#auditTable tbody tr').forEach((tr,i)=>{
+    const r=records[i]; let show=true;
+    if(f==='EXECUTE'&&r.action_code!==1)show=false;
+    if(f==='HOLD'&&r.action_code!==0)show=false;
+    if(f==='EMERGENCY_FLUSH'&&r.action_code!==-1)show=false;
+    if(f==='OUTLIER'&&!r.is_outlier)show=false;
+    if(f==='VETO'&&!(r.veto_riesgo===0&&!r.is_outlier))show=false;
+    tr.style.display=show?'':'none';
+  });
+}
+
+// ---- RESIZE ----
+window.addEventListener('resize',()=>{
+  ['p3d-ph','p3d-st','p3d-sf'].forEach(p=>Plotly.Plots.resize(p));
+  for(let i=1;i<=6;i++)Plotly.Plots.resize('p2d-'+i);
+});
+
+// ---- BOOT ----
+window.addEventListener('load',()=>{
+  init3D();
+  init2D();
+  buildTable();
+  updateStep(0);
+});
+</script>
+</body>
+</html>
