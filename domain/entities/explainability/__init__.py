@@ -13,6 +13,7 @@ from .reasoning_trace import PhaseKind, ReasoningPhase, ReasoningTrace
 from .contribution_breakdown import ContributionBreakdown, EngineContribution
 from .signal_snapshot import FilterSnapshot, SignalSnapshot
 from .contextual_explanation import ContextualExplanation
+from .diagnostic_decomposition import DiagnosticDecomposition, DominantLimiter
 
 __all__ = [
     "Explanation",
@@ -25,4 +26,6 @@ __all__ = [
     "FilterSnapshot",
     "SignalSnapshot",
     "ContextualExplanation",
+    "DiagnosticDecomposition",
+    "DominantLimiter",
 ]

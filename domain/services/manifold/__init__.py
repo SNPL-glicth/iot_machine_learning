@@ -43,6 +43,7 @@ from .mrt_hopf_fibration import (
     compute_rational_hopf_amplitudes,
     evaluate_hopf_spinor,
 )
+from .empirical_jacobian_service import EmpiricalJacobianService
 
 __all__ = [
     "VectorFieldConfig",
@@ -67,4 +68,5 @@ __all__ = [
     "compute_vorticity_curl_norm",
     "compute_rational_hopf_amplitudes",
     "evaluate_hopf_spinor",
+    "EmpiricalJacobianService",
 ]
