@@ -38,6 +38,8 @@ class RhythmTrajectoryGenerator:
     quantization_decimals: int = 2
     n_centroids: int = DEFAULT_N_CENTROIDS
     guided_field: Optional[GuidedFieldPort] = None
+    persistent_graph: bool = False
+    max_transitions_per_key: int = 50
 
     def __post_init__(self) -> None:
         self._history: list[Movement] = []
@@ -123,25 +125,21 @@ class RhythmTrajectoryGenerator:
         if self._exploration_boost > 0:
             self._exploration_boost -= 1
 
-        candidates = [t for t in self._walk_sampler.generate_candidates(latest_movement, lambda_t, self.top_k * self.oversample_factor) if len(t.movements) >= 2]
-        scored = []
         memo: dict[int, Trajectory] = {}
-        for traj in candidates:
+        for traj in [t for t in self._walk_sampler.generate_candidates(latest_movement, lambda_t, self.top_k * self.oversample_factor) if len(t.movements) >= 2]:
             tid = id(traj)
             if tid not in memo:
                 memo[tid] = self._scorer.score_trajectory(traj, lambda_t, entropy)
-            st = memo[tid]
-            scored.append((st.coherence_score, st))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [t for _, t in scored[: self.top_k]]
+        scored = sorted(memo.values(), key=lambda t: t.coherence_score, reverse=True)
+        return scored[: self.top_k]
 
     def _compute_lambda(self, entropy: float, drift_score: float) -> float:
         norm_entropy = min(entropy / self.max_entropy, 1.0) if self.max_entropy > 0 else 0.0
         return min(norm_entropy, max(0.0, 1.0 - drift_score))
 
     def _update_transition_graph(self) -> None:
-        self._transition_graph.clear()
+        if not self.persistent_graph:
+            self._transition_graph.clear()
         if len(self._history) < 2:
             self._walk_sampler.update_transition_graph(self._transition_graph)
             return
@@ -149,7 +147,11 @@ class RhythmTrajectoryGenerator:
             key = self._quantize_state(self._history[i].delta_state)
             if key not in self._transition_graph:
                 self._transition_graph[key] = []
-            self._transition_graph[key].append(self._history[i + 1])
+            nxt = self._history[i + 1]
+            if not self.persistent_graph or not self._transition_graph[key] or self._transition_graph[key][-1] != nxt:
+                self._transition_graph[key].append(nxt)
+                if self.persistent_graph and len(self._transition_graph[key]) > self.max_transitions_per_key:
+                    self._transition_graph[key].pop(0)
         self._walk_sampler.update_transition_graph(self._transition_graph)
 
     def set_transition_graph(self, graph: dict[StateKey, list[Movement]]) -> None:

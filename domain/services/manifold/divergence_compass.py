@@ -6,6 +6,7 @@ d(δV)/dt = Tr(J) δV, serving as early warning radar before state collapse.
 
 from __future__ import annotations
 
+from typing import cast
 import numpy as np
 
 from domain.entities.manifold.manifold_parameters import ManifoldBoundaryLimits
@@ -24,7 +25,7 @@ def compute_divergence(jacobian: np.ndarray) -> float:
 def compute_divergence_batch(jacobians: np.ndarray) -> np.ndarray:
     """Batch evaluation of divergences using Einstein summation contraction."""
     J = np.asarray(jacobians, dtype=np.float64)
-    return np.einsum("...ii->...", J)
+    return cast(np.ndarray, np.einsum("...ii->...", J))
 
 
 def compute_spectral_stability(
@@ -55,6 +56,33 @@ def classify_manifold_regime(
         return False, "CONTRACTIVE_ATTRACTOR"
 
     return False, "NEUTRAL_TRANSITION"
+
+
+def classify_detailed_spectral_regime(
+    eigvals: np.ndarray,
+    divergence: float,
+    limits: ManifoldBoundaryLimits | None = None,
+) -> tuple[bool, str, dict[str, float]]:
+    """Fine-grained spectral decomposition into chaotic, oscillatory limit cycle, or sink."""
+    lim = limits or _DEFAULT_LIMITS
+    reals = np.real(eigvals)
+    imags = np.imag(eigvals)
+    max_real = float(np.max(reals))
+    max_imag = float(np.max(np.abs(imags)))
+    div_v = float(divergence)
+
+    metrics = {"max_real_eig": max_real, "max_imag_eig": max_imag, "divergence": div_v}
+
+    if div_v > lim.divergence_threshold or max_real > lim.spectral_threshold:
+        return True, "EXPANSIVE_CHAOS", metrics
+
+    if max_imag > max(0.01, abs(max_real)):
+        return False, "LIMIT_CYCLE_OSCILLATORY", metrics
+
+    if div_v < lim.neutral_contraction_threshold:
+        return False, "CONTRACTIVE_ATTRACTOR", metrics
+
+    return False, "NEUTRAL_TRANSITION", metrics
 
 
 def evaluate_volume_ratio(

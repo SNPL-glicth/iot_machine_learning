@@ -56,20 +56,27 @@ class RiskEngineAdapter(ExpertJuryPort):
         cvar_multiplier: float = 2.70,  # Student-t (nu=4) 95% CVaR multiplier (calibrated; replaces Gaussian 2.0627)
         l_max: float = 0.02,  # 2.0% max tolerable risk move by default
         default_sigma: float = 0.001,
+        enable_conformal: bool = False,
+        conformal_alpha: float = 0.05,
+        conformal_step: float = 0.02,
     ):
         self.name, self.is_critical, self.threshold = name, is_critical, threshold
         self.weight, self.window_size, self.omega_alpha = weight, window_size, omega_alpha
         self.omega_max, self.cvar_multiplier = omega_max, cvar_multiplier
         self.l_max, self.default_sigma = l_max, default_sigma
+        self.enable_conformal, self.conformal_alpha = enable_conformal, conformal_alpha
+        self.conformal_step = conformal_step
 
         # Internal state (in return space)
         self._returns: deque[float] = deque(maxlen=window_size)
         self._omega: float = 0.0
+        self._q_conformal: float = 1.0
         self._last_expected_return: Optional[float] = None
         self._last_r_t: Optional[float] = None
         self._last_verdict: Dict[str, Any] = {
             "R_t": 0.0, "sigma_t": self.default_sigma, "delta_t": 1.0, "omega_t": 0.0,
-            "cvar_t": 0.0, "l_max": self.l_max, "veto_riesgo": 1, "breach_detected": False, "confidence": 0.95,
+            "cvar_t": 0.0, "l_max": self.l_max, "veto_riesgo": 1, "breach_detected": False,
+            "confidence": 0.95, "q_conformal": 1.0, "enable_conformal": enable_conformal,
         }
 
     def record_observation(
@@ -89,11 +96,7 @@ class RiskEngineAdapter(ExpertJuryPort):
             effective_signal = log_return if log_return is not None else 0.0
 
         if effective_signal is not None and abs(effective_signal) > 1.0:
-            logger.warning(
-                "RiskEngineAdapter: input signal magnitude |%.4f| > 1.0. "
-                "Engine operates in logarithmic return space (~0.0001 - 0.05), possible absolute price mistakenly passed.",
-                effective_signal,
-            )
+            logger.warning("RiskEngineAdapter: input magnitude |%.4f| > 1.0, operates in return space.", effective_signal)
 
         effective_expected = expected_return if expected_return is not None else expected_price
         effective_log_return = log_return if log_return is not None else effective_signal
@@ -115,8 +118,17 @@ class RiskEngineAdapter(ExpertJuryPort):
         if sigma_t < EPSILON.COMPARISON:
             sigma_t = self.default_sigma
 
+        # Adaptive Conformal Inference (ACI) dynamic calibration
+        if self.enable_conformal:
+            self._q_conformal = float(np.clip(
+                self._q_conformal + self.conformal_step * (breach_val - self.conformal_alpha), 0.5, 4.0
+            ))
+            q_scale = self._q_conformal
+        else:
+            q_scale = 1.0
+
         # Tolerance tube R_t & parametric CVaR
-        r_t = sigma_t * math.sqrt(dt) * math.exp(omega_clamped)
+        r_t = sigma_t * math.sqrt(dt) * math.exp(omega_clamped) * q_scale
         cvar_t = self.cvar_multiplier * r_t
         veto_riesgo = 1 if cvar_t <= self.l_max else 0
 
@@ -127,15 +139,10 @@ class RiskEngineAdapter(ExpertJuryPort):
         self._last_expected_return = float(effective_expected if effective_expected is not None else effective_signal)
 
         self._last_verdict = {
-            "R_t": float(r_t),
-            "sigma_t": float(sigma_t),
-            "delta_t": float(dt),
-            "omega_t": float(omega_clamped),
-            "cvar_t": float(cvar_t),
-            "l_max": float(self.l_max),
-            "veto_riesgo": int(veto_riesgo),
-            "breach_detected": breach_detected,
-            "confidence": float(confidence),
+            "R_t": float(r_t), "sigma_t": float(sigma_t), "delta_t": float(dt), "omega_t": float(omega_clamped),
+            "cvar_t": float(cvar_t), "l_max": float(self.l_max), "veto_riesgo": int(veto_riesgo),
+            "breach_detected": breach_detected, "confidence": float(confidence),
+            "q_conformal": float(self._q_conformal), "enable_conformal": self.enable_conformal,
         }
         return self._last_verdict
 

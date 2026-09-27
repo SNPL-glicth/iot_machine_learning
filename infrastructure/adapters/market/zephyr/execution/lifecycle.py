@@ -133,14 +133,15 @@ def _create_internal_trajectory_engine(config: LiveBotConfig) -> Any:
     )
     engine.gamma_exec = float(config.phi_moe_threshold)
     engine.geometric_threshold = float(config.geometric_threshold)
-    max_vel_err = getattr(config, "tracker_max_vel_rel_err", None)
-    engine._tracker = TrajectoryTracker(max_direction_dev_deg=120.0, max_velocity_rel_err=max_vel_err)
+    max_vel = getattr(config, "tracker_max_vel_rel_err", 0.5)
+    engine._tracker = TrajectoryTracker(max_direction_dev_deg=120.0, max_velocity_rel_err=float(max_vel if max_vel is not None else 0.5))
     return engine
 
 
 def create_default_master_orchestrator(config: LiveBotConfig) -> Any:
-    """Crea el orquestador maestro unificando Rosa Roja, Riesgo Estocástico y Sincronía Temporal."""
+    """Crea el orquestador maestro unificando Rosa Roja, MRT, Riesgo y Sincronía."""
     from iot_machine_learning.infrastructure.ml.adapters import RiskEngineAdapter, TemporalEngineAdapter
+    from iot_machine_learning.infrastructure.ml.engines.mrt.mrt_engine import MRTEngine
     from iot_machine_learning.infrastructure.ml.master_engine import (
         GeometricManifoldAdapter,
         MasterEquationOrchestrator,
@@ -148,6 +149,7 @@ def create_default_master_orchestrator(config: LiveBotConfig) -> Any:
 
     return MasterEquationOrchestrator(
         rosa_roja_engine=_create_internal_trajectory_engine(config),
+        mrt_engine=MRTEngine(),
         risk_adapter=RiskEngineAdapter(),
         temporal_adapter=TemporalEngineAdapter(),
         manifold_engine=GeometricManifoldAdapter(),
@@ -174,5 +176,3 @@ def install_signal_handlers(shutdown_event: Any, already_installed: bool = False
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, handler)
     return True
-
-

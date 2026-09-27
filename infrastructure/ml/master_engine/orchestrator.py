@@ -1,7 +1,7 @@
 """Master Equation Orchestrator (Phase-Space Resonance & Wave Superposition).
 
-Integrates Rosa Roja trajectory engine, continuous stochastic risk adapter,
-fractal chronometric adapter, and Geometric Manifold Engine into an agnostic orchestrator.
+Integrates Rosa Roja trajectory engine, MRT phase conjugate engine, continuous stochastic
+risk adapter, fractal chronometric adapter, and Geometric Manifold Engine into an agnostic orchestrator.
 """
 
 from __future__ import annotations
@@ -37,31 +37,27 @@ class MasterEquationOrchestrator(MasterDecisionPort):
     """Top-level master orchestrator executing continuous wave resonance on Manifold M."""
 
     def __init__(
-        self,
-        rosa_roja_engine: RosaRojaEngine,
-        risk_adapter: Any,
-        temporal_adapter: Any,
-        *,
-        manifold_engine: Any | None = None,
-        shadow_mode: bool = False,
-        manifold_shadow_mode: bool = True,
-        tau_mom: float = 0.5,
-        sigma_mom: float = 0.001,
+        self, rosa_roja_engine: RosaRojaEngine, risk_adapter: Any, temporal_adapter: Any, *,
+        mrt_engine: Any | None = None, manifold_engine: Any | None = None, shadow_mode: bool = False,
+        manifold_shadow_mode: bool = True, tau_mom: float = 0.5, sigma_mom: float = 0.001,
         gamma_exec: float | None = None,
     ) -> None:
         self._rosa_roja = rosa_roja_engine
+        self._mrt = mrt_engine
         self._risk_adapter = risk_adapter
         self._temporal_adapter = temporal_adapter
         self._manifold_engine = manifold_engine
-        self._shadow_mode = shadow_mode
-        self._manifold_shadow_mode = manifold_shadow_mode
-        self._tau_mom = tau_mom
-        self._sigma_mom = sigma_mom
-        self._gamma_exec = gamma_exec
+        self._shadow_mode, self._manifold_shadow_mode = shadow_mode, manifold_shadow_mode
+        self._tau_mom, self._sigma_mom, self._gamma_exec = tau_mom, sigma_mom, gamma_exec
 
     @property
     def gamma_exec(self) -> float:
-        return float(self._gamma_exec) if self._gamma_exec is not None else getattr(self._rosa_roja, "gamma_exec", 0.5)
+        val = self._gamma_exec if self._gamma_exec is not None else getattr(self._rosa_roja, "gamma_exec", 0.5)
+        return float(val) if isinstance(val, (int, float)) else 0.5
+
+    @property
+    def mrt_engine(self) -> Any | None:
+        return self._mrt
 
     @property
     def state_machine(self) -> Any:
@@ -72,7 +68,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
 
     def reset(self) -> None:
         self._rosa_roja.reset()
-        for adapter in (self._risk_adapter, self._temporal_adapter, self._manifold_engine):
+        for adapter in (self._risk_adapter, self._temporal_adapter, self._manifold_engine, self._mrt):
             if adapter is not None and hasattr(adapter, "reset"):
                 adapter.reset()
 
@@ -112,60 +108,52 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             if ref_dir.shape == arr.shape:
                 alignment = float(np.clip(np.dot(arr / state_norm, ref_dir), -1.0, 1.0))
 
+        jury = getattr(self._rosa_roja, "_jury", [])
+        expert_mag = extract_expert_target_magnitude(jury, plan_base)
+
+        mrt_res = None
+        if self._mrt is not None:
+            try:
+                vals = [float(m.delta_state[0]) for m in traj.movements] if (traj and traj.movements and len(traj.movements) >= 4) else arr.tolist()
+                mrt_res = self._mrt.predict(vals, timestamps=[0.0, dt])
+            except Exception as exc:
+                logger.debug("mrt_predict_error: %s", exc)
+
         mahal_d = float(base_trace.get("mahalanobis_dist", base_trace.get("mahal_dist", state_norm)))
         comp = compute_master_equation(
-            phi_moe_base=phi_moe_base,
-            i_cvar=i_cvar,
-            lambda_t_crono=lambda_t_crono,
-            kuramoto_r=float(base_trace.get("kuramoto_r", 1.0)),
-            phase_alignment=alignment,
-            manifold_engine=self._manifold_engine,
-            delta_time=dt,
-            mahalanobis_d=mahal_d,
-            manifold_shadow_mode=self._manifold_shadow_mode,
+            phi_moe_base=phi_moe_base, i_cvar=i_cvar, lambda_t_crono=lambda_t_crono,
+            kuramoto_r=float(base_trace.get("kuramoto_r", 1.0)), phase_alignment=alignment,
+            manifold_engine=self._manifold_engine, delta_time=dt, mahalanobis_d=mahal_d,
+            manifold_shadow_mode=self._manifold_shadow_mode, rosa_roja_output=plan_base,
+            mrt_output=mrt_res, current_reference_price=expert_mag if expert_mag > 0 else state_norm,
         )
 
         eff_sigma_dr = max(0.1, state_dispersion * 2.0)
         c_legacy = compute_certeza(i_cvar, ds_dt, dr_dt, phi_moe_base, eff_sigma_dr)
         certeza = c_legacy if self._shadow_mode else comp.certeza
 
-        jury = getattr(self._rosa_roja, "_jury", [])
-        magnitud_objetivo = extract_expert_target_magnitude(jury, plan_base)
-        if not self._shadow_mode and not self._manifold_shadow_mode and comp.is_4d_projected and comp.magnitud_objetivo > 0.0:
-            magnitud_objetivo = comp.magnitud_objetivo
+        magnitud_objetivo = expert_mag
+        if not self._shadow_mode and comp.is_4d_projected and comp.magnitud_objetivo > 0.0:
+            if not self._manifold_shadow_mode or (mrt_res is not None):
+                magnitud_objetivo = comp.magnitud_objetivo
 
         momentum_veto = compute_momentum_veto(
-            ds_dt_ema=float(alignment * ds_dt),
-            magnitud=magnitud_objetivo,
-            tau_mom=self._tau_mom,
-            sigma_mom=self._sigma_mom,
-            sigma_market=state_dispersion,
+            ds_dt_ema=float(alignment * ds_dt), magnitud=magnitud_objetivo,
+            tau_mom=self._tau_mom, sigma_mom=self._sigma_mom, sigma_market=state_dispersion,
         )
 
         telemetry_hash = compute_telemetry_hash(delta_state, delta_time)
         master_trace = assemble_master_trace(
-            base_trace=base_trace,
-            phi_moe_base=phi_moe_base,
-            i_cvar=i_cvar,
-            lambda_t_crono=lambda_t_crono,
-            certeza=certeza,
-            magnitud_objetivo=magnitud_objetivo,
-            momentum_veto=momentum_veto,
-            shadow_mode=self._shadow_mode,
-            risk_verdict=risk_verdict,
-            temporal_verdict=temporal_verdict,
-            telemetry_hash=telemetry_hash,
-            manifold_audit=comp.manifold_audit,
+            base_trace=base_trace, phi_moe_base=phi_moe_base, i_cvar=i_cvar, lambda_t_crono=lambda_t_crono,
+            certeza=certeza, magnitud_objetivo=magnitud_objetivo, momentum_veto=momentum_veto,
+            shadow_mode=self._shadow_mode, risk_verdict=risk_verdict, temporal_verdict=temporal_verdict,
+            telemetry_hash=telemetry_hash, manifold_audit=comp.manifold_audit,
         )
         if comp.geometric_manifold_shadow:
             master_trace["geometric_manifold_shadow"] = comp.geometric_manifold_shadow
 
         return build_orchestrated_execution_plan(
-            plan_base=plan_base,
-            certeza=certeza,
-            magnitud_objetivo=magnitud_objetivo,
-            momentum_veto=momentum_veto,
-            master_trace=master_trace,
-            shadow_mode=self._shadow_mode,
+            plan_base=plan_base, certeza=certeza, magnitud_objetivo=magnitud_objetivo,
+            momentum_veto=momentum_veto, master_trace=master_trace, shadow_mode=self._shadow_mode,
             gamma_exec=self.gamma_exec,
         )

@@ -40,6 +40,8 @@ class RosaRojaEngine(RosaRojaPersistenceMixin):
         engine_id: str = "default",
         checkpoint_interval: int = 100,
         shadow_experts: Sequence[Any] = (),
+        min_net_edge: float = 0.0,
+        friction_cost: float = 0.0,
     ) -> None:
         self._ingestion = ingestion_filter
         self._rhythm = rhythm_generator
@@ -54,30 +56,25 @@ class RosaRojaEngine(RosaRojaPersistenceMixin):
         self._checkpoint_interval = max(1, checkpoint_interval)
         self.outlier_reset_threshold = outlier_reset_threshold
         self.exploration_boost_events = exploration_boost_events
+        self.min_net_edge, self.friction_cost = float(min_net_edge), float(friction_cost)
 
     @property
-    def auto_reset_count(self) -> int:
-        return self._state_machine.state.auto_resets
+    def auto_reset_count(self) -> int: return self._state_machine.state.auto_resets
 
     @property
-    def state_machine(self) -> StateMachine:
-        return self._state_machine
+    def state_machine(self) -> StateMachine: return self._state_machine
 
     @property
-    def _consecutive_outliers(self) -> int:
-        return self._state_machine.state.consecutive_outliers
+    def _consecutive_outliers(self) -> int: return self._state_machine.state.consecutive_outliers
 
     @_consecutive_outliers.setter
-    def _consecutive_outliers(self, value: int) -> None:
-        self._state_machine.state.consecutive_outliers = value
+    def _consecutive_outliers(self, value: int) -> None: self._state_machine.state.consecutive_outliers = value
 
     @property
-    def _auto_resets(self) -> int:
-        return self._state_machine.state.auto_resets
+    def _auto_resets(self) -> int: return self._state_machine.state.auto_resets
 
     @_auto_resets.setter
-    def _auto_resets(self, value: int) -> None:
-        self._state_machine.state.auto_resets = value
+    def _auto_resets(self, value: int) -> None: self._state_machine.state.auto_resets = value
 
     def process_event(self, delta_state: np.ndarray, delta_time: float) -> ExecutionPlan:
         """Process an agnostic state transition ΔS -> ExecutionPlan."""
@@ -149,17 +146,20 @@ class RosaRojaEngine(RosaRojaPersistenceMixin):
         return ExecutionPlan.EXECUTE(trajectory=validation.chosen_trajectory, confidence=phi_moe_final, envelope=envelope, invalidation_step=validation.chosen_trajectory.invalidation_step)
 
     def _determine_action(self, phi_moe: float, trajectory: Any) -> str:
-        """Continuous ensemble convergence action evaluator."""
-        gamma_exec = getattr(self, "gamma_exec", 0.5)
-        if phi_moe < gamma_exec:
+        """Continuous ensemble convergence action evaluator with net economic edge gate."""
+        if phi_moe < getattr(self, "gamma_exec", 0.5):
             return "HOLD"
-        geometric_threshold = getattr(self, "geometric_threshold", -0.1)
-        if trajectory is not None and hasattr(trajectory, "movements") and len(trajectory.movements) > 1:
-            directions = getattr(trajectory, "directions", None)
-            if directions is not None and len(directions) > 1:
-                dots = np.sum(directions[1:] * directions[:-1], axis=1)
-                if float(np.min(dots)) < geometric_threshold:
-                    return "EMERGENCY_FLUSH"
+        min_edge, friction = getattr(self, "min_net_edge", 0.0), getattr(self, "friction_cost", 0.0)
+        if min_edge > 0.0 or friction > 0.0:
+            vels = getattr(trajectory, "velocities", None) if trajectory is not None else None
+            exp_m = float(np.mean(np.abs(vels))) if (vels is not None and len(vels) > 0) else 0.0
+            if ((2.0 * float(phi_moe) - 1.0) * exp_m - friction) < min_edge:
+                return "HOLD"
+        geom_th = getattr(self, "geometric_threshold", -0.1)
+        if trajectory is not None and getattr(trajectory, "directions", None) is not None:
+            dirs = trajectory.directions
+            if len(dirs) > 1 and float(np.min(np.sum(dirs[1:] * dirs[:-1], axis=1))) < geom_th:
+                return "EMERGENCY_FLUSH"
         return "EXECUTE"
 
     def update_feedback(self, actual_state: np.ndarray, predicted_state: np.ndarray) -> None:

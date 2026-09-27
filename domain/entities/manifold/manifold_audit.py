@@ -15,6 +15,7 @@ import numpy as np
 from .manifold_parameters import ManifoldBoundaryLimits
 from .state_3d import ManifoldState3D
 from .state_4d import ManifoldState4D
+from .hopf_spinor_state import HopfSpinorState
 
 _DEFAULT_LIMITS = ManifoldBoundaryLimits()
 
@@ -39,6 +40,7 @@ class ManifoldAuditRecord:
     stability_verdict: str
     state_4d: ManifoldState4D | None = None
     j_frobenius_norm: float = 0.0
+    hopf_spinor: HopfSpinorState | None = None
 
     def __post_init__(self) -> None:
         """Enforce strict numerical boundaries and guard against NaNs/Infinities."""
@@ -78,6 +80,7 @@ class ManifoldAuditRecord:
         jacobian_matrix: np.ndarray,
         state_4d: ManifoldState4D | None = None,
         divergence_threshold: float | None = None,
+        hopf_spinor: HopfSpinorState | None = None,
     ) -> ManifoldAuditRecord:
         """Factory method to calculate invariants and construct verified audit record."""
         thresh = divergence_threshold if divergence_threshold is not None else _DEFAULT_LIMITS.divergence_threshold
@@ -112,6 +115,7 @@ class ManifoldAuditRecord:
             stability_verdict=verdict,
             state_4d=state_4d,
             j_frobenius_norm=frob_norm,
+            hopf_spinor=hopf_spinor,
         )
 
     def to_telemetry_trace(self) -> dict[str, Any]:
@@ -130,4 +134,6 @@ class ManifoldAuditRecord:
         }
         if self.state_4d is not None:
             trace["state_4d"] = self.state_4d.to_iso_audit_dict()
+        if self.hopf_spinor is not None:
+            trace["hopf_spinor"] = self.hopf_spinor.to_iso_audit_dict()
         return trace

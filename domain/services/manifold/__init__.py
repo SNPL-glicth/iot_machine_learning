@@ -33,6 +33,16 @@ from .ramanujan_projection import (
     propagate_geodesic_step,
     execute_ramanujan_jump,
 )
+from .mrt_phase_transport import (
+    reduce_angle_canonical,
+    transport_phase_step,
+)
+from .mrt_hopf_fibration import (
+    compute_metric_deformation_rate,
+    compute_vorticity_curl_norm,
+    compute_rational_hopf_amplitudes,
+    evaluate_hopf_spinor,
+)
 
 __all__ = [
     "VectorFieldConfig",
@@ -51,4 +61,10 @@ __all__ = [
     "build_augmented_4d_jacobian",
     "propagate_geodesic_step",
     "execute_ramanujan_jump",
+    "reduce_angle_canonical",
+    "transport_phase_step",
+    "compute_metric_deformation_rate",
+    "compute_vorticity_curl_norm",
+    "compute_rational_hopf_amplitudes",
+    "evaluate_hopf_spinor",
 ]

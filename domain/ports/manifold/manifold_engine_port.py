@@ -26,6 +26,7 @@ class ManifoldEnginePort(ABC):
         kuramoto_r: float,
         bayesian_p: float,
         delta_time: float = 0.01,
+        nominal_certainty: float | None = None,
     ) -> ManifoldAuditRecord:
         """Execute single cycle of manifold coordinate evaluation.
 
@@ -34,9 +35,10 @@ class ManifoldEnginePort(ABC):
             kuramoto_r: Kuramoto phase resonance order parameter r ∈ [0, 1].
             bayesian_p: Posterior epistemic belief confidence P ∈ [0, 1].
             delta_time: Elapsed time interval Δt > 0 in seconds.
+            nominal_certainty: Optional base certainty C_nominal for Hopf Spinor projection.
 
         Returns:
-            ManifoldAuditRecord containing verified invariants and diagnostics.
+            ManifoldAuditRecord containing verified invariants, Hopf spinor, and diagnostics.
         """
         ...
 

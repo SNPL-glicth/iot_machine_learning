@@ -13,10 +13,12 @@ from .state_3d import ManifoldState3D
 from .state_4d import ManifoldState4D
 from .manifold_audit import ManifoldAuditRecord
 from .manifold_parameters import ManifoldBoundaryLimits
+from .hopf_spinor_state import HopfSpinorState
 
 __all__ = [
     "ManifoldState3D",
     "ManifoldState4D",
     "ManifoldAuditRecord",
     "ManifoldBoundaryLimits",
+    "HopfSpinorState",
 ]
