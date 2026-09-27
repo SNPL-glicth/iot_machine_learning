@@ -162,14 +162,16 @@ $$
 \end{cases}
 $$
 
-Donde la directiva de ejecución no recurre a heurísticas empíricas sino a criterios analíticos rigurosos:
+Donde las condiciones de activación y los cortafuegos de seguridad se evalúan analíticamente:
 
-| Directiva / Invariante | Condición Analítica | Descripción Físico-Operativa |
-| :--- | :--- | :--- |
-| **Activación Variacional** | $\Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}}$ | La certeza analítica acoplada supera el umbral crítico de activación. |
-| **Admisibilidad Total** | $\mathbb{I}_{\mathrm{admisibilidad}} = 1$ | Admisibilidad simultánea de todos los invariantes ($\mathbb{I}_{\mathrm{mahal}} \cdot \mathbb{I}_{\mathrm{takens}} \cdot \mathbb{I}_{\mathrm{risk}} = 1$). |
-| **Flujo Inercial** | $V_{\mathrm{inercia}} \gt 0$ | La velocidad de fase supera la banda muerta del ruido del sistema. |
-| **Veto `EMERGENCY-FLUSH`** | $d_M^2 \gt \chi_{d,\alpha}^2 \;\lor\; \mathbb{I}_{\mathrm{risk}} = 0 \;\lor\; \Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}}$ | Activación no negociable ante anulación métrica, colapso de riesgo o auto-intersección del atractor. |
+$$
+\begin{aligned}
+\text{Activación Variacional:} \quad & \Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}} && \text{(Certeza analítica acoplada supera el umbral crítico)} \\
+\text{Admisibilidad Total:} \quad & \mathbb{I}_{\mathrm{admisibilidad}} = \mathbb{I}_{\mathrm{mahal}} \cdot \mathbb{I}_{\mathrm{takens}} \cdot \mathbb{I}_{\mathrm{risk}} = 1 && \text{(Validez simultánea de los tres invariantes)} \\
+\text{Flujo Inercial:} \quad & V_{\mathrm{inercia}} \gt 0 && \text{(Velocidad de fase supera la banda de ruido)} \\
+\text{Veto de Emergencia:} \quad & d_M^2 \gt \chi_{d, \alpha}^2 \;\lor\; \mathbb{I}_{\mathrm{risk}} = 0 \;\lor\; \Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}} && \text{(Colapso métrico, riesgo de cola o bifurcación)}
+\end{aligned}
+$$
 
 ### El por qué: Justificación Física y Teórica
 
