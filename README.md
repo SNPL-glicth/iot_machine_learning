@@ -6,36 +6,54 @@ ZENIN modela la evolución temporal de sistemas dinámicos multivariados como un
 
 ---
 
-## 1. La Ecuación Soberana y Fibración de Hopf Cuántica
+## 1. La Ecuación Maestra Soberana Completa
 
-> **Espacio Matemático:** Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$, Proyección de Hopf $\pi: \mathbb{C}^2 \to S^2 \subset \mathbb{R}^3$ (Esfera de Stokes).  
-> **Ubicación en Código:** [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62), [`mrt_hopf_fibration.py:L42-L130`](domain/services/manifold/mrt_hopf_fibration.py#L42-L130), [`master_equation.py:L109-L140`](infrastructure/ml/master_engine/master_equation.py#L109-L140).
+> **Espacio Matemático:** Fibración de Hopf $\pi: \mathcal{H} \cong \mathbb{C}^2 \to S^2 \subset \mathbb{R}^3$ acoplada a la variedad afín de decisión $\mathbb{R}^d$.  
+> **Ubicación en Código:** [`master_equation.py:L89-L140`](infrastructure/ml/master_engine/master_equation.py#L89-L140), [`orchestrator.py:L80-L160`](infrastructure/ml/master_engine/orchestrator.py#L80-L160), [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62).
 
-El núcleo variacional de ZENIN unifica las cinemáticas directas e inversas acoplándolas como dos modos ortogonales de un espinor cuántico de dos componentes en el espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$, proyectados de forma continua sobre la 2-esfera de Stokes $S^2$.
+ZENIN gobierna la inferencia topológica unificando los dos motores canónicos duales: **Rosa Roja** (Cinemática Directa forward $+x$, Polo $z_1$) y **MRT** (Cinemática Inversa conjugada $-x$, Polo $z_2$) en un único operador de decisión soberano continuo y determinista.
 
-### Lo que hay: Formulación Matemática Explícita
+### Lo que hay: Formulación Matemática de la Ecuación Maestra
 
-#### A. Representación Espinorial en $\mathbb{C}^2$ y Esfera de Stokes
+#### A. La Ecuación Maestra Unificada del Sistema
+En cada instante temporal $t$, la acción del sistema dinámico está gobernada por el **Operador Soberano de Decisión** $\mathbf{U}(t) \in \{\text{EXECUTE}, \text{HOLD}, \text{EMERGENCY\_FLUSH}\}$:
+
+$$
+\mathbf{U}(t) = \begin{cases}
+\text{EXECUTE}\big(S_{\text{target}}, \; \Pi_{\text{sovereign}}, \; \Phi_{\text{sovereign}}\big) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \;\land\; I_{\text{CVaR}} = 1 \;\land\; \Omega_{\text{FNN}} < \tau_{\text{FNN}} \;\land\; V_{\text{momentum}} > 0 \\
+\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \;\lor\; V_{\text{momentum}} = 0 \\
+\text{EMERGENCY\_FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \;\lor\; I_{\text{CVaR}} = 0
+\end{cases}
+$$
+
+Donde la directiva de ejecución no se basa en heurísticas discretas, sino en la interacción analítica continua de los dos polos dinámicos sobre la esfera de Stokes:
+
+#### B. Representación Espinorial en $\mathbb{C}^2$ y Esfera de Stokes
 > **Espacio Matemático:** Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$ acoplado a la 3-esfera $S^3 \subset \mathbb{C}^2$.  
 > **Ubicación en Código:** [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62), [`mrt_hopf_fibration.py:L42-L78`](domain/services/manifold/mrt_hopf_fibration.py#L42-L78).
 
-El estado global del sistema dinámico se representa como un espinor cuántico de dos componentes en el espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$:
+El estado global unificado del sistema se representa como un espinor cuántico de dos componentes en el espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$:
 
 $$
-|\psi(t)\rangle = \begin{pmatrix} z_1(t) \\ z_2(t) \end{pmatrix} \in \mathbb{C}^2, \qquad z_1(t) = |z_1|e^{i\theta_1}, \quad z_2(t) = |z_2|e^{i\theta_2}
+|\psi(t)\rangle = \begin{pmatrix} z_1(t) \\ z_2(t) \end{pmatrix} = \begin{pmatrix} |z_1|e^{i\theta_1} \\ |z_2|e^{i\theta_2} \end{pmatrix} \in \mathbb{C}^2
 $$
 
-Donde:
-* **$z_1$ (Polo Positivo - Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$.
-* **$z_2$ (Polo Negativo - MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$.
+* **$z_1 \in \mathbb{C}$ (Polo Positivo - Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el factor de riesgo $I_{\text{CVaR}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
+  $$
+  |z_1| = \Phi_{\text{MoE, final}} \cdot I_{\text{CVaR}} \cdot \Lambda(t) \cdot \big(r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}}\big)
+  $$
+* **$z_2 \in \mathbb{C}$ (Polo Negativo - MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$:
+  $$
+  |z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\text{Ramanujan}} \cdot C_{\text{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\text{frob}}}{\varepsilon_{\text{strain}}}
+  $$
 
 A través de la proyección de Hopf $\pi: S^3 \to S^2$, el espinor se proyecta sobre la esfera de Stokes:
 
 $$
-S_0 = |z_1|^2 + |z_2|^2, \qquad S_1 = 2|z_1||z_2|\cos(\Delta\theta), \qquad S_2 = 2|z_1||z_2|\sin(\Delta\theta), \qquad S_3 = |z_1|^2 - |z_2|^2
+S_0 = |z_1|^2 + |z_2|^2, \qquad S_1 = 2|z_1||z_2|\cos(\theta_1 - \theta_2), \qquad S_2 = 2|z_1||z_2|\sin(\theta_1 - \theta_2), \qquad S_3 = |z_1|^2 - |z_2|^2
 $$
 
-#### B. La Ecuación Soberana y Polaridad Continua
+#### C. La Ecuación Soberana y Polaridad Continua
 > **Espacio Matemático:** Coordenadas de Stokes $(S_1, S_2, S_3) \in S^2 \subset \mathbb{R}^3$.  
 > **Ubicación en Código:** [`master_equation.py:L109-L140`](infrastructure/ml/master_engine/master_equation.py#L109-L140).
 
@@ -49,11 +67,11 @@ $$
 \Phi_{\text{sovereign}} = \min(1.0, |C_{\text{sovereign}}|), \qquad \Pi_{\text{sovereign}} = \mathrm{sgn}(C_{\text{sovereign}})
 $$
 
-#### C. Modulación del Estado Objetivo y Blindaje de Escala Absoluta
+#### D. Modulación del Estado Objetivo y Blindaje de Escala Absoluta
 > **Espacio Matemático:** Variedad afín tangente $\mathbb{R}^d$ con invariante de escala positiva.  
 > **Ubicación en Código:** [`master_equation.py:L125-L138`](infrastructure/ml/master_engine/master_equation.py#L125-L138), [`orchestrator.py:L140-L165`](infrastructure/ml/master_engine/orchestrator.py#L140-L165).
 
-Sea $S_{\text{ref}} > 0$ la magnitud del estado de referencia actual, $y_1$ el objetivo proyectado por cinemática directa y $y_2$ el objetivo de rebote de MRT. La polaridad soberana modula **estrictamente el diferencial de transición relativo ($\Delta S$)**, protegiendo la escala absoluta del sistema contra inversiones de signo espurias:
+Sea $S_{\text{ref}} > 0$ la magnitud del estado de referencia actual, $y_1$ el objetivo proyectado por cinemática directa (Rosa Roja) y $y_2$ el objetivo de rebote conjugado (MRT). La polaridad soberana modula **estrictamente el diferencial de transición relativo ($\Delta S$)**, protegiendo la escala absoluta del sistema contra inversiones de signo espurias:
 
 $$
 \Delta S_{\text{blend}} = \frac{|z_1|^2(y_1 - S_{\text{ref}}) + |z_2|^2(y_2 - S_{\text{ref}})}{S_0 + \varepsilon}, \qquad \Delta S_{\text{sovereign}} = \Delta S_{\text{blend}} \cdot \Pi_{\text{sovereign}}
@@ -95,7 +113,83 @@ Como invariante de Casimir, garantiza que la probabilidad total del espacio de f
 
 ---
 
-## 2. El Motor MRT (Maxwell-Ramanujan-Tesla)
+## 2. El Motor Rosa Roja (Cinemática Directa $+x$, Polo $z_1$)
+
+> **Espacio Matemático:** Cinemática Directa Forward en Espacio Tangente $(+x, +t) \subset T\mathcal{M} \times \mathbb{R}^d$.  
+> **Ubicación en Código:** [`engine.py:L27-L163`](infrastructure/ml/engines/rosa_roja/algorithms/engine.py#L27-L163), [`module1_ingestion.py:L26-L180`](infrastructure/ml/engines/rosa_roja/algorithms/modules/module1_ingestion.py#L26-L180), [`rhythm_generator.py:L18-L90`](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py#L18-L90), [`module3_moe_gating.py:L14-L80`](infrastructure/ml/engines/rosa_roja/algorithms/modules/module3_moe_gating.py#L14-L80).
+
+El motor [RosaRojaMoEEngine](infrastructure/ml/engines/rosa_roja/engine.py) opera en el régimen de flujo forward ($+x, +t$). Modela la inercia del sistema, genera trayectorias geodésicas candidatas y evalúa el consenso no lineal a través de un jurado de expertos con filtrado métrico elíptico.
+
+### Lo que hay: Sistema de Ecuaciones de Rosa Roja
+
+#### A. Ingestión Elíptica y Métrica de Mahalanobis en $\mathcal{S}_{++}^d$
+> **Espacio Matemático:** Cono simétrico de matrices definidas positivas $\mathcal{S}_{++}^d \subset \mathbb{R}^{d \times d}$.  
+> **Ubicación en Código:** [`module1_ingestion.py:L26-L180`](infrastructure/ml/engines/rosa_roja/algorithms/modules/module1_ingestion.py#L26-L180).
+
+A partir de la transición incremental del estado $\Delta S \in \mathbb{R}^d$, se computa la distancia elíptica de Mahalanobis respecto a la media acumulada $\boldsymbol{\mu}$:
+
+$$
+d_M^2(\Delta S) = (\Delta S - \boldsymbol{\mu})^T \mathbf{\Sigma}^{-1} (\Delta S - \boldsymbol{\mu})
+$$
+
+El filtro garantiza la integridad de la variedad bloqueando perturbaciones anómalas:
+
+$$
+d_M^2(\Delta S) \le \chi_{d, \alpha}^2 \implies \text{Paso Válido (Tracking Activo)}
+$$
+
+La matriz de precisión $\mathbf{\Sigma}^{-1}$ se actualiza en línea de forma continua en $\mathcal{O}(d^2)$ mediante el lema de Sherman-Morrison con factor de olvido $\alpha$:
+
+$$
+\mathbf{\Sigma}_{t+1}^{-1} = \frac{1}{1 - \alpha}\left( \mathbf{\Sigma}_t^{-1} - \frac{\alpha \mathbf{\Sigma}_t^{-1} \mathbf{u} \mathbf{u}^T \mathbf{\Sigma}_t^{-1}}{1 - \alpha + \alpha \mathbf{u}^T \mathbf{\Sigma}_t^{-1} \mathbf{u}} \right), \qquad \mathbf{u} = \Delta S - \boldsymbol{\mu}
+$$
+
+#### B. Generador de Trayectorias Rítmicas Forward y Fase $\theta_1$
+> **Espacio Matemático:** Espacio de trayectorias en el fibrado tangente $T\mathcal{M}$ y grupo de fase $U(1)$.  
+> **Ubicación en Código:** [`rhythm_generator.py:L18-L90`](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py#L18-L90), [`phi_ritmo_scorer.py:L15-L65`](infrastructure/ml/engines/rosa_roja/algorithms/modules/phi_ritmo_scorer.py#L15-L65).
+
+A partir del movimiento actual, el motor sintetiza un haz de trayectorias candidatas $T_k = \{\mathbf{x}_1, \dots, \mathbf{x}_H\}$ a lo largo del horizonte $H$, gobernadas por la coherencia rítmica:
+
+$$
+\Phi_{\text{ritmo}}(T_k) = \frac{1}{H}\sum_{h=1}^H \cos(\omega h \Delta t + \theta_1) \cdot e^{-\gamma_r h \Delta t}
+$$
+
+La fase intrínseca del polo forward $\theta_1$ se extrae del vector de velocidad y la curvatura métrica:
+
+$$
+\theta_1 = \arctan\left(\frac{v_d}{v_1 + \varepsilon}\right) \pmod{2\pi}
+$$
+
+#### C. MoE Gating Multiplicativo y Amplitud del Polo Positivo $|z_1|$
+> **Espacio Matemático:** Símplex de probabilidad $\Delta^E$ y proyección de certeza en $[0, 1]$.  
+> **Ubicación en Código:** [`module3_moe_gating.py:L14-L80`](infrastructure/ml/engines/rosa_roja/algorithms/modules/module3_moe_gating.py#L14-L80), [`engine.py:L115-L135`](infrastructure/ml/engines/rosa_roja/algorithms/engine.py#L115-L135).
+
+El consenso del jurado de $E$ expertos pondera la evidencia individual $\Psi_e(T)$ sujeta a veto estricto de expertos críticos ($\mathcal{K}_{\text{crít}}$) y penalización cuadrática por varianza entre expertos:
+
+$$
+\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \mathcal{K}_{\text{crít}}} \mathbb{I}\big(\Psi_k(T) \ge \tau_k\big) \right] \cdot \frac{\sum_{e=1}^E w_e \Psi_e(T)}{1 + \gamma_{\text{var}} \text{Var}(\Psi)}
+$$
+
+La amplitud del polo positivo $|z_1|$ modula la certeza forward acoplada a la tasa de deriva (*drift* $\lambda_{\text{drift}}$):
+
+$$
+|z_1| = \Phi_{\text{MoE, final}} = \max\Big(0.0, \; \min\big(1.0, \; \Phi_{\text{MoE}} \cdot \big(1 - \lambda_{\text{drift}}(1 - \Phi_{\text{ritmo}})\big)\big)\Big)
+$$
+
+El objetivo forward directo proyectado es la esperanza condicional de la trayectoria óptima seleccionada:
+
+$$
+y_1 = \mu(T_{\text{chosen}}) = \frac{\sum_{i=1}^H w_i x_i}{\sum_{i=1}^H w_i}
+$$
+
+### El por qué: Justificación Física y Teórica
+1. **Inercia y Propagación Newtoniana Forward:** En régimen laminar o estacionario, el sistema evoluciona impulsado por su momento intrínseco. Rosa Roja modela esta inercia sin sobre-ajustes, proyectando la trayectoria geodésica forward natural ($y_1$).
+2. **Filtrado Métrico Elíptico ($\chi^2$):** La distribución multivariada de transiciones no es esférica sino elipsoidal; la distancia de Mahalanobis evita falsos positivos en ejes de alta varianza natural y detecta instantáneamente anomalías en direcciones de alta rigidez.
+3. **Consenso Crítico Multiplicativo:** Un promedio lineal permite que un experto con alta confianza compense la alarma de otro experto que detecta peligro. El producto con indicador booleano $\prod \mathbb{I}$ confiere poder de veto absoluto a los sensores críticos, garantizando que el polo positivo $|z_1|$ colapse inmediatamente a cero si cualquier invariante físico es vulnerado.
+
+---
+
+## 3. El Motor MRT (Maxwell-Ramanujan-Tesla)
 
 > **Espacio Matemático:** Cinemática Inversa en Espacio Conjugado $(-x, -t) \subset T\mathcal{M} \times \mathbb{R}^4$.  
 > **Ubicación en Código:** [`mrt_engine.py:L61-L113`](infrastructure/ml/engines/mrt/mrt_engine.py#L61-L113), [`mrt_pipeline.py:L62-L128`](infrastructure/ml/engines/mrt/algorithms/mrt_pipeline.py#L62-L128).
@@ -177,7 +271,7 @@ $$
 
 ---
 
-## 3. La Variedad Geométrica Continua y el Tensor Jacobiano
+## 4. La Variedad Geométrica Continua y el Tensor Jacobiano
 
 > **Espacio Matemático:** Variedad Riemanniana tridimensional $\mathcal{M} \subset \mathbb{R}^3$ con métrica local $\mathbf{J}(\mathbf{x}) = \nabla\mathbf{F}$.  
 > **Ubicación en Código:** [`geometric_manifold_adapter.py:L63-L139`](infrastructure/ml/master_engine/geometric_manifold_adapter.py#L63-L139), [`divergence_compass.py:L20-L80`](domain/services/manifold/divergence_compass.py#L20-L80).
@@ -209,7 +303,7 @@ Las derivadas cruzadas (ej. $\mathbf{J}_{21}$) absorben anomalías métricas loc
 
 ---
 
-## 4. Inmersión de Takens: Reconstrucción de Variables Ocultas
+## 5. Inmersión de Takens: Reconstrucción de Variables Ocultas
 
 > **Espacio Matemático:** Espacio de inmersión euclidiano $\mathbb{R}^m$ inducido por retardo temporal sobre el atractor caótico.  
 > **Ubicación en Código:** [`orchestrator.py:L80-L160`](infrastructure/ml/master_engine/orchestrator.py#L80-L160).
@@ -231,7 +325,7 @@ Si el atractor se auto-interseca o pliega ($\Omega_{\text{FNN}} \ge \tau_{\text{
 
 ---
 
-## 5. Filtros de Estado Incremental O(d²)
+## 6. Filtros de Estado Incremental O(d²)
 
 > **Espacio Matemático:** Cono riemanniano de matrices simétricas definidas positivas $\mathcal{S}_{++}^d$.  
 > **Ubicación en Código:** [`module1_ingestion.py:L128-L180`](infrastructure/ml/engines/rosa_roja/algorithms/modules/module1_ingestion.py#L128-L180).
@@ -246,7 +340,7 @@ Estabilizado periódicamente mediante re-anclaje por descomposición de Cholesky
 
 ---
 
-## 6. Arquitectura de Desacoplamiento y Modos de Ejecución
+## 7. Arquitectura de Desacoplamiento y Modos de Ejecución
 
 ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transporte o actuador externo mediante una **arquitectura hexagonal estricta (Puertos y Adaptadores)**.
 
@@ -277,13 +371,15 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 
 ---
 
-## 7. Mapa de Trazabilidad: Espacios Matemáticos y Código Fuente
+## 8. Mapa de Trazabilidad: Espacios Matemáticos y Código Fuente
 
 | Ecuación / Dinámica Central | Espacio Matemático | Módulo / Archivo Fuente | Líneas Clave |
 | :--- | :--- | :--- | :--- |
 | **Espinor Cuántico e Invariante de Stokes** | Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$, $\pi: \mathbb{C}^2 \to S^2 \subset \mathbb{R}^3$ | [`hopf_spinor_state.py`](domain/entities/manifold/hopf_spinor_state.py) | [L17–L62](domain/entities/manifold/hopf_spinor_state.py#L17-L62) |
 | **Proyección Racional de Hopf** | Fibración de Hopf $\pi: S^3 \to S^2$ | [`mrt_hopf_fibration.py`](domain/services/manifold/mrt_hopf_fibration.py) | [L42–L130](domain/services/manifold/mrt_hopf_fibration.py#L42-L130) |
 | **Ecuación Soberana y Blindaje $\Delta S$** | Esfera de Stokes $S^2 \times \mathbb{R}^d$ | [`master_equation.py`](infrastructure/ml/master_engine/master_equation.py) | [L109–L140](infrastructure/ml/master_engine/master_equation.py#L109-L140) |
+| **Motor Rosa Roja y MoE Gating** | Fibrado Tangente $T\mathcal{M}$ (Cinemática Directa $+x$) | [`engine.py`](infrastructure/ml/engines/rosa_roja/algorithms/engine.py) | [L27–L163](infrastructure/ml/engines/rosa_roja/algorithms/engine.py#L27-L163) |
+| **Generador de Trayectorias Rítmicas** | Espacio de Fases $T\mathcal{M}$ y Fase $U(1)$ | [`rhythm_generator.py`](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py) | [L18–L90](infrastructure/ml/engines/rosa_roja/algorithms/modules/rhythm_generator.py#L18-L90) |
 | **Vorticidad Rotacional de Maxwell** | Espacio de Fases $(x, v, a) \in \mathbb{R}^3$, Álgebra $\mathfrak{so}(3)$ | [`maxwell_curl_field.py`](infrastructure/ml/engines/mrt/algorithms/modules/maxwell_curl_field.py) | [L16–L74](infrastructure/ml/engines/mrt/algorithms/modules/maxwell_curl_field.py#L16-L74) |
 | **Cristal Simpléctico de Ramanujan** | Espacio Extendido 4D $\mathbb{R}^4$ | [`ramanujan_crystal.py`](infrastructure/ml/engines/mrt/algorithms/modules/ramanujan_crystal.py) | [L16–L89](infrastructure/ml/engines/mrt/algorithms/modules/ramanujan_crystal.py#L16-L89) |
 | **Transporte Disipativo de Fase $U(1)$** | Grupo de Norma Abeliano $U(1) \cong S^1$ | [`phase_conjugator.py`](infrastructure/ml/engines/mrt/phase_conjugator.py) | [L46–L107](infrastructure/ml/engines/mrt/phase_conjugator.py#L46-L107) |
@@ -295,11 +391,14 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 
 ---
 
-## 8. Certificación y Testing Institucional
+## 9. Certificación y Testing Institucional
 
 Validación determinista bajo normas ISO/IEC 25010 y 22989:
 
 ```bash
+# Validar algoritmos analíticos de Rosa Roja (Filtro Mahalanobis y Sherman-Morrison O(d²))
+pytest -v tests/unit/rosa_roja/test_mahalanobis_sherman_morrison.py
+
 # Validar algoritmos analíticos de MRT (Maxwell, Ramanujan, Hopf Spinor)
 pytest -v tests/unit/infrastructure/engines/test_mrt_algorithms.py tests/unit/infrastructure/engines/test_mrt_engine.py
 
