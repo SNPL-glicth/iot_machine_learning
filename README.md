@@ -22,20 +22,49 @@ $$
 \mathcal{D}(t) = \left[ \prod_{k} \mathbb{I}_k(t) \right] \cdot \exp\left(-\max\left(0, \; \mathrm{div}\mathbf{F}(t)\right)\right) \cdot \Pi_{\mathrm{sov}}(t) \cdot \big|S_3(t) + S_1(t)\big|
 $$
 
-##### Descomposición de los Cuatro Factores Fundamentales:
-1. **$\prod_{k} \mathbb{I}_k(t) \in \{0, 1\}$ (Veto de Admisibilidad Estricto Multicapa):**
-   Producto de cortafuegos booleanos deterministas. Si cualquier subsistema detecta violación crítica de invariantes de estabilidad, anula instantáneamente la emisión del sistema ($\prod_k \mathbb{I}_k = 0$):
-   * $\mathbb{I}_{\mathrm{mahal}}(t) = \mathbb{I}\big(d_M^2(t) \le \chi_{d, \alpha}^2\big)$: Filtro métrico de ingesta contra perturbaciones y ruido en `module1_ingestion.py`.
-   * $\mathbb{I}_{\mathrm{takens}}(t) = \mathbb{I}\big(\Omega_{\mathrm{FNN}}(t) \lt \tau_{\mathrm{FNN}}\big)$: Cortafuegos topológico contra falsos vecinos más cercanos y auto-intersección del atractor en el espacio embebido de Takens.
-   * $\mathbb{I}_{\mathrm{risk}}(t) = \mathbb{I}\big(I_{\mathrm{cvar}}(t) \gt 0\big)$: Admisibilidad estocástica de cola y estabilidad variacional.
-2. **$\exp\left(-\max\left(0, \; \mathrm{div}\mathbf{F}(t)\right)\right) \in (0, 1]$ (Freno Disipativo de Liouville en la Variedad $\mathcal{M}$):**
-   Amortiguamiento volumétrico continuo sobre la variedad Riemanniana $\mathcal{M}$. Si la divergencia del campo $\mathrm{div}\mathbf{F} \gt 0$ (expansión inestable del volumen de fases), atenúa exponencialmente la señal colapsando suavemente la dinámica hacia el reposo, garantizando estabilidad asintótica sin discontinuidades.
-3. **$\Pi_{\mathrm{sov}}(t) = \mathrm{sgn}\big(S_3(t) + S_1(t)\big) \in \{-1.0, +1.0\}$ (Polaridad Soberana de Stokes):**
-   Sentido direccional de fase emitido por la Fibración de Hopf $\mathbb{C}^2 \to S^2$:
-   * $\Pi_{\mathrm{sov}} = +1.0$: Dominio del polo forward inercial $z_1$ (Cinemática Directa hacia adelante).
-   * $\Pi_{\mathrm{sov}} = -1.0$: Dominio del polo de rebote elástico $z_2$ (Cinemática Inversa restauradora).
-4. **$\big|S_3(t) + S_1(t)\big| = |C_{\mathrm{sovereign}}(t)| \in [0, 1]$ (Magnitud de Certeza Soberana Acoplada):**
-   Interferencia analítica cuántica entre Rosa Roja ($z_1$) y MRT ($z_2$) sobre las coordenadas de Stokes de la 2-esfera $S^2$.
+##### Descomposición de los Cuatro Factores Fundamentales
+
+**Factor 1: Veto de Admisibilidad Estricto Multicapa**
+
+$$
+\prod_{k} \mathbb{I}_k(t) = \mathbb{I}_{\mathrm{mahal}}(t) \cdot \mathbb{I}_{\mathrm{takens}}(t) \cdot \mathbb{I}_{\mathrm{risk}}(t) \in \{0, 1\}
+$$
+
+Producto de cortafuegos booleanos deterministas. Si cualquier subsistema detecta violación de invariantes, anula instantáneamente la emisión del sistema colapsando el producto a cero:
+
+$$
+\begin{aligned}
+\mathbb{I}_{\mathrm{mahal}}(t) &= \mathbb{I}\big(d_M^2(t) \le \chi_{d, \alpha}^2\big) && \text{Filtro de ingesta contra ruido y perturbaciones} \\
+\mathbb{I}_{\mathrm{takens}}(t) &= \mathbb{I}\big(\Omega_{\mathrm{FNN}}(t) \lt \tau_{\mathrm{FNN}}\big) && \text{Cortafuegos topológico contra falsos vecinos de Takens} \\
+\mathbb{I}_{\mathrm{risk}}(t) &= \mathbb{I}\big(I_{\mathrm{cvar}}(t) \gt 0\big) && \text{Admisibilidad de riesgo estocástico condicional CVaR}
+\end{aligned}
+$$
+
+**Factor 2: Freno Disipativo de Liouville en la Variedad $\mathcal{M}$**
+
+$$
+\mathcal{L}(t) = \exp\left(-\max\left(0, \; \mathrm{div}\mathbf{F}(t)\right)\right) \in (0, 1]
+$$
+
+Amortiguamiento volumétrico continuo sobre la variedad Riemanniana $\mathcal{M}$. Si la divergencia del campo $\mathrm{div}\mathbf{F} \gt 0$ (expansión inestable del volumen de fases), atenúa exponencialmente la señal colapsando suavemente la dinámica hacia el reposo, garantizando estabilidad asintótica sin discontinuidades.
+
+**Factor 3: Polaridad Soberana de Stokes**
+
+$$
+\Pi_{\mathrm{sov}}(t) = \mathrm{sgn}\big(S_3(t) + S_1(t)\big) \in \{-1.0, +1.0\}
+$$
+
+Sentido direccional de fase emitido por la Fibración de Hopf en $\mathbb{C}^2 \to S^2$:
+- Polaridad $+1.0$: Dominio del polo forward inercial $z_1$ (Cinemática Directa hacia adelante).
+- Polaridad $-1.0$: Dominio del polo de rebote elástico $z_2$ (Cinemática Inversa restauradora).
+
+**Factor 4: Magnitud de Certeza Soberana Acoplada**
+
+$$
+|C_{\mathrm{sovereign}}(t)| = \big|S_3(t) + S_1(t)\big| \in [0, 1]
+$$
+
+Interferencia analítica cuántica continua entre Rosa Roja ($z_1$) y MRT ($z_2$) sobre las coordenadas de Stokes de la 2-esfera $S^2$.
 
 ---
 
@@ -51,17 +80,19 @@ $$
 
 Las amplitudes de ambos modos conjugados se evalúan de forma analítica y continua:
 
-* **Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja — Cinemática Directa $+x$):**
-  Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el indicador de estabilidad $\mathbb{I}_{\mathrm{estable}}$, sincronía cronométrica $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
-  $$
-  |z_1| = \Phi_{\mathrm{MoE, final}} \cdot \mathbb{I}_{\mathrm{estable}} \cdot \Lambda(t) \cdot (r_{\mathrm{Kuramoto}} \cdot \cos\Delta\phi_{\mathrm{align}})
-  $$
+##### Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja — Cinemática Directa $+x$)
+Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el indicador de estabilidad $\mathbb{I}_{\mathrm{estable}}$, sincronía cronométrica $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
 
-* **Polo Negativo $z_2 \in \mathbb{C}$ (MRT — Cinemática Inversa $-x$):**
-  Amplitud de deformación de vórtice y rebote elástico en el espacio conjugado 4D $\mathbb{R}^4$:
-  $$
-  |z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\mathrm{Ramanujan}} \cdot C_{\mathrm{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\mathrm{frob}}}{\varepsilon_{\mathrm{strain}}}
-  $$
+$$
+|z_1| = \Phi_{\mathrm{MoE, final}} \cdot \mathbb{I}_{\mathrm{estable}} \cdot \Lambda(t) \cdot (r_{\mathrm{Kuramoto}} \cdot \cos\Delta\phi_{\mathrm{align}})
+$$
+
+##### Polo Negativo $z_2 \in \mathbb{C}$ (MRT — Cinemática Inversa $-x$)
+Amplitud de deformación de vórtice y rebote elástico en el espacio conjugado 4D $\mathbb{R}^4$:
+
+$$
+|z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\mathrm{Ramanujan}} \cdot C_{\mathrm{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\mathrm{frob}}}{\varepsilon_{\mathrm{strain}}}
+$$
 
 A través de la proyección de Hopf $\pi: S^3 \to S^2$, el espinor proyecta sus coordenadas sobre la esfera de Stokes:
 
@@ -131,34 +162,44 @@ $$
 \end{cases}
 $$
 
-Donde la directiva de ejecución no recurre a heurísticas empíricas sino a criterios analíticos:
-* **$\Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}}$:** La certeza analítica acoplada supera el umbral crítico de activación variacional.
-* **$\mathbb{I}_{\mathrm{admisibilidad}} = \prod_k \mathbb{I}_k = 1$:** Admisibilidad simultánea de todos los invariantes (Mahalanobis, Takens, CVaR).
-* **$V_{\mathrm{inercia}} \gt 0$:** La velocidad de fase supera la banda muerta del ruido del sistema.
-* **$\mathrm{EMERGENCY\text{-}FLUSH}$:** Se activa de forma no negociable ante anulación métrica ($d_M^2 \gt \chi^2$), colapso de riesgo estocástico ($\mathbb{I}_{\mathrm{risk}} = 0$) o plegamiento topológico del atractor ($\Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}}$).
+Donde la directiva de ejecución no recurre a heurísticas empíricas sino a criterios analíticos rigurosos:
+
+| Directiva / Invariante | Condición Analítica | Descripción Físico-Operativa |
+| :--- | :--- | :--- |
+| **Activación Variacional** | $\Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}}$ | La certeza analítica acoplada supera el umbral crítico de activación. |
+| **Admisibilidad Total** | $\mathbb{I}_{\mathrm{admisibilidad}} = 1$ | Admisibilidad simultánea de todos los invariantes ($\mathbb{I}_{\mathrm{mahal}} \cdot \mathbb{I}_{\mathrm{takens}} \cdot \mathbb{I}_{\mathrm{risk}} = 1$). |
+| **Flujo Inercial** | $V_{\mathrm{inercia}} \gt 0$ | La velocidad de fase supera la banda muerta del ruido del sistema. |
+| **Veto `EMERGENCY-FLUSH`** | $d_M^2 \gt \chi_{d,\alpha}^2 \;\lor\; \mathbb{I}_{\mathrm{risk}} = 0 \;\lor\; \Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}}$ | Activación no negociable ante anulación métrica, colapso de riesgo o auto-intersección del atractor. |
 
 ### El por qué: Justificación Física y Teórica
 
-1. **Eliminación de Singularidades y Chattering Numérico ($C^0$ Chattering vs. Suavidad $C^\infty$):**  
-   Las arquitecturas discretas (`if/else`) o funciones de atenuación basadas en cortes discontinuos poseen derivadas no suaves en la frontera de estabilidad, inyectando impulsos singulares de Dirac en la aceleración del sistema:
-   $$
-   f_{\mathrm{corte}}(x) = \max(0, x) \implies \frac{df}{dx} = \Theta(x) \implies \frac{d^2f}{dx^2} = \delta(x)
-   $$
-   La presencia de la distribución impulsiva $\delta(x)$ induce micro-oscilaciones parásitas (*$C^0$ chattering*) en la frontera de decisión. En contraposición, la Fibración de Hopf proyecta el estado mediante un flujo analíticamente suave ($C^\infty$) en todo su dominio:
-   $$
-   \pi \in C^\infty\big(\mathbb{C}^2 \setminus \{0\}, \; S^2\big) \implies \nabla C_{\mathrm{sovereign}} \in C^\infty
-   $$
-   Garantizando gradientes continuos, derivadas acotadas y estabilidad asintótica sin singularidades numéricas.
+#### 1. Eliminación de Singularidades y Chattering Numérico ($C^0$ Chattering vs. Suavidad $C^\infty$)
+Las arquitecturas discretas (`if/else`) o funciones de atenuación basadas en cortes discontinuos poseen derivadas no suaves en la frontera de estabilidad, inyectando impulsos singulares de Dirac en la aceleración del sistema:
 
-2. **Conservación Estricta de Energía Informacional e Invariante de Casimir:**  
-   Se cumple idénticamente la restricción pitagórica como invariante cuadrático de Casimir del álgebra de Lie $\mathfrak{su}(2)$:
-   $$
-   S_1^2 + S_2^2 + S_3^2 \equiv S_0^2
-   $$
-   $$
-   \mathcal{C}_{\mathfrak{su}(2)} = \sum_{k=1}^3 \sigma_k^2 = \text{const} \implies \frac{d}{dt}\left(\sum_{k=1}^3 S_k^2 - S_0^2\right) = 0
-   $$
-   Como invariante de Casimir, garantiza que la probabilidad total del espacio de fases se conserva de forma unitaria; toda energía disipada fuera del régimen observable ($z_1$) es absorbida con exactitud por el modo conjugado ($z_2$), impidiendo fugas térmicas o pérdidas de información en la variedad.
+$$
+f_{\mathrm{corte}}(x) = \max(0, x) \implies \frac{df}{dx} = \Theta(x) \implies \frac{d^2f}{dx^2} = \delta(x)
+$$
+
+La presencia de la distribución impulsiva $\delta(x)$ induce micro-oscilaciones parásitas ($C^0$ chattering) en la frontera de decisión. En contraposición, la Fibración de Hopf proyecta el estado mediante un flujo analíticamente suave ($C^\infty$) en todo su dominio:
+
+$$
+\pi \in C^\infty\big(\mathbb{C}^2 \setminus \{0\}, \; S^2\big) \implies \nabla C_{\mathrm{sovereign}} \in C^\infty
+$$
+
+Garantizando gradientes continuos, derivadas acotadas y estabilidad asintótica sin singularidades numéricas.
+
+#### 2. Conservación Estricta de Energía Informacional e Invariante de Casimir
+Se cumple idénticamente la restricción pitagórica como invariante cuadrático de Casimir del álgebra de Lie $\mathfrak{su}(2)$:
+
+$$
+S_1^2 + S_2^2 + S_3^2 \equiv S_0^2
+$$
+
+$$
+\mathcal{C}_{\mathfrak{su}(2)} = \sum_{k=1}^3 \sigma_k^2 = \text{const} \implies \frac{d}{dt}\left(\sum_{k=1}^3 S_k^2 - S_0^2\right) = 0
+$$
+
+Como invariante de Casimir, garantiza que la probabilidad total del espacio de fases se conserva de forma unitaria; toda energía disipada fuera del régimen observable ($z_1$) es absorbida con exactitud por el modo conjugado ($z_2$), impidiendo fugas térmicas o pérdidas de información en la variedad.
 
 ---
 
