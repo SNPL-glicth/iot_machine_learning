@@ -372,12 +372,13 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 | **2. Kernel Soberano (Hexágono)** | Rosa Roja (Forward) + MRT (Conjugado), Hopf $\mathbb{C}^2$ | Espinor $|\psi\rangle \in \mathbb{C}^2 \to S^2$ | Computa trayectorias duales, evalúa $C_{\text{sovereign}} = S_3 + S_1$ y emite la directiva formal. |
 | **3. Outbound (Puerto de Salida)** | Adaptadores de Control y Emisión de Acción | `ExecutionPlan` (Acción, $S_{\text{target}}$, Certeza) | Traduce la acción (`EXECUTE`, `HOLD`, `FLUSH`) y magnitud $S_{\text{target}}$ a señales de salida. |
 
-### Banderas de Gobernanza
+### Banderas de Gobernanza y Modos Sombra (Inventario Consolidado)
 
-| Bandera | Ubicación | Default | Efecto Operativo Agnóstico |
+| Bandera | Módulo / Ubicación | Default | Efecto Operativo Agnóstico en Producción |
 | :--- | :--- | :--- | :--- |
-| `master_shadow_mode` | `orchestrator.py` | `False` | Gobierna si la certeza de la Ecuación Maestra define las directivas de ejecución activas o si opera en registro pasivo. |
-| `manifold_shadow_mode` | `orchestrator.py` | `True` | Ejecuta el acoplamiento dual Rosa Roja + MRT y telemetría diagnóstica en paralelo, sin alterar la magnitud de los actuadores hasta su activación institucional. |
+| `master_shadow_mode` | `bot_config.py` / `orchestrator.py` | `False` | Gobierna si la Ecuación Maestra del orquestador toma el control soberano activo (`False`) o si opera en registro pasivo auditando contra la lógica legacy (`True`). |
+| `manifold_shadow_mode` | `bot_config.py` / `master_equation.py` | `True` | Ejecuta el Motor de Variedad Geométrica Riemanniana (Divergencia de Liouville 4D y curvatura en $\mathcal{M}$) en paralelo para telemetría diagnóstica; no atenúa certeza ni altera la magnitud del actuador hasta su validación en producción. |
+| `dual_engine_shadow_mode` | `bot_config.py` / `master_equation.py` | `True` | Ejecuta el acoplamiento dual Rosa Roja ($z_1$) + MRT ($z_2$) vía Fibración de Hopf en $\mathbb{C}^2 \to S^2$ registrando el espinor, parámetros de Stokes ($S_0, S_1, S_3$) y certeza soberana $C_{\text{sovereign}}$ en telemetría; preserva la certeza y magnitud nominales de Rosa Roja sin aplicar veto ni modulación activa hasta su aprobación institucional. |
 
 ---
 
@@ -416,7 +417,7 @@ pytest -v tests/unit/infrastructure/engines/test_mrt_algorithms.py tests/unit/in
 pytest -v tests/unit/market/test_mrt_hopf_fibration.py
 
 # Validar invarianzas de Modo Sombra (35 ciclos exactos + Veto End-to-End)
-pytest -v tests/unit/market/test_manifold_shadow_invariance.py
+pytest -v tests/unit/market/test_manifold_shadow_invariance.py tests/unit/market/test_dual_engine_shadow_invariance.py
 
 # Validar motor topológico de Takens (Inmersión Espectral y Falsos Vecinos)
 pytest -v tests/unit/market/test_takens_infra.py tests/unit/domain/test_takens_*.py

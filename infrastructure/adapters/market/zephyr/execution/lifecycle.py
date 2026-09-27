@@ -143,8 +143,7 @@ def create_default_master_orchestrator(config: LiveBotConfig) -> Any:
     from iot_machine_learning.infrastructure.ml.adapters import RiskEngineAdapter, TemporalEngineAdapter
     from iot_machine_learning.infrastructure.ml.engines.mrt.mrt_engine import MRTEngine
     from iot_machine_learning.infrastructure.ml.master_engine import (
-        GeometricManifoldAdapter,
-        MasterEquationOrchestrator,
+        GeometricManifoldAdapter, MasterEquationOrchestrator,
     )
 
     return MasterEquationOrchestrator(
@@ -155,6 +154,7 @@ def create_default_master_orchestrator(config: LiveBotConfig) -> Any:
         manifold_engine=GeometricManifoldAdapter(),
         shadow_mode=getattr(config, "master_shadow_mode", False),
         manifold_shadow_mode=getattr(config, "manifold_shadow_mode", True),
+        dual_engine_shadow_mode=getattr(config, "dual_engine_shadow_mode", True),
         tau_mom=getattr(config, "tau_mom", 0.5),
         sigma_mom=getattr(config, "sigma_mom", 0.001),
     )

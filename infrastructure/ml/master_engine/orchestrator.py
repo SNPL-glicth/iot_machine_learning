@@ -39,8 +39,8 @@ class MasterEquationOrchestrator(MasterDecisionPort):
     def __init__(
         self, rosa_roja_engine: RosaRojaEngine, risk_adapter: Any, temporal_adapter: Any, *,
         mrt_engine: Any | None = None, manifold_engine: Any | None = None, shadow_mode: bool = False,
-        manifold_shadow_mode: bool = True, tau_mom: float = 0.5, sigma_mom: float = 0.001,
-        gamma_exec: float | None = None,
+        manifold_shadow_mode: bool = True, dual_engine_shadow_mode: bool = True,
+        tau_mom: float = 0.5, sigma_mom: float = 0.001, gamma_exec: float | None = None,
     ) -> None:
         self._rosa_roja = rosa_roja_engine
         self._mrt = mrt_engine
@@ -48,6 +48,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
         self._temporal_adapter = temporal_adapter
         self._manifold_engine = manifold_engine
         self._shadow_mode, self._manifold_shadow_mode = shadow_mode, manifold_shadow_mode
+        self._dual_engine_shadow_mode = dual_engine_shadow_mode
         self._tau_mom, self._sigma_mom, self._gamma_exec = tau_mom, sigma_mom, gamma_exec
 
     @property
@@ -124,8 +125,10 @@ class MasterEquationOrchestrator(MasterDecisionPort):
             phi_moe_base=phi_moe_base, i_cvar=i_cvar, lambda_t_crono=lambda_t_crono,
             kuramoto_r=float(base_trace.get("kuramoto_r", 1.0)), phase_alignment=alignment,
             manifold_engine=self._manifold_engine, delta_time=dt, mahalanobis_d=mahal_d,
-            manifold_shadow_mode=self._manifold_shadow_mode, rosa_roja_output=plan_base,
-            mrt_output=mrt_res, current_reference_price=expert_mag if expert_mag > 0 else state_norm,
+            manifold_shadow_mode=self._manifold_shadow_mode,
+            dual_engine_shadow_mode=self._dual_engine_shadow_mode,
+            rosa_roja_output=plan_base, mrt_output=mrt_res,
+            current_reference_price=expert_mag if expert_mag > 0 else state_norm,
         )
 
         eff_sigma_dr = max(0.1, state_dispersion * 2.0)
@@ -134,7 +137,7 @@ class MasterEquationOrchestrator(MasterDecisionPort):
 
         magnitud_objetivo = expert_mag
         if not self._shadow_mode and comp.is_4d_projected and comp.magnitud_objetivo > 0.0:
-            if not self._manifold_shadow_mode or (mrt_res is not None):
+            if (not self._manifold_shadow_mode and comp.manifold_audit is not None) or (mrt_res is not None and not self._dual_engine_shadow_mode):
                 magnitud_objetivo = comp.magnitud_objetivo
 
         momentum_veto = compute_momentum_veto(

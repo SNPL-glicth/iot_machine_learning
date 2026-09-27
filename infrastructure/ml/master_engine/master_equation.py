@@ -92,7 +92,7 @@ def compute_master_equation(
     manifold_engine: ManifoldEnginePort | None = None, delta_time: float = 0.01,
     mahalanobis_d: float | None = None, manifold_shadow_mode: bool = True,
     rosa_roja_output: Any | None = None, mrt_output: Any | None = None,
-    current_reference_price: float | None = None,
+    current_reference_price: float | None = None, dual_engine_shadow_mode: bool = True,
 ) -> MasterEquationComponents:
     """Continuous composite evaluator uniting Rosa Roja (z1) and MRT (z2) via Hopf Fibration."""
     clamped_phi = max(0.0, min(1.0, float(phi_moe_base)))
@@ -122,21 +122,23 @@ def compute_master_equation(
         s1 = 2.0 * z1_a * z2_a * math.cos(t1 - t2)
         sov_c = s3 + s1
         sov_pol = 1.0 if sov_c >= 0.0 else -1.0
-        final_certeza = float(max(0.0, min(1.0, abs(sov_c))))
-
         ref_p = float(current_reference_price) if (current_reference_price is not None and current_reference_price > 0) else (y1 if y1 > 0 else 1.0)
         dy_blend = ((z1_a**2 * (y1 - ref_p)) + (z2_a**2 * (y2 - ref_p))) / max(1e-12, s0)
         dy_sov = dy_blend * sov_pol
-        obj_mag = max(1e-6, ref_p + dy_sov)
+        calc_obj_mag = max(1e-6, ref_p + dy_sov)
         is_4d = True
 
         geo_shadow = {
-            "dual_engine_mode": True, "z1_amplitude": z1_a, "z2_amplitude": z2_a,
+            "dual_engine_mode": True, "dual_engine_shadow_mode": dual_engine_shadow_mode,
+            "z1_amplitude": z1_a, "z2_amplitude": z2_a, "nominal_certeza": nominal_certeza,
             "stokes_s0": s0, "stokes_s1": s1, "stokes_s3": s3,
             "sovereign_certainty": sov_c, "sovereign_polarity": sov_pol,
-            "delta_y_sovereign": dy_sov, "protected_target_magnitude": obj_mag,
+            "delta_y_sovereign": dy_sov, "protected_target_magnitude": calc_obj_mag,
             "is_4d_projected": True,
         }
+        if not dual_engine_shadow_mode:
+            final_certeza = float(max(0.0, min(1.0, abs(sov_c))))
+            obj_mag = calc_obj_mag
     # 2. Geometric Manifold Adapter Flow
     elif manifold_engine is not None:
         try:

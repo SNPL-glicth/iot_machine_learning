@@ -85,6 +85,7 @@ def test_master_equation_dual_engine_hopf_coupling() -> None:
         lambda_t_crono=1.0,
         rosa_roja_output=rosa_roja_res,
         mrt_output=mrt_res,
+        dual_engine_shadow_mode=False,
     )
 
     assert res.geometric_manifold_shadow is not None
@@ -124,6 +125,7 @@ def test_master_equation_dual_engine_veto_inverso() -> None:
         lambda_t_crono=1.0,
         rosa_roja_output=rr_res,
         mrt_output=mrt_res,
+        dual_engine_shadow_mode=False,
     )
 
     # C_sovereign = (0.3² - 0.9²) + 2*(0.3*0.9)*cos(-π) = (0.09 - 0.81) - 0.54 = -1.26 < 0

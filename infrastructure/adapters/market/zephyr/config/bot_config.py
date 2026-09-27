@@ -47,6 +47,7 @@ class LiveBotConfig(ConfigSerializationMixin):
     use_master_orchestrator: bool = True
     master_shadow_mode: bool = False
     manifold_shadow_mode: bool = True
+    dual_engine_shadow_mode: bool = True
     tau_mom: float = 0.5
     sigma_mom: float = 0.001
 
