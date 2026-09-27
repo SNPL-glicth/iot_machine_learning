@@ -8,36 +8,42 @@ ZENIN modela la evolución temporal de sistemas dinámicos multivariados como un
 
 ## 1. La Ecuación Maestra Soberana Completa
 
-> **Espacio Matemático:** Fibración de Hopf $\pi: \mathcal{H} \cong \mathbb{C}^2 \to S^2 \subset \mathbb{R}^3$ acoplada a la variedad afín de decisión $\mathbb{R}^d$.  
-> **Ubicación en Código:** [`master_equation.py:L89-L140`](infrastructure/ml/master_engine/master_equation.py#L89-L140), [`orchestrator.py:L80-L160`](infrastructure/ml/master_engine/orchestrator.py#L80-L160), [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62).
+> **Espacio Matemático:** Fibrado Compuesto $\mathcal{M} \times (\mathbb{C}^2 \to S^2) \times \mathbb{R}^d$.  
+> **Ubicación en Código:** [`master_equation.py:L83-L172`](infrastructure/ml/master_engine/master_equation.py#L83-L172), [`orchestrator.py:L115-L178`](infrastructure/ml/master_engine/orchestrator.py#L115-L178), [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62).
 
-ZENIN gobierna la inferencia topológica unificando los dos motores canónicos duales: **Rosa Roja** (Cinemática Directa forward $+x$, Polo $z_1$) y **MRT** (Cinemática Inversa conjugada $-x$, Polo $z_2$) en un único operador de decisión soberano continuo y determinista.
+ZENIN gobierna la inferencia topológica integrando sus dos motores canónicos duales: **Rosa Roja** (Cinemática Directa forward $+x$, Polo $z_1$) y **MRT** (Cinemática Inversa conjugada $-x$, Polo $z_2$), modulados por la disipación geométrica de Liouville y protegidos por cortafuegos de admisibilidad estricta en una **única variable continua soberana**.
 
 ### Lo que hay: Formulación Matemática de la Ecuación Maestra
 
-#### A. La Ecuación Maestra Unificada del Sistema
-En cada instante temporal $t$, la acción del sistema dinámico está gobernada por el **Operador Soberano de Decisión** $\mathbf{U}(t) \in \{\text{EXECUTE}, \text{HOLD}, \text{EMERGENCY-FLUSH}\}$:
+#### A. La Ecuación Unificada Soberana: Variable Destino $\mathcal{D}(t)$
+En cada instante temporal $t$, el estado completo del sistema dinámico colapsa de forma analítica y continua en una **única variable de salida escalar unificada $\mathcal{D}(t)$**, componiendo multiplicativamente los cuatro pilares del sistema:
 
 $$
-\mathbf{U}(t) = \begin{cases}
-\text{EXECUTE}(S_{\text{target}}, \Pi_{\text{sovereign}}) & \text{si } \Phi_{\text{sovereign}} \ge \gamma_{\text{exec}} \land \mathbb{I}_{\text{estable}} = 1 \land \Omega_{\text{FNN}} < \tau_{\text{FNN}} \land V_{\text{inercia}} > 0 \\
-\text{HOLD} & \text{si } \Phi_{\text{sovereign}} < \gamma_{\text{exec}} \lor V_{\text{inercia}} = 0 \\
-\text{EMERGENCY-FLUSH} & \text{si } d_M^2 > \chi_{d, \alpha}^2 \lor \mathbb{I}_{\text{estable}} = 0
-\end{cases}
+\mathcal{D}(t) = \left[ \prod_{k} \mathbb{I}_k(t) \right] \cdot \exp\left(-\max\left(0, \; \mathrm{div}\mathbf{F}(t)\right)\right) \cdot \Pi_{\mathrm{sov}}(t) \cdot \big|S_3(t) + S_1(t)\big|
 $$
 
-Donde la directiva de ejecución no se basa en heurísticas discretas, sino en la interacción analítica continua de los dos polos dinámicos sobre la esfera de Stokes bajo condiciones de estabilidad topológica:
-* **$\Phi_{\text{sovereign}} \ge \gamma_{\text{exec}}$:** La certeza analítica supera el umbral crítico de activación variacional.
-* **$\mathbb{I}_{\text{estable}} = 1$:** Criterio de admisibilidad estocástica y estabilidad de Lyapunov activo.
-* **$\Omega_{\text{FNN}} < \tau_{\text{FNN}}$:** Ausencia de falsos vecinos más cercanos y preservación topológica del atractor.
-* **$V_{\text{inercia}} > 0$:** La inercia del flujo temporal supera la banda muerta del ruido del sistema.
-* **$d_M^2 \le \chi_{d, \alpha}^2$:** Confinamiento elíptico en la variedad métrica dentro del intervalo de confianza $\chi^2$.
+##### Descomposición de los Cuatro Factores Fundamentales:
+1. **$\prod_{k} \mathbb{I}_k(t) \in \{0, 1\}$ (Veto de Admisibilidad Estricto Multicapa):**
+   Producto de cortafuegos booleanos deterministas. Si cualquier subsistema detecta violación crítica de invariantes de estabilidad, anula instantáneamente la emisión del sistema ($\prod_k \mathbb{I}_k = 0$):
+   * $\mathbb{I}_{\mathrm{mahal}}(t) = \mathbb{I}\big(d_M^2(t) \le \chi_{d, \alpha}^2\big)$: Filtro métrico de ingesta contra perturbaciones y ruido en `module1_ingestion.py`.
+   * $\mathbb{I}_{\mathrm{takens}}(t) = \mathbb{I}\big(\Omega_{\mathrm{FNN}}(t) \lt \tau_{\mathrm{FNN}}\big)$: Cortafuegos topológico contra falsos vecinos más cercanos y auto-intersección del atractor en el espacio embebido de Takens.
+   * $\mathbb{I}_{\mathrm{risk}}(t) = \mathbb{I}\big(I_{\mathrm{cvar}}(t) \gt 0\big)$: Admisibilidad estocástica de cola y estabilidad variacional.
+2. **$\exp\left(-\max\left(0, \; \mathrm{div}\mathbf{F}(t)\right)\right) \in (0, 1]$ (Freno Disipativo de Liouville en la Variedad $\mathcal{M}$):**
+   Amortiguamiento volumétrico continuo sobre la variedad Riemanniana $\mathcal{M}$. Si la divergencia del campo $\mathrm{div}\mathbf{F} \gt 0$ (expansión inestable del volumen de fases), atenúa exponencialmente la señal colapsando suavemente la dinámica hacia el reposo, garantizando estabilidad asintótica sin discontinuidades.
+3. **$\Pi_{\mathrm{sov}}(t) = \mathrm{sgn}\big(S_3(t) + S_1(t)\big) \in \{-1.0, +1.0\}$ (Polaridad Soberana de Stokes):**
+   Sentido direccional de fase emitido por la Fibración de Hopf $\mathbb{C}^2 \to S^2$:
+   * $\Pi_{\mathrm{sov}} = +1.0$: Dominio del polo forward inercial $z_1$ (Cinemática Directa hacia adelante).
+   * $\Pi_{\mathrm{sov}} = -1.0$: Dominio del polo de rebote elástico $z_2$ (Cinemática Inversa restauradora).
+4. **$\big|S_3(t) + S_1(t)\big| = |C_{\mathrm{sovereign}}(t)| \in [0, 1]$ (Magnitud de Certeza Soberana Acoplada):**
+   Interferencia analítica cuántica entre Rosa Roja ($z_1$) y MRT ($z_2$) sobre las coordenadas de Stokes de la 2-esfera $S^2$.
 
-#### B. Representación Espinorial en $\mathbb{C}^2$ y Esfera de Stokes
+---
+
+#### B. Representación Espinorial en $\mathbb{C}^2$ y Proyección de Hopf
 > **Espacio Matemático:** Espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$ acoplado a la 3-esfera $S^3 \subset \mathbb{C}^2$.  
-> **Ubicación en Código:** [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62), [`mrt_hopf_fibration.py:L42-L78`](domain/services/manifold/mrt_hopf_fibration.py#L42-L78).
+> **Ubicación en Código:** [`hopf_spinor_state.py:L17-L62`](domain/entities/manifold/hopf_spinor_state.py#L17-L62), [`mrt_hopf_fibration.py:L42-L130`](domain/services/manifold/mrt_hopf_fibration.py#L42-L130).
 
-El estado global unificado del sistema se representa como un espinor cuántico de dos componentes en el espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$:
+El estado dinámico acoplado se representa formalmente como un espinor de dos componentes en el espacio de Hilbert $\mathcal{H} \cong \mathbb{C}^2$:
 
 $$
 |\psi(t)\rangle = \begin{pmatrix} z_1(t) \\ z_2(t) \end{pmatrix} = \begin{pmatrix} |z_1|e^{i\theta_1} \\ |z_2|e^{i\theta_2} \end{pmatrix} \in \mathbb{C}^2
@@ -45,100 +51,114 @@ $$
 
 Las amplitudes de ambos modos conjugados se evalúan de forma analítica y continua:
 
-**Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja):** Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el indicador de estabilidad $\mathbb{I}_{\text{estable}}$, sincronía temporal $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
+* **Polo Positivo $z_1 \in \mathbb{C}$ (Rosa Roja — Cinemática Directa $+x$):**
+  Amplitud de inercia y ritmo forward en $\mathbb{R}^3$, modulada por el indicador de estabilidad $\mathbb{I}_{\mathrm{estable}}$, sincronía cronométrica $\Lambda(t)$ y alineación de fase Kuramoto ($r \cdot \cos\Delta\phi$):
+  $$
+  |z_1| = \Phi_{\mathrm{MoE, final}} \cdot \mathbb{I}_{\mathrm{estable}} \cdot \Lambda(t) \cdot (r_{\mathrm{Kuramoto}} \cdot \cos\Delta\phi_{\mathrm{align}})
+  $$
+
+* **Polo Negativo $z_2 \in \mathbb{C}$ (MRT — Cinemática Inversa $-x$):**
+  Amplitud de deformación de vórtice y rebote elástico en el espacio conjugado 4D $\mathbb{R}^4$:
+  $$
+  |z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\mathrm{Ramanujan}} \cdot C_{\mathrm{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\mathrm{frob}}}{\varepsilon_{\mathrm{strain}}}
+  $$
+
+A través de la proyección de Hopf $\pi: S^3 \to S^2$, el espinor proyecta sus coordenadas sobre la esfera de Stokes:
 
 $$
-|z_1| = \Phi_{\text{MoE, final}} \cdot \mathbb{I}_{\text{estable}} \cdot \Lambda(t) \cdot (r_{\text{Kuramoto}} \cdot \cos\Delta\phi_{\text{align}})
-$$
-
-**Polo Negativo $z_2 \in \mathbb{C}$ (MRT):** Amplitud de deformación de vórtice y rebote elástico en $\mathbb{R}^4$:
-
-$$
-|z_2| = \frac{1}{\sqrt{1 + u^2}} \cdot \mathcal{D}_{\text{Ramanujan}} \cdot C_{\text{nominal}}, \qquad u = \frac{\dot{\mathcal{E}}_{\text{frob}}}{\varepsilon_{\text{strain}}}
-$$
-
-A través de la proyección de Hopf $\pi: S^3 \to S^2$, el espinor se proyecta sobre la esfera de Stokes:
-
-$$
-S_0 = |z_1|^2 + |z_2|^2, \qquad S_1 = 2|z_1||z_2|\cos(\theta_1 - \theta_2), \qquad S_2 = 2|z_1||z_2|\sin(\theta_1 - \theta_2), \qquad S_3 = |z_1|^2 - |z_2|^2
-$$
-
-#### C. La Ecuación Soberana y Polaridad Continua
-> **Espacio Matemático:** Coordenadas de Stokes $(S_1, S_2, S_3) \in S^2 \subset \mathbb{R}^3$.  
-> **Ubicación en Código:** [`master_equation.py:L109-L140`](infrastructure/ml/master_engine/master_equation.py#L109-L140).
-
-La **Certeza Soberana** $C_{\text{sovereign}}(t) \in \mathbb{R}$ y la polaridad direccional $\Pi_{\text{sovereign}} \in \{-1.0, +1.0\}$ se evalúan de forma analítica y continua ($C^\infty$):
-
-$$
-C_{\text{sovereign}}(t) = S_3 + S_1 = \big(|z_1|^2 - |z_2|^2\big) + 2|z_1||z_2|\cos(\theta_1 - \theta_2)
+S_0 = |z_1|^2 + |z_2|^2, \qquad S_1 = 2|z_1||z_2|\cos(\theta_1 - \theta_2)
 $$
 
 $$
-\Phi_{\text{sovereign}} = \min(1.0, |C_{\text{sovereign}}|), \qquad \Pi_{\text{sovereign}} = \mathrm{sgn}(C_{\text{sovereign}})
+S_2 = 2|z_1||z_2|\sin(\theta_1 - \theta_2), \qquad S_3 = |z_1|^2 - |z_2|^2
 $$
 
-#### D. Modulación del Estado Objetivo y Blindaje de Escala Absoluta
-> **Espacio Matemático:** Variedad afín tangente $\mathbb{R}^d$ con invariante de escala positiva.  
-> **Ubicación en Código:** [`master_equation.py:L109-L135`](infrastructure/ml/master_engine/master_equation.py#L109-L135), [`orchestrator.py:L140-L155`](infrastructure/ml/master_engine/orchestrator.py#L140-L155).
-
-Sea $S_{\text{ref}} > 0$ la magnitud del estado de referencia actual, $y_1$ el objetivo proyectado por cinemática directa (Rosa Roja) y $y_2$ el objetivo de rebote conjugado (MRT). La polaridad soberana modula **estrictamente el diferencial de transición relativo ($\Delta S$)**, protegiendo la escala absoluta del sistema contra inversiones de signo espurias:
-
-$$
-\Delta S_{\text{blend}} = \frac{|z_1|^2(y_1 - S_{\text{ref}}) + |z_2|^2(y_2 - S_{\text{ref}})}{S_0 + \varepsilon}, \qquad \Delta S_{\text{sovereign}} = \Delta S_{\text{blend}} \cdot \Pi_{\text{sovereign}}
-$$
-
-$$
-S_{\text{target}} = \max(10^{-6}, S_{\text{ref}} + \Delta S_{\text{sovereign}})
-$$
-
-#### E. Ecuación Unificadora Final: Variable Destino $\mathcal{D}(t)$
-> **Espacio Matemático:** Fibrado compuesto $\mathcal{M} \times (\mathbb{C}^2 \to S^2) \times \mathbb{R}$.  
-> **Ubicación en Código:** [`master_equation.py:L140-L165`](infrastructure/ml/master_engine/master_equation.py#L140-L165), [`orchestrator.py:L123-L158`](infrastructure/ml/master_engine/orchestrator.py#L123-L158).
-
-La directiva soberana de control continuo se colapsa en una **única variable de salida escalar unificada $\mathcal{D}(t)$**, componiendo multiplicativamente los cuatro pilares del sistema:
-
-$$
-\mathcal{D}(t) = \Big[\prod_{k} \mathbb{I}_k(t)\Big] \cdot e^{-\max(0,\, \operatorname{div}\mathbf{F}(t))} \cdot \Pi_{\text{sov}}(t) \cdot \big|S_3(t) + S_1(t)\big|
-$$
-
-##### Descomposición de los Cuatro Factores:
-1. **$\prod_{k} \mathbb{I}_k(t) \in \{0, 1\}$ (Veto de Admisibilidad Estricto):** Producto de cortafuegos booleanos:
-   - $\mathbb{I}_{\text{mahal}}(t)$: Filtro de ingesta Mahalanobis ($d_M^2 \le \chi^2$) en `module1_ingestion.py`.
-   - $\mathbb{I}_{\text{takens}}(t)$: Cortafuegos topológico de falsos vecinos ($\Omega_{\text{FNN}} < \tau_{\text{FNN}}$) de Takens.
-   - $\mathbb{I}_{\text{risk}}(t)$: Admisibilidad estocástica de cola CVaR ($I_{\text{cvar}} > 0$).
-2. **$e^{-\max(0,\, \operatorname{div}\mathbf{F}(t))}$ (Freno Disipativo de Liouville):** Amortiguamiento volumétrico sobre la variedad Riemanniana $\mathcal{M}$; si $\operatorname{div}\mathbf{F} > 0$ (expansión inestable de volumen), atenúa exponencialmente la emisión hacia el reposo.
-3. **$\Pi_{\text{sov}}(t) = \operatorname{sgn}(S_3 + S_1) \in \{-1, +1\}$ (Polaridad Soberana de Stokes):** Sentido direccional de fase de la Fibración de Hopf en $\mathbb{C}^2 \to S^2$.
-4. **$|S_3(t) + S_1(t)|$ (Certeza Soberana Acoplada):** Resonancia cuántica continua entre Rosa Roja ($z_1$) y MRT ($z_2$).
-
-### El por qué: Justificación Física y Teórica
-
-#### 1. Eliminación de Singularidades y Chattering Numérico
-Las arquitecturas discretas (`if/else`) o funciones de corte tipo saturación/ReLU poseen discontinuidades en su derivada de primer orden, inyectando impulsos singulares de Dirac en la aceleración numérica del sistema:
-
-$$
-f_{\text{corte}}(x) = \max(0, x) \implies \frac{df}{dx} = \Theta(x) \implies \frac{d^2f}{dx^2} = \delta(x)
-$$
-
-La presencia de la distribución impulsiva $\delta(x)$ induce micro-oscilaciones parásitas (*$C^0$ chattering*) en la frontera de estabilidad. En contraposición, la Fibración de Hopf proyecta el estado mediante un flujo analíticamente suave ($C^\infty$) en todo su dominio:
-
-$$
-\pi \in C^\infty(\mathbb{C}^2 \setminus \{0\}, S^2) \implies \nabla C_{\text{sovereign}} \in C^\infty
-$$
-
-Garantizando gradientes continuos y estabilidad asintótica sin singularidades numéricas.
-
-#### 2. Conservación Estricta de Energía Informacional
-Se cumple idénticamente la restricción pitagórica como invariante cuadrático de Casimir del álgebra de Lie $\mathfrak{su}(2)$:
+Cumpliendo en todo instante la invariancia pitagórica del espacio de fases:
 
 $$
 S_1^2 + S_2^2 + S_3^2 \equiv S_0^2
 $$
 
+---
+
+#### C. La Ecuación Soberana y Polaridad Continua
+> **Espacio Matemático:** Coordenadas de Stokes $(S_1, S_2, S_3) \in S^2 \subset \mathbb{R}^3$.  
+> **Ubicación en Código:** [`master_equation.py:L109-L123`](infrastructure/ml/master_engine/master_equation.py#L109-L123).
+
+La **Certeza Soberana** $C_{\mathrm{sovereign}}(t) \in \mathbb{R}$ y la polaridad direccional $\Pi_{\mathrm{sovereign}} \in \{-1.0, +1.0\}$ se evalúan de forma analítica y suave ($C^\infty$):
+
 $$
-\mathcal{C}_{\mathfrak{su}(2)} = \sum_{k=1}^3 \sigma_k^2 = \text{const} \implies \frac{d}{dt}\left(\sum_{k=1}^3 S_k^2 - S_0^2\right) = 0
+C_{\mathrm{sovereign}}(t) = S_3 + S_1 = \big(|z_1|^2 - |z_2|^2\big) + 2|z_1||z_2|\cos(\theta_1 - \theta_2)
 $$
 
-Como invariante de Casimir, garantiza que la probabilidad total del espacio de fases se conserva de forma unitaria; toda energía disipada fuera del régimen observable ($z_1$) es absorbida con exactitud por el modo conjugado ($z_2$), impidiendo fugas térmicas de información.
+$$
+\Phi_{\mathrm{sovereign}} = \min\big(1.0, \; |C_{\mathrm{sovereign}}|\big), \qquad \Pi_{\mathrm{sovereign}} = \mathrm{sgn}\big(C_{\mathrm{sovereign}}\big)
+$$
+
+---
+
+#### D. Modulación del Estado Objetivo y Blindaje de Escala Absoluta
+> **Espacio Matemático:** Variedad afín tangente $\mathbb{R}^d$ con invariante de positividad de escala.  
+> **Ubicación en Código:** [`master_equation.py:L111-L123`](infrastructure/ml/master_engine/master_equation.py#L111-L123), [`orchestrator.py:L153-L157`](infrastructure/ml/master_engine/orchestrator.py#L153-L157).
+
+Sea $S_{\mathrm{ref}} \gt 0$ la magnitud del estado de referencia actual, $y_1$ el objetivo proyectado por cinemática directa (Rosa Roja) e $y_2$ el objetivo de rebote conjugado (MRT). La polaridad soberana modula **estrictamente el diferencial de transición relativo ($\Delta S$)**, protegiendo la escala absoluta del sistema contra inversiones de signo o valores no físicos:
+
+$$
+\Delta S_{\mathrm{blend}} = \frac{|z_1|^2(y_1 - S_{\mathrm{ref}}) + |z_2|^2(y_2 - S_{\mathrm{ref}})}{S_0 + \varepsilon}
+$$
+
+$$
+\Delta S_{\mathrm{sovereign}} = \Delta S_{\mathrm{blend}} \cdot \Pi_{\mathrm{sovereign}}
+$$
+
+$$
+S_{\mathrm{target}} = \max\big(10^{-6}, \; S_{\mathrm{ref}} + \Delta S_{\mathrm{sovereign}}\big)
+$$
+
+---
+
+#### E. El Operador Soberano de Decisión $\mathbf{U}(t)$
+> **Espacio Matemático:** Espacio discreto de políticas de control inducido por estabilidad topológica.  
+> **Ubicación en Código:** [`orchestrator.py:L174-L178`](infrastructure/ml/master_engine/orchestrator.py#L174-L178), [`execution_plan.py:L12-L45`](domain/entities/execution_plan.py#L12-L45).
+
+La directiva operativa $\mathbf{U}(t) \in \{\mathrm{EXECUTE}, \mathrm{HOLD}, \mathrm{EMERGENCY\text{-}FLUSH}\}$ es gobernada de forma determinista por las condiciones de admisibilidad y estabilidad topológica:
+
+$$
+\mathbf{U}(t) = \begin{cases}
+\mathrm{EXECUTE}\big(S_{\mathrm{target}}, \; \Pi_{\mathrm{sovereign}}\big) & \text{si } \Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}} \;\land\; \mathbb{I}_{\mathrm{admisibilidad}} = 1 \;\land\; V_{\mathrm{inercia}} \gt 0 \\[6pt]
+\mathrm{HOLD} & \text{si } \Phi_{\mathrm{sovereign}} \lt \gamma_{\mathrm{exec}} \;\lor\; V_{\mathrm{inercia}} \le 0 \\[6pt]
+\mathrm{EMERGENCY\text{-}FLUSH} & \text{si } d_M^2 \gt \chi_{d, \alpha}^2 \;\lor\; \mathbb{I}_{\mathrm{risk}} = 0 \;\lor\; \Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}}
+\end{cases}
+$$
+
+Donde la directiva de ejecución no recurre a heurísticas empíricas sino a criterios analíticos:
+* **$\Phi_{\mathrm{sovereign}} \ge \gamma_{\mathrm{exec}}$:** La certeza analítica acoplada supera el umbral crítico de activación variacional.
+* **$\mathbb{I}_{\mathrm{admisibilidad}} = \prod_k \mathbb{I}_k = 1$:** Admisibilidad simultánea de todos los invariantes (Mahalanobis, Takens, CVaR).
+* **$V_{\mathrm{inercia}} \gt 0$:** La velocidad de fase supera la banda muerta del ruido del sistema.
+* **$\mathrm{EMERGENCY\text{-}FLUSH}$:** Se activa de forma no negociable ante anulación métrica ($d_M^2 \gt \chi^2$), colapso de riesgo estocástico ($\mathbb{I}_{\mathrm{risk}} = 0$) o plegamiento topológico del atractor ($\Omega_{\mathrm{FNN}} \ge \tau_{\mathrm{FNN}}$).
+
+### El por qué: Justificación Física y Teórica
+
+1. **Eliminación de Singularidades y Chattering Numérico ($C^0$ Chattering vs. Suavidad $C^\infty$):**  
+   Las arquitecturas discretas (`if/else`) o funciones de atenuación basadas en cortes discontinuos poseen derivadas no suaves en la frontera de estabilidad, inyectando impulsos singulares de Dirac en la aceleración del sistema:
+   $$
+   f_{\mathrm{corte}}(x) = \max(0, x) \implies \frac{df}{dx} = \Theta(x) \implies \frac{d^2f}{dx^2} = \delta(x)
+   $$
+   La presencia de la distribución impulsiva $\delta(x)$ induce micro-oscilaciones parásitas (*$C^0$ chattering*) en la frontera de decisión. En contraposición, la Fibración de Hopf proyecta el estado mediante un flujo analíticamente suave ($C^\infty$) en todo su dominio:
+   $$
+   \pi \in C^\infty\big(\mathbb{C}^2 \setminus \{0\}, \; S^2\big) \implies \nabla C_{\mathrm{sovereign}} \in C^\infty
+   $$
+   Garantizando gradientes continuos, derivadas acotadas y estabilidad asintótica sin singularidades numéricas.
+
+2. **Conservación Estricta de Energía Informacional e Invariante de Casimir:**  
+   Se cumple idénticamente la restricción pitagórica como invariante cuadrático de Casimir del álgebra de Lie $\mathfrak{su}(2)$:
+   $$
+   S_1^2 + S_2^2 + S_3^2 \equiv S_0^2
+   $$
+   $$
+   \mathcal{C}_{\mathfrak{su}(2)} = \sum_{k=1}^3 \sigma_k^2 = \text{const} \implies \frac{d}{dt}\left(\sum_{k=1}^3 S_k^2 - S_0^2\right) = 0
+   $$
+   Como invariante de Casimir, garantiza que la probabilidad total del espacio de fases se conserva de forma unitaria; toda energía disipada fuera del régimen observable ($z_1$) es absorbida con exactitud por el modo conjugado ($z_2$), impidiendo fugas térmicas o pérdidas de información en la variedad.
 
 ---
 
@@ -260,7 +280,7 @@ $$
 La traza contractiva del cristal impone la condición de disipación simpléctica:
 
 $$
-\text{Tr}(\mathbf{J}^{\star}) < 0 \implies \mathcal{D}_{\text{Ramanujan}} = \frac{1}{1 + \exp\big(\text{Tr}(\mathbf{J}^{\star})\big)} \in [0.5, 1.0]
+\mathrm{Tr}(\mathbf{J}^{\star}) \lt 0 \implies \mathcal{D}_{\text{Ramanujan}} = \frac{1}{1 + \exp\big(\mathrm{Tr}(\mathbf{J}^{\star})\big)} \in [0.5, 1.0]
 $$
 
 #### C. Tesla: Transporte Disipativo de Fase sobre $U(1)$ y Polo $z_2$
@@ -295,7 +315,7 @@ $$
 
 ### El por qué: Justificación Física y Teórica
 1. **Maxwell (Ortogonalidad e Inducción):** En colisiones de alta energía, la aceleración no debe absorberse frontalmente en el eje de inercia ($\mathbf{E}$). La vorticidad $\mathbf{\Omega}$ transfiere la energía cinética al modo transversal magnético ($\mathbf{E} \cdot \mathbf{B} = 0$), evitando la rotura del tracking.
-2. **Ramanujan (Contracción de Liouville):** Por el teorema de Liouville ($\frac{d\Omega_V}{dt} = \text{Tr}(\mathbf{J}^{\star})\Omega_V$), una traza estrictamente negativa ($\text{Tr}(\mathbf{J}^{\star}) < 0$) colapsa exponencialmente el volumen del espacio de fases, transformando trayectorias que divergían al infinito en geodésicas compactas de recuperación elástica.
+2. **Ramanujan (Contracción de Liouville):** Por el teorema de Liouville ($\frac{d\Omega_V}{dt} = \mathrm{Tr}(\mathbf{J}^{\star})\Omega_V$), una traza estrictamente negativa ($\mathrm{Tr}(\mathbf{J}^{\star}) \lt 0$) colapsa exponencialmente el volumen del espacio de fases, transformando trayectorias que divergían al infinito en geodésicas compactas de recuperación elástica.
 3. **Tesla (Espejo Conjugado y Veto Inverso):** Cuando el sistema sufre una perturbación extrema, las fases entran en oposición destructiva ($\Delta\theta \to \pi \implies \cos\Delta\theta \to -1.0$). El término de Stokes $S_1$ se vuelve negativo y supera a $S_3$, induciendo $\Pi_{\text{sovereign}} = -1.0$. Esto invierte la dirección de la respuesta en el instante exacto de compresión máxima, restaurando el equilibrio dinámico.
 
 ---
@@ -347,7 +367,7 @@ $$
 Se evalúa la Dimensión Efectiva de Participación ($D_{\text{eff}}$) y la fracción de **Falsos Vecinos Más Cercanos ($\Omega_{\text{FNN}}$)**:
 
 $$
-\Phi_{\text{MoE}}(T) = \left[ \prod_{k \in \mathcal{K}_{\text{crít}}} \mathbb{I}\Big(\Psi_k(T) \ge \tau_k\Big) \right] \cdot \frac{\sum_{e} w_e \Psi_e(T)}{1 + \gamma \text{Var}(\Psi)}
+\mathbb{I}_{\mathrm{takens}}(t) = \mathbb{I}\big(\Omega_{\mathrm{FNN}}(t) \lt \tau_{\mathrm{FNN}}\big) \cdot \mathbb{I}\big(D_{\mathrm{eff}}(t) \ge D_{\min}\big)
 $$
 
 Si el atractor se auto-interseca o pliega ($\Omega_{\text{FNN}} \ge \tau_{\text{FNN}}$), el término indicador emite $\mathbb{I} = 0$, suspendiendo la ejecución antes de la bifurcación.
@@ -387,7 +407,7 @@ ZENIN aísla el núcleo matemático variacional de cualquier protocolo de transp
 
 | Nivel Arquitectónico | Componentes y Motores | Contrato de Datos | Responsabilidad Operativa |
 | :--- | :--- | :--- | :--- |
-| **1. Inbound (Puerto de Entrada)** | Ingestores de Señales, Filtros Mahalanobis | Transición $\Delta S \in \mathbb{R}^d, \Delta t > 0$ | Normaliza observaciones multivariadas del entorno sin conocimiento del modelo interno. |
+| **1. Inbound (Puerto de Entrada)** | Ingestores de Señales, Filtros Mahalanobis | Transición $\Delta S \in \mathbb{R}^d, \Delta t \gt 0$ | Normaliza observaciones multivariadas del entorno sin conocimiento del modelo interno. |
 | **2. Kernel Soberano (Hexágono)** | Rosa Roja (Forward) + MRT (Conjugado), Hopf $\mathbb{C}^2$ | Espinor $|\psi\rangle \in \mathbb{C}^2 \to S^2$ | Computa trayectorias duales, evalúa $C_{\text{sovereign}} = S_3 + S_1$ y emite la directiva formal. |
 | **3. Outbound (Puerto de Salida)** | Adaptadores de Control y Emisión de Acción | `ExecutionPlan` (Acción, $S_{\text{target}}$, Certeza) | Traduce la acción (`EXECUTE`, `HOLD`, `FLUSH`) y magnitud $S_{\text{target}}$ a señales de salida. |
 
