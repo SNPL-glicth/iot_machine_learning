@@ -36,7 +36,7 @@ class TopologicalAuditRecord:
 
     def __post_init__(self) -> None:
         """Sanitize numerical telemetry values against NaNs and Infinities (ISO 25010)."""
-        object.__setattr__(self, "timestamp_ns", max(0, int(self.timestamp_ns)))
+        object.__setattr__(self, "timestamp_ns", max(0, self.timestamp_ns))
 
         # Sanitize d_effective
         if not math.isfinite(self.d_effective):
@@ -52,8 +52,6 @@ class TopologicalAuditRecord:
             fnn = max(0.0, min(1.0, float(self.fnn_ratio)))
         object.__setattr__(self, "fnn_ratio", fnn)
 
-        # Sanitize is_manifold_veto
-        object.__setattr__(self, "is_manifold_veto", bool(self.is_manifold_veto))
 
         # Sanitize manifold_coherence in [0.0, 1.0]
         if not math.isfinite(self.manifold_coherence):

@@ -37,7 +37,7 @@ class RamanujanTakensEngine(PredictionEngine):
     ) -> None:
         """Initialize engine with static ring buffer and domain parameters."""
         self._params = params or _DEFAULT_PARAMS
-        self._window_size = max(10, int(window_size))
+        self._window_size = max(10, window_size)
         self._buffer = TakensRingBuffer(capacity=self._params.buffer_capacity)
         self._latest_audit: TopologicalAuditRecord | None = None
 
@@ -65,7 +65,7 @@ class RamanujanTakensEngine(PredictionEngine):
         timestamp_ns: int | None = None,
     ) -> tuple[float, TopologicalAuditRecord]:
         """Directly evaluate candidate trajectory against reconstructed manifold."""
-        t_ns = time.time_ns() if timestamp_ns is None else int(timestamp_ns)
+        t_ns = time.time_ns() if timestamp_ns is None else timestamp_ns
 
         # 1. Retrieve history from ring buffer or fallback to trajectory values
         history = self._buffer.get_flat_history()

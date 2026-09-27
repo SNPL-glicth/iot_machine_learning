@@ -8,6 +8,8 @@ Conforms to:
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
 from domain.entities.takens.takens_parameters import TakensParameters
@@ -50,7 +52,7 @@ def compute_delay_covariance_matrix(
 
     # Ensure symmetric structure and Tikhonov regularized conditioning
     cov = 0.5 * (cov + cov.T) + eps * np.eye(m, dtype=np.float64)
-    return cov
+    return cast(np.ndarray, cov)
 
 
 def compute_effective_dimension(
@@ -73,7 +75,7 @@ def compute_effective_dimension(
     if sigma.ndim != 2 or sigma.shape[0] != sigma.shape[1]:
         return 1.0
 
-    m = sigma.shape[0] if m_dimension is None else max(1, int(m_dimension))
+    m = sigma.shape[0] if m_dimension is None else max(1, m_dimension)
 
     # Analytical trace computations
     tr_sigma = float(np.trace(sigma))

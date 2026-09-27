@@ -8,6 +8,8 @@ Conforms to:
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
 
@@ -22,7 +24,7 @@ class TakensRingBuffer:
 
     def __init__(self, capacity: int = 1024) -> None:
         """Initialize static ring buffer with power-of-two capacity."""
-        cap = int(capacity)
+        cap = capacity
         if (cap <= 0) or ((cap & (cap - 1)) != 0):
             raise ValueError(f"Capacity must be a positive power of 2, received {capacity}")
 
@@ -95,13 +97,13 @@ class TakensRingBuffer:
         if self._size == 0:
             return np.empty(0, dtype=np.float64)
 
-        count = self._size if (n is None or n <= 0 or n > self._size) else int(n)
+        count = self._size if (n is None or n <= 0 or n > self._size) else n
         curr = self._head & self._mask
         start = (self._head - count) & self._mask
 
         if start < curr:
             # Single contiguous slice without wrap-around
-            return self._buffer[start:curr].copy()
+            return cast(np.ndarray, self._buffer[start:curr].copy())
         elif start > curr:
             # Wrapped around the end: slice in two segments and concatenate
             seg1 = self._buffer[start : self._capacity]

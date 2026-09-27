@@ -8,6 +8,8 @@ Conforms to:
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
 from domain.entities.takens.takens_parameters import TakensParameters
@@ -61,7 +63,7 @@ def extract_embedded_vector(
     valid_indices = np.clip(target_indices, 0, n_samples - 1)
     embedded_vector = arr[valid_indices]
 
-    return embedded_vector
+    return cast(np.ndarray, embedded_vector)
 
 
 def extract_delay_matrix(
@@ -85,7 +87,7 @@ def extract_delay_matrix(
     cfg = params or _DEFAULT_PARAMS
     arr = np.asarray(series_history, dtype=np.float64).flatten()
     n_samples = arr.size
-    w = max(1, int(window_size))
+    w = max(1, window_size)
 
     if n_samples == 0:
         return np.zeros((w, cfg.m), dtype=np.float64)
@@ -120,4 +122,4 @@ def extract_delay_matrix(
         padding = np.repeat(first_row, pad_rows, axis=0)
         matrix = np.vstack([padding, matrix])
 
-    return matrix
+    return cast(np.ndarray, matrix)

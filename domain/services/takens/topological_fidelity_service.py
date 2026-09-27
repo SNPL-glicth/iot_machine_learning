@@ -70,9 +70,9 @@ def compute_fast_fnn_ratio(
     # Standard Kennel-Brown-Abarbanel criteria with flatline protection
     attr_std = float(np.std(Y[:, m_sub - 1]))
     if attr_std < 1e-4:
-        is_false_neighbor = bool(delta_m / max(1e-8, r_d) > r_tol)
+        is_false_neighbor = delta_m / max(1e-8, r_d) > r_tol
     else:
-        is_false_neighbor = bool((delta_m / max(1e-8, r_d) > r_tol) or (delta_m / attr_std > a_tol))
+        is_false_neighbor = (delta_m / max(1e-8, r_d) > r_tol) or (delta_m / attr_std > a_tol)
 
     return 1.0 if is_false_neighbor else 0.0
 

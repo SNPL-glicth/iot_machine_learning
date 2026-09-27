@@ -37,7 +37,7 @@ class FeatureContext:
     def from_structural_analysis(
         cls, regime: str, mean: float, std: float, slope: float,
         curvature: float, noise_ratio: float, stability: float,
-        hampel_outlier_mask: List[bool] = None, spatial_correlation_score: float = 0.0,
+        hampel_outlier_mask: Optional[List[bool]] = None, spatial_correlation_score: float = 0.0,
         sensor_profile: Optional["SensorProfile"] = None,
         relative_deviation: float = 0.0, equipment_class: str = "GENERIC",
         event_context: Optional["EventContext"] = None,
@@ -64,7 +64,7 @@ class FeatureContext:
     def from_structural_analysis_with_profile(
         cls, regime: str, mean: float, std: float, slope: float,
         curvature: float, noise_ratio: float, stability: float,
-        hampel_outlier_mask: List[bool] = None, spatial_correlation_score: float = 0.0,
+        hampel_outlier_mask: Optional[List[bool]] = None, spatial_correlation_score: float = 0.0,
         sensor_profile: Optional["SensorProfile"] = None,
         event_context: Optional["EventContext"] = None,
         seasonal_strength: float = 0.0, dominant_period: int = 0,

@@ -64,12 +64,12 @@ class EmbeddedState:
         object.__setattr__(self, "metric_energy", energy)
 
         # 5. Sanitize timestamp
-        object.__setattr__(self, "timestamp_ns", max(0, int(self.timestamp_ns)))
+        object.__setattr__(self, "timestamp_ns", max(0, self.timestamp_ns))
 
     @property
     def embedding_dimension(self) -> int:
         """Return the actual embedding dimension m of the vector."""
-        return int(self.delay_vector.size)
+        return self.delay_vector.size
 
     def to_numpy(self) -> np.ndarray:
         """Return a copy of the delay vector as a writable array."""
