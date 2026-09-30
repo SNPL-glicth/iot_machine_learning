@@ -1,35 +1,26 @@
 #!/bin/bash
-# Script para ejecutar todos los benchmarks de datasets de mantenimiento predictivo
+# Script para ejecutar benchmarks de mantenimiento predictivo y detección de anomalías
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "=================================="
-echo "Ejecutando todos los benchmarks..."
+echo "Ejecutando benchmarks de ZENIN ML..."
 echo "=================================="
 
-cd /home/nicolas/Documentos/Proyectos/Zenin-Iot/iot_machine_learning
+cd "$PROJECT_ROOT"
 
-# NASA C-MAPSS Benchmark
+# NAB Machine Temperature Benchmark (Canónico)
 echo ""
 echo "=================================="
-echo "1. NASA C-MAPSS Turbofan Engine Degradation Benchmark"
+echo "1. NAB Machine Temperature Benchmark"
 echo "=================================="
-python benchmarks/nasa_cmapss_benchmark.py
-
-# SKAB Benchmark
-echo ""
-echo "=================================="
-echo "2. SKAB (Skoltech Anomaly Benchmark)"
-echo "=================================="
-python benchmarks/skab_benchmark.py
-
-# UCI AI4I 2020 Benchmark
-echo ""
-echo "=================================="
-echo "3. UCI AI4I 2020 Predictive Maintenance Dataset"
-echo "=================================="
-python benchmarks/uci_ai4i_benchmark.py
+python3 benchmarks/nab_machine_temp_benchmark.py
 
 echo ""
 echo "=================================="
-echo "Todos los benchmarks completados"
-echo "Resultados guardados en: results/"
+echo "Benchmarks completados con éxito."
+echo "Resultados consolidados en: benchmarks/results/"
 echo "=================================="

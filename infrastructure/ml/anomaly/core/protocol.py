@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, Type
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class SubDetector(ABC):
         ...
 
     @abstractmethod
-    def train(self, values: List[float], **kwargs: object) -> None:
+    def train(self, values: list[float], **kwargs: object) -> None:
         """Entrena el sub-detector con datos históricos.
 
         Args:
@@ -43,7 +43,7 @@ class SubDetector(ABC):
         ...
 
     @abstractmethod
-    def vote(self, value: float, **kwargs: object) -> Optional[float]:
+    def vote(self, value: float, **kwargs: object) -> float | None:
         """Produce un voto [0, 1] para un valor.
 
         Args:
@@ -54,6 +54,26 @@ class SubDetector(ABC):
             Voto en [0, 1], o ``None`` si no puede votar.
         """
         ...
+
+    def raw_score(self, value: float, **kwargs: object) -> float | None:
+        """Calcula la evidencia continua no discretizada del detector.
+
+        Por defecto delega a vote(value, **kwargs) para retrocompatibilidad total.
+        """
+        return self.vote(value, **kwargs)
+
+    def get_training_raw_scores(
+        self, values: list[float], **kwargs: object
+    ) -> list[float]:
+        """Calcula o retorna las puntuaciones crudas del conjunto de entrenamiento.
+
+        Por defecto evalúa raw_score sobre cada observación de values.
+        Detectores con estado temporal o de ventana pueden sobreescribir este
+        método para proveer sus puntuaciones continuas contextualizadas.
+        """
+        import math
+        scores = [self.raw_score(v, **kwargs) for v in values]
+        return [float(s) for s in scores if s is not None and math.isfinite(s)]
 
     @property
     @abstractmethod
@@ -78,7 +98,7 @@ class DetectorRegistry:
         detectors = DetectorRegistry.create_all(config)
     """
 
-    _registry: Dict[str, Callable[..., SubDetector]] = {}
+    _registry: dict[str, Callable[..., SubDetector]] = {}
 
     @classmethod
     def register(
@@ -98,14 +118,14 @@ class DetectorRegistry:
         cls._registry.pop(name, None)
 
     @classmethod
-    def list_detectors(cls) -> List[str]:
+    def list_detectors(cls) -> list[str]:
         return list(cls._registry.keys())
 
     @classmethod
     def create_all(
         cls,
         config: object,
-    ) -> List[SubDetector]:
+    ) -> list[SubDetector]:
         """Instantiate all registered detectors.
 
         Each factory receives the config object and returns a
@@ -117,7 +137,7 @@ class DetectorRegistry:
         Returns:
             List of instantiated sub-detectors.
         """
-        detectors: List[SubDetector] = []
+        detectors: list[SubDetector] = []
         for name, factory in cls._registry.items():
             try:
                 detectors.append(factory(config))

@@ -7,10 +7,9 @@ error_persister.py.
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from iot_machine_learning.domain.ports.plasticity_repository_port import (
     PlasticityRepositoryPort,
@@ -18,7 +17,6 @@ from iot_machine_learning.domain.ports.plasticity_repository_port import (
 )
 
 from .updater import GaussianPrior
-from .config import _PERSIST_EVERY_N_UPDATES
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +27,7 @@ logger = logging.getLogger(__name__)
 class WeightTrackerPersistence:
     """SQL/repository persistence for weight tracker state."""
 
-    def __init__(self, repository: Optional[PlasticityRepositoryPort] = None) -> None:
+    def __init__(self, repository: PlasticityRepositoryPort | None = None) -> None:
         if repository is None:
             from iot_machine_learning.domain.ports.plasticity_repository_port import (
                 InMemoryPlasticityRepository,
@@ -44,14 +42,14 @@ class WeightTrackerPersistence:
 
     def load_all_regimes(
         self,
-        accuracy: Dict[str, Dict[str, float]],
-        priors: Dict[str, Dict[str, GaussianPrior]],
-        regime_last_access: Dict[str, float],
-        regime_last_update: Dict[str, float],
+        accuracy: dict[str, dict[str, float]],
+        priors: dict[str, dict[str, GaussianPrior]],
+        regime_last_access: dict[str, float],
+        regime_last_update: dict[str, float],
     ) -> None:
         try:
             regimes = self._repository.list_stored_regimes()
-            states: Dict[str, RegimeWeightState] = {}
+            states: dict[str, RegimeWeightState] = {}
             for regime in regimes:
                 rs = self._repository.load_regime_state(regime, [])
                 for k, s in rs.items():
@@ -72,10 +70,10 @@ class WeightTrackerPersistence:
     def persist_regime_state(
         self,
         regime: str,
-        accuracy: Dict[str, Dict[str, float]],
-        priors: Dict[str, Dict[str, GaussianPrior]],
-        regime_last_access: Dict[str, float],
-        regime_last_update: Dict[str, float],
+        accuracy: dict[str, dict[str, float]],
+        priors: dict[str, dict[str, GaussianPrior]],
+        regime_last_access: dict[str, float],
+        regime_last_update: dict[str, float],
     ) -> None:
         if regime not in accuracy:
             return
@@ -100,6 +98,19 @@ class WeightTrackerPersistence:
         except Exception as e:
             logger.warning(f"persist_failed regime={regime}: {e}")
 
+    def persist_immediately(
+        self,
+        regime: str,
+        engine_name: str,
+        accuracy: dict[str, dict[str, float]],
+        priors: dict[str, dict[str, GaussianPrior]],
+        regime_last_access: dict[str, float],
+        regime_last_update: dict[str, float],
+    ) -> None:
+        self.persist_regime_state(
+            regime, accuracy, priors, regime_last_access, regime_last_update
+        )
+
 
 # ── WeightTrackerCheckpoint ─────────────────────────────────────────
 
@@ -107,18 +118,18 @@ class WeightTrackerPersistence:
 class WeightTrackerCheckpoint:
     """Export/import checkpoint for gossip protocol."""
 
-    def __init__(self, repository: Optional[PlasticityRepositoryPort] = None) -> None:
+    def __init__(self, repository: PlasticityRepositoryPort | None = None) -> None:
         self._persistence = WeightTrackerPersistence(repository)
 
     def export_state(
         self,
-        accuracy: Dict[str, Dict[str, float]],
-        priors: Dict[str, Dict[str, GaussianPrior]],
-        regime_last_access: Dict[str, float],
-        regime_last_update: Dict[str, float],
-    ) -> Dict[str, Any]:
+        accuracy: dict[str, dict[str, float]],
+        priors: dict[str, dict[str, GaussianPrior]],
+        regime_last_access: dict[str, float],
+        regime_last_update: dict[str, float],
+    ) -> dict[str, Any]:
         now = time.time()
-        checkpoint: Dict[str, Any] = {"regimes": {}, "timestamp": now}
+        checkpoint: dict[str, Any] = {"regimes": {}, "timestamp": now}
         for regime, engines in accuracy.items():
             checkpoint["regimes"][regime] = {}
             for ename, acc in engines.items():
@@ -134,11 +145,11 @@ class WeightTrackerCheckpoint:
 
     def import_state(
         self,
-        checkpoint: Dict[str, Any],
-        accuracy: Dict[str, Dict[str, float]],
-        priors: Dict[str, Dict[str, GaussianPrior]],
-        regime_last_access: Dict[str, float],
-        regime_last_update: Dict[str, float],
+        checkpoint: dict[str, Any],
+        accuracy: dict[str, dict[str, float]],
+        priors: dict[str, dict[str, GaussianPrior]],
+        regime_last_access: dict[str, float],
+        regime_last_update: dict[str, float],
     ) -> None:
         ts = checkpoint.get("timestamp", time.time())
         for regime, engines in checkpoint.get("regimes", {}).items():

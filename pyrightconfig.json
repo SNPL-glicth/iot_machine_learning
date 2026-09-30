@@ -1,0 +1,17 @@
+{
+  "include": [
+    "infrastructure",
+    "domain",
+    "application",
+    "core",
+    "tests"
+  ],
+  "extraPaths": [
+    ".",
+    ".."
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.10",
+  "reportMissingImports": "warning"
+}

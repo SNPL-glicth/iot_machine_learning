@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 import numpy as np
 
@@ -78,14 +78,14 @@ class MultivariateDetector(SubDetector):
     def method_name(self) -> str:
         return "multivariate"
     
-    def train(self, values: List[float], **kwargs: object) -> None:
+    def train(self, values: List[float], **kwargs: Any) -> None:
         """Train multivariate detector.
         
         Currently no-op as multivariate detection uses online PCA.
         """
         pass
     
-    def vote(self, value: float, **kwargs: object) -> Optional[float]:
+    def vote(self, value: float, **kwargs: Any) -> Optional[float]:
         """Produce vote for a single value.
         
         Args:
@@ -109,7 +109,7 @@ class MultivariateDetector(SubDetector):
         self,
         values: List[float],
         timestamps: Optional[List[float]] = None,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> float:
         """Detect multivariate anomaly.
         
@@ -148,7 +148,7 @@ class MultivariateDetector(SubDetector):
         series_id_param = kwargs.get('series_id', None)
         
         # Filter by correlation if series_id provided
-        if series_id_param:
+        if isinstance(series_id_param, str):
             correlated_series_data = self._filter_by_correlation(
                 series_id_param,
                 values,

@@ -9,8 +9,6 @@ create_default_detectors from here.
 
 from __future__ import annotations
 
-from typing import List
-
 from ..core.config import AnomalyDetectorConfig
 from ..core.protocol import SubDetector
 from ..detectors import (
@@ -21,15 +19,15 @@ from ..detectors import (
     RollingZScoreDetector,
     VelocityZDetector,
     ZScoreDetector,
+    CumulativeResidualDetector,
 )
 from ..detectors.isolation_forest_detector import IsolationForestNDDetector
-from ..detectors.lof_detector import LOFNDDetector
 from ..detectors.multivariate_detector import MultivariateDetector
 
 
 def create_default_detectors(
     config: AnomalyDetectorConfig,
-) -> List[SubDetector]:
+) -> list[SubDetector]:
     """Create the default ensemble of sub-detectors.
 
     This factory function extracts the hardcoded detector list so it can
@@ -42,7 +40,7 @@ def create_default_detectors(
     Returns:
         List of sub-detectors (9 if multivariate enabled, else 8).
     """
-    detectors = [
+    detectors: list[SubDetector] = [
         ZScoreDetector(
             lower=config.z_vote_lower,
             upper=config.z_vote_upper,
@@ -51,6 +49,8 @@ def create_default_detectors(
         RollingZScoreDetector(
             long_window=config.min_training_points,
             short_window=max(5, config.min_training_points // 10),
+            lower=config.z_vote_lower,
+            upper=config.z_vote_upper,
         ),
         IsolationForestDetector(
             contamination=config.contamination,
@@ -75,13 +75,9 @@ def create_default_detectors(
             random_state=config.random_state,
             min_training_points=config.min_training_points,
         ),
-        LOFNDDetector(
-            contamination=config.contamination,
-            max_neighbors=config.lof_max_neighbors,
-            min_training_points=config.min_training_points,
-        ),
+        CumulativeResidualDetector(),
     ]
-    
+
     # FASE 3: Add multivariate detector if enabled
     if getattr(config, 'enable_multivariate', False):
         detectors.append(
@@ -93,5 +89,5 @@ def create_default_detectors(
                 enabled=True,
             )
         )
-    
+
     return detectors

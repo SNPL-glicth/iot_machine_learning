@@ -1,190 +1,190 @@
 {
-  "best_threshold": 0.75,
-  "best_f1": 0.2857,
-  "best_precision": 0.4286,
-  "best_recall": 0.2143,
-  "best_fp": 24,
-  "best_fn": 66,
+  "best_threshold": 0.9,
+  "best_f1": 0.1153,
+  "best_precision": 0.0672,
+  "best_recall": 0.4048,
+  "best_fp": 472,
+  "best_fn": 50,
   "grid_results": [
     {
       "threshold": 0.05,
-      "f1": 0.0074,
-      "precision": 0.0037,
+      "f1": 0.0168,
+      "precision": 0.0085,
       "recall": 1.0,
       "tp": 84,
-      "fp": 22561,
+      "fp": 9843,
       "fn": 0,
-      "anomalies_detected": 22645
+      "anomalies_detected": 9927
     },
     {
       "threshold": 0.1,
-      "f1": 0.0074,
-      "precision": 0.0037,
+      "f1": 0.0187,
+      "precision": 0.0094,
       "recall": 1.0,
       "tp": 84,
-      "fp": 22561,
+      "fp": 8826,
       "fn": 0,
-      "anomalies_detected": 22645
+      "anomalies_detected": 8910
     },
     {
       "threshold": 0.15,
-      "f1": 0.0074,
-      "precision": 0.0037,
+      "f1": 0.0194,
+      "precision": 0.0098,
       "recall": 1.0,
       "tp": 84,
-      "fp": 22561,
+      "fp": 8475,
       "fn": 0,
-      "anomalies_detected": 22645
+      "anomalies_detected": 8559
     },
     {
       "threshold": 0.2,
-      "f1": 0.0081,
-      "precision": 0.0041,
+      "f1": 0.0204,
+      "precision": 0.0103,
       "recall": 1.0,
       "tp": 84,
-      "fp": 20623,
+      "fp": 8051,
       "fn": 0,
-      "anomalies_detected": 20707
+      "anomalies_detected": 8135
     },
     {
       "threshold": 0.25,
-      "f1": 0.0131,
-      "precision": 0.0066,
+      "f1": 0.0231,
+      "precision": 0.0117,
       "recall": 1.0,
       "tp": 84,
-      "fp": 12704,
+      "fp": 7091,
       "fn": 0,
-      "anomalies_detected": 12788
+      "anomalies_detected": 7175
     },
     {
       "threshold": 0.3,
-      "f1": 0.0161,
-      "precision": 0.0081,
+      "f1": 0.0248,
+      "precision": 0.0126,
       "recall": 1.0,
       "tp": 84,
-      "fp": 10266,
+      "fp": 6609,
       "fn": 0,
-      "anomalies_detected": 10350
+      "anomalies_detected": 6693
     },
     {
       "threshold": 0.35,
-      "f1": 0.0446,
-      "precision": 0.023,
-      "recall": 0.75,
-      "tp": 63,
-      "fp": 2675,
-      "fn": 21,
-      "anomalies_detected": 2738
+      "f1": 0.0253,
+      "precision": 0.0128,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 6463,
+      "fn": 0,
+      "anomalies_detected": 6547
     },
     {
       "threshold": 0.4,
-      "f1": 0.1033,
-      "precision": 0.0669,
-      "recall": 0.2262,
-      "tp": 19,
-      "fp": 265,
-      "fn": 65,
-      "anomalies_detected": 284
+      "f1": 0.0259,
+      "precision": 0.0131,
+      "recall": 1.0,
+      "tp": 84,
+      "fp": 6312,
+      "fn": 0,
+      "anomalies_detected": 6396
     },
     {
       "threshold": 0.45,
-      "f1": 0.104,
-      "precision": 0.0687,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 244,
-      "fn": 66,
-      "anomalies_detected": 262
+      "f1": 0.0301,
+      "precision": 0.0153,
+      "recall": 0.9762,
+      "tp": 82,
+      "fp": 5287,
+      "fn": 2,
+      "anomalies_detected": 5369
     },
     {
       "threshold": 0.5,
-      "f1": 0.1101,
-      "precision": 0.0741,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 225,
-      "fn": 66,
-      "anomalies_detected": 243
+      "f1": 0.0603,
+      "precision": 0.0311,
+      "recall": 0.9524,
+      "tp": 80,
+      "fp": 2491,
+      "fn": 4,
+      "anomalies_detected": 2571
     },
     {
       "threshold": 0.55,
-      "f1": 0.1154,
-      "precision": 0.0789,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 210,
-      "fn": 66,
-      "anomalies_detected": 228
+      "f1": 0.0754,
+      "precision": 0.0394,
+      "recall": 0.869,
+      "tp": 73,
+      "fp": 1780,
+      "fn": 11,
+      "anomalies_detected": 1853
     },
     {
       "threshold": 0.6,
-      "f1": 0.1268,
-      "precision": 0.09,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 182,
-      "fn": 66,
-      "anomalies_detected": 200
+      "f1": 0.0795,
+      "precision": 0.0422,
+      "recall": 0.6905,
+      "tp": 58,
+      "fp": 1317,
+      "fn": 26,
+      "anomalies_detected": 1375
     },
     {
       "threshold": 0.65,
-      "f1": 0.1748,
-      "precision": 0.1475,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 104,
-      "fn": 66,
-      "anomalies_detected": 122
+      "f1": 0.0937,
+      "precision": 0.0507,
+      "recall": 0.619,
+      "tp": 52,
+      "fp": 974,
+      "fn": 32,
+      "anomalies_detected": 1026
     },
     {
       "threshold": 0.7,
-      "f1": 0.2466,
-      "precision": 0.2903,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 44,
-      "fn": 66,
-      "anomalies_detected": 62
+      "f1": 0.0855,
+      "precision": 0.0468,
+      "recall": 0.5,
+      "tp": 42,
+      "fp": 856,
+      "fn": 42,
+      "anomalies_detected": 898
     },
     {
       "threshold": 0.75,
-      "f1": 0.2857,
-      "precision": 0.4286,
-      "recall": 0.2143,
-      "tp": 18,
-      "fp": 24,
-      "fn": 66,
-      "anomalies_detected": 42
+      "f1": 0.0897,
+      "precision": 0.0493,
+      "recall": 0.5,
+      "tp": 42,
+      "fp": 810,
+      "fn": 42,
+      "anomalies_detected": 852
     },
     {
       "threshold": 0.8,
-      "f1": 0.0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "tp": 0,
-      "fp": 0,
-      "fn": 84,
-      "anomalies_detected": 0
+      "f1": 0.0923,
+      "precision": 0.0508,
+      "recall": 0.5,
+      "tp": 42,
+      "fp": 784,
+      "fn": 42,
+      "anomalies_detected": 826
     },
     {
       "threshold": 0.85,
-      "f1": 0.0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "tp": 0,
-      "fp": 0,
-      "fn": 84,
-      "anomalies_detected": 0
+      "f1": 0.0986,
+      "precision": 0.0547,
+      "recall": 0.5,
+      "tp": 42,
+      "fp": 726,
+      "fn": 42,
+      "anomalies_detected": 768
     },
     {
       "threshold": 0.9,
-      "f1": 0.0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "tp": 0,
-      "fp": 0,
-      "fn": 84,
-      "anomalies_detected": 0
+      "f1": 0.1153,
+      "precision": 0.0672,
+      "recall": 0.4048,
+      "tp": 34,
+      "fp": 472,
+      "fn": 50,
+      "anomalies_detected": 506
     },
     {
       "threshold": 0.95,
@@ -198,13 +198,13 @@
     }
   ],
   "precision_target": {
-    "threshold": 0.35,
-    "f1": 0.0446,
-    "precision": 0.023,
-    "recall": 0.75,
-    "tp": 63,
-    "fp": 2675,
-    "fn": 21,
-    "anomalies_detected": 2738
+    "threshold": 0.65,
+    "f1": 0.0937,
+    "precision": 0.0507,
+    "recall": 0.619,
+    "tp": 52,
+    "fp": 974,
+    "fn": 32,
+    "anomalies_detected": 1026
   }
 }

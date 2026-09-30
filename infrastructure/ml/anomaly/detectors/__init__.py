@@ -17,6 +17,7 @@ from .lof_detector import LOFDetector
 from .rolling_z_detector import RollingZScoreDetector
 from .temporal_z_detector import VelocityZDetector, AccelerationZDetector
 from .multivariate_detector import MultivariateDetector
+from .cusum_detector import CumulativeResidualDetector
 
 __all__ = [
     "ZScoreDetector",
@@ -27,4 +28,5 @@ __all__ = [
     "VelocityZDetector",
     "AccelerationZDetector",
     "MultivariateDetector",
+    "CumulativeResidualDetector",
 ]

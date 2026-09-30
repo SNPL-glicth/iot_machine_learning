@@ -72,4 +72,9 @@ def build_anomaly_explanation(
     if lof_t_vote > 0.5:
         explanations.append("Outlier temporal (LOF-T)")
 
+    # Cumulative residual (CUSUM)
+    cusum_vote = votes.get("cumulative_residual", 0.0)
+    if cusum_vote > 0.5:
+        explanations.append("Deriva residual acumulada (CUSUM)")
+
     return " + ".join(explanations) if explanations else "Valor normal"

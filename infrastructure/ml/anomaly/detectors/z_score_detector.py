@@ -3,25 +3,19 @@
 Una responsabilidad: evaluar si un valor está lejos de la media histórica.
 Sin sklearn, sin I/O.
 """
-
 from __future__ import annotations
 
 import logging
 import math
 from collections import deque
-from typing import List, Optional
 
 import numpy as np
 
-from core.parameters.numerical_constants import STAT_THRESHOLDS, EPSILON
-from core.drift.adaptive_strategy import (
-    AdaptiveScaler,
-    UnifiedAdaptiveConfig,
-    HysteresisConfig,
-)
+from core.drift.adaptive_strategy import AdaptiveScaler, HysteresisConfig, UnifiedAdaptiveConfig
 from core.drift.drift_coupling import AdaptiveScalerDriftListener, DriftNotifier
-from core.statistical.statistical_validation import NormalityValidator, NormalityTestResult
+from core.parameters.numerical_constants import EPSILON, STAT_THRESHOLDS
 from core.statistical.robust_statistics import RobustStatistics
+from core.statistical.statistical_validation import NormalityTestResult, NormalityValidator
 
 from ..core.protocol import SubDetector
 from ..scoring.functions import compute_z_score, compute_z_vote
@@ -43,41 +37,32 @@ class ZScoreDetector(SubDetector):
 
     def __init__(
         self,
-        lower: float = None,
-        upper: float = None,
+        lower: float | None = None,
+        upper: float | None = None,
         *,
         adaptive: bool = True,
         max_history: int = 100,
         min_history_entries: int = 5,
         scale_min: float = 0.5,  # MATH-SEV-2
-        scale_max: float = 5.0,  # FASE-23: UnifiedAdaptiveConfig.SCALE_MAX (fuente de verdad)
-        # Hysteresis + smoothing previenen oscilación sin necesitar límite bajo
-        max_lower: float = 10.0,  # SEVERO-2: absolute bounds
-        max_upper: float = 15.0,  # SEVERO-2: absolute bounds
-        normality_validator: Optional[NormalityValidator] = None,
+        scale_max: float = 1.5,  # Bound adaptive inflation to prevent blindness during drift
+        max_lower: float = 3.5,  # Absolute lower bound
+        max_upper: float = 4.5,  # Absolute upper bound
+        normality_validator: NormalityValidator | None = None,
     ) -> None:
-        # Use STAT_THRESHOLDS defaults if not provided
-        if lower is None:
-            lower = STAT_THRESHOLDS.Z_SCORE_LOWER
-        if upper is None:
-            upper = STAT_THRESHOLDS.Z_SCORE_UPPER
-        
-        self._base_lower = lower
-        self._base_upper = upper
+        self._base_lower = STAT_THRESHOLDS.Z_SCORE_LOWER if lower is None else lower
+        self._base_upper = STAT_THRESHOLDS.Z_SCORE_UPPER if upper is None else upper
         self._adaptive = adaptive and UnifiedAdaptiveConfig.ADAPTIVE_ENABLED
-        self._max_history = max_history
-        self._min_history_entries = min_history_entries
-        self._scale_min = scale_min  # MATH-SEV-2
-        self._scale_max = scale_max  # MATH-SEV-2
-        self._max_lower = max_lower  # SEVERO-2
-        self._max_upper = max_upper  # SEVERO-2
+        self._max_history, self._min_history_entries = max_history, min_history_entries
+        self._scale_min, self._scale_max = scale_min, scale_max
+        self._max_lower, self._max_upper = max_lower, max_upper
         self._normality_validator = normality_validator
-        self._stats: Optional[TrainingStats] = None
-        self._normality_result: Optional[NormalityTestResult] = None
+        self._stats: TrainingStats | None = None
+        self._normality_result: NormalityTestResult | None = None
         self._rolling_std_history: deque[float] = deque(maxlen=max_history)
         self._value_history: deque[float] = deque(maxlen=max_history)
-        
-        # NUEVO: Usar AdaptiveScaler unificado
+
+        # Usar AdaptiveScaler unificado
+        self.scaler: AdaptiveScaler | None = None
         if self._adaptive:
             self.scaler = AdaptiveScaler(
                 scale_min=self._scale_min,
@@ -89,29 +74,24 @@ class ZScoreDetector(SubDetector):
                     min_samples=self._min_history_entries,
                 ),
             )
-            # Suscribir a drift events
-            drift_notifier = DriftNotifier()
-            drift_notifier.subscribe(AdaptiveScalerDriftListener(self.scaler))
-        else:
-            self.scaler = None
+            DriftNotifier().subscribe(AdaptiveScalerDriftListener(self.scaler))
 
     @property
     def method_name(self) -> str:
         return "z_score"
 
-    def train(self, values: List[float], **kwargs: object) -> None:
+    def train(self, values: list[float], **kwargs: object) -> None:
         self._stats = compute_training_stats(values)
         self._value_history.clear()
         self._rolling_std_history.clear()
-        if hasattr(self, '_ema_mean'):
+        if hasattr(self, "_ema_mean"):
             del self._ema_mean
         if self._stats and self._adaptive:
             self._rolling_std_history.append(self._stats.std)
 
         # Validate normality if validator provided
         if self._normality_validator is not None and len(values) >= self._normality_validator.min_samples:
-            data_array = np.array(values)
-            self._normality_result = self._normality_validator.validate(data_array)
+            self._normality_result = self._normality_validator.validate(np.array(values))
             logger.info(
                 "z_score_normality_validation",
                 extra={
@@ -119,54 +99,37 @@ class ZScoreDetector(SubDetector):
                     "distribution_type": self._normality_result.distribution_type.value,
                     "recommendation": self._normality_result.recommendation,
                     "shapiro_p": self._normality_result.shapiro_p_value,
-                    "skewness": self._normality_result.skewness,
-                    "kurtosis": self._normality_result.kurtosis,
                 },
             )
 
     @property
     def _effective_thresholds(self) -> tuple[float, float]:
-        """Devuelve (lower, upper) efectivos, adaptativos o fijos.
-        
-        MATH-SEV-2: Scale is clamped to [scale_min, scale_max] to prevent
-        detector from becoming insensitive.
-        
-        SEVERO-2: Absolute bounds (max_lower, max_upper) prevent extreme thresholds.
-        """
+        """Devuelve (lower, upper) efectivos, adaptativos o fijos."""
         if not self._adaptive or not self.scaler:
-            return (
-                min(self._base_lower, self._max_lower),
-                min(self._base_upper, self._max_upper),
-            )
-        
+            return (min(self._base_lower, self._max_lower), min(self._base_upper, self._max_upper))
+
         mean_rolling_std = sum(self._rolling_std_history) / len(self._rolling_std_history)
         base_std = self._stats.std if self._stats and self._stats.std > 0 else mean_rolling_std
-        
         if base_std < EPSILON.DIVISION:
             scale = 1.0
         else:
             scale = self.scaler.compute_scale(mean_rolling_std, base_std)
-        
+
         lower_scaled = self._base_lower * scale
         upper_scaled = self._base_upper * scale
-        
-        return (
-            min(lower_scaled, self._max_lower),
-            min(upper_scaled, self._max_upper),
-        )
+        return (min(lower_scaled, self._max_lower), min(upper_scaled, self._max_upper))
 
-    def vote(self, value: float, **kwargs: object) -> Optional[float]:
+    def vote(self, value: float, **kwargs: object) -> float | None:
         if self._stats is None:
             return None
 
         # Use robust z-score if distribution is not normal
-        use_robust = (
+        if (
             self._normality_result is not None
             and not self._normality_result.is_normal
-        )
-
-        if use_robust and len(self._value_history) >= self._normality_validator.min_samples:
-            # Use robust statistics (MAD-based z-score)
+            and self._normality_validator is not None
+            and len(self._value_history) >= self._normality_validator.min_samples
+        ):
             data_array = np.array(list(self._value_history) + [value])
             z = RobustStatistics.robust_z_score(data_array, value)
             logger.debug(
@@ -179,15 +142,10 @@ class ZScoreDetector(SubDetector):
         else:
             # Dual z-score con switch condicional por drift
             z_global = compute_z_score(value, self._stats.mean, self._stats.std)
-
-            # EMA de mean (alpha=0.1 para reacción lenta)
-            if not hasattr(self, '_ema_mean'):
+            if not hasattr(self, "_ema_mean"):
                 self._ema_mean = self._stats.mean
             self._ema_mean = 0.1 * value + 0.9 * self._ema_mean
-
             z_local = compute_z_score(value, self._ema_mean, self._stats.std)
-
-            # Switch: usar z_local si hay drift de régimen
             drift_detected = abs(self._ema_mean - self._stats.mean) > 2.0 * self._stats.std
             z = z_local if drift_detected else z_global
 
@@ -199,13 +157,17 @@ class ZScoreDetector(SubDetector):
             if len(self._value_history) >= 3:
                 local_mean = sum(self._value_history) / len(self._value_history)
                 local_std = math.sqrt(
-                    sum((v - local_mean) ** 2 for v in self._value_history)
-                    / len(self._value_history)
+                    sum((v - local_mean) ** 2 for v in self._value_history) / len(self._value_history)
                 )
                 if local_std > 0:
                     self._rolling_std_history.append(local_std)
 
         return result
+
+    def raw_score(self, value: float, **kwargs: object) -> float | None:
+        if self._stats is None:
+            return None
+        return float(compute_z_score(value, self._stats.mean, self._stats.std))
 
     @property
     def is_trained(self) -> bool:
@@ -213,5 +175,4 @@ class ZScoreDetector(SubDetector):
 
     @property
     def last_z_score(self) -> float:
-        """Último Z-score calculado (para narración). Recalcula bajo demanda."""
         return 0.0

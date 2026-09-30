@@ -32,32 +32,29 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
 from core.drift.drift_coupling import DriftNotifier, WeightTrackerDriftListener
 from core.parameters.numerical_constants import EPSILON
 from core.tuning.dynamic_tuning import DynamicTuner
-
 from iot_machine_learning.domain.ports.plasticity_repository_port import PlasticityRepositoryPort
 from iot_machine_learning.domain.value_objects.plasticity_scope import PlasticityScope
 from iot_machine_learning.infrastructure.ml.inference.bayesian.posterior import BayesianUpdater
-from .updater import GaussianPrior
 
 from ..error_store import EngineErrorStore
-from .bayesian_weight_config import BayesianWeightConfig
-from .constants import _PERSIST_EVERY_N_UPDATES
-from .storage_interface import IWeightCache, InMemoryWeightCache
-from .persistence import WeightTrackerPersistence
-from .checkpoint import WeightTrackerCheckpoint
-from .drift_response import GradualDriftResponse
-from .variance_estimator import VarianceEstimator
 from .accuracy_mixin import AccuracyMixin
-from .update_mixin import UpdateMixin
-from .weights_mixin import WeightsMixin
+from .bayesian_weight_config import BayesianWeightConfig
 from .checkpoint_mixin import CheckpointMixin
+from .drift_response import GradualDriftResponse
+from .persistence import WeightTrackerPersistence
 from .reset_mixin import ResetMixin
+from .storage_interface import InMemoryWeightCache, IWeightCache
+from .update_mixin import UpdateMixin
+from .updater import GaussianPrior
+from .variance_estimator import VarianceEstimator
+from .weights_mixin import WeightsMixin
 
 logger = logging.getLogger(__name__)
 
@@ -73,17 +70,18 @@ class BayesianWeightTracker(
 
     def __init__(
         self,
-        config: Optional[BayesianWeightConfig] = None,
-        repository: Optional[PlasticityRepositoryPort] = None,
-        redis_client: Optional[Any] = None,
+        config: BayesianWeightConfig | None = None,
+        repository: PlasticityRepositoryPort | None = None,
+        redis_client: Any | None = None,
         use_redis: bool = False,
-        scope: Optional[PlasticityScope] = None,
+        scope: PlasticityScope | None = None,
         domain_namespace: str = "default",
-        error_store: Optional[EngineErrorStore] = None,
-        dynamic_tuner: Optional[DynamicTuner] = None,
+        error_store: EngineErrorStore | None = None,
+        dynamic_tuner: DynamicTuner | None = None,
+        **kwargs: Any,
     ) -> None:
         """Initialize Bayesian weight tracker with injectable configuration.
-        
+
         Args:
             config: BayesianWeightConfig with all parameters.
                    Defaults to standard config if not provided.
@@ -93,12 +91,18 @@ class BayesianWeightTracker(
             scope: Plasticity scope for namespacing.
             domain_namespace: Domain namespace for multi-tenant support.
             error_store: Engine error store for variance estimation.
-        
+            **kwargs: Direct config parameters (e.g. alpha) for backward compatibility.
+
         Applies DIP: Configuration is injected, not read from literals.
         """
-        self._config = config or BayesianWeightConfig()
+        if config is None and kwargs:
+            cfg_fields = set(getattr(BayesianWeightConfig, "__dataclass_fields__", {}).keys())
+            cfg_kwargs = {k: v for k, v in kwargs.items() if k in cfg_fields}
+            self._config = BayesianWeightConfig(**cfg_kwargs) if cfg_kwargs else BayesianWeightConfig()
+        else:
+            self._config = config or BayesianWeightConfig()
         self._config.validate()  # Fail fast on invalid config
-        
+
         self._scope = scope
         self._domain_namespace = domain_namespace
         self._error_store = error_store
@@ -108,21 +112,22 @@ class BayesianWeightTracker(
         )
 
         # Core state
-        self._accuracy: Dict[str, Dict[str, float]] = defaultdict(dict)
-        self._priors: Dict[str, Dict[str, GaussianPrior]] = defaultdict(dict)
+        self._accuracy: dict[str, dict[str, float]] = defaultdict(dict)
+        self._priors: dict[str, dict[str, GaussianPrior]] = defaultdict(dict)
         self._bayesian = BayesianUpdater()
-        self._regime_last_access: Dict[str, float] = {}
-        self._regime_last_update: Dict[str, float] = {}
+        self._regime_last_access: dict[str, float] = {}
+        self._regime_last_update: dict[str, float] = {}
         self._update_counter = 0
         # Legacy in-memory error history.
-        self._error_history: Dict[str, List[float]] = defaultdict(list)
-        
+        self._error_history: dict[str, list[float]] = defaultdict(list)
+
         # SEVERO-3: Weight history for convergence detection
         from collections import deque
-        self._weight_history: Dict[str, deque] = defaultdict(
+        self._weight_history: dict[str, deque] = defaultdict(
             lambda: deque(maxlen=self._config.weight_history_maxlen)
         )
         self._alpha = self._config.alpha  # Store for decay on convergence
+        self._regularization_strength = self._config.regularization_strength
 
         # Per-engine online variance estimator for Bayesian observation sigma2
         self._variance_estimator = VarianceEstimator(
@@ -151,46 +156,46 @@ class BayesianWeightTracker(
             self._accuracy, self._priors,
             self._regime_last_access, self._regime_last_update,
         )
-        
+
         # NUEVO: Suscribir a drift events
         drift_notifier = DriftNotifier()
         drift_notifier.subscribe(WeightTrackerDriftListener(self))
-    
+
     def _check_convergence(self, weight_key: str) -> bool:
         """Check if weights have converged (SEVERO-3).
-        
+
         Args:
             weight_key: Key for weight history (regime:engine_name).
-        
+
         Returns:
             True if coefficient of variation of last 10 weights < 0.05.
-        
+
         Applies SRP: Convergence check is independent of update logic.
         """
         history = self._weight_history.get(weight_key)
-        
+
         if not history or len(history) < self._config.convergence_window:
             return False
-        
+
         # Get last N weights
         recent_weights = list(history)[-self._config.convergence_window:]
-        
+
         # Calculate coefficient of variation
         mean_weight = sum(recent_weights) / len(recent_weights)
-        
+
         if mean_weight < EPSILON.COMPARISON:  # Avoid division by zero
             return False
-        
+
         variance = sum((w - mean_weight) ** 2 for w in recent_weights) / len(recent_weights)
         std_dev = variance ** 0.5
         cv = std_dev / mean_weight
-        
+
         # Converged if CV < threshold
         return bool(cv < self._config.convergence_cv_threshold)
-    
+
     def _estimate_data_variance(
-        self, engine_name: str, min_samples: int = 5, series_id: Optional[str] = None
-    ) -> Optional[float]:
+        self, engine_name: str, min_samples: int = 5, series_id: str | None = None
+    ) -> float | None:
         """Estimate data variance from recent errors (MATH-CRIT-2)."""
         if self._error_store is None:
             return None
@@ -201,20 +206,20 @@ class BayesianWeightTracker(
                 engine_name=engine_name,
                 n=self._config.variance_window,
             )
-            
+
             if len(recent_errors) < min_samples:
                 return None
-            
+
             # Compute empirical variance
             errors_array = np.array(recent_errors)
             variance = float(np.var(errors_array))
-            
+
             # Ensure positive and finite
             if not np.isfinite(variance) or variance <= 0:
                 return None
-            
+
             return variance
-        
+
         except Exception:
             # Fallback: no variance estimate
             return None

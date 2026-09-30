@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _ERROR_STORE_MIN_SAMPLES: int = 30
 _PERCENTILE_SAMPLE_SIZE: int = 100
@@ -13,14 +13,14 @@ class AccuracyMixin:
 
     # Declare expected parent attributes for mypy
     _error_store: Any
-    _error_history: Dict[str, List[float]]
+    _error_history: dict[str, list[float]]
 
     def compute_accuracy(
         self,
         prediction_error: float,
         regime: str,
-        series_id: Optional[str] = None,
-        engine_name: Optional[str] = None,
+        series_id: str | None = None,
+        engine_name: str | None = None,
     ) -> float:
         abs_error = float(abs(prediction_error))
         if not math.isfinite(abs_error):
@@ -51,10 +51,12 @@ class AccuracyMixin:
         accuracy = 1.0 / (1.0 + abs_error)
         return float(max(0.0, min(1.0, accuracy)))
 
-    def _compute_robust_cap(self, errors: List[float]) -> float:
+    def _compute_robust_cap(self, errors: list[float]) -> float:
         """Compute robust error cap using percentile."""
         if not errors:
             return float("inf")
         sorted_errors = sorted(errors)
         p90_idx = int(len(sorted_errors) * 0.9)
         return sorted_errors[min(p90_idx, len(sorted_errors) - 1)]
+
+    _compute_accuracy = compute_accuracy

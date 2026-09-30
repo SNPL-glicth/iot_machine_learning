@@ -106,7 +106,11 @@ def _compute_velocities(
     velocities: List[float] = []
     for i in range(len(dt_values)):
         dv = values[i + 1] - values[i]
-        velocities.append(dv / dt_values[i])
+        dt = dt_values[i]
+        if dt < 1e-3:
+            velocities.append(0.0)
+        else:
+            velocities.append(dv / dt)
     return velocities
 
 

@@ -9,7 +9,8 @@ Dependencia opcional: sklearn. Si no está disponible, vote() retorna None.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from ..core.protocol import SubDetector
 
@@ -31,46 +32,51 @@ class LOFDetector(SubDetector):
     ) -> None:
         self._contamination = contamination
         self._max_neighbors = max_neighbors
-        self._model: object = None
+        self._model: Any = None
 
     @property
     def method_name(self) -> str:
         return "local_outlier_factor"
 
-    def train(self, values: List[float], **kwargs: object) -> None:
+    def train(self, values: list[float], **kwargs: object) -> None:
         try:
-            from sklearn.neighbors import LocalOutlierFactor
             import numpy as np
+            from sklearn.neighbors import LocalOutlierFactor
 
             n = len(values)
             X = np.array(values).reshape(-1, 1)
             model = LocalOutlierFactor(
                 n_neighbors=min(self._max_neighbors, n // 3),
-                contamination=self._contamination,
+                contamination=float(self._contamination),  # type: ignore[arg-type]
                 novelty=True,
             )
             model.fit(X)
             self._model = model
-            logger.debug(
-                "lof_detector_trained",
-                extra={"n_points": n, "dims": 1},
-            )
+            logger.debug("lof_detector_trained", extra={"n_points": n, "dims": 1})
         except (ImportError, Exception) as exc:
-            logger.warning(
-                "lof_training_failed", extra={"error": str(exc)}
-            )
+            logger.warning("lof_training_failed", extra={"error": str(exc)})
             self._model = None
 
-    def vote(self, value: float, **kwargs: object) -> Optional[float]:
+    def vote(self, value: float, **kwargs: object) -> float | None:
         if self._model is None:
             return None
         try:
             import numpy as np
-            X = np.array([[value]])
-            score = self._model.decision_function(X)[0]
+            score = self._model.decision_function(np.array([[value]]))[0]
             return max(0.0, min(1.0, (-score - 1.0) / 2.0))
         except Exception:
             return 0.0
+
+    def raw_score(self, value: float, **kwargs: object) -> float | None:
+        if self._model is None:
+            return None
+        try:
+            import numpy as np
+            if np.isnan(value) or np.isinf(value):
+                return None
+            return float(self._model.decision_function(np.array([[value]]))[0])
+        except Exception:
+            return None
 
     @property
     def is_trained(self) -> bool:
@@ -92,15 +98,15 @@ class LOFNDDetector(SubDetector):
         self._contamination = contamination
         self._max_neighbors = max_neighbors
         self._min_training_points = min_training_points
-        self._model: object = None
+        self._model: Any = None
 
     @property
     def method_name(self) -> str:
         return "lof_temporal"
 
-    def train(self, values: List[float], **kwargs: object) -> None:
+    def train(self, values: list[float], **kwargs: object) -> None:
         timestamps = kwargs.get("timestamps")
-        if timestamps is None:
+        if not isinstance(timestamps, Iterable):
             return
         feature_matrix = self._build_features(values, list(timestamps))
         if feature_matrix is None:
@@ -111,7 +117,7 @@ class LOFNDDetector(SubDetector):
             n_rows = feature_matrix.shape[0] if hasattr(feature_matrix, "shape") else len(values)
             model = LocalOutlierFactor(
                 n_neighbors=min(self._max_neighbors, max(2, n_rows // 3)),
-                contamination=self._contamination,
+                contamination=float(self._contamination),  # type: ignore[arg-type]
                 novelty=True,
             )
             model.fit(feature_matrix)
@@ -125,7 +131,7 @@ class LOFNDDetector(SubDetector):
                 "lof_temporal_training_failed", extra={"error": str(exc)}
             )
 
-    def vote(self, value: float, **kwargs: object) -> Optional[float]:
+    def vote(self, value: float, **kwargs: object) -> float | None:
         if self._model is None:
             return None
         features = kwargs.get("nd_features")
@@ -142,10 +148,11 @@ class LOFNDDetector(SubDetector):
         return self._model is not None
 
     def _build_features(
-        self, values: List[float], timestamps: List[float]
-    ) -> object:
+        self, values: list[float], timestamps: list[float]
+    ) -> Any:
         try:
             import numpy as np
+
             from iot_machine_learning.domain.validators.temporal_features import (
                 compute_temporal_features,
             )

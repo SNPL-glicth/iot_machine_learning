@@ -11,7 +11,9 @@ Measures latency for:
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, _REPO_ROOT)
+sys.path.insert(0, os.path.dirname(_REPO_ROOT))
 
 import time
 import statistics

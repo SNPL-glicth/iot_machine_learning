@@ -7,9 +7,9 @@ Components:
     - AnomalyDetectorConfig: Configuration dataclass
 """
 
-from .detector import VotingAnomalyDetector
-from .protocol import SubDetector, DetectorRegistry, register_detector
 from .config import AnomalyDetectorConfig
+from .detector import VotingAnomalyDetector
+from .protocol import DetectorRegistry, SubDetector, register_detector
 
 __all__ = [
     "VotingAnomalyDetector",
