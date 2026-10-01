@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-10-01T14:08:55.026486",
+  "summary": {
+    "total_points_evaluated": 21695,
+    "num_monitored_sensors": 4,
+    "total_raw_alerts_baseline": 7580,
+    "coupled_subsystem_alerts_total": 5508,
+    "raw_alerts_by_node": {
+      "sensor_A": 1812,
+      "sensor_B": 1831,
+      "sensor_C": 1865,
+      "sensor_D": 2072
+    },
+    "cascade_alerts_suppressed": 3696,
+    "cascade_suppression_rate_pct": 67.1,
+    "downstream_echo_suppression_pct": 100.0,
+    "system_wide_alarms_emitted": 4031,
+    "rca_accuracy_pct": 100.0,
+    "total_compute_saved": 3696.0
+  },
+  "topology_discovery": {
+    "discovered_edges": [
+      {
+        "source": "sensor_A",
+        "target": "sensor_B",
+        "lag": 10,
+        "coupling": 0.987
+      },
+      {
+        "source": "sensor_B",
+        "target": "sensor_C",
+        "lag": 15,
+        "coupling": 1.023
+      }
+    ],
+    "is_sensor_a_ancestor_of_c": true,
+    "cumulative_lag_a_to_c": 25,
+    "ground_truth_lag_a_to_c": 25,
+    "lag_ab": 10,
+    "lag_bc": 15
+  },
+  "latencies": {
+    "avg_te_step_latency_us": 45.45,
+    "avg_aggregator_step_latency_us": 52.13,
+    "total_topology_overhead_per_step_ms": 0.0976,
+    "total_stream_elapsed_seconds": 2.37
+  },
+  "invariants_verified": {
+    "cascade_suppression_rate_ge_60": true,
+    "rca_accuracy_100": true,
+    "topology_latency_submillisecond": true,
+    "multi_hop_causal_path_discovered": true,
+    "uncoupled_sensor_isolation": true,
+    "architecture_gate_clean": true
+  }
+}

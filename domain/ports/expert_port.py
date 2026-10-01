@@ -13,6 +13,9 @@ from typing import Protocol, runtime_checkable, Dict, Any, Optional
 from dataclasses import dataclass, field
 
 from ..entities.iot.sensor_reading import SensorWindow
+from .asymmetric_expert_port import AsymmetricExpertPort
+
+__all__ = ["ExpertOutput", "ExpertCapability", "ExpertPort", "AsymmetricExpertPort"]
 
 
 @dataclass(frozen=True)

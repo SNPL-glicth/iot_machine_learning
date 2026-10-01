@@ -1,0 +1,92 @@
+[
+  {
+    "policy_name": "Policy A: Siempre Raw (100% Puntos)",
+    "points_evaluated": 22690,
+    "computation_reduction_pct": 0.0,
+    "elapsed_ms": 74.76,
+    "nab_score_standard": -385.85,
+    "nab_tp_count": 991,
+    "nab_fp_count": 405,
+    "nab_fn_count": 1277,
+    "event_delays_points": {
+      "1": 0,
+      "2": 122,
+      "3": 139,
+      "4": 0
+    },
+    "raw_fp_clusters": 36,
+    "utility_score": -385.94
+  },
+  {
+    "policy_name": "Policy B: Siempre 2x (50% Puntos)",
+    "points_evaluated": 11345,
+    "computation_reduction_pct": 50.0,
+    "elapsed_ms": 45.47,
+    "nab_score_standard": -383.33,
+    "nab_tp_count": 994,
+    "nab_fp_count": 404,
+    "nab_fn_count": 1274,
+    "event_delays_points": {
+      "1": 0,
+      "2": 125,
+      "3": 139,
+      "4": 0
+    },
+    "raw_fp_clusters": 19,
+    "utility_score": -766.83
+  },
+  {
+    "policy_name": "Policy C: Siempre 10x (10% Puntos)",
+    "points_evaluated": 2269,
+    "computation_reduction_pct": 90.0,
+    "elapsed_ms": 38.45,
+    "nab_score_standard": -337.92,
+    "nab_tp_count": 996,
+    "nab_fp_count": 374,
+    "nab_fn_count": 1272,
+    "event_delays_points": {
+      "1": 0,
+      "2": 127,
+      "3": 273,
+      "4": 0
+    },
+    "raw_fp_clusters": 11,
+    "utility_score": -3379.94
+  },
+  {
+    "policy_name": "Policy D: Guardian Reactivo (Shock+Regime)",
+    "points_evaluated": 4813,
+    "computation_reduction_pct": 78.8,
+    "elapsed_ms": 112.09,
+    "nab_score_standard": -383.33,
+    "nab_tp_count": 1002,
+    "nab_fp_count": 404,
+    "nab_fn_count": 1266,
+    "event_delays_points": {
+      "1": 0,
+      "2": 125,
+      "3": 139,
+      "4": 0
+    },
+    "raw_fp_clusters": 19,
+    "utility_score": -1807.54
+  },
+  {
+    "policy_name": "Policy E: Guardian Proactivo (Escalation+Hold)",
+    "points_evaluated": 5565,
+    "computation_reduction_pct": 75.5,
+    "elapsed_ms": 132.93,
+    "nab_score_standard": -383.33,
+    "nab_tp_count": 994,
+    "nab_fp_count": 404,
+    "nab_fn_count": 1274,
+    "event_delays_points": {
+      "1": 0,
+      "2": 125,
+      "3": 139,
+      "4": 0
+    },
+    "raw_fp_clusters": 19,
+    "utility_score": -1563.28
+  }
+]

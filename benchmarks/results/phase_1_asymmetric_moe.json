@@ -1,0 +1,62 @@
+{
+  "dataset": "machine_temperature_system_failure.csv",
+  "timestamp": "2026-10-01T12:37:32.783011",
+  "symmetric_baseline": {
+    "mode_name": "Symmetric MoE @ RAW (Baseline)",
+    "total_raw_points": 21695,
+    "evaluated_points": 21695,
+    "time_in_10x_pct": 0.0,
+    "time_in_2x_pct": 0.0,
+    "time_in_raw_pct": 100.0,
+    "total_compute_cost": 27118.75,
+    "compute_savings_pct": 0.0,
+    "event_delays": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    "total_alarms": 21692,
+    "fp_clusters": 1,
+    "runtime_ms": 2462.46
+  },
+  "asymmetric_phase_1": {
+    "mode_name": "Asymmetric MoE (Phase 1 Architecture)",
+    "total_raw_points": 21695,
+    "evaluated_points": 10649,
+    "time_in_10x_pct": 23.2,
+    "time_in_2x_pct": 60.0,
+    "time_in_raw_pct": 16.8,
+    "total_compute_cost": 649.4,
+    "compute_savings_pct": 76.05,
+    "event_delays": {
+      "1": 3,
+      "2": 6,
+      "3": 2,
+      "4": 7
+    },
+    "total_alarms": 1892,
+    "fp_clusters": 20,
+    "runtime_ms": 299.03
+  },
+  "telemetry": {
+    "dispatches_by_level": {
+      "10X": 504,
+      "2X": 1301,
+      "RAW": 364
+    },
+    "evaluations_by_expert": {
+      "resting_invariants_10x": 504,
+      "regime_shift_2x": 1301,
+      "high_frequency_raw": 364
+    },
+    "total_cost_expended": 649.4,
+    "total_cost_hypothetical_full": 2711.25,
+    "compute_savings_ratio": 0.7605
+  },
+  "invariants_verified": {
+    "event_3_delay_bounded": true,
+    "compute_savings_target_met": true,
+    "architecture_ports_decoupled": true
+  }
+}

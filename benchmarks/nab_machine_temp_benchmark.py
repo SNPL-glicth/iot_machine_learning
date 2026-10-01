@@ -68,6 +68,7 @@ if not (NAB_ROOT / "data/realKnownCause/machine_temperature_system_failure.csv")
     NAB_ROOT = _REPO_ROOT / "data" / "NAB"
 DATASET_PATH = NAB_ROOT / "data/realKnownCause/machine_temperature_system_failure.csv"
 LABELS_PATH = NAB_ROOT / "labels/combined_labels.json"
+WINDOWS_PATH = NAB_ROOT / "labels/combined_windows.json"
 RESULTS_DIR = _REPO_ROOT / "benchmarks" / "results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -244,14 +245,15 @@ class DetectorMetrics:
 # ─── Carga de datos ──────────────────────────────────────────────────────────
 
 
-def load_nab_dataset() -> tuple[list[float], list[float], list[int], list[float]]:
-    """Carga dataset NAB y marcas oficiales de anomalía.
+def load_nab_dataset() -> tuple[list[float], list[float], list[int], list[float], list[tuple[Any, Any]]]:
+    """Carga dataset NAB, marcas oficiales y ventanas canónicas de Numenta NAB.
 
     Returns:
         values: Serie temporal de temperatura
         timestamps: Timestamps unix en float
-        labels: Etiquetas binarias puntuales (con ventana de tolerancia para métricas clásicas)
+        labels: Etiquetas binarias puntuales basadas en las ventanas canónicas
         anomaly_timestamps_float: Timestamps exactos de los eventos anómalos de ground truth
+        window_ranges: Tuplas (start_time, end_time) canónicas de combined_windows.json
     """
     logger.info(f"Cargando dataset: {DATASET_PATH}")
     df = pd.read_csv(DATASET_PATH, parse_dates=["timestamp"])
@@ -260,23 +262,42 @@ def load_nab_dataset() -> tuple[list[float], list[float], list[int], list[float]
     values = df["value"].astype(float).tolist()
     timestamps = [float(ts.timestamp()) for ts in df["timestamp"]]
 
-    # Cargar labels de anomalías
+    anomaly_key = "realKnownCause/machine_temperature_system_failure.csv"
+
+    # Cargar labels de anomalías puntuales
     with open(LABELS_PATH) as f:
         all_labels = json.load(f)
 
-    anomaly_key = "realKnownCause/machine_temperature_system_failure.csv"
     anomaly_timestamps = all_labels.get(anomaly_key, [])
     anomaly_dts = pd.to_datetime(anomaly_timestamps)
     anomaly_timestamps_float = [float(dt.timestamp()) for dt in anomaly_dts]
 
-    # Convertir timestamps de anomalía a índices con ventana de tolerancia NAB (+-DETECTION_WINDOW)
+    # Cargar ventanas canónicas de Numenta NAB
+    window_ranges: list[tuple[Any, Any]] = []
+    if WINDOWS_PATH.exists():
+        with open(WINDOWS_PATH) as f:
+            all_windows = json.load(f)
+        raw_ranges = all_windows.get(anomaly_key, [])
+        window_ranges = [(pd.to_datetime(w[0]), pd.to_datetime(w[1])) for w in raw_ranges]
+        logger.info(f"Ventanas canónicas cargadas desde {WINDOWS_PATH}: {len(window_ranges)} ventanas.")
+
+    # Generar labels de ground truth utilizando las ventanas oficiales canónicas
     labels = [0] * len(df)
-    for anomaly_dt in anomaly_dts:
-        closest_idx = (df["timestamp"] - anomaly_dt).abs().idxmin()
-        start = max(0, closest_idx - DETECTION_WINDOW)
-        end = min(len(df), closest_idx + DETECTION_WINDOW + 1)
-        for idx in range(start, end):
-            labels[idx] = 1
+    if window_ranges:
+        for w_start, w_end in window_ranges:
+            s_idx = (df["timestamp"] - w_start).abs().idxmin()
+            e_idx = (df["timestamp"] - w_end).abs().idxmin()
+            if s_idx > e_idx:
+                s_idx, e_idx = e_idx, s_idx
+            for idx in range(s_idx, e_idx + 1):
+                labels[idx] = 1
+    else:
+        for anomaly_dt in anomaly_dts:
+            closest_idx = (df["timestamp"] - anomaly_dt).abs().idxmin()
+            start = max(0, closest_idx - DETECTION_WINDOW)
+            end = min(len(df), closest_idx + DETECTION_WINDOW + 1)
+            for idx in range(start, end):
+                labels[idx] = 1
 
     n_anomalies = sum(labels)
     logger.info(
@@ -286,9 +307,10 @@ def load_nab_dataset() -> tuple[list[float], list[float], list[int], list[float]
             "anomaly_points": n_anomalies,
             "anomaly_pct": f"{n_anomalies/len(values)*100:.2f}%",
             "anomaly_events": len(anomaly_timestamps_float),
+            "canonical_windows_count": len(window_ranges),
         }
     )
-    return values, timestamps, labels, anomaly_timestamps_float
+    return values, timestamps, labels, anomaly_timestamps_float, window_ranges
 
 
 # ─── Baselines ───────────────────────────────────────────────────────────────
@@ -710,12 +732,12 @@ def generate_report(
     zenin_nab = next((r for name, r in nab_reports.items() if "ZENIN" in name), None)
 
     with open(md_path, "w") as f:
-        f.write("# ZENIN vs NAB Benchmark — Machine Temperature Failure & Resource Profiling\n\n")
+        f.write("# ZENIN NAB Audit v1 — Canonical Numenta NAB Benchmark\n\n")
         f.write(f"**Fecha de Ejecución:** `{time.strftime('%Y-%m-%d %H:%M:%S')}`  \n")
         f.write("**Dataset:** `NAB/realKnownCause/machine_temperature_system_failure.csv`  \n")
         f.write(f"**Volumen de Datos:** {len(values):,} puntos de telemetría continua  \n")
         f.write(f"**Eventos Críticos de Falla (Ground Truth):** {anomaly_events_count} fallas de sistema de enfriamiento  \n")
-        f.write(f"**Ventana de Tolerancia NAB:** $\\pm {DETECTION_WINDOW}$ pasos temporales (21 puntos por ventana de evento)  \n\n")
+        f.write("**Harness de Evaluación:** Canónico Numenta NAB (`combined_windows.json`, probation=15%, scaledSigmoid, threshold sweeper)  \n\n")
 
         # 1. Especificaciones de Hardware
         f.write("## 1. Especificaciones del Entorno y Hardware\n\n")
@@ -729,30 +751,48 @@ def generate_report(
         f.write(f"| **Python Runtime** | Python {system_specs['python_version']} |\n\n")
 
         # 2. Evaluación Multimétrica Oficial de NAB
-        f.write("## 2. Evaluación Multimétrica Oficial de NAB (Harness Estándar)\n\n")
-        f.write("| Detector | Event Recall (NAB) | Event F1 (Cluster) | NAB Standard Score | Range F1 (Tatbul) | Point-wise F1 | FP Puntos | FP Clusters |\n")
-        f.write("|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|\n")
+        f.write("## 2. Evaluación Multimétrica Canónica Oficial de NAB (Harness Numenta)\n\n")
+        f.write("| Detector | Event Recall (NAB) | Event F1 (Cluster) | NAB Standard Score | NAB Optimal (Sweeper) | Range F1 (Tatbul) | Point-wise F1 | FP Puntos | FP Clusters |\n")
+        f.write("|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|\n")
         for name, r in nab_reports.items():
-            marker = " 🏆" if "ZENIN" in name else ""
+            opt_s = f"**{r.nab_scoring.optimal_standard_score:.2f}%**" if r.nab_scoring.optimal_standard_score is not None else "N/A"
             f.write(
-                f"| **{name}{marker}** | **{r.event_level.recall_event*100:.1f}%** ({r.event_level.tp_events}/{r.anomalous_events}) | "
+                f"| **{name}** | **{r.event_level.recall_event*100:.1f}%** ({r.event_level.tp_events}/{r.anomalous_events}) | "
                 f"**{r.event_level.f1_event_cluster:.4f}** | **{r.nab_scoring.standard_score:.2f}%** | "
-                f"{r.range_based.range_f1:.4f} | {r.pointwise.f1:.4f} | {r.event_level.fp_points:,} | {r.event_level.fp_clusters:,} |\n"
+                f"{opt_s} | {r.range_based.range_f1:.4f} | {r.pointwise.f1:.4f} | {r.event_level.fp_points:,} | {r.event_level.fp_clusters:,} |\n"
             )
 
         f.write("\n> [!NOTE]\n")
         f.write("> **Event Recall**: Proporción de fallas críticas capturadas a tiempo dentro de la ventana de detección oficial de NAB.  \n")
-        f.write("> **Event F1 (Cluster)**: Métrica industrial primaria que agrupa alarmas contiguas como 1 único incidente operativo, eliminando la sobrepenalización de puntos.  \n")
-        f.write("> **NAB Standard Score**: Puntuación con ponderación sigmoidal decreciente en función del retraso de detección y penalización de falsas alarmas.\n\n")
+        f.write("> **Event F1 (Cluster)**: Mide el desempeño a nivel de incidente agrupando detecciones contiguas, reduciendo la dependencia de la cantidad de puntos generados durante un mismo evento.  \n")
+        f.write("> **NAB Standard Score**: Puntuación canónica oficial de Numenta NAB evaluada estrictamente bajo el umbral operativo fijo del detector, aplicando atenuación sigmoidal decreciente según retraso y penalización acumulativa por falsas alarmas fuera de ventana.  \n")
+        f.write("> **NAB Optimal (Sweeper)**: Cota superior teórica alcanzable calculada mediante el algoritmo canónico ThresholdSweeper de Numenta NAB sobre el score continuo.  \n\n")
+
+        # 2.1 Parámetros de Decisión y Barrido de Umbrales
+        f.write("### 2.1. Parámetros de Decisión y Barrido de Umbrales (Fixed vs. Optimal Sweeper)\n\n")
+        f.write("| Detector | Score Orientation | Fixed Threshold (θ_fijo) | NAB Standard (θ_fijo) | Optimal Threshold (θ*) | NAB Optimal (θ*) | Sweep Range |\n")
+        f.write("|:---|:---:|:---:|:---:|:---:|:---:|:---:|\n")
+        for name, r in nab_reports.items():
+            fixed_t = "0.65" if "ZENIN" in name else ("0.30 (z=3.0)" if "Z-Score" in name else "1.00")
+            opt_t = f"{r.nab_scoring.optimal_threshold:.4f}" if r.nab_scoring.optimal_threshold is not None else "N/A"
+            opt_s = f"**{r.nab_scoring.optimal_standard_score:.2f}%**" if r.nab_scoring.optimal_standard_score is not None else "N/A"
+            f.write(
+                f"| **{name}** | Mayor = Más anómalo | {fixed_t} | **{r.nab_scoring.standard_score:.2f}%** | "
+                f"{opt_t} | {opt_s} | [0.00, 1.00] |\n"
+            )
+
+        f.write("\n> [!IMPORTANT]\n")
+        f.write("> **Aclaración Metodológica sobre NAB Standard vs. NAB Optimal**:\n")
+        f.write("> - **NAB Standard Score (-100.00% para ZENIN)**: Representa el resultado operativo real al usar el umbral estático de producción (θ=0.65). Con este umbral fijo, las 244 detecciones FP fuera de ventana saturan el presupuesto estricto de falsas alarmas de NAB (A_FP = -0.11), llevando el score al límite inferior (-100.00%).\n")
+        f.write("> - **NAB Optimal (56.69% para ZENIN)**: Proviene del ThresholdSweeper oficial de Numenta al barrer la señal continua. Revela que el score continuo de ZENIN separa nítidamente las fallas reales de la deriva térmica normal en θ* = 0.9120. Este valor demuestra un alto potencial de discriminación latente, pero **no debe presentarse como el score operativo actual de ZENIN**, sino como el resultado óptimo del barrido de calibración.\n\n")
 
         # 3. Rendimiento Punto a Punto Estricto
         f.write("## 3. Rendimiento Punto a Punto Estricto y Capacidad Discriminativa\n\n")
         f.write("| Detector | F1-Score | Precision | Recall | AUC-ROC | AUC-PR | FP | FN | Anomalías Detectadas |\n")
         f.write("|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|\n")
         for r in sorted(results, key=lambda x: x.f1, reverse=True):
-            marker = " 🏆" if "ZENIN" in r.name else ""
             f.write(
-                f"| **{r.name}{marker}** | **{r.f1:.4f}** | {r.precision:.4f} | "
+                f"| **{r.name}** | **{r.f1:.4f}** | {r.precision:.4f} | "
                 f"{r.recall:.4f} | {r.auc_roc:.4f} | {r.auc_pr:.4f} | "
                 f"{r.false_positives:,} | {r.false_negatives} | {r.anomalies_detected:,} |\n"
             )
@@ -784,13 +824,14 @@ def generate_report(
         if zenin_nab:
             f.write(f"1. **Captura Total de Incidentes Críticos (Event Recall {zenin_nab.event_level.recall_event*100:.1f}%)**:\n")
             f.write(f"   ZENIN capturó exitosamente los **{zenin_nab.event_level.tp_events} de los {zenin_nab.anomalous_events} incidentes de falla** en el dataset, incluyendo la degradación gradual de temperatura que todos los detectores puntuales clásicos omitieron por completo.\n\n")
-            f.write("2. **Supresión Masiva de Falsas Alarmas ($-96.7\\%$)**:\n")
-            f.write("   Gracias a la calibración analítica sigmoide y el rebalanceo de pesos hacia CUSUM e Isolation Forest, los falsos positivos se redujeron de **16,743 a solo 560 puntos**, agrupados en unos pocos clusters de transición transitoria.\n\n")
+            f.write("2. **Comportamiento de Falsas Alarmas y Agrupamiento en Clusters (Punto Cero Empírico)**:\n")
+            f.write(f"   A su umbral de producción fijo (0.65), ZENIN emitió **{zenin_nab.pointwise.tp + zenin_nab.pointwise.fp:,} detecciones totales**: **{zenin_nab.pointwise.tp:,} puntos dentro de las ventanas canónicas de falla** (verdaderos positivos) y **{zenin_nab.pointwise.fp:,} puntos fuera de ellas** (falsos positivos point-wise tras el 15% de probatoria).\n")
+            f.write(f"   Estos {zenin_nab.pointwise.fp} puntos falsos no ocurren aislados, sino agrupados en **{zenin_nab.event_level.fp_clusters} clusters contiguos**, causados por fluctuaciones transitorias normales que superan el umbral 0.65. En contraste, baselines como Rolling Z-Score generaron 544 puntos FP distribuidos en 271 clusters (saturando de ruido al operador).\n\n")
             f.write(f"3. **Eficiencia en el Edge (Despliegue Industrial Ligero)**:\n")
             f.write(f"   Con un consumo de **{zenin_res.memory_peak_mb:.1f} MB de RAM**, latencia mediana P50 de **{zenin_res.latency_p50_us/1000:.2f} ms** y **{zenin_res.throughput_pts_sec:.1f} pts/segundo**, el motor corre enteramente en CPU local sin requerir GPUs ni llamadas de red cloud.\n\n")
             f.write("4. **Comparativa con Soluciones de Big Tech**:\n")
             f.write("   - **AWS Lookout for Equipment / Azure Anomaly Detector**: Dependen de arquitecturas cloud en contenedores pesados con latencias de 100-300 ms por API HTTP y costos recurrentes por inferencia. ZENIN procesa en streaming local determinista con latencia sub-50 ms.\n")
-            f.write("   - **Datadog / Dynatrace**: Emplean heurísticas de bandas móviles (similares a Rolling Z-score) que o bien saturan al operador con miles de falsas alarmas (1,500+ FP) o fallan ante derivas sutiles. El ensamble multiparadigma de ZENIN resuelve ambos extremos de forma calibrada.\n")
+            f.write("   - **Datadog / Dynatrace**: Emplean heurísticas de bandas móviles (similares a Rolling Z-score) que o bien saturan al operador con cientos de falsas alarmas (271 clusters FP) o fallan ante derivas sutiles. El ensamble multiparadigma de ZENIN ofrece mayor coherencia a nivel de incidente.\n")
 
     logger.info(f"Reporte técnico consolidado guardado: {md_path}")
 
@@ -1018,12 +1059,12 @@ def main():
     print(f"  Python:          {system_specs['python_version']}")
     print("=" * 80)
 
-    # 1. Cargar dataset y marcas de anomalía
-    values, timestamps, labels, anomaly_timestamps_float = load_nab_dataset()
+    # 1. Cargar dataset, marcas de anomalía y ventanas canónicas oficiales
+    values, timestamps, labels, anomaly_timestamps_float, window_ranges = load_nab_dataset()
 
     # 2. Inferencia ZENIN VotingEnsemble (Configuración de Producción, threshold=0.65)
     logger.info("\n" + "=" * 70)
-    logger.info("Etapa 1: Inferencia ZENIN VotingEnsemble (Producción v2.0)")
+    logger.info("Etapa 1: Inferencia ZENIN VotingEnsemble (Producción v2.0 - Detector Congelado)")
     logger.info("=" * 70)
     zenin_preds, zenin_scores, zenin_res = run_zenin_detector(
         values, timestamps, voting_threshold=0.65, contamination=0.005
@@ -1080,44 +1121,60 @@ def main():
         rolling_metrics,
     ]
 
-    # 5. Harness Multimétrico Oficial de NAB
+    # 5. Harness Multimétrico Oficial Canónico de NAB
     logger.info("\n" + "=" * 70)
-    logger.info("Etapa 4: Evaluación Multimétrica Oficial NAB (Event Recall, NAB Score, Range F1)")
+    logger.info("Etapa 4: Evaluación Multimétrica Oficial NAB (Canónica: Combined Windows & Sweeper)")
     logger.info("=" * 70)
     evaluator = NABEvaluator(window_size_points=DETECTION_WINDOW)
+    df_raw = pd.read_csv(DATASET_PATH, parse_dates=["timestamp"])
+    series_ts_dt = list(df_raw["timestamp"])
+
     nab_reports: dict[str, ComprehensiveNABReport] = {
         "ZENIN VotingEnsemble (v2.0)": evaluator.evaluate(
-            zenin_preds, zenin_scores, timestamps, anomaly_timestamps_float, dataset_name="ZENIN VotingEnsemble (v2.0)"
+            zenin_preds, zenin_scores, series_ts_dt,
+            anomaly_timestamps=anomaly_timestamps_float,
+            window_ranges=window_ranges,
+            dataset_name="ZENIN VotingEnsemble (v2.0)",
         ),
         "Z-Score (global)": evaluator.evaluate(
-            zscore_preds, zscore_scores, timestamps, anomaly_timestamps_float, dataset_name="Z-Score (global)"
+            zscore_preds, zscore_scores, series_ts_dt,
+            anomaly_timestamps=anomaly_timestamps_float,
+            window_ranges=window_ranges,
+            dataset_name="Z-Score (global)",
         ),
         "IQR (global)": evaluator.evaluate(
-            iqr_preds, iqr_scores, timestamps, anomaly_timestamps_float, dataset_name="IQR (global)"
+            iqr_preds, iqr_scores, series_ts_dt,
+            anomaly_timestamps=anomaly_timestamps_float,
+            window_ranges=window_ranges,
+            dataset_name="IQR (global)",
         ),
         "Rolling Z-Score (w=50)": evaluator.evaluate(
-            rolling_preds, rolling_scores, timestamps, anomaly_timestamps_float, dataset_name="Rolling Z-Score (w=50)"
+            rolling_preds, rolling_scores, series_ts_dt,
+            anomaly_timestamps=anomaly_timestamps_float,
+            window_ranges=window_ranges,
+            dataset_name="Rolling Z-Score (w=50)",
         ),
     }
 
     # 6. Tablas Consolidadas en Consola
-    print("\n" + "=" * 115)
-    print("TABLA 1: EVALUACIÓN MULTIMÉTRICA OFICIAL NAB (COBERTURA DE INCIDENTES Y PRECISIÓN DE CLUSTER)")
-    print("=" * 115)
-    print(f"{'Detector':<28} | {'Event Recall':<14} | {'Event F1 (Clust)':<16} | {'NAB Score':<11} | {'Range F1':<10} | {'FP Pts':<8} | {'FP Clusters'}")
-    print("-" * 115)
+    print("\n" + "=" * 135)
+    print("TABLA 1: EVALUACIÓN MULTIMÉTRICA OFICIAL NAB (CANÓNICA NUMENTA: COMBINED_WINDOWS & SWEEPER)")
+    print("=" * 135)
+    print(f"{'Detector':<28} | {'Event Recall':<14} | {'Event F1 (Clust)':<16} | {'NAB Standard':<13} | {'NAB Optimal':<12} | {'Range F1':<10} | {'FP Pts':<8} | {'FP Clusters'}")
+    print("-" * 135)
     for name, r in nab_reports.items():
-        marker = " 🏆" if "ZENIN" in name else ""
+        opt_str = f"{r.nab_scoring.optimal_standard_score:>9.2f}%" if r.nab_scoring.optimal_standard_score is not None else "      N/A"
         print(
-            f"{name + marker:<28} | "
+            f"{name:<28} | "
             f"{r.event_level.recall_event*100:>12.1f}% | "
             f"{r.event_level.f1_event_cluster:>16.4f} | "
-            f"{r.nab_scoring.standard_score:>9.2f}% | "
+            f"{r.nab_scoring.standard_score:>11.2f}% | "
+            f"{opt_str} | "
             f"{r.range_based.range_f1:>10.4f} | "
             f"{r.event_level.fp_points:>8,} | "
             f"{r.event_level.fp_clusters:>10,}"
         )
-    print("=" * 115)
+    print("=" * 135)
 
     print("\n" + "=" * 90)
     print("TABLA 2: EVALUACIÓN PUNTO A PUNTO (ESTRICTA LOCAL)")
@@ -1125,9 +1182,8 @@ def main():
     print(f"{'Detector':<30} {'F1':>8} {'Precision':>10} {'Recall':>8} {'AUC-ROC':>8} {'FP':>7} {'FN':>6}")
     print("-" * 90)
     for r in sorted(all_results, key=lambda x: x.f1, reverse=True):
-        marker = " 🏆" if "ZENIN" in r.name else ""
         print(
-            f"{r.name + marker:<30} {r.f1:>8.4f} {r.precision:>10.4f} "
+            f"{r.name:<30} {r.f1:>8.4f} {r.precision:>10.4f} "
             f"{r.recall:>8.4f} {r.auc_roc:>8.4f} {r.false_positives:>7,} {r.false_negatives:>6}"
         )
     print("=" * 90)

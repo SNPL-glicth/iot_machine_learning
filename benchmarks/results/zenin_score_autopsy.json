@@ -1,0 +1,2236 @@
+{
+  "events": [
+    {
+      "event_id": 1,
+      "start": "2013-12-10 06:25:00.000000",
+      "end": "2013-12-12 05:35:00.000000",
+      "points": 567,
+      "temp_range": [
+        48.39,
+        102.74
+      ],
+      "score_min": 0.0,
+      "score_max": 0.912,
+      "score_mean": 0.4324,
+      "score_median": 0.4634,
+      "first_det_065": {
+        "idx": 2152,
+        "ts": "2013-12-10 08:35:00",
+        "delay_pts": 26,
+        "score": 0.70669,
+        "calib_state": "ANOMALY_BLOCKED"
+      },
+      "first_det_0912": {
+        "idx": 2173,
+        "ts": "2013-12-10 10:20:00",
+        "delay_pts": 47,
+        "score": 0.91197
+      },
+      "expert_avg": {
+        "z_score": 0.3149,
+        "iqr": 0.3031,
+        "rolling_z": 0.0989,
+        "isolation_forest": 0.6438,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 0.7303,
+        "acceleration_z": 0.7961,
+        "isolation_forest_temporal": 0.0169,
+        "cumulative_residual": 0.5869
+      },
+      "expert_max": {
+        "z_score": 1.0,
+        "iqr": 1.0,
+        "rolling_z": 1.0,
+        "isolation_forest": 1.0,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 1.0,
+        "acceleration_z": 1.0,
+        "isolation_forest_temporal": 0.0318,
+        "cumulative_residual": 1.0
+      }
+    },
+    {
+      "event_id": 2,
+      "start": "2013-12-15 17:50:00.000000",
+      "end": "2013-12-17 17:00:00.000000",
+      "points": 567,
+      "temp_range": [
+        2.08,
+        103.62
+      ],
+      "score_min": 0.0,
+      "score_max": 0.9121,
+      "score_mean": 0.3724,
+      "score_median": 0.2744,
+      "first_det_065": {
+        "idx": 3726,
+        "ts": "2013-12-15 19:45:00",
+        "delay_pts": 23,
+        "score": 0.71452,
+        "calib_state": "ANOMALY_BLOCKED"
+      },
+      "first_det_0912": {
+        "idx": 3886,
+        "ts": "2013-12-16 09:05:00",
+        "delay_pts": 183,
+        "score": 0.91197
+      },
+      "expert_avg": {
+        "z_score": 0.3202,
+        "iqr": 0.2981,
+        "rolling_z": 0.2812,
+        "isolation_forest": 0.4673,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 0.8047,
+        "acceleration_z": 0.8242,
+        "isolation_forest_temporal": 0.0155,
+        "cumulative_residual": 0.4445
+      },
+      "expert_max": {
+        "z_score": 1.0,
+        "iqr": 1.0,
+        "rolling_z": 1.0,
+        "isolation_forest": 1.0,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 1.0,
+        "acceleration_z": 1.0,
+        "isolation_forest_temporal": 0.0331,
+        "cumulative_residual": 1.0
+      }
+    },
+    {
+      "event_id": 3,
+      "start": "2014-01-27 14:20:00.000000",
+      "end": "2014-01-29 13:30:00.000000",
+      "points": 567,
+      "temp_range": [
+        51.25,
+        80.31
+      ],
+      "score_min": 0.0,
+      "score_max": 0.6847,
+      "score_mean": 0.1153,
+      "score_median": 0.0466,
+      "first_det_065": {
+        "idx": 16333,
+        "ts": "2014-01-28 13:20:00",
+        "delay_pts": 276,
+        "score": 0.65953,
+        "calib_state": "ANOMALY_BLOCKED"
+      },
+      "first_det_0912": {
+        "idx": null,
+        "ts": null,
+        "delay_pts": null,
+        "score": null
+      },
+      "expert_avg": {
+        "z_score": 0.1281,
+        "iqr": 0.1281,
+        "rolling_z": 0.1313,
+        "isolation_forest": 0.1155,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 0.7808,
+        "acceleration_z": 0.8237,
+        "isolation_forest_temporal": 0.0115,
+        "cumulative_residual": 0.0
+      },
+      "expert_max": {
+        "z_score": 1.0,
+        "iqr": 1.0,
+        "rolling_z": 1.0,
+        "isolation_forest": 1.0,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 1.0,
+        "acceleration_z": 1.0,
+        "isolation_forest_temporal": 0.0316,
+        "cumulative_residual": 0.0
+      }
+    },
+    {
+      "event_id": 4,
+      "start": "2014-02-07 14:55:00.000000",
+      "end": "2014-02-09 14:05:00.000000",
+      "points": 567,
+      "temp_range": [
+        25.89,
+        91.33
+      ],
+      "score_min": 0.0,
+      "score_max": 0.9121,
+      "score_mean": 0.823,
+      "score_median": 0.9116,
+      "first_det_065": {
+        "idx": 19285,
+        "ts": "2014-02-07 19:20:00",
+        "delay_pts": 53,
+        "score": 0.66171,
+        "calib_state": "ANOMALY_BLOCKED"
+      },
+      "first_det_0912": {
+        "idx": 19304,
+        "ts": "2014-02-07 20:55:00",
+        "delay_pts": 72,
+        "score": 0.91197
+      },
+      "expert_avg": {
+        "z_score": 0.9354,
+        "iqr": 0.9354,
+        "rolling_z": 0.8524,
+        "isolation_forest": 0.9283,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 0.778,
+        "acceleration_z": 0.8212,
+        "isolation_forest_temporal": 0.0238,
+        "cumulative_residual": 0.8605
+      },
+      "expert_max": {
+        "z_score": 1.0,
+        "iqr": 1.0,
+        "rolling_z": 1.0,
+        "isolation_forest": 1.0,
+        "local_outlier_factor": 0.0,
+        "velocity_z": 1.0,
+        "acceleration_z": 1.0,
+        "isolation_forest_temporal": 0.0331,
+        "cumulative_residual": 1.0
+      }
+    }
+  ],
+  "fp_clusters_total": 70,
+  "fp_points_total": 244,
+  "fp_clusters_surviving_0912": 2,
+  "fp_points_surviving_0912": 13,
+  "cluster_stats": [
+    {
+      "cluster_id": 1,
+      "start": "2013-12-13 17:30:00",
+      "end": "2013-12-13 17:30:00",
+      "length": 1,
+      "temp_min": 103.35,
+      "temp_max": 103.35,
+      "max_score": 0.6541,
+      "mean_score": 0.6541,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.5787
+        ]
+      ]
+    },
+    {
+      "cluster_id": 2,
+      "start": "2013-12-13 17:50:00",
+      "end": "2013-12-13 17:50:00",
+      "length": 1,
+      "temp_min": 103.47,
+      "temp_max": 103.47,
+      "max_score": 0.6619,
+      "mean_score": 0.6619,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 3,
+      "start": "2013-12-13 18:00:00",
+      "end": "2013-12-13 18:00:00",
+      "length": 1,
+      "temp_min": 103.32,
+      "temp_max": 103.32,
+      "max_score": 0.6541,
+      "mean_score": 0.6541,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 4,
+      "start": "2013-12-13 18:15:00",
+      "end": "2013-12-13 18:15:00",
+      "length": 1,
+      "temp_min": 103.72,
+      "temp_max": 103.72,
+      "max_score": 0.6749,
+      "mean_score": 0.6749,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 5,
+      "start": "2013-12-13 18:25:00",
+      "end": "2013-12-13 18:25:00",
+      "length": 1,
+      "temp_min": 103.6,
+      "temp_max": 103.6,
+      "max_score": 0.6684,
+      "mean_score": 0.6684,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 6,
+      "start": "2013-12-13 18:40:00",
+      "end": "2013-12-13 18:40:00",
+      "length": 1,
+      "temp_min": 103.97,
+      "temp_max": 103.97,
+      "max_score": 0.6866,
+      "mean_score": 0.6866,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.6678
+        ]
+      ]
+    },
+    {
+      "cluster_id": 7,
+      "start": "2013-12-18 05:35:00",
+      "end": "2013-12-18 05:35:00",
+      "length": 1,
+      "temp_min": 103.26,
+      "temp_max": 103.26,
+      "max_score": 0.6511,
+      "mean_score": 0.6511,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 8,
+      "start": "2013-12-18 09:15:00",
+      "end": "2013-12-18 09:15:00",
+      "length": 1,
+      "temp_min": 103.81,
+      "temp_max": 103.81,
+      "max_score": 0.6794,
+      "mean_score": 0.6794,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 9,
+      "start": "2013-12-18 09:55:00",
+      "end": "2013-12-18 09:55:00",
+      "length": 1,
+      "temp_min": 103.57,
+      "temp_max": 103.57,
+      "max_score": 0.6661,
+      "mean_score": 0.6661,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.6105
+        ]
+      ]
+    },
+    {
+      "cluster_id": 10,
+      "start": "2013-12-18 10:10:00",
+      "end": "2013-12-18 10:10:00",
+      "length": 1,
+      "temp_min": 103.29,
+      "temp_max": 103.29,
+      "max_score": 0.6522,
+      "mean_score": 0.6522,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 11,
+      "start": "2013-12-18 10:30:00",
+      "end": "2013-12-18 10:30:00",
+      "length": 1,
+      "temp_min": 103.84,
+      "temp_max": 103.84,
+      "max_score": 0.6812,
+      "mean_score": 0.6812,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 12,
+      "start": "2013-12-18 10:40:00",
+      "end": "2013-12-18 10:40:00",
+      "length": 1,
+      "temp_min": 103.53,
+      "temp_max": 103.53,
+      "max_score": 0.6646,
+      "mean_score": 0.6646,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 13,
+      "start": "2013-12-18 10:55:00",
+      "end": "2013-12-18 10:55:00",
+      "length": 1,
+      "temp_min": 104.06,
+      "temp_max": 104.06,
+      "max_score": 0.7189,
+      "mean_score": 0.7189,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 14,
+      "start": "2013-12-18 11:05:00",
+      "end": "2013-12-18 11:05:00",
+      "length": 1,
+      "temp_min": 103.91,
+      "temp_max": 103.91,
+      "max_score": 0.6845,
+      "mean_score": 0.6845,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 15,
+      "start": "2013-12-18 11:30:00",
+      "end": "2013-12-18 11:50:00",
+      "length": 5,
+      "temp_min": 102.63,
+      "temp_max": 104.27,
+      "max_score": 0.7039,
+      "mean_score": 0.6791,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "rolling_z",
+          0.9492
+        ]
+      ]
+    },
+    {
+      "cluster_id": 16,
+      "start": "2013-12-18 12:05:00",
+      "end": "2013-12-18 12:10:00",
+      "length": 2,
+      "temp_min": 103.34,
+      "temp_max": 103.99,
+      "max_score": 0.6888,
+      "mean_score": 0.6718,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 17,
+      "start": "2013-12-18 12:20:00",
+      "end": "2013-12-18 12:25:00",
+      "length": 2,
+      "temp_min": 103.81,
+      "temp_max": 103.97,
+      "max_score": 0.7012,
+      "mean_score": 0.6894,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 18,
+      "start": "2013-12-18 12:45:00",
+      "end": "2013-12-18 12:50:00",
+      "length": 2,
+      "temp_min": 103.69,
+      "temp_max": 104.02,
+      "max_score": 0.6762,
+      "mean_score": 0.6747,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 19,
+      "start": "2013-12-18 13:05:00",
+      "end": "2013-12-18 13:05:00",
+      "length": 1,
+      "temp_min": 104.0,
+      "temp_max": 104.0,
+      "max_score": 0.7254,
+      "mean_score": 0.7254,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 20,
+      "start": "2013-12-18 13:20:00",
+      "end": "2013-12-18 13:20:00",
+      "length": 1,
+      "temp_min": 104.03,
+      "temp_max": 104.03,
+      "max_score": 0.6911,
+      "mean_score": 0.6911,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 21,
+      "start": "2013-12-18 13:40:00",
+      "end": "2013-12-18 13:40:00",
+      "length": 1,
+      "temp_min": 103.28,
+      "temp_max": 103.28,
+      "max_score": 0.6518,
+      "mean_score": 0.6518,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 22,
+      "start": "2013-12-18 13:50:00",
+      "end": "2013-12-18 13:55:00",
+      "length": 2,
+      "temp_min": 103.86,
+      "temp_max": 104.26,
+      "max_score": 0.7031,
+      "mean_score": 0.6926,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 23,
+      "start": "2013-12-18 14:10:00",
+      "end": "2013-12-18 14:15:00",
+      "length": 2,
+      "temp_min": 103.44,
+      "temp_max": 104.24,
+      "max_score": 0.7237,
+      "mean_score": 0.6919,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 24,
+      "start": "2013-12-18 14:55:00",
+      "end": "2013-12-18 15:05:00",
+      "length": 3,
+      "temp_min": 103.52,
+      "temp_max": 104.07,
+      "max_score": 0.6932,
+      "mean_score": 0.6743,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 25,
+      "start": "2013-12-18 15:45:00",
+      "end": "2013-12-18 15:45:00",
+      "length": 1,
+      "temp_min": 103.51,
+      "temp_max": 103.51,
+      "max_score": 0.6638,
+      "mean_score": 0.6638,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 26,
+      "start": "2013-12-18 15:55:00",
+      "end": "2013-12-18 15:55:00",
+      "length": 1,
+      "temp_min": 103.62,
+      "temp_max": 103.62,
+      "max_score": 0.6695,
+      "mean_score": 0.6695,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 27,
+      "start": "2013-12-18 16:20:00",
+      "end": "2013-12-18 16:25:00",
+      "length": 2,
+      "temp_min": 103.32,
+      "temp_max": 103.78,
+      "max_score": 0.6782,
+      "mean_score": 0.666,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 28,
+      "start": "2013-12-18 18:30:00",
+      "end": "2013-12-18 18:30:00",
+      "length": 1,
+      "temp_min": 103.48,
+      "temp_max": 103.48,
+      "max_score": 0.6605,
+      "mean_score": 0.6605,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.5977
+        ]
+      ]
+    },
+    {
+      "cluster_id": 29,
+      "start": "2013-12-18 19:20:00",
+      "end": "2013-12-18 19:20:00",
+      "length": 1,
+      "temp_min": 103.25,
+      "temp_max": 103.25,
+      "max_score": 0.6503,
+      "mean_score": 0.6503,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 30,
+      "start": "2013-12-19 05:25:00",
+      "end": "2013-12-19 05:25:00",
+      "length": 1,
+      "temp_min": 103.42,
+      "temp_max": 103.42,
+      "max_score": 0.6593,
+      "mean_score": 0.6593,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 31,
+      "start": "2013-12-19 06:00:00",
+      "end": "2013-12-19 06:00:00",
+      "length": 1,
+      "temp_min": 103.28,
+      "temp_max": 103.28,
+      "max_score": 0.652,
+      "mean_score": 0.652,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 32,
+      "start": "2013-12-19 06:10:00",
+      "end": "2013-12-19 06:10:00",
+      "length": 1,
+      "temp_min": 103.51,
+      "temp_max": 103.51,
+      "max_score": 0.6637,
+      "mean_score": 0.6637,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 33,
+      "start": "2013-12-19 07:50:00",
+      "end": "2013-12-19 07:50:00",
+      "length": 1,
+      "temp_min": 103.8,
+      "temp_max": 103.8,
+      "max_score": 0.6791,
+      "mean_score": 0.6791,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 34,
+      "start": "2013-12-19 08:30:00",
+      "end": "2013-12-19 08:30:00",
+      "length": 1,
+      "temp_min": 103.82,
+      "temp_max": 103.82,
+      "max_score": 0.6804,
+      "mean_score": 0.6804,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 35,
+      "start": "2013-12-19 09:00:00",
+      "end": "2013-12-19 09:10:00",
+      "length": 3,
+      "temp_min": 103.28,
+      "temp_max": 103.99,
+      "max_score": 0.6891,
+      "mean_score": 0.6731,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 36,
+      "start": "2013-12-19 09:40:00",
+      "end": "2013-12-19 09:40:00",
+      "length": 1,
+      "temp_min": 103.51,
+      "temp_max": 103.51,
+      "max_score": 0.6641,
+      "mean_score": 0.6641,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 37,
+      "start": "2013-12-19 09:55:00",
+      "end": "2013-12-19 10:00:00",
+      "length": 2,
+      "temp_min": 103.99,
+      "temp_max": 104.15,
+      "max_score": 0.6889,
+      "mean_score": 0.6699,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 38,
+      "start": "2013-12-19 10:25:00",
+      "end": "2013-12-19 10:30:00",
+      "length": 2,
+      "temp_min": 103.28,
+      "temp_max": 104.1,
+      "max_score": 0.6947,
+      "mean_score": 0.6731,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 39,
+      "start": "2013-12-19 10:45:00",
+      "end": "2013-12-19 10:45:00",
+      "length": 1,
+      "temp_min": 103.5,
+      "temp_max": 103.5,
+      "max_score": 0.6634,
+      "mean_score": 0.6634,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 40,
+      "start": "2013-12-19 11:00:00",
+      "end": "2013-12-19 11:00:00",
+      "length": 1,
+      "temp_min": 103.92,
+      "temp_max": 103.92,
+      "max_score": 0.6854,
+      "mean_score": 0.6854,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 41,
+      "start": "2013-12-19 11:10:00",
+      "end": "2013-12-19 11:20:00",
+      "length": 3,
+      "temp_min": 103.22,
+      "temp_max": 103.8,
+      "max_score": 0.6881,
+      "mean_score": 0.6695,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 42,
+      "start": "2013-12-19 11:40:00",
+      "end": "2013-12-19 11:40:00",
+      "length": 1,
+      "temp_min": 103.42,
+      "temp_max": 103.42,
+      "max_score": 0.659,
+      "mean_score": 0.659,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 43,
+      "start": "2013-12-19 11:55:00",
+      "end": "2013-12-19 11:55:00",
+      "length": 1,
+      "temp_min": 103.92,
+      "temp_max": 103.92,
+      "max_score": 0.6832,
+      "mean_score": 0.6832,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.6607
+        ]
+      ]
+    },
+    {
+      "cluster_id": 44,
+      "start": "2013-12-19 12:15:00",
+      "end": "2013-12-19 12:15:00",
+      "length": 1,
+      "temp_min": 103.63,
+      "temp_max": 103.63,
+      "max_score": 0.6699,
+      "mean_score": 0.6699,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 45,
+      "start": "2013-12-19 12:25:00",
+      "end": "2013-12-19 12:25:00",
+      "length": 1,
+      "temp_min": 104.23,
+      "temp_max": 104.23,
+      "max_score": 0.7016,
+      "mean_score": 0.7016,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 46,
+      "start": "2013-12-19 12:35:00",
+      "end": "2013-12-19 12:45:00",
+      "length": 3,
+      "temp_min": 103.62,
+      "temp_max": 104.31,
+      "max_score": 0.7098,
+      "mean_score": 0.6907,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 47,
+      "start": "2013-12-19 13:00:00",
+      "end": "2013-12-19 13:00:00",
+      "length": 1,
+      "temp_min": 104.29,
+      "temp_max": 104.29,
+      "max_score": 0.7047,
+      "mean_score": 0.7047,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 48,
+      "start": "2013-12-19 13:20:00",
+      "end": "2013-12-19 13:20:00",
+      "length": 1,
+      "temp_min": 103.54,
+      "temp_max": 103.54,
+      "max_score": 0.6652,
+      "mean_score": 0.6652,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 49,
+      "start": "2013-12-19 13:45:00",
+      "end": "2013-12-19 13:45:00",
+      "length": 1,
+      "temp_min": 103.31,
+      "temp_max": 103.31,
+      "max_score": 0.6536,
+      "mean_score": 0.6536,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 50,
+      "start": "2013-12-19 14:00:00",
+      "end": "2013-12-19 14:05:00",
+      "length": 2,
+      "temp_min": 103.32,
+      "temp_max": 103.76,
+      "max_score": 0.677,
+      "mean_score": 0.6654,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 51,
+      "start": "2013-12-26 14:30:00",
+      "end": "2013-12-26 14:45:00",
+      "length": 4,
+      "temp_min": 103.41,
+      "temp_max": 104.39,
+      "max_score": 0.7101,
+      "mean_score": 0.6821,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 52,
+      "start": "2013-12-26 14:55:00",
+      "end": "2013-12-26 17:50:00",
+      "length": 36,
+      "temp_min": 103.59,
+      "temp_max": 108.51,
+      "max_score": 0.8834,
+      "mean_score": 0.806,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "z_score",
+          1.0
+        ],
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 53,
+      "start": "2013-12-26 18:05:00",
+      "end": "2013-12-26 18:05:00",
+      "length": 1,
+      "temp_min": 104.05,
+      "temp_max": 104.05,
+      "max_score": 0.6922,
+      "mean_score": 0.6922,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 54,
+      "start": "2013-12-26 18:20:00",
+      "end": "2013-12-26 18:20:00",
+      "length": 1,
+      "temp_min": 103.56,
+      "temp_max": 103.56,
+      "max_score": 0.6666,
+      "mean_score": 0.6666,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 55,
+      "start": "2013-12-26 19:05:00",
+      "end": "2013-12-26 19:05:00",
+      "length": 1,
+      "temp_min": 103.53,
+      "temp_max": 103.53,
+      "max_score": 0.6648,
+      "mean_score": 0.6648,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 56,
+      "start": "2014-01-15 03:25:00",
+      "end": "2014-01-15 03:25:00",
+      "length": 1,
+      "temp_min": 103.34,
+      "temp_max": 103.34,
+      "max_score": 0.6539,
+      "mean_score": 0.6539,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.5782
+        ]
+      ]
+    },
+    {
+      "cluster_id": 57,
+      "start": "2014-01-15 03:50:00",
+      "end": "2014-01-15 03:50:00",
+      "length": 1,
+      "temp_min": 103.64,
+      "temp_max": 103.64,
+      "max_score": 0.6693,
+      "mean_score": 0.6693,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ],
+        [
+          "z_score",
+          0.6202
+        ]
+      ]
+    },
+    {
+      "cluster_id": 58,
+      "start": "2014-01-15 04:00:00",
+      "end": "2014-01-15 04:50:00",
+      "length": 11,
+      "temp_min": 103.94,
+      "temp_max": 105.59,
+      "max_score": 0.7763,
+      "mean_score": 0.7138,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "z_score",
+          0.9013
+        ]
+      ]
+    },
+    {
+      "cluster_id": 59,
+      "start": "2014-01-15 05:05:00",
+      "end": "2014-01-15 05:10:00",
+      "length": 2,
+      "temp_min": 103.39,
+      "temp_max": 103.94,
+      "max_score": 0.6862,
+      "mean_score": 0.6718,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 60,
+      "start": "2014-01-29 14:40:00",
+      "end": "2014-01-29 16:35:00",
+      "length": 24,
+      "temp_min": 48.93,
+      "temp_max": 55.32,
+      "max_score": 0.8665,
+      "mean_score": 0.8067,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "z_score",
+          1.0
+        ],
+        [
+          "iqr",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 61,
+      "start": "2014-01-29 16:45:00",
+      "end": "2014-01-29 16:45:00",
+      "length": 1,
+      "temp_min": 55.35,
+      "temp_max": 55.35,
+      "max_score": 0.682,
+      "mean_score": 0.682,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "z_score",
+          0.7199
+        ]
+      ]
+    },
+    {
+      "cluster_id": 62,
+      "start": "2014-01-29 16:55:00",
+      "end": "2014-01-29 16:55:00",
+      "length": 1,
+      "temp_min": 55.33,
+      "temp_max": 55.33,
+      "max_score": 0.6839,
+      "mean_score": 0.6839,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "z_score",
+          0.7229
+        ]
+      ]
+    },
+    {
+      "cluster_id": 63,
+      "start": "2014-01-30 18:05:00",
+      "end": "2014-01-30 20:10:00",
+      "length": 26,
+      "temp_min": 46.63,
+      "temp_max": 54.99,
+      "max_score": 0.9121,
+      "mean_score": 0.8424,
+      "survives_0912": true,
+      "top_experts": [
+        [
+          "z_score",
+          1.0
+        ],
+        [
+          "iqr",
+          1.0
+        ],
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 64,
+      "start": "2014-01-30 20:20:00",
+      "end": "2014-01-30 20:20:00",
+      "length": 1,
+      "temp_min": 55.48,
+      "temp_max": 55.48,
+      "max_score": 0.6695,
+      "mean_score": 0.6695,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "z_score",
+          0.7005
+        ]
+      ]
+    },
+    {
+      "cluster_id": 65,
+      "start": "2014-02-03 07:50:00",
+      "end": "2014-02-03 11:50:00",
+      "length": 49,
+      "temp_min": 43.92,
+      "temp_max": 51.82,
+      "max_score": 0.912,
+      "mean_score": 0.8815,
+      "survives_0912": true,
+      "top_experts": [
+        [
+          "z_score",
+          1.0
+        ],
+        [
+          "iqr",
+          1.0
+        ],
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 66,
+      "start": "2014-02-15 14:25:00",
+      "end": "2014-02-15 14:25:00",
+      "length": 1,
+      "temp_min": 103.28,
+      "temp_max": 103.28,
+      "max_score": 0.6966,
+      "mean_score": 0.6966,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 67,
+      "start": "2014-02-15 14:35:00",
+      "end": "2014-02-15 14:55:00",
+      "length": 5,
+      "temp_min": 102.96,
+      "temp_max": 104.25,
+      "max_score": 0.7478,
+      "mean_score": 0.7015,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 68,
+      "start": "2014-02-15 15:05:00",
+      "end": "2014-02-15 15:25:00",
+      "length": 5,
+      "temp_min": 102.48,
+      "temp_max": 103.94,
+      "max_score": 0.7303,
+      "mean_score": 0.6978,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ]
+      ]
+    },
+    {
+      "cluster_id": 69,
+      "start": "2014-02-15 15:40:00",
+      "end": "2014-02-15 15:40:00",
+      "length": 1,
+      "temp_min": 102.78,
+      "temp_max": 102.78,
+      "max_score": 0.6695,
+      "mean_score": 0.6695,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ],
+        [
+          "isolation_forest",
+          0.8899
+        ]
+      ]
+    },
+    {
+      "cluster_id": 70,
+      "start": "2014-02-15 16:00:00",
+      "end": "2014-02-15 16:00:00",
+      "length": 1,
+      "temp_min": 103.04,
+      "temp_max": 103.04,
+      "max_score": 0.6849,
+      "mean_score": 0.6849,
+      "survives_0912": false,
+      "top_experts": [
+        [
+          "rolling_z",
+          1.0
+        ],
+        [
+          "velocity_z",
+          1.0
+        ],
+        [
+          "acceleration_z",
+          1.0
+        ],
+        [
+          "cumulative_residual",
+          1.0
+        ]
+      ]
+    }
+  ]
+}
