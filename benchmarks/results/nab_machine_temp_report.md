@@ -1,6 +1,6 @@
 # ZENIN NAB Audit v1 — Canonical Numenta NAB Benchmark
 
-**Fecha de Ejecución:** `2026-10-01 14:22:44`  
+**Fecha de Ejecución:** `2026-10-01 16:05:38`  
 **Dataset:** `NAB/realKnownCause/machine_temperature_system_failure.csv`  
 **Volumen de Datos:** 22,695 puntos de telemetría continua  
 **Eventos Críticos de Falla (Ground Truth):** 4 fallas de sistema de enfriamiento  
@@ -12,8 +12,8 @@
 |:---|:---|
 | **Procesador (CPU)** | Intel(R) Core(TM) i7-6500U CPU @ 2.50GHz |
 | **Núcleos** | 2 Físicos / 4 Lógicos |
-| **Frecuencia CPU** | 3038.8 MHz (Max: 3100.0 MHz) |
-| **Memoria RAM Total** | 30.77 GB (Disponible: 22.8 GB) |
+| **Frecuencia CPU** | 3023.5 MHz (Max: 3100.0 MHz) |
+| **Memoria RAM Total** | 30.77 GB (Disponible: 21.96 GB) |
 | **Plataforma OS** | Linux-6.12.111+deb13-amd64-x86_64-with-glibc2.41 |
 | **Python Runtime** | Python 3.13.5 |
 
@@ -51,7 +51,7 @@
 | Detector | F1-Score | Precision | Recall | AUC-ROC | AUC-PR | FP | FN | Anomalías Detectadas |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **IQR (global)** | **0.5839** | 0.5801 | 0.5877 | 0.7703 | 0.3821 | 965 | 935 | 2,298 |
-| **ZENIN VotingEnsemble (v2.0)** | **0.4748** | 0.7622 | 0.3448 | 0.7078 | 0.4452 | 244 | 1486 | 1,026 |
+| **ZENIN VotingEnsemble (v2.0)** | **0.4748** | 0.7622 | 0.3448 | 0.7234 | 0.4470 | 244 | 1486 | 1,026 |
 | **Z-Score (global)** | **0.3355** | 0.9913 | 0.2019 | 0.8322 | 0.6036 | 4 | 1810 | 462 |
 | **Rolling Z-Score (w=50)** | **0.0634** | 0.1447 | 0.0406 | 0.5582 | 0.1230 | 544 | 2176 | 636 |
 
@@ -59,19 +59,19 @@
 
 | Detector | Wall Time (s) | CPU User (s) | CPU Sys (s) | CPU Avg % | CPU Peak % | Peak RAM (MB) | RAM Delta (MB) | Heap Tracemalloc (MB) |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **IQR (global)** | 0.02s | 0.02s | 0.00s | 87.4% | 0.0% | 211.6 MB | 0.70 MB | 1.27 MB |
-| **ZENIN VotingEnsemble (v2.0)** | 388.65s | 393.89s | 15.85s | 115.4% | 2434.1% | 210.4 MB | 6.12 MB | 1.45 MB |
-| **Z-Score (global)** | 0.03s | 0.03s | 0.00s | 118.0% | 0.0% | 210.9 MB | 0.36 MB | 1.43 MB |
-| **Rolling Z-Score (w=50)** | 2.58s | 2.57s | 0.01s | 102.2% | 162.5% | 213.0 MB | 1.39 MB | 1.27 MB |
+| **IQR (global)** | 0.03s | 0.03s | 0.00s | 112.3% | 112.3% | 212.6 MB | 0.70 MB | 1.27 MB |
+| **ZENIN VotingEnsemble (v2.0)** | 113.88s | 114.45s | 2.45s | 137.1% | 3175.6% | 210.4 MB | 6.04 MB | 1.81 MB |
+| **Z-Score (global)** | 0.03s | 0.03s | 0.00s | 1163.8% | 1163.8% | 211.3 MB | 0.48 MB | 1.43 MB |
+| **Rolling Z-Score (w=50)** | 2.77s | 2.63s | 0.01s | 95.0% | 124.8% | 214.7 MB | 2.14 MB | 1.27 MB |
 
 ## 5. Latencia y Rendimiento de Inferencia en Streaming
 
 | Detector | Throughput (pts/s) | Latencia Media | Latencia P50 (Mediana) | Latencia P95 | Latencia P99 |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| **IQR (global)** | **992,259.5** | 1.0 μs | 1.0 μs | 1.0 μs | 1.0 μs |
-| **ZENIN VotingEnsemble (v2.0)** | **55.8** | 17,451.4 μs | 17,305.8 μs | 22,629.0 μs | 25,153.9 μs |
-| **Z-Score (global)** | **892,954.9** | 1.1 μs | 1.1 μs | 1.1 μs | 1.1 μs |
-| **Rolling Z-Score (w=50)** | **8,767.9** | 109.2 μs | 92.5 μs | 190.1 μs | 238.0 μs |
+| **IQR (global)** | **831,321.9** | 1.2 μs | 1.2 μs | 1.2 μs | 1.2 μs |
+| **ZENIN VotingEnsemble (v2.0)** | **190.5** | 4,866.1 μs | 3,285.6 μs | 18,362.7 μs | 25,804.5 μs |
+| **Z-Score (global)** | **883,272.2** | 1.1 μs | 1.1 μs | 1.1 μs | 1.1 μs |
+| **Rolling Z-Score (w=50)** | **8,179.0** | 117.3 μs | 91.5 μs | 197.6 μs | 255.9 μs |
 
 ## 6. Diagnóstico Técnico y Diferenciación Industrial
 
@@ -83,7 +83,7 @@
    Estos 244 puntos falsos no ocurren aislados, sino agrupados en **70 clusters contiguos**, causados por fluctuaciones transitorias normales que superan el umbral 0.65. En contraste, baselines como Rolling Z-Score generaron 544 puntos FP distribuidos en 271 clusters (saturando de ruido al operador).
 
 3. **Eficiencia en el Edge (Despliegue Industrial Ligero)**:
-   Con un consumo de **210.4 MB de RAM**, latencia mediana P50 de **17.31 ms** y **55.8 pts/segundo**, el motor corre enteramente en CPU local sin requerir GPUs ni llamadas de red cloud.
+   Con un consumo de **210.4 MB de RAM**, latencia mediana P50 de **3.29 ms** y **190.5 pts/segundo**, el motor corre enteramente en CPU local sin requerir GPUs ni llamadas de red cloud.
 
 4. **Comparativa con Soluciones de Big Tech**:
    - **AWS Lookout for Equipment / Azure Anomaly Detector**: Dependen de arquitecturas cloud en contenedores pesados con latencias de 100-300 ms por API HTTP y costos recurrentes por inferencia. ZENIN procesa en streaming local determinista con latencia sub-50 ms.

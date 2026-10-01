@@ -13,6 +13,7 @@ from .catalog import (
     RestingInvariantExpert,
 )
 from .dispatcher import AsymmetricDispatcher
+from .subdetector_adapter import SubDetectorExpertAdapter
 
 __all__ = [
     "AsymmetricDispatcher",
@@ -21,4 +22,5 @@ __all__ = [
     "RestingInvariantExpert",
     "RegimeShiftExpert",
     "HighFrequencyExpert",
+    "SubDetectorExpertAdapter",
 ]

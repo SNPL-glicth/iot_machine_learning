@@ -449,6 +449,7 @@ def run_zenin_detector(
         series_id=SERIES_ID,
         enable_adaptive_weights=False,
         calibration_layer=AdaptiveDetectorCalibrationLayer(),
+        enable_asymmetric_dispatch=True,
     )
 
     # Entrenamiento con período de warm-up nominal representativo (1,000 puntos)

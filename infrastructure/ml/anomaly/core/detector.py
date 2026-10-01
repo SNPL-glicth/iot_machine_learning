@@ -38,6 +38,8 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         series_id: str | None = None,
         enable_adaptive_weights: bool = False,
         calibration_layer: Any | None = None,
+        enable_asymmetric_dispatch: bool = False,
+        meta_gate: Any | None = None,
         **kwargs: object,
     ) -> None:
         if config is None:
@@ -58,6 +60,40 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
         self._stats = TrainingStats(mean=0.0, std=1e-9, q1=0.0, q3=0.0, iqr=0.0)
         self._temporal_stats = TemporalTrainingStats.empty()
         self._calibration_layer = calibration_layer
+        self._enable_asymmetric_dispatch = enable_asymmetric_dispatch
+        self._meta_gate = meta_gate
+        self._dispatcher: Any | None = None
+        self._adapters: dict[str, Any] = {}
+
+        if self._enable_asymmetric_dispatch:
+            from iot_machine_learning.infrastructure.ml.moe.asymmetric import (
+                AsymmetricDispatcher,
+                SubDetectorExpertAdapter,
+            )
+            from iot_machine_learning.domain.entities.representation_evidence import (
+                RepresentationLevel,
+            )
+
+            affinity_map = {
+                "iqr": (RepresentationLevel.TEN_X, 0.01),
+                "z_score": (RepresentationLevel.TEN_X, 0.02),
+                "rolling_z": (RepresentationLevel.TWO_X, 0.05),
+                "cumulative_residual": (RepresentationLevel.TWO_X, 0.05),
+                "velocity_z": (RepresentationLevel.TWO_X, 0.02),
+                "isolation_forest": (RepresentationLevel.RAW, 1.00),
+                "isolation_forest_temporal": (RepresentationLevel.RAW, 1.00),
+                "local_outlier_factor": (RepresentationLevel.RAW, 0.50),
+                "acceleration_z": (RepresentationLevel.RAW, 0.02),
+            }
+
+            self._dispatcher = AsymmetricDispatcher()
+            for d in self._sub_detectors:
+                aff, cost = affinity_map.get(d.method_name, (RepresentationLevel.RAW, 1.0))
+                adapter = SubDetectorExpertAdapter(
+                    d, aff, calibration_layer=self._calibration_layer, scaler=self._scaler, compute_cost_estimate=cost
+                )
+                self._adapters[d.method_name] = adapter
+                self._dispatcher.register_expert(adapter)
 
     def train(
         self,
@@ -113,6 +149,11 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
                     raw_sc = det.get_training_raw_scores(values_norm, **kwargs)
                     self._calibration_layer.calibrate_detector(det.method_name, raw_sc, is_inverted=is_inv)
 
+        if self._enable_asymmetric_dispatch and self._adapters:
+            for ad in self._adapters.values():
+                ad.scaler = self._scaler
+                ad.calibration_layer = self._calibration_layer
+
         logger.info(
             "voting_detector_trained",
             extra={"n_points": len(historical_values), "n_detectors": len(self._sub_detectors)},
@@ -145,29 +186,91 @@ class VotingAnomalyDetector(AnomalyDetectionPort):
                 logger.warning("scaler_transform_failed", extra={"error": str(exc)})
         votes: dict[str, float] = {}
         effective_weights = self._strategy._get_effective_weights()
-        for detector in self._sub_detectors:
-            if not detector.is_trained:
-                continue
-            # Optimización de latencia: si el detector es LOF y su peso efectivo es <= 0, no ejecutar sklearn k-NN
-            if detector.method_name == "local_outlier_factor" and effective_weights.get("local_outlier_factor", 0.0) <= 0.0:
-                votes[detector.method_name] = 0.0
-                continue
-            try:
-                if self._calibration_layer is not None:
-                    raw_s = detector.raw_score(value, **vote_kwargs)
-                    v = self._calibration_layer.transform(detector.method_name, raw_s)
-                else:
-                    v = detector.vote(value, **vote_kwargs)
-                if v is not None:
-                    votes[detector.method_name] = v
-            except Exception as exc:
-                logger.debug(
-                    "sub_detector_vote_failed",
-                    extra={"detector": detector.method_name, "error": str(exc)},
-                )
 
-        final_score = self._strategy.combine(votes)
-        is_anomaly = self._strategy.is_anomaly(final_score, votes=votes)
+        if self._enable_asymmetric_dispatch and self._dispatcher is not None:
+            from iot_machine_learning.domain.entities.representation_evidence import (
+                RepresentationLevel,
+                SystemOperationalState,
+            )
+
+            for ad in self._adapters.values():
+                ad.set_context(vote_kwargs)
+
+            # 1. Despachar 10X (Resting/Invariantes) y 2X (Drift/Régimen)
+            ev_10x = self._dispatcher.dispatch(RepresentationLevel.TEN_X, [window.last_value])
+            ev_2x = self._dispatcher.dispatch(RepresentationLevel.TWO_X, [window.last_value])
+            active_evidences = list(ev_10x + ev_2x)
+
+            for ev in active_evidences:
+                votes[ev.expert_name] = ev.anomaly_probability
+
+            sum_fast = sum(
+                votes.get(m, 0.0) * effective_weights.get(m, 0.0)
+                for m in ["z_score", "cumulative_residual", "iqr", "velocity_z", "rolling_z"]
+            )
+            heavy_names = [
+                m
+                for m in ["isolation_forest", "isolation_forest_temporal", "local_outlier_factor", "acceleration_z"]
+                if m in self._adapters
+            ]
+            max_remaining_heavy = sum(effective_weights.get(m, 0.0) for m in heavy_names)
+
+            # 2. Enrutamiento condicional asimétrico
+            if sum_fast + max_remaining_heavy < self._strategy._threshold:
+                for m in heavy_names:
+                    votes[m] = 0.0
+            else:
+                ev_raw = self._dispatcher.dispatch(RepresentationLevel.RAW, [window.last_value])
+                active_evidences.extend(ev_raw)
+                for ev in ev_raw:
+                    votes[ev.expert_name] = ev.anomaly_probability
+
+            final_score = self._strategy.combine(votes)
+            is_anomaly = self._strategy.is_anomaly(final_score, votes=votes)
+
+            # 3. Ville Gate si está conectado
+            if self._meta_gate is not None:
+                budget_ratio = 1.0 - (
+                    self._dispatcher._total_cost_expended
+                    / max(1.0, self._dispatcher._total_cost_hypothetical_full)
+                )
+                op_state = (
+                    SystemOperationalState.RESTING
+                    if sum_fast < 0.20
+                    else SystemOperationalState.DRIFTING
+                )
+                gate_decision = self._meta_gate.evaluate_step(
+                    step=window.size,
+                    evidences=active_evidences,
+                    operational_state=op_state,
+                    budget_remaining_ratio=budget_ratio,
+                )
+                if "gate_decision" not in vote_kwargs:
+                    vote_kwargs["gate_decision"] = gate_decision
+        else:
+            for detector in self._sub_detectors:
+                if not detector.is_trained:
+                    continue
+                # Optimización de latencia: si el detector es LOF y su peso efectivo es <= 0, no ejecutar sklearn k-NN
+                if detector.method_name == "local_outlier_factor" and effective_weights.get("local_outlier_factor", 0.0) <= 0.0:
+                    votes[detector.method_name] = 0.0
+                    continue
+                try:
+                    if self._calibration_layer is not None:
+                        raw_s = detector.raw_score(value, **vote_kwargs)
+                        v = self._calibration_layer.transform(detector.method_name, raw_s)
+                    else:
+                        v = detector.vote(value, **vote_kwargs)
+                    if v is not None:
+                        votes[detector.method_name] = v
+                except Exception as exc:
+                    logger.debug(
+                        "sub_detector_vote_failed",
+                        extra={"detector": detector.method_name, "error": str(exc)},
+                    )
+
+            final_score = self._strategy.combine(votes)
+            is_anomaly = self._strategy.is_anomaly(final_score, votes=votes)
         if self._calibration_layer is not None:
             self._calibration_layer.observe(value, is_anomaly_active=is_anomaly)
         for detector in self._sub_detectors:
