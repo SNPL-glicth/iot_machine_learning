@@ -84,7 +84,3 @@
 
 3. **Eficiencia en el Edge (Despliegue Industrial Ligero)**:
    Con un consumo de **211.0 MB de RAM**, latencia mediana P50 de **3.56 ms** y **173.7 pts/segundo**, el motor corre enteramente en CPU local sin requerir GPUs ni llamadas de red cloud.
-
-4. **Comparativa con Soluciones de Big Tech**:
-   - **AWS Lookout for Equipment / Azure Anomaly Detector**: Dependen de arquitecturas cloud en contenedores pesados con latencias de 100-300 ms por API HTTP y costos recurrentes por inferencia. ZENIN procesa en streaming local determinista con latencia sub-50 ms.
-   - **Datadog / Dynatrace**: Emplean heurísticas de bandas móviles (similares a Rolling Z-score) que o bien saturan al operador con cientos de falsas alarmas (271 clusters FP) o fallan ante derivas sutiles. El ensamble multiparadigma de ZENIN ofrece mayor coherencia a nivel de incidente.
