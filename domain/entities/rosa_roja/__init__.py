@@ -4,6 +4,7 @@ from .movement import Movement, RhythmSignature
 from .trajectory import Trajectory, TerminalState
 from .validation import ValidationResult, VetoDetails
 from .execution import ExecutionPlan, ActionEnvelope
+from .decision_trace import DecisionTraceRecord, ExecutionMode, SubsystemStatus
 from .motif import TopologicalMotifKey
 from .theta_belief import StateKey, StateKeyUnion, ThetaBelief
 from .trajectory_tracker import DeviationStatus, TrajectoryTracker
@@ -40,6 +41,9 @@ __all__ = [
     "VetoDetails",
     "ExecutionPlan",
     "ActionEnvelope",
+    "DecisionTraceRecord",
+    "ExecutionMode",
+    "SubsystemStatus",
     "TopologicalMotifKey",
     "StateKey",
     "StateKeyUnion",
