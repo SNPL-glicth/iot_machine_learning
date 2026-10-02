@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
-from iot_machine_learning.domain.entities.conformal_risk import AdaptiveGateDecision
+from iot_machine_learning.domain.entities.consensus import ConsensusDecision
 from iot_machine_learning.domain.entities.representation_evidence import SystemOperationalState
 from iot_machine_learning.domain.entities.topology import (
     CausalEdge,
@@ -29,7 +29,7 @@ class _ActiveIncident:
 
     alarm_id: str
     root_id: str
-    root_decision: AdaptiveGateDecision
+    root_decision: ConsensusDecision
     start_step: int
     last_trigger_step: int
     affected_series: set[str] = field(default_factory=set)
@@ -87,11 +87,11 @@ class CausalGatingAggregator(CausalGatingOrchestratorPort):
     def process_decisions(
         self,
         step: int,
-        node_decisions: Mapping[str, AdaptiveGateDecision],
+        node_decisions: Mapping[str, ConsensusDecision],
     ) -> Sequence[SystemWideAlarm]:
         """Unifica alertas individuales, suprime efectos retardados y emite el RCA consolidado."""
         # 1. Identificar nodos que dispararon alerta en el paso actual
-        triggered: dict[str, AdaptiveGateDecision] = {
+        triggered: dict[str, ConsensusDecision] = {
             nid: dec for nid, dec in node_decisions.items() if dec.is_triggered
         }
         self.total_raw_alerts_received += len(triggered)

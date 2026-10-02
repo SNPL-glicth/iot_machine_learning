@@ -39,10 +39,7 @@ from benchmarks.representation_audit.runner import (
     load_canonical_windows,
     load_dataset,
 )
-from domain.entities.conformal_risk import (
-    AdaptiveGateDecision,
-    RiskCertificationStatus,
-)
+from domain.entities.consensus import ConsensusDecision
 from domain.entities.representation_evidence import (
     RepresentationLevel,
     SystemOperationalState,
@@ -52,10 +49,7 @@ from domain.entities.topology import (
     RootCauseDiagnosis,
     SystemWideAlarm,
 )
-from infrastructure.ml.moe.adaptive import (
-    LatencyBudgetAwareGate,
-    OnlineConformalCalibrator,
-)
+from infrastructure.ml.moe.adaptive import KuramotoConsensusGate
 from infrastructure.ml.moe.asymmetric import (
     AsymmetricDispatcher,
     HighFrequencyExpert,
@@ -83,8 +77,7 @@ def create_sensor_pipeline(
 ) -> tuple[
     AgnosticRepresentationPolicy,
     AsymmetricDispatcher,
-    LatencyBudgetAwareGate,
-    OnlineConformalCalibrator,
+    KuramotoConsensusGate,
 ]:
     """Inicializa la cadena completa de inferencia univariada para un sensor."""
     calibrator = NonParametricConformalCalibrator()
@@ -115,26 +108,9 @@ def create_sensor_pipeline(
 
     policy = AgnosticRepresentationPolicy(level_prof, shock_prof, block_size=block_size)
     dispatcher = AsymmetricDispatcher(experts)
+    meta_gate = KuramotoConsensusGate(expert_names=[e.name for e in experts])
 
-    online_calibrator = OnlineConformalCalibrator(
-        nominal_prior_rate=0.05,
-        betting_fraction=5.0,
-        learning_rate=0.15,
-        known_experts=[e.name for e in experts],
-    )
-    meta_gate = LatencyBudgetAwareGate(
-        calibrator=online_calibrator,
-        alpha_target=alpha_target,
-        budget_penalty_weight=1.5,
-        shrinkage_lambda=0.02,
-        state_multipliers={
-            SystemOperationalState.RESTING: 1.8,
-            SystemOperationalState.DRIFTING: 0.6,
-            SystemOperationalState.SHOCKED: 0.4,
-        },
-    )
-
-    return policy, dispatcher, meta_gate, online_calibrator
+    return policy, dispatcher, meta_gate
 
 
 def run_topology_rca_benchmark() -> dict[str, Any]:
@@ -176,10 +152,10 @@ def run_topology_rca_benchmark() -> dict[str, Any]:
 
     # 3. Warmup y Setup de Pipelines por Sensor
     warmup_n = 1000
-    p_a, disp_a, gate_a, cal_a = create_sensor_pipeline("sensor_A", values_a[:warmup_n])
-    p_b, disp_b, gate_b, cal_b = create_sensor_pipeline("sensor_B", values_b[:warmup_n])
-    p_c, disp_c, gate_c, cal_c = create_sensor_pipeline("sensor_C", values_c[:warmup_n])
-    p_d, disp_d, gate_d, cal_d = create_sensor_pipeline("sensor_D", values_d[:warmup_n])
+    p_a, disp_a, gate_a = create_sensor_pipeline("sensor_A", values_a[:warmup_n])
+    p_b, disp_b, gate_b = create_sensor_pipeline("sensor_B", values_b[:warmup_n])
+    p_c, disp_c, gate_c = create_sensor_pipeline("sensor_C", values_c[:warmup_n])
+    p_d, disp_d, gate_d = create_sensor_pipeline("sensor_D", values_d[:warmup_n])
 
     # 4. Inicializar Topología Causal en Streaming y Agregador de Gating
     te_estimator = StreamingTransferEntropyEstimator(

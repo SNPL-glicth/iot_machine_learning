@@ -1,15 +1,13 @@
-"""Módulo de Adaptive Meta-Gating y Conformal Risk Management (Fase 2).
+"""Módulo de Adaptive Meta-Gating por Consenso de Kuramoto (Fase 2.5).
 
-Proporciona calibración online mediante e-values ponderados por Hedge y compuertas
-de decisión multiobjetivo certificadas bajo la desigualdad maximal de Ville.
+Proporciona compuertas de decisión no lineales por sincronización topológica de fase
+con integración Euler de campo medio O(N) y quenching refractario anti-histéresis.
 """
 
 from __future__ import annotations
 
-from .conformal_calibrator import OnlineConformalCalibrator
-from .dynamic_gate import LatencyBudgetAwareGate
+from .kuramoto_gate import KuramotoConsensusGate
 
 __all__ = [
-    "OnlineConformalCalibrator",
-    "LatencyBudgetAwareGate",
+    "KuramotoConsensusGate",
 ]

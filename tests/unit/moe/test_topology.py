@@ -8,10 +8,7 @@ import time
 import numpy as np
 import pytest
 
-from iot_machine_learning.domain.entities.conformal_risk import (
-    AdaptiveGateDecision,
-    RiskCertificationStatus,
-)
+from iot_machine_learning.domain.entities.consensus import ConsensusDecision
 from iot_machine_learning.domain.entities.representation_evidence import SystemOperationalState
 from iot_machine_learning.domain.entities.topology import (
     CausalEdge,
@@ -195,16 +192,15 @@ class TestCausalGatingAggregator:
         is_triggered: bool,
         martingale_value: float,
         weights: dict[str, float],
-    ) -> AdaptiveGateDecision:
-        return AdaptiveGateDecision(
+    ) -> ConsensusDecision:
+        return ConsensusDecision(
             step=step,
             operational_state=SystemOperationalState.SHOCKED if is_triggered else SystemOperationalState.RESTING,
-            martingale_value=martingale_value,
-            dynamic_threshold=100.0,
-            certification=RiskCertificationStatus.CERTIFIED_ALARM if is_triggered else RiskCertificationStatus.NOMINAL,
+            order_parameter=round(martingale_value / 100.0, 4),
+            phase_velocity=0.0,
+            dynamic_threshold=0.80,
             is_triggered=is_triggered,
             active_expert_weights=weights,
-            budget_penalty_factor=1.0,
             reason="test",
         )
 

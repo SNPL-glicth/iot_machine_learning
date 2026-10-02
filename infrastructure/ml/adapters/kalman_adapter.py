@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from domain.entities.rosa_roja.trajectory import Trajectory
 from .base_adapter import BaseExpertAdapter
-from infrastructure.ml.interfaces import PredictionEngine
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine
 
 
 class KalmanExpertAdapter(BaseExpertAdapter):

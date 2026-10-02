@@ -36,10 +36,7 @@ from iot_machine_learning.infrastructure.ml.anomaly.detectors.iqr_detector impor
 from iot_machine_learning.infrastructure.ml.anomaly.detectors.z_score_detector import (
     ZScoreDetector,
 )
-from iot_machine_learning.infrastructure.ml.moe.adaptive import (
-    LatencyBudgetAwareGate,
-    OnlineConformalCalibrator,
-)
+from iot_machine_learning.infrastructure.ml.moe.adaptive import KuramotoConsensusGate
 from iot_machine_learning.infrastructure.ml.moe.asymmetric import (
     AsymmetricDispatcher,
     SubDetectorExpertAdapter,
@@ -147,17 +144,9 @@ class TestAsymmetricVotingEquivalence:
         ]
         assert len(diffs) == 0, f"Discrepancia en {len(diffs)} puntos: {diffs}"
 
-    def test_ville_gate_integration(self) -> None:
-        calibrator = OnlineConformalCalibrator(
-            nominal_prior_rate=0.05,
-            betting_fraction=5.0,
-            learning_rate=0.15,
-            known_experts=["z_score", "iqr", "isolation_forest"],
-        )
-        gate = LatencyBudgetAwareGate(
-            calibrator=calibrator,
-            alpha_target=0.05,
-            budget_penalty_weight=1.5,
+    def test_kuramoto_gate_integration(self) -> None:
+        gate = KuramotoConsensusGate(
+            expert_names=["z_score", "iqr", "isolation_forest"],
         )
 
         cfg = AnomalyDetectorConfig(voting_threshold=0.65)

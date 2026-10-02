@@ -12,7 +12,7 @@ import numpy as np
 
 from core.parameters.numerical_constants import EPSILON
 from domain.entities.rosa_roja.execution import ExecutionPlan
-from infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
+from iot_machine_learning.infrastructure.ml.engines.rosa_roja.algorithms.engine import RosaRojaEngine
 from infrastructure.ml.master_engine.geometric_manifold_adapter import GeometricManifoldAdapter
 from infrastructure.ml.master_engine.master_equation import (
     compute_certeza,

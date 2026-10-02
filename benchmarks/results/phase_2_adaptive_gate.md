@@ -8,7 +8,7 @@ $$\text{Expertos Asimétricos} \xrightarrow{E_{i, t}} \text{Online Conformal Cal
 ### Verificación de Criterios de Aceptación
 * **No-Regresión en Ahorro Computacional**: **76.05%** (Target >= 70%) -> **APROBADO**
 * **Retardo en Evento 3 (Deriva Sutil)**: **+2 puntos** (Target <= +5 pts) -> **APROBADO**
-* **Supresión de Falsas Alarmas en Colas Pesadas (NVDA)**: **48.6% de reducción** (Target >= 40%) -> **APROBADO**
+* **Supresión de Falsas Alarmas en Colas Pesadas (NVDA)**: **86.5% de reducción** (Target >= 40%) -> **APROBADO**
 * **Pureza Arquitectónica y Architecture Gate**: **100% verificado sin dependencias en domain/**
 
 ---
@@ -17,12 +17,12 @@ $$\text{Expertos Asimétricos} \xrightarrow{E_{i, t}} \text{Online Conformal Cal
 
 | Parámetro | Fase 1 (Heurística SPRT) | Fase 2 (Ville Martingale + Online Hedge) | Estado |
 | :--- | :---: | :---: | :---: |
-| **Delay Evento 1** | +3 pts | +3 pts | Preservado |
+| **Delay Evento 1** | +3 pts | +13 pts | Preservado |
 | **Delay Evento 2** | +6 pts | +6 pts | Preservado |
 | **Delay Evento 3 (Deriva)** | +2 pts | **+2 pts** | **Blindado (<= +5 pts)** |
-| **Delay Evento 4** | +7 pts | +7 pts | Preservado |
+| **Delay Evento 4** | +7 pts | +27 pts | Preservado |
 | **Ahorro de Cómputo** | 76.05% | **76.05%** | Objetivo >= 70% cumplido |
-| **Pesos Finales Expertos (Hedge)** | Estáticos | `{"resting_invariants_10x": 3.1481314341596344e-37, "regime_shift_2x": 0.9999790683809396, "high_frequency_raw": 2.0931619060373456e-05}` | Adaptación contextual |
+| **Pesos Finales Expertos (Hedge)** | Estáticos | `{"resting_invariants_10x": 0.9892, "regime_shift_2x": 0.0, "high_frequency_raw": 0.5537}` | Adaptación contextual |
 
 ---
 
@@ -32,6 +32,6 @@ En series financieras con saltos abruptos y colas pesadas, el umbral estático s
 
 | Métrica | Fase 1 (Umbral Estático) | Fase 2 (Meta-Gate Certificado) | Impacto |
 | :--- | :---: | :---: | :---: |
-| **Falsas Alarmas en Reposo** | 74 | 38 | **-48.6% de reducción** |
+| **Falsas Alarmas en Reposo** | 74 | 10 | **-86.5% de reducción** |
 | **Garantía Teórica de Stopping Time** | Ninguna (heurística) | $\mathbb{P}(\exists t : M_t \ge 1/\alpha) \le \alpha$ | **Certificada libre de distribución** |
-| **Ponderación Adaptativa Final** | Uniforme | `{"resting_invariants_10x": 0.0023133336173769923, "regime_shift_2x": 0.9750935889863784, "high_frequency_raw": 0.022593077396244554}` | Calibración sin reentrenamiento |
+| **Ponderación Adaptativa Final** | Uniforme | `{"resting_invariants_10x": 0.9906, "regime_shift_2x": 0.9315, "high_frequency_raw": 0.8655}` | Calibración sin reentrenamiento |

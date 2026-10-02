@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from typing import Mapping, Protocol, Sequence, runtime_checkable
 
-from ..entities.conformal_risk import AdaptiveGateDecision
+from ..entities.consensus import ConsensusDecision
 from ..entities.topology import CausalEdge, SystemWideAlarm
+
+# Alias de retrocompatibilidad
+AdaptiveGateDecision = ConsensusDecision
 
 
 @runtime_checkable
@@ -39,7 +42,7 @@ class CausalGatingOrchestratorPort(Protocol):
     def process_decisions(
         self,
         step: int,
-        node_decisions: Mapping[str, AdaptiveGateDecision],
+        node_decisions: Mapping[str, ConsensusDecision],
     ) -> Sequence[SystemWideAlarm]:
         """Unifica alertas individuales, suprime efectos retardados y emite el RCA consolidado."""
         ...

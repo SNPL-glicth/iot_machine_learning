@@ -1,0 +1,458 @@
+[
+  {
+    "Caso": "Evento 1 (Shock Termico)",
+    "Tipo": "TP_EVENT",
+    "Rango": "2126..2200",
+    "Voting": {
+      "min": 0.474,
+      "median": 0.8648,
+      "max": 0.912
+    },
+    "Z_Score": {
+      "min": 0.7467,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "IsolationForest": {
+      "min": 0.6702,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 1.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 5.9287,
+      "median": 6.9689,
+      "max": 7.3001
+    },
+    "Regime_Dominant": "idle (74/74)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.5568,
+      "max": 0.7931
+    },
+    "Takens_Veto_Points": 15,
+    "CVaR_Risk": {
+      "min": 0.544,
+      "median": 0.6992,
+      "max": 0.8564
+    }
+  },
+  {
+    "Caso": "Evento 2 (Sobrecalentamiento)",
+    "Tipo": "TP_EVENT",
+    "Rango": "3703..3800",
+    "Voting": {
+      "min": 0.0,
+      "median": 0.0468,
+      "max": 0.6691
+    },
+    "Z_Score": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.6178
+    },
+    "IsolationForest": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.8899
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.1906
+    },
+    "Mahalanobis_d": {
+      "min": 0.1265,
+      "median": 3.4153,
+      "max": 4.5322
+    },
+    "Regime_Dominant": "peak (40/97)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.4361,
+      "max": 0.722
+    },
+    "Takens_Veto_Points": 32,
+    "CVaR_Risk": {
+      "min": 0.3823,
+      "median": 0.5842,
+      "max": 0.7689
+    }
+  },
+  {
+    "Caso": "Evento 3 (Degradacion Lenta)",
+    "Tipo": "TP_EVENT",
+    "Rango": "16057..16400",
+    "Voting": {
+      "min": 0.0,
+      "median": 0.047,
+      "max": 0.6847
+    },
+    "Z_Score": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "IsolationForest": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 1.9131,
+      "median": 4.5564,
+      "max": 6.7333
+    },
+    "Regime_Dominant": "idle (342/343)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.4514,
+      "max": 0.8276
+    },
+    "Takens_Veto_Points": 125,
+    "CVaR_Risk": {
+      "min": 0.4695,
+      "median": 0.7791,
+      "max": 1.1184
+    }
+  },
+  {
+    "Caso": "Evento 4 (Fallo Catastrofico)",
+    "Tipo": "TP_EVENT",
+    "Rango": "19232..19350",
+    "Voting": {
+      "min": 0.2047,
+      "median": 0.8182,
+      "max": 0.9121
+    },
+    "Z_Score": {
+      "min": 0.2612,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "IsolationForest": {
+      "min": 0.274,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 0.9122,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 5.4106,
+      "median": 6.8052,
+      "max": 8.1539
+    },
+    "Regime_Dominant": "idle (118/118)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.4254,
+      "max": 0.804
+    },
+    "Takens_Veto_Points": 39,
+    "CVaR_Risk": {
+      "min": 0.8708,
+      "median": 0.9808,
+      "max": 1.1453
+    }
+  },
+  {
+    "Caso": "FP Impulsivo (Spike)",
+    "Tipo": "FP_IMPULSIVE",
+    "Rango": "3115..3135",
+    "Voting": {
+      "min": 0.3193,
+      "median": 0.6369,
+      "max": 0.7204
+    },
+    "Z_Score": {
+      "min": 0.2604,
+      "median": 0.459,
+      "max": 0.6322
+    },
+    "IsolationForest": {
+      "min": 0.8899,
+      "median": 0.8899,
+      "max": 0.8899
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 3.7819,
+      "median": 4.2011,
+      "max": 4.5506
+    },
+    "Regime_Dominant": "peak (20/20)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.4584,
+      "max": 0.7263
+    },
+    "Takens_Veto_Points": 4,
+    "CVaR_Risk": {
+      "min": 0.5276,
+      "median": 0.7069,
+      "max": 0.9749
+    }
+  },
+  {
+    "Caso": "FP Plateau (103C sostenido)",
+    "Tipo": "FP_PLATEAU",
+    "Rango": "4420..4515",
+    "Voting": {
+      "min": 0.5155,
+      "median": 0.6173,
+      "max": 0.7039
+    },
+    "Z_Score": {
+      "min": 0.2381,
+      "median": 0.4712,
+      "max": 0.7114
+    },
+    "IsolationForest": {
+      "min": 0.8899,
+      "median": 0.8899,
+      "max": 0.8899
+    },
+    "CUSUM": {
+      "min": 1.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 3.7907,
+      "median": 4.1821,
+      "max": 4.5715
+    },
+    "Regime_Dominant": "peak (95/95)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.5672,
+      "max": 0.8608
+    },
+    "Takens_Veto_Points": 24,
+    "CVaR_Risk": {
+      "min": 0.3131,
+      "median": 0.3865,
+      "max": 0.5404
+    }
+  },
+  {
+    "Caso": "FP Transicion (Ciclo de Carga)",
+    "Tipo": "FP_TRANSITION",
+    "Rango": "7950..8050",
+    "Voting": {
+      "min": 0.0,
+      "median": 0.0463,
+      "max": 0.3188
+    },
+    "Z_Score": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "IsolationForest": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.8899
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 0.1885,
+      "median": 1.596,
+      "max": 3.2154
+    },
+    "Regime_Dominant": "peak (99/100)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.5029,
+      "max": 0.8077
+    },
+    "Takens_Veto_Points": 25,
+    "CVaR_Risk": {
+      "min": 0.4113,
+      "median": 0.4856,
+      "max": 0.6078
+    }
+  },
+  {
+    "Caso": "Nominal (Operacion Normal)",
+    "Tipo": "NOMINAL",
+    "Rango": "5000..5200",
+    "Voting": {
+      "min": 0.0042,
+      "median": 0.4772,
+      "max": 0.5223
+    },
+    "Z_Score": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.145
+    },
+    "IsolationForest": {
+      "min": 0.0,
+      "median": 0.8899,
+      "max": 0.8899
+    },
+    "CUSUM": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Velocity_Z": {
+      "min": 0.0,
+      "median": 1.0,
+      "max": 1.0
+    },
+    "Rolling_Z": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Mahalanobis_d": {
+      "min": 0.1869,
+      "median": 3.022,
+      "max": 3.7774
+    },
+    "Regime_Dominant": "peak (196/200)",
+    "Takens_FNN": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 1.0
+    },
+    "Takens_Coherence": {
+      "min": 0.0,
+      "median": 0.4646,
+      "max": 0.872
+    },
+    "Takens_Veto_Points": 62,
+    "CVaR_Risk": {
+      "min": 0.331,
+      "median": 0.4821,
+      "max": 0.5776
+    }
+  }
+]

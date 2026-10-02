@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, cast
 import numpy as np
 
-from infrastructure.ml.interfaces import PredictionEngine, PredictionResult
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine, PredictionResult
 from domain.entities.rosa_roja.trajectory import Trajectory
 from domain.ports.rosa_roja.expert_jury import ExpertJuryPort
 

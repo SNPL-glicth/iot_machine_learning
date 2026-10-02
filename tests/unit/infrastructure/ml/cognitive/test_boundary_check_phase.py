@@ -66,6 +66,7 @@ class TestBoundaryCheckWithProfile:
         ctx = _make_ctx([25.0, 50.0, 75.0], profile=profile)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.within_domain is True
         assert result.boundary_result.dynamic_range_used is False
         assert result.boundary_result.rejection_reason is None
@@ -79,6 +80,7 @@ class TestBoundaryCheckWithProfile:
         ctx = _make_ctx([-10.0, 50.0, 200.0], profile=profile)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.within_domain is False
         assert result.boundary_result.rejection_reason == "out_of_domain"
         assert result.is_fallback is True
@@ -96,6 +98,7 @@ class TestBoundaryCheckWithProfile:
         ctx = _make_ctx([1.0, 50.0, 99.0], profile=profile)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.within_domain is True
         assert "values_near_upper_boundary" in str(result.boundary_result.warnings)
 
@@ -106,6 +109,7 @@ class TestBoundaryCheckWithoutProfile:
         ctx = _make_ctx([10.0, 20.0, 30.0, 40.0, 50.0], profile=None)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.dynamic_range_used is True
         # p1-p99 may flag extremes as outside — that's expected
         assert isinstance(result.boundary_result.within_domain, bool)
@@ -117,6 +121,7 @@ class TestBoundaryCheckWithoutProfile:
         ctx = _make_ctx(values, profile=None)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.dynamic_range_used is True
         assert "values_near_upper_boundary" in str(result.boundary_result.warnings)
 
@@ -126,6 +131,7 @@ class TestBoundaryCheckWithoutProfile:
         ctx = _make_ctx(values, profile=None)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.dynamic_range_used is True
         assert result.boundary_result.within_domain is True
 
@@ -134,6 +140,7 @@ class TestBoundaryCheckWithoutProfile:
         ctx = _make_ctx([42.0], profile=None)
         result = phase.execute(ctx)
 
+        assert result.boundary_result is not None
         assert result.boundary_result.within_domain is True
         assert result.boundary_result.dynamic_range_used is True
 
@@ -150,6 +157,7 @@ class TestDataQualityScoreFlow:
 
         # 2 of 3 values outside → score should be low
         assert result.data_quality_score < 0.5
+        assert result.boundary_result is not None
         assert result.boundary_result.data_quality_score < 0.5
 
     def test_data_quality_score_takes_minimum(self) -> None:
@@ -168,6 +176,7 @@ class TestDataQualityScoreFlow:
         phase = BoundaryCheckPhase()
         ctx = _make_ctx([], profile=None)
         result = phase.execute(ctx)
+        assert result.boundary_result is not None
         assert result.boundary_result.within_domain is True
         assert "empty_values" in result.boundary_result.warnings
 

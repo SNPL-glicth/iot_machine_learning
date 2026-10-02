@@ -14,8 +14,8 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 from domain.ports.rosa_roja.guided_field import GuidedFieldPort
-from iot_machine_learning.infrastructure.ml.engines.seasonal.engine import SeasonalPredictorEngine
-from iot_machine_learning.infrastructure.ml.inference.bayesian.naive_bayes import NaiveBayesClassifier
+from infrastructure.ml.engines.seasonal.engine import SeasonalPredictorEngine
+from infrastructure.ml.inference.bayesian.naive_bayes import NaiveBayesClassifier
 
 logger = logging.getLogger(__name__)
 

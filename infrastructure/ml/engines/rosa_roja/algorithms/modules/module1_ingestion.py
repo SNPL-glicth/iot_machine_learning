@@ -248,13 +248,16 @@ class MahalanobisFilter:
                     self._cov_inv = np.eye(self._state_dim, dtype=np.float64)
                 else:
                     self._n += 1
-                    if self._n == 1:
+                    if self._n == 1 or self._mean is None:
                         self._mean = x.copy()
                     else:
                         delta = x - self._mean
                         self._mean += delta / self._n
                         delta2 = x - self._mean
-                        self._M2 += np.outer(delta, delta2)
+                        if self._M2 is not None:
+                            self._M2 += np.outer(delta, delta2)
+                        else:
+                            self._M2 = np.outer(delta, delta2)
             
             if self._M2 is not None and self._n >= self.min_samples_for_cov:
                 cov = self._M2 / (self._n - 1)

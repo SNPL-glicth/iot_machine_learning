@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from scipy.linalg import inv
+from scipy.linalg import inv  # type: ignore[import-untyped]
 
 from infrastructure.ml.engines.rosa_roja.algorithms.modules.module1_ingestion import MahalanobisFilter
 
@@ -22,6 +22,8 @@ def test_sherman_morrison_numerical_exactness_vs_full_inversion():
 
         if mf._n >= 6:
             # Recompute exact regularized covariance
+            assert mf._M2 is not None
+            assert mf._cov_inv is not None
             cov = mf._M2 / (mf._n - 1)
             cov_reg = cov + mf.regularization_epsilon * np.eye(dim, dtype=np.float64)
             exact_inv = inv(cov_reg)
@@ -75,6 +77,8 @@ def test_periodic_recompute_anchor():
     for i in range(1, 25):
         mf.process_raw_step(np.random.randn(2), 1.0)
         if mf._n == interval or mf._n == 2 * interval:
+            assert mf._M2 is not None
+            assert mf._cov_inv is not None
             cov = mf._M2 / (mf._n - 1)
             cov_reg = cov + mf.regularization_epsilon * np.eye(2)
             expected = 0.5 * (inv(cov_reg) + inv(cov_reg).T)

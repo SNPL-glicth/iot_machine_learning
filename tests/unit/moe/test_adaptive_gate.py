@@ -1,15 +1,16 @@
-"""Tests unitarios de contratos e infraestructura de Fase 2 (Adaptive Meta-Gating & Conformal Risk)."""
+"""Tests unitarios de contratos e infraestructura de Fase 2.5 (Kuramoto Consensus Gate)."""
 
 from __future__ import annotations
 
+import time
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 import pytest
 
-from iot_machine_learning.domain.entities.conformal_risk import (
-    AdaptiveGateDecision,
-    ConformalBound,
-    RiskCertificationStatus,
+from iot_machine_learning.domain.entities.consensus import (
+    ConsensusDecision,
+    KuramotoGateConfig,
+    KuramotoState,
 )
 from iot_machine_learning.domain.entities.representation_evidence import (
     EvidenceScore,
@@ -18,23 +19,20 @@ from iot_machine_learning.domain.entities.representation_evidence import (
 )
 from iot_machine_learning.domain.ports.meta_gate_port import (
     AdaptiveMetaGatePort,
-    OnlineCalibratorPort,
+    ConsensusGatePort,
 )
-from iot_machine_learning.infrastructure.ml.moe.adaptive import (
-    LatencyBudgetAwareGate,
-    OnlineConformalCalibrator,
-)
+from iot_machine_learning.infrastructure.ml.moe.adaptive import KuramotoConsensusGate
 
 
-class TestConformalDomainPurity:
-    """Verifica la pureza absoluta de domain/entities/conformal_risk.py y domain/ports/meta_gate_port.py."""
+class TestConsensusDomainPurity:
+    """Verifica la pureza absoluta de domain/entities/consensus.py y domain/ports/meta_gate_port.py."""
 
-    def test_conformal_risk_purity(self) -> None:
+    def test_consensus_entities_purity(self) -> None:
         path = (
             Path(__file__).resolve().parent.parent.parent.parent
             / "domain"
             / "entities"
-            / "conformal_risk.py"
+            / "consensus.py"
         )
         content = path.read_text(encoding="utf-8")
         forbidden = ["numpy", "scipy", "sklearn", "torch", "pandas", "infrastructure"]
@@ -56,114 +54,134 @@ class TestConformalDomainPurity:
             assert f"from {pkg}" not in content
 
 
-class TestConformalEntitiesImmutability:
-    """Verifica la inmutabilidad de ConformalBound y AdaptiveGateDecision."""
+class TestConsensusEntitiesImmutability:
+    """Verifica la inmutabilidad de KuramotoGateConfig, KuramotoState y ConsensusDecision."""
 
-    def test_conformal_bound_is_frozen(self) -> None:
-        bound = ConformalBound(
-            alpha_target=0.01,
-            base_threshold=100.0,
-            current_dynamic_threshold=120.0,
+    def test_config_is_frozen(self) -> None:
+        cfg = KuramotoGateConfig(delta_t=0.05)
+        with pytest.raises(FrozenInstanceError):
+            cfg.delta_t = 0.10  # type: ignore[misc]
+
+    def test_state_is_frozen(self) -> None:
+        st = KuramotoState(
+            step=1,
+            order_parameter=0.5,
+            global_phase=1.0,
+            phase_velocity=0.0,
+            phases={"exp1": 0.0},
         )
         with pytest.raises(FrozenInstanceError):
-            bound.current_dynamic_threshold = 150.0  # type: ignore[misc]
+            st.order_parameter = 0.9  # type: ignore[misc]
 
-    def test_adaptive_gate_decision_is_frozen(self) -> None:
-        decision = AdaptiveGateDecision(
+    def test_decision_is_frozen(self) -> None:
+        decision = ConsensusDecision(
             step=1,
             operational_state=SystemOperationalState.RESTING,
-            martingale_value=1.2,
-            dynamic_threshold=100.0,
-            certification=RiskCertificationStatus.NOMINAL,
+            order_parameter=0.2,
+            phase_velocity=0.0,
+            dynamic_threshold=0.85,
             is_triggered=False,
-            active_expert_weights={"exp1": 1.0},
-            budget_penalty_factor=1.0,
             reason="nominal",
         )
         with pytest.raises(FrozenInstanceError):
             decision.is_triggered = True  # type: ignore[misc]
 
-
-class TestOnlineConformalCalibrator:
-    """Valida el cálculo de e-values y la actualización adaptativa Hedge."""
-
-    def test_protocol_compliance(self) -> None:
-        calibrator = OnlineConformalCalibrator()
-        assert isinstance(calibrator, OnlineCalibratorPort)
-
-    def test_e_values_computation(self) -> None:
-        calibrator = OnlineConformalCalibrator(nominal_prior_rate=0.05, betting_fraction=5.0)
-
-        # Evidencia nominal: p = 0.01 -> e-value < 1.0
-        ev_nom = EvidenceScore("exp1", RepresentationLevel.TEN_X, 0.01, 0.05)
-        # Evidencia anómala: p = 0.90 -> e-value >> 1.0
-        ev_anom = EvidenceScore("exp2", RepresentationLevel.RAW, 0.90, 1.0)
-
-        e_vals = calibrator.compute_e_values([ev_nom, ev_anom])
-        assert len(e_vals) == 2
-        assert e_vals[0] < 1.0  # Shrinkage bajo H0
-        assert e_vals[1] > 4.0  # Crecimiento de evidencia bajo H1
-
-    def test_hedge_weight_adaptation(self) -> None:
-        calibrator = OnlineConformalCalibrator(
-            known_experts=["noisy_expert", "reliable_expert"],
-            learning_rate=0.3,
-        )
-
-        # Simular 5 pasos en RESTING donde noisy_expert emite falsas alarmas (p=0.85)
-        # y reliable_expert emite p=0.01
-        for _ in range(5):
-            ev_noisy = EvidenceScore("noisy_expert", RepresentationLevel.TEN_X, 0.85, 0.05)
-            ev_reliable = EvidenceScore("reliable_expert", RepresentationLevel.TEN_X, 0.01, 0.05)
-            e_vals = calibrator.compute_e_values([ev_noisy, ev_reliable])
-            calibrator.update_weights([ev_noisy, ev_reliable], e_vals, SystemOperationalState.RESTING)
-
-        weights = calibrator.current_weights
-        assert weights["reliable_expert"] > weights["noisy_expert"]
-        assert pytest.approx(sum(weights.values()), rel=1e-5) == 1.0
+        # Verificar compatibilidad duck-typing con CausalAggregator
+        assert decision.martingale_value == 20.0
 
 
-class TestLatencyBudgetAwareGate:
-    """Valida el proceso de martingala de Ville y el umbral adaptativo."""
+class TestKuramotoConsensusGate:
+    """Valida la dinámica de sincronización de Adler-Kuramoto y el control NAB."""
 
     def test_protocol_compliance(self) -> None:
-        calibrator = OnlineConformalCalibrator()
-        gate = LatencyBudgetAwareGate(calibrator)
+        gate = KuramotoConsensusGate(expert_names=["exp1", "exp2", "exp3"])
+        assert isinstance(gate, ConsensusGatePort)
         assert isinstance(gate, AdaptiveMetaGatePort)
 
-    def test_budget_and_state_threshold_modulation(self) -> None:
-        calibrator = OnlineConformalCalibrator()
-        gate = LatencyBudgetAwareGate(calibrator, alpha_target=0.01)  # Base tau = 100
+    def test_noise_immunity_resting(self) -> None:
+        # En reposo con un solo experto ruidoso al 85%, el sistema no se sincroniza
+        gate = KuramotoConsensusGate(
+            expert_names=["fast_raw", "mid_2x", "slow_10x"],
+            expert_levels={
+                "fast_raw": RepresentationLevel.RAW,
+                "mid_2x": RepresentationLevel.TWO_X,
+                "slow_10x": RepresentationLevel.TEN_X,
+            },
+        )
 
-        ev = [EvidenceScore("exp1", RepresentationLevel.TEN_X, 0.01, 0.05)]
+        for step in range(1, 20):
+            evidences = [
+                EvidenceScore("fast_raw", RepresentationLevel.RAW, 0.85, 1.0),
+                EvidenceScore("mid_2x", RepresentationLevel.TWO_X, 0.02, 0.2),
+                EvidenceScore("slow_10x", RepresentationLevel.TEN_X, 0.01, 0.05),
+            ]
+            dec = gate.evaluate_step(step, evidences, SystemOperationalState.RESTING)
+            assert dec.is_triggered is False
+            assert dec.order_parameter < dec.dynamic_threshold
 
-        # 1. En RESTING y 100% budget -> tau = 100 * 1.5 = 150
-        dec_resting = gate.evaluate_step(1, ev, SystemOperationalState.RESTING, budget_remaining_ratio=1.0)
-        assert dec_resting.dynamic_threshold == 150.0
+    def test_coherent_anomaly_trigger(self) -> None:
+        # Ante falla donde 2 o más expertos confirman peligro, los osciladores colapsan en fase
+        gate = KuramotoConsensusGate(
+            expert_names=["fast_raw", "mid_2x", "slow_10x"],
+        )
 
-        # 2. En SHOCKED y 100% budget -> tau = 100 * 0.6 = 60
-        dec_shock = gate.evaluate_step(2, ev, SystemOperationalState.SHOCKED, budget_remaining_ratio=1.0)
-        assert dec_shock.dynamic_threshold == 60.0
-
-        # 3. Bajo estrés de budget (budget_remaining_ratio = 0.5, penalty_weight = 1.5)
-        # penalty = 1.0 + 1.5 * 0.5 = 1.75 -> tau = 100 * 1.75 * 1.0 = 175
-        dec_stressed = gate.evaluate_step(3, ev, SystemOperationalState.DRIFTING, budget_remaining_ratio=0.5)
-        assert dec_stressed.dynamic_threshold == 175.0
-
-    def test_certified_alarm_trigger(self) -> None:
-        calibrator = OnlineConformalCalibrator()
-        gate = LatencyBudgetAwareGate(calibrator, alpha_target=0.05)  # Base tau = 20
-
-        # Evidencia persistente muy alta
-        ev = [EvidenceScore("shock_raw", RepresentationLevel.RAW, 0.99, 1.0)]
-
-        decision = None
-        for step in range(1, 10):
-            decision = gate.evaluate_step(step, ev, SystemOperationalState.SHOCKED)
-            if decision.is_triggered:
+        triggered = False
+        for step in range(1, 15):
+            evidences = [
+                EvidenceScore("fast_raw", RepresentationLevel.RAW, 0.95, 1.0),
+                EvidenceScore("mid_2x", RepresentationLevel.TWO_X, 0.90, 0.2),
+                EvidenceScore("slow_10x", RepresentationLevel.TEN_X, 0.85, 0.05),
+            ]
+            dec = gate.evaluate_step(step, evidences, SystemOperationalState.SHOCKED)
+            if dec.is_triggered:
+                triggered = True
+                assert dec.order_parameter >= 0.40
                 break
 
-        assert decision is not None
-        assert decision.is_triggered is True
-        assert decision.certification == RiskCertificationStatus.CERTIFIED_ALARM
-        assert "ville_threshold_exceeded" in decision.reason
+        assert triggered is True
+
+    def test_topological_quenching(self) -> None:
+        # Tras un disparo, se activa el quenching refractario que desincroniza el sistema
+        gate = KuramotoConsensusGate(
+            expert_names=["fast_raw", "mid_2x", "slow_10x"],
+            config=KuramotoGateConfig(refractory_steps=3),
+        )
+
+        ev_anom = [
+            EvidenceScore("fast_raw", RepresentationLevel.RAW, 0.99, 1.0),
+            EvidenceScore("mid_2x", RepresentationLevel.TWO_X, 0.99, 0.2),
+            EvidenceScore("slow_10x", RepresentationLevel.TEN_X, 0.99, 0.05),
+        ]
+
+        # Forzar trigger
+        step_trig = None
+        for step in range(1, 25):
+            dec = gate.evaluate_step(step, ev_anom, SystemOperationalState.SHOCKED)
+            if dec.is_triggered:
+                step_trig = step
+                break
+
+        assert step_trig is not None
+        # En el paso inmediato siguiente, debe entrar en quenching
+        dec_next = gate.evaluate_step(step_trig + 1, ev_anom, SystemOperationalState.SHOCKED)
+        assert dec_next.is_triggered is False
+        assert dec_next.reason == "refractory_quenching_cooldown"
+
+    def test_calibrate_from_warmup(self) -> None:
+        gate = KuramotoConsensusGate(expert_names=["e1", "e2", "e3"])
+        nominal_r = [0.05, 0.08, 0.12, 0.06, 0.10, 0.14]
+        gate.calibrate_from_warmup(nominal_r)
+        # Umbral RESTING debe ser mayor que el máximo observado
+        assert gate.state_thresholds[SystemOperationalState.RESTING] > max(nominal_r)
+
+    def test_submillisecond_latency(self) -> None:
+        gate = KuramotoConsensusGate(expert_names=["e1", "e2", "e3"])
+        ev = [EvidenceScore("e1", RepresentationLevel.RAW, 0.1, 1.0)]
+
+        t0 = time.perf_counter()
+        for step in range(500):
+            gate.evaluate_step(step, ev, SystemOperationalState.RESTING)
+        total_time_ms = (time.perf_counter() - t0) * 1000.0
+
+        latency_per_step_us = (total_time_ms / 500) * 1000.0
+        assert latency_per_step_us < 97.0  # Garantía estricta < 0.097 ms (97 microsegundos)

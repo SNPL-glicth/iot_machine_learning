@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .base_adapter import BaseExpertAdapter
-from infrastructure.ml.interfaces import PredictionEngine
+from iot_machine_learning.infrastructure.ml.interfaces import PredictionEngine
 
 
 class TaylorExpertAdapter(BaseExpertAdapter):

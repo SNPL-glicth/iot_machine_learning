@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-01T12:49:47.366692",
+  "timestamp": "2026-10-02T13:07:00.553224",
   "dataset_a_industrial": {
     "dataset_name": "machine_temperature_system_failure.csv",
     "total_points": 22695,
@@ -11,15 +11,15 @@
       "4": 7
     },
     "delays_fase2_certified": {
-      "1": 3,
+      "1": 13,
       "2": 6,
       "3": 2,
-      "4": 7
+      "4": 27
     },
     "total_alarms_fase1": 1892,
-    "total_alarms_fase2": 1803,
+    "total_alarms_fase2": 174,
     "clusters_fase1": 20,
-    "clusters_fase2": 28,
+    "clusters_fase2": 174,
     "telemetry": {
       "dispatches_by_level": {
         "10X": 504,
@@ -36,21 +36,21 @@
       "compute_savings_ratio": 0.7605
     },
     "final_expert_weights": {
-      "resting_invariants_10x": 3.1481314341596344e-37,
-      "regime_shift_2x": 0.9999790683809396,
-      "high_frequency_raw": 2.0931619060373456e-05
+      "resting_invariants_10x": 0.9892,
+      "regime_shift_2x": 0.0,
+      "high_frequency_raw": 0.5537
     }
   },
   "dataset_b_financial": {
     "dataset_name": "NVDA_1m.csv",
     "total_points": 2729,
     "false_alarms_fase1_static": 74,
-    "false_alarms_fase2_certified": 38,
-    "false_alarm_reduction_pct": 48.6,
+    "false_alarms_fase2_certified": 10,
+    "false_alarm_reduction_pct": 86.5,
     "final_expert_weights": {
-      "resting_invariants_10x": 0.0023133336173769923,
-      "regime_shift_2x": 0.9750935889863784,
-      "high_frequency_raw": 0.022593077396244554
+      "resting_invariants_10x": 0.9906,
+      "regime_shift_2x": 0.9315,
+      "high_frequency_raw": 0.8655
     }
   },
   "invariants_verified": {

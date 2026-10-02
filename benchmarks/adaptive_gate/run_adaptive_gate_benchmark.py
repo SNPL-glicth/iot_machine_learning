@@ -38,10 +38,10 @@ from benchmarks.representation_audit.runner import (
     load_canonical_windows,
     load_dataset,
 )
-from domain.entities.conformal_risk import (
-    AdaptiveGateDecision,
-    ConformalBound,
-    RiskCertificationStatus,
+from domain.entities.consensus import (
+    ConsensusDecision,
+    KuramotoGateConfig,
+    KuramotoState,
 )
 from domain.entities.representation_evidence import (
     EvidenceScore,
@@ -49,10 +49,7 @@ from domain.entities.representation_evidence import (
     RepresentationLevel,
     SystemOperationalState,
 )
-from infrastructure.ml.moe.adaptive import (
-    LatencyBudgetAwareGate,
-    OnlineConformalCalibrator,
-)
+from infrastructure.ml.moe.adaptive import KuramotoConsensusGate
 from infrastructure.ml.moe.asymmetric import (
     AsymmetricDispatcher,
     EvidenceAccumulator,
@@ -139,23 +136,10 @@ def run_benchmark() -> dict[str, Any]:
     policy_a = AgnosticRepresentationPolicy(level_prof_a, shock_prof_a, block_size=10)
     dispatcher_a = AsymmetricDispatcher(all_experts_a)
 
-    # Puerta de Fase 2: LatencyBudgetAwareGate con calibrador online Hedge
-    online_calibrator_a = OnlineConformalCalibrator(
-        nominal_prior_rate=0.05,
-        betting_fraction=5.0,
-        learning_rate=0.15,
-        known_experts=[e.name for e in all_experts_a],
-    )
-    meta_gate_a = LatencyBudgetAwareGate(
-        calibrator=online_calibrator_a,
-        alpha_target=0.05,  # Cota de Ville base = 20.0 (95% nivel conforme canónico)
-        budget_penalty_weight=1.5,
-        shrinkage_lambda=0.02,
-        state_multipliers={
-            SystemOperationalState.RESTING: 1.8,
-            SystemOperationalState.DRIFTING: 0.6,
-            SystemOperationalState.SHOCKED: 0.4,
-        },
+    # Puerta de Fase 2.5: KuramotoConsensusGate
+    meta_gate_a = KuramotoConsensusGate(
+        expert_names=[e.name for e in all_experts_a],
+        config=KuramotoGateConfig(),
     )
 
     # Acumulador Fase 1 previo para comparación
@@ -234,23 +218,9 @@ def run_benchmark() -> dict[str, Any]:
     # Comparación estática (Fase 1) vs Adaptativa Certificada (Fase 2)
     fase1_acc_b = EvidenceAccumulator(alarm_threshold=3.5, leak_rate=0.05, reset_on_alarm=True)
 
-    online_calibrator_b = OnlineConformalCalibrator(
-        nominal_prior_rate=0.05,
-        betting_fraction=5.0,
-        learning_rate=0.25,
-        known_experts=[e.name for e in all_experts_b],
-    )
-    meta_gate_b = LatencyBudgetAwareGate(
-        calibrator=online_calibrator_b,
-        alpha_target=0.008,
-        reset_on_trigger=True,
-        budget_penalty_weight=1.5,
-        shrinkage_lambda=0.10,
-        state_multipliers={
-            SystemOperationalState.RESTING: 3.5,
-            SystemOperationalState.DRIFTING: 1.2,
-            SystemOperationalState.SHOCKED: 0.6,
-        },
+    meta_gate_b = KuramotoConsensusGate(
+        expert_names=[e.name for e in all_experts_b],
+        config=KuramotoGateConfig(refractory_steps=5),
     )
 
     alarms_b_fase1: list[int] = []
@@ -300,7 +270,7 @@ def run_benchmark() -> dict[str, Any]:
             "clusters_fase1": count_clusters(alarms_fase1),
             "clusters_fase2": count_clusters(alarms_fase2),
             "telemetry": telemetry_a,
-            "final_expert_weights": dict(online_calibrator_a.current_weights),
+            "final_expert_weights": meta_gate_a._last_decision.active_expert_weights if meta_gate_a._last_decision else {},
         },
         "dataset_b_financial": {
             "dataset_name": "NVDA_1m.csv",
@@ -308,7 +278,7 @@ def run_benchmark() -> dict[str, Any]:
             "false_alarms_fase1_static": tot_fp_fase1,
             "false_alarms_fase2_certified": tot_fp_fase2,
             "false_alarm_reduction_pct": fp_reduction_pct,
-            "final_expert_weights": dict(online_calibrator_b.current_weights),
+            "final_expert_weights": meta_gate_b._last_decision.active_expert_weights if meta_gate_b._last_decision else {},
         },
         "invariants_verified": {
             "no_regression_compute_savings_ge_70": telemetry_a["compute_savings_ratio"] >= 0.70,

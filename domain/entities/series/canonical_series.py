@@ -80,3 +80,8 @@ class TimeWindow:
         if len(self.points) < 2:
             return 0.0
         return float(self.points[-1].timestamp - self.points[0].timestamp)
+
+
+# Canonical alias for TimeWindow
+CanonicalSeries = TimeWindow
+

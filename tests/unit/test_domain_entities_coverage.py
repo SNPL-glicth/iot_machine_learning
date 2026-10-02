@@ -40,7 +40,7 @@ class TestSeverityEntity:
         from iot_machine_learning.domain.entities.results.severity import SeverityResult
         sr = SeverityResult("LOW", "info", False, "Monitor")
         with pytest.raises(AttributeError):
-            sr.risk_level = "MEDIUM"
+            setattr(sr, "risk_level", "MEDIUM")
 
 
 class TestThresholdEntity:
