@@ -1,0 +1,1096 @@
+{
+  "total_datasets": 58,
+  "total_points": 365558,
+  "total_windows": 116,
+  "total_tp_events": 91,
+  "global_recall_pct": 78.45,
+  "total_fp_points": 1362,
+  "total_elapsed_s": 10.8,
+  "corpus_throughput_pts_s": 33861.0,
+  "operational_scores": {
+    "standard": 9.19,
+    "low_fp": -18.12,
+    "low_fn": 28.44
+  },
+  "optimal_scores": {
+    "standard": {
+      "score": 12.01,
+      "threshold": 0.4
+    },
+    "low_fp": {
+      "score": -2.53,
+      "threshold": 0.95
+    },
+    "low_fn": {
+      "score": 45.47,
+      "threshold": 0.35
+    }
+  },
+  "category_metrics": {
+    "artificialNoAnomaly": {
+      "num_files": 5,
+      "num_windows": 0,
+      "total_points": 20160,
+      "tp_events": 0,
+      "recall_pct": 100.0,
+      "fp_points": 45,
+      "standard_score": 100.0,
+      "low_fp_score": 100.0,
+      "low_fn_score": 100.0
+    },
+    "artificialWithAnomaly": {
+      "num_files": 6,
+      "num_windows": 6,
+      "total_points": 24192,
+      "tp_events": 5,
+      "recall_pct": 83.33,
+      "fp_points": 45,
+      "standard_score": 36.32,
+      "low_fp_score": 6.57,
+      "low_fn_score": 56.35
+    },
+    "realAWSCloudwatch": {
+      "num_files": 17,
+      "num_windows": 30,
+      "total_points": 67740,
+      "tp_events": 22,
+      "recall_pct": 73.33,
+      "fp_points": 259,
+      "standard_score": 5.42,
+      "low_fp_score": -17.74,
+      "low_fn_score": 22.44
+    },
+    "realAdExchange": {
+      "num_files": 6,
+      "num_windows": 14,
+      "total_points": 9610,
+      "tp_events": 8,
+      "recall_pct": 57.14,
+      "fp_points": 45,
+      "standard_score": 10.26,
+      "low_fp_score": 6.93,
+      "low_fn_score": 12.72
+    },
+    "realKnownCause": {
+      "num_files": 7,
+      "num_windows": 19,
+      "total_points": 69561,
+      "tp_events": 16,
+      "recall_pct": 84.21,
+      "fp_points": 334,
+      "standard_score": -5.96,
+      "low_fp_score": -45.28,
+      "low_fn_score": 21.41
+    },
+    "realTraffic": {
+      "num_files": 7,
+      "num_windows": 14,
+      "total_points": 15664,
+      "tp_events": 8,
+      "recall_pct": 57.14,
+      "fp_points": 44,
+      "standard_score": -8.25,
+      "low_fp_score": -16.5,
+      "low_fn_score": -2.75
+    },
+    "realTweets": {
+      "num_files": 10,
+      "num_windows": 33,
+      "total_points": 158631,
+      "tp_events": 32,
+      "recall_pct": 96.97,
+      "fp_points": 590,
+      "standard_score": 30.34,
+      "low_fp_score": -4.63,
+      "low_fn_score": 55.12
+    }
+  },
+  "datasets": [
+    {
+      "rel_path": "artificialNoAnomaly/art_daily_no_noise.csv",
+      "category": "artificialNoAnomaly",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 10,
+      "elapsed_s": 0.044,
+      "throughput_pts_s": 91787.7,
+      "raw_scores": {
+        "standard": -1.1,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialNoAnomaly/art_daily_perfect_square_wave.csv",
+      "category": "artificialNoAnomaly",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 10,
+      "elapsed_s": 0.036,
+      "throughput_pts_s": 111482.4,
+      "raw_scores": {
+        "standard": -1.1,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialNoAnomaly/art_daily_small_noise.csv",
+      "category": "artificialNoAnomaly",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 10,
+      "elapsed_s": 0.04,
+      "throughput_pts_s": 102047.4,
+      "raw_scores": {
+        "standard": -1.1,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialNoAnomaly/art_flatline.csv",
+      "category": "artificialNoAnomaly",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 0,
+      "elapsed_s": 0.045,
+      "throughput_pts_s": 89910.2,
+      "raw_scores": {
+        "standard": 0.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialNoAnomaly/art_noisy.csv",
+      "category": "artificialNoAnomaly",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 15,
+      "elapsed_s": 0.041,
+      "throughput_pts_s": 99530.0,
+      "raw_scores": {
+        "standard": -1.3200000000000003,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_daily_flatmiddle.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 11,
+      "elapsed_s": 0.035,
+      "throughput_pts_s": 113587.1,
+      "raw_scores": {
+        "standard": 0.012474058266564891,
+        "low_fp": 4.0463783216620755,
+        "low_fn": 82.60824347277422
+      },
+      "standard_score_norm": 50.62
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_daily_jumpsdown.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 8,
+      "elapsed_s": 0.041,
+      "throughput_pts_s": 98267.9,
+      "raw_scores": {
+        "standard": 0.11543050702930113,
+        "low_fp": 11.798914804157622,
+        "low_fn": 85.1718870834125
+      },
+      "standard_score_norm": 55.77
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_daily_jumpsup.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 9,
+      "elapsed_s": 0.099,
+      "throughput_pts_s": 40662.9,
+      "raw_scores": {
+        "standard": 0.11543050702930113,
+        "low_fp": 11.798914804157622,
+        "low_fn": 85.1718870834125
+      },
+      "standard_score_norm": 55.77
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_daily_nojump.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 10,
+      "elapsed_s": 0.078,
+      "throughput_pts_s": 51667.1,
+      "raw_scores": {
+        "standard": 0.11543050702930113,
+        "low_fp": 11.798914804157622,
+        "low_fn": 85.1718870834125
+      },
+      "standard_score_norm": 55.77
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_increase_spike_density.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 0,
+      "elapsed_s": 0.052,
+      "throughput_pts_s": 77881.8,
+      "raw_scores": {
+        "standard": -1.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "artificialWithAnomaly/art_load_balancer_spikes.csv",
+      "category": "artificialWithAnomaly",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 7,
+      "elapsed_s": 0.045,
+      "throughput_pts_s": 88855.4,
+      "raw_scores": {
+        "standard": -1.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_24ae8d.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 1,
+      "recall_pct": 50.0,
+      "fp_points": 14,
+      "elapsed_s": 0.041,
+      "throughput_pts_s": 98045.0,
+      "raw_scores": {
+        "standard": -0.09997165852350132,
+        "low_fp": 16.38715099220822,
+        "low_fn": 75.37165820617639
+      },
+      "standard_score_norm": 47.5
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_53ea38.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 17,
+      "elapsed_s": 0.045,
+      "throughput_pts_s": 89894.9,
+      "raw_scores": {
+        "standard": -0.5576271420170603,
+        "low_fp": -5.017944800713114,
+        "low_fn": 71.06530304981119
+      },
+      "standard_score_norm": 36.06
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_5f5533.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 28,
+      "elapsed_s": 0.044,
+      "throughput_pts_s": 91704.4,
+      "raw_scores": {
+        "standard": -1.9808582460206332,
+        "low_fp": -49.016821155426435,
+        "low_fn": 33.484150901292985
+      },
+      "standard_score_norm": 0.48
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_77c1ca.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 9,
+      "elapsed_s": 0.035,
+      "throughput_pts_s": 113819.1,
+      "raw_scores": {
+        "standard": 0.12507232453827533,
+        "low_fp": 13.212215386333186,
+        "low_fn": 85.18287776480271
+      },
+      "standard_score_norm": 56.25
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_825cc2.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 25,
+      "elapsed_s": 0.033,
+      "throughput_pts_s": 122608.2,
+      "raw_scores": {
+        "standard": -1.7915044027380422,
+        "low_fp": -79.15044027380422,
+        "low_fn": -13.19174004563403
+      },
+      "standard_score_norm": -39.58
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_ac20cd.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 4,
+      "elapsed_s": 0.04,
+      "throughput_pts_s": 101102.1,
+      "raw_scores": {
+        "standard": 0.8641428549778215,
+        "low_fp": 93.20714274889109,
+        "low_fn": 95.47142849926071
+      },
+      "standard_score_norm": 93.21
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_c6585a.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 0,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 19,
+      "elapsed_s": 0.039,
+      "throughput_pts_s": 104273.3,
+      "raw_scores": {
+        "standard": -3.1899999999999995,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_cpu_utilization_fe7f93.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 3,
+      "tp_events": 2,
+      "recall_pct": 66.67,
+      "fp_points": 21,
+      "elapsed_s": 0.039,
+      "throughput_pts_s": 102430.5,
+      "raw_scores": {
+        "standard": -3.3339295792416026,
+        "low_fp": -30.890670521182514,
+        "low_fn": 15.842508297478572
+      },
+      "standard_score_norm": -5.57
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_disk_write_bytes_1ef3de.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4730,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 10,
+      "elapsed_s": 0.045,
+      "throughput_pts_s": 104147.4,
+      "raw_scores": {
+        "standard": -1.3531626261048453,
+        "low_fp": -35.31626261048453,
+        "low_fn": -5.886043768414091
+      },
+      "standard_score_norm": -17.66
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_disk_write_bytes_c0d644.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 3,
+      "tp_events": 1,
+      "recall_pct": 33.33,
+      "fp_points": 7,
+      "elapsed_s": 0.042,
+      "throughput_pts_s": 96849.1,
+      "raw_scores": {
+        "standard": -1.1356422567087214,
+        "low_fp": 29.239295721521312,
+        "low_fn": 32.43730825879199
+      },
+      "standard_score_norm": 31.07
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_network_in_257a54.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 47,
+      "elapsed_s": 0.038,
+      "throughput_pts_s": 106380.1,
+      "raw_scores": {
+        "standard": -1.11,
+        "low_fp": -10.999999999999998,
+        "low_fn": -1.8333333333333386
+      },
+      "standard_score_norm": -5.5
+    },
+    {
+      "rel_path": "realAWSCloudwatch/ec2_network_in_5abac7.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4730,
+      "num_windows": 2,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 2,
+      "elapsed_s": 0.044,
+      "throughput_pts_s": 107423.6,
+      "raw_scores": {
+        "standard": -2.11,
+        "low_fp": -5.500000000000005,
+        "low_fn": -0.916666666666662
+      },
+      "standard_score_norm": -2.75
+    },
+    {
+      "rel_path": "realAWSCloudwatch/elb_request_count_8c0756.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 25,
+      "elapsed_s": 0.042,
+      "throughput_pts_s": 95725.1,
+      "raw_scores": {
+        "standard": -3.2082625021631817,
+        "low_fp": -60.41312510815908,
+        "low_fn": -10.06885418469318
+      },
+      "standard_score_norm": -30.21
+    },
+    {
+      "rel_path": "realAWSCloudwatch/grok_asg_anomaly.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4621,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 15,
+      "elapsed_s": 0.048,
+      "throughput_pts_s": 96106.8,
+      "raw_scores": {
+        "standard": -3.22,
+        "low_fp": -7.333333333333332,
+        "low_fn": -1.2222222222222259
+      },
+      "standard_score_norm": -3.67
+    },
+    {
+      "rel_path": "realAWSCloudwatch/iio_us-east-1_i-a2eb1cd9_NetworkIn.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 1243,
+      "num_windows": 2,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 0,
+      "elapsed_s": 0.016,
+      "throughput_pts_s": 76885.9,
+      "raw_scores": {
+        "standard": -2.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "realAWSCloudwatch/rds_cpu_utilization_cc0c53.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 11,
+      "elapsed_s": 0.035,
+      "throughput_pts_s": 116727.9,
+      "raw_scores": {
+        "standard": -2.44,
+        "low_fp": -21.999999999999996,
+        "low_fn": -3.6666666666666625
+      },
+      "standard_score_norm": -11.0
+    },
+    {
+      "rel_path": "realAWSCloudwatch/rds_cpu_utilization_e47b3b.csv",
+      "category": "realAWSCloudwatch",
+      "total_points": 4032,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 5,
+      "elapsed_s": 0.038,
+      "throughput_pts_s": 106565.0,
+      "raw_scores": {
+        "standard": -0.2087742569756298,
+        "low_fp": 42.030643575609254,
+        "low_fn": 47.43709571707284
+      },
+      "standard_score_norm": 44.78
+    },
+    {
+      "rel_path": "realAdExchange/exchange-2_cpc_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1624,
+      "num_windows": 1,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 3,
+      "elapsed_s": 0.015,
+      "throughput_pts_s": 108383.9,
+      "raw_scores": {
+        "standard": -1.11,
+        "low_fp": -10.999999999999998,
+        "low_fn": -1.8333333333333386
+      },
+      "standard_score_norm": -5.5
+    },
+    {
+      "rel_path": "realAdExchange/exchange-2_cpm_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1624,
+      "num_windows": 2,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 4,
+      "elapsed_s": 0.019,
+      "throughput_pts_s": 86176.5,
+      "raw_scores": {
+        "standard": -2.162601531597249,
+        "low_fp": -8.130076579862433,
+        "low_fn": -1.3550127633104037
+      },
+      "standard_score_norm": -4.07
+    },
+    {
+      "rel_path": "realAdExchange/exchange-3_cpc_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1538,
+      "num_windows": 3,
+      "tp_events": 2,
+      "recall_pct": 66.67,
+      "fp_points": 2,
+      "elapsed_s": 0.015,
+      "throughput_pts_s": 103245.9,
+      "raw_scores": {
+        "standard": -3.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "realAdExchange/exchange-3_cpm_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1538,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 2,
+      "elapsed_s": 0.015,
+      "throughput_pts_s": 104874.7,
+      "raw_scores": {
+        "standard": 0.7111917879209999,
+        "low_fp": 80.0623513151177,
+        "low_fn": 92.20547229101076
+      },
+      "standard_score_norm": 85.56
+    },
+    {
+      "rel_path": "realAdExchange/exchange-4_cpc_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1643,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 17,
+      "elapsed_s": 0.017,
+      "throughput_pts_s": 95115.1,
+      "raw_scores": {
+        "standard": -3.22,
+        "low_fp": -7.333333333333332,
+        "low_fn": -1.2222222222222259
+      },
+      "standard_score_norm": -3.67
+    },
+    {
+      "rel_path": "realAdExchange/exchange-4_cpm_results.csv",
+      "category": "realAdExchange",
+      "total_points": 1643,
+      "num_windows": 4,
+      "tp_events": 2,
+      "recall_pct": 50.0,
+      "fp_points": 17,
+      "elapsed_s": 0.018,
+      "throughput_pts_s": 92804.6,
+      "raw_scores": {
+        "standard": -2.3444206130661867,
+        "low_fp": 16.56988380276046,
+        "low_fn": 23.50478106908585
+      },
+      "standard_score_norm": 20.69
+    },
+    {
+      "rel_path": "realKnownCause/ambient_temperature_system_failure.csv",
+      "category": "realKnownCause",
+      "total_points": 7267,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 30,
+      "elapsed_s": 0.07,
+      "throughput_pts_s": 104307.8,
+      "raw_scores": {
+        "standard": -0.339155333577443,
+        "low_fp": 36.021116660563926,
+        "low_fn": 46.180744440375946
+      },
+      "standard_score_norm": 41.52
+    },
+    {
+      "rel_path": "realKnownCause/cpu_utilization_asg_misconfiguration.csv",
+      "category": "realKnownCause",
+      "total_points": 18050,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 89,
+      "elapsed_s": 0.2,
+      "throughput_pts_s": 90381.7,
+      "raw_scores": {
+        "standard": -9.56582749156509,
+        "low_fp": -100.0,
+        "low_fn": -76.19424971883633
+      },
+      "standard_score_norm": -100.0
+    },
+    {
+      "rel_path": "realKnownCause/ec2_request_latency_system_failure.csv",
+      "category": "realKnownCause",
+      "total_points": 4032,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 27,
+      "elapsed_s": 0.058,
+      "throughput_pts_s": 69458.6,
+      "raw_scores": {
+        "standard": -2.348306995986974,
+        "low_fp": -7.47066546776712,
+        "low_fn": 24.46288300058392
+      },
+      "standard_score_norm": 10.86
+    },
+    {
+      "rel_path": "realKnownCause/machine_temperature_system_failure.csv",
+      "category": "realKnownCause",
+      "total_points": 22695,
+      "num_windows": 4,
+      "tp_events": 4,
+      "recall_pct": 100.0,
+      "fp_points": 146,
+      "elapsed_s": 0.316,
+      "throughput_pts_s": 71727.9,
+      "raw_scores": {
+        "standard": -0.7706980839439022,
+        "low_fp": 32.289127148146164,
+        "low_fn": 46.26989823465251
+      },
+      "standard_score_norm": 40.37
+    },
+    {
+      "rel_path": "realKnownCause/nyc_taxi.csv",
+      "category": "realKnownCause",
+      "total_points": 10320,
+      "num_windows": 5,
+      "tp_events": 4,
+      "recall_pct": 80.0,
+      "fp_points": 21,
+      "elapsed_s": 0.099,
+      "throughput_pts_s": 103988.5,
+      "raw_scores": {
+        "standard": -3.425238554291891,
+        "low_fp": 13.568241404521055,
+        "low_fn": 17.8915339889074
+      },
+      "standard_score_norm": 15.75
+    },
+    {
+      "rel_path": "realKnownCause/rogue_agent_key_hold.csv",
+      "category": "realKnownCause",
+      "total_points": 1882,
+      "num_windows": 2,
+      "tp_events": 0,
+      "recall_pct": 0.0,
+      "fp_points": 13,
+      "elapsed_s": 0.016,
+      "throughput_pts_s": 117101.7,
+      "raw_scores": {
+        "standard": -3.2785654904805916,
+        "low_fp": -63.92827452402958,
+        "low_fn": -10.654712420671597
+      },
+      "standard_score_norm": -31.96
+    },
+    {
+      "rel_path": "realKnownCause/rogue_agent_key_updown.csv",
+      "category": "realKnownCause",
+      "total_points": 5315,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 8,
+      "elapsed_s": 0.045,
+      "throughput_pts_s": 118806.9,
+      "raw_scores": {
+        "standard": -1.5370466494088653,
+        "low_fp": -11.39799577281031,
+        "low_fn": 32.03983235571514
+      },
+      "standard_score_norm": 11.57
+    },
+    {
+      "rel_path": "realTraffic/TravelTime_387.csv",
+      "category": "realTraffic",
+      "total_points": 2500,
+      "num_windows": 3,
+      "tp_events": 1,
+      "recall_pct": 33.33,
+      "fp_points": 5,
+      "elapsed_s": 0.021,
+      "throughput_pts_s": 118135.7,
+      "raw_scores": {
+        "standard": -3.2198247104118973,
+        "low_fp": -7.327490347063251,
+        "low_fn": -1.2212483911772074
+      },
+      "standard_score_norm": -3.66
+    },
+    {
+      "rel_path": "realTraffic/TravelTime_451.csv",
+      "category": "realTraffic",
+      "total_points": 2162,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 0,
+      "elapsed_s": 0.022,
+      "throughput_pts_s": 97696.5,
+      "raw_scores": {
+        "standard": -1.22,
+        "low_fp": -21.999999999999996,
+        "low_fn": -3.6666666666666625
+      },
+      "standard_score_norm": -11.0
+    },
+    {
+      "rel_path": "realTraffic/occupancy_6005.csv",
+      "category": "realTraffic",
+      "total_points": 2380,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 1,
+      "elapsed_s": 0.024,
+      "throughput_pts_s": 97948.9,
+      "raw_scores": {
+        "standard": -1.22,
+        "low_fp": -21.999999999999996,
+        "low_fn": -3.6666666666666625
+      },
+      "standard_score_norm": -11.0
+    },
+    {
+      "rel_path": "realTraffic/occupancy_t4013.csv",
+      "category": "realTraffic",
+      "total_points": 2500,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 6,
+      "elapsed_s": 0.023,
+      "throughput_pts_s": 110273.5,
+      "raw_scores": {
+        "standard": -2.0,
+        "low_fp": 0.0,
+        "low_fn": 0.0
+      },
+      "standard_score_norm": 0.0
+    },
+    {
+      "rel_path": "realTraffic/speed_6005.csv",
+      "category": "realTraffic",
+      "total_points": 2500,
+      "num_windows": 1,
+      "tp_events": 1,
+      "recall_pct": 100.0,
+      "fp_points": 11,
+      "elapsed_s": 0.024,
+      "throughput_pts_s": 106069.8,
+      "raw_scores": {
+        "standard": -1.44,
+        "low_fp": -43.99999999999999,
+        "low_fn": -7.33333333333334
+      },
+      "standard_score_norm": -22.0
+    },
+    {
+      "rel_path": "realTraffic/speed_7578.csv",
+      "category": "realTraffic",
+      "total_points": 1127,
+      "num_windows": 4,
+      "tp_events": 1,
+      "recall_pct": 25.0,
+      "fp_points": 5,
+      "elapsed_s": 0.011,
+      "throughput_pts_s": 98902.8,
+      "raw_scores": {
+        "standard": -4.66,
+        "low_fp": -16.500000000000004,
+        "low_fn": -2.7500000000000004
+      },
+      "standard_score_norm": -8.25
+    },
+    {
+      "rel_path": "realTraffic/speed_t4013.csv",
+      "category": "realTraffic",
+      "total_points": 2495,
+      "num_windows": 2,
+      "tp_events": 1,
+      "recall_pct": 50.0,
+      "fp_points": 16,
+      "elapsed_s": 0.023,
+      "throughput_pts_s": 110693.6,
+      "raw_scores": {
+        "standard": -2.55,
+        "low_fp": -27.500000000000004,
+        "low_fn": -4.583333333333339
+      },
+      "standard_score_norm": -13.75
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_AAPL.csv",
+      "category": "realTweets",
+      "total_points": 15902,
+      "num_windows": 4,
+      "tp_events": 4,
+      "recall_pct": 100.0,
+      "fp_points": 62,
+      "elapsed_s": 0.159,
+      "throughput_pts_s": 99773.4,
+      "raw_scores": {
+        "standard": -0.9244636289368875,
+        "low_fp": 11.885184324937809,
+        "low_fn": 59.4824765299763
+      },
+      "standard_score_norm": 38.44
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_AMZN.csv",
+      "category": "realTweets",
+      "total_points": 15831,
+      "num_windows": 4,
+      "tp_events": 4,
+      "recall_pct": 100.0,
+      "fp_points": 93,
+      "elapsed_s": 0.152,
+      "throughput_pts_s": 104429.1,
+      "raw_scores": {
+        "standard": -4.243145471302667,
+        "low_fp": -26.30660541526686,
+        "low_fn": 14.062883413805608
+      },
+      "standard_score_norm": -3.04
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_CRM.csv",
+      "category": "realTweets",
+      "total_points": 15902,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 53,
+      "elapsed_s": 0.166,
+      "throughput_pts_s": 95807.3,
+      "raw_scores": {
+        "standard": 0.6728365904190857,
+        "low_fp": 29.50272687522565,
+        "low_fn": 84.71303421524289
+      },
+      "standard_score_norm": 61.21
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_CVS.csv",
+      "category": "realTweets",
+      "total_points": 15853,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 55,
+      "elapsed_s": 0.174,
+      "throughput_pts_s": 90850.9,
+      "raw_scores": {
+        "standard": -3.2769906423161705,
+        "low_fp": -73.57722626261302,
+        "low_fn": 42.13145360449039
+      },
+      "standard_score_norm": -4.62
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_FB.csv",
+      "category": "realTweets",
+      "total_points": 15833,
+      "num_windows": 2,
+      "tp_events": 1,
+      "recall_pct": 50.0,
+      "fp_points": 6,
+      "elapsed_s": 0.151,
+      "throughput_pts_s": 104833.5,
+      "raw_scores": {
+        "standard": -0.5568183286696295,
+        "low_fp": 22.32969968351487,
+        "low_fn": 45.30297522208764
+      },
+      "standard_score_norm": 36.08
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_GOOG.csv",
+      "category": "realTweets",
+      "total_points": 15842,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 33,
+      "elapsed_s": 0.153,
+      "throughput_pts_s": 103259.8,
+      "raw_scores": {
+        "standard": 1.477607734358644,
+        "low_fp": 51.14185287352061,
+        "low_fn": 90.91284461480387
+      },
+      "standard_score_norm": 74.63
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_IBM.csv",
+      "category": "realTweets",
+      "total_points": 15893,
+      "num_windows": 2,
+      "tp_events": 2,
+      "recall_pct": 100.0,
+      "fp_points": 68,
+      "elapsed_s": 0.167,
+      "throughput_pts_s": 95249.5,
+      "raw_scores": {
+        "standard": -0.34877624412902297,
+        "low_fp": -13.381612027459177,
+        "low_fn": 79.07446457259415
+      },
+      "standard_score_norm": 41.28
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_KO.csv",
+      "category": "realTweets",
+      "total_points": 15851,
+      "num_windows": 3,
+      "tp_events": 3,
+      "recall_pct": 100.0,
+      "fp_points": 76,
+      "elapsed_s": 0.161,
+      "throughput_pts_s": 98204.3,
+      "raw_scores": {
+        "standard": -0.21743097307646453,
+        "low_fp": -1.1182816230109378,
+        "low_fn": 80.08224432306257
+      },
+      "standard_score_norm": 46.38
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_PFE.csv",
+      "category": "realTweets",
+      "total_points": 15858,
+      "num_windows": 4,
+      "tp_events": 4,
+      "recall_pct": 100.0,
+      "fp_points": 84,
+      "elapsed_s": 0.157,
+      "throughput_pts_s": 100763.2,
+      "raw_scores": {
+        "standard": -3.614058924171875,
+        "low_fp": -38.199188569092115,
+        "low_fn": 34.22399297088227
+      },
+      "standard_score_norm": 4.82
+    },
+    {
+      "rel_path": "realTweets/Twitter_volume_UPS.csv",
+      "category": "realTweets",
+      "total_points": 15866,
+      "num_windows": 5,
+      "tp_events": 5,
+      "recall_pct": 100.0,
+      "fp_points": 60,
+      "elapsed_s": 0.168,
+      "throughput_pts_s": 94478.8,
+      "raw_scores": {
+        "standard": -1.9427440061820227,
+        "low_fp": 4.405435094606549,
+        "low_fn": 49.10408157331093
+      },
+      "standard_score_norm": 30.57
+    }
+  ]
+}

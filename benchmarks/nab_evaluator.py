@@ -471,8 +471,8 @@ class NABEvaluator:
         n_points = len(predictions)
 
         # Construir ventanas oficiales o sintéticas
-        if window_ranges is not None and len(window_ranges) > 0:
-            windows = self.build_windows_from_ranges(series_timestamps, window_ranges)
+        if window_ranges is not None:
+            windows = self.build_windows_from_ranges(series_timestamps, window_ranges) if len(window_ranges) > 0 else []
             window_limits = window_ranges
         elif anomaly_timestamps is not None:
             # Detectar si series_timestamps ya son números flotantes o timestamps de fecha
@@ -701,7 +701,11 @@ class NABEvaluator:
             )
             null_std = -1.0 * num_windows
             perf_std = 1.0 * num_windows
-            opt_standard_score = 100.0 * (opt_row.score - null_std) / (perf_std - null_std)
+            opt_denom = perf_std - null_std
+            if opt_denom > 0:
+                opt_standard_score = 100.0 * (opt_row.score - null_std) / opt_denom
+            else:
+                opt_standard_score = 100.0 if opt_row.score == 0 else 0.0
             opt_thresh = opt_row.threshold
 
         return NABScoreResult(

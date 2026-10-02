@@ -1,0 +1,478 @@
+{
+  "ZENIN Completo": {
+    "report": {
+      "dataset_name": "ZENIN Completo",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 28,
+        "fp": 146,
+        "fn": 2240,
+        "tn": 20281,
+        "precision": 0.16091954022988506,
+        "recall": 0.012345679012345678,
+        "f1": 0.02293202293202293,
+        "auc_roc": 0.49806097490534756,
+        "auc_pr": 0.10574042331946162
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 4,
+        "fn_events": 0,
+        "fp_points": 146,
+        "fp_clusters": 146,
+        "recall_event": 1.0,
+        "precision_event_pointwise": 0.02666666666666667,
+        "precision_event_cluster": 0.02666666666666667,
+        "f1_event_cluster": 0.05194805194805195,
+        "f1_event_pointwise": 0.05194805194805195,
+        "detection_delays_points": [
+          13,
+          6,
+          2,
+          27
+        ],
+        "detection_delays_relative": [
+          0.02292768959435626,
+          0.010582010582010581,
+          0.003527336860670194,
+          0.047619047619047616
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": 40.36627395070123,
+        "low_fp_score": 32.289127148146164,
+        "low_fn_score": 46.26989823465251,
+        "raw_score": -0.7706980839439022,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.45708581000000004,
+        "optimal_standard_score": 86.52135651493549
+      },
+      "range_based": {
+        "range_recall": 0.5061728395061729,
+        "range_precision": 0.16091954022988506,
+        "range_f1": 0.24420336098702403
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 1.709,
+      "throughput_pts_per_sec": 12694.1,
+      "cpu_user_s": 1.69,
+      "cpu_sys_s": 0.0,
+      "cpu_avg_pct": 129.2,
+      "memory_peak_mb": 192.29,
+      "memory_delta_mb": 2.03,
+      "latency_p50_us": 11.41,
+      "latency_p95_us": 509.23,
+      "latency_p99_us": 778.47
+    }
+  },
+  "ZENIN sin Quenching": {
+    "report": {
+      "dataset_name": "ZENIN sin Quenching",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 102,
+        "fp": 479,
+        "fn": 2166,
+        "tn": 19948,
+        "precision": 0.17555938037865748,
+        "recall": 0.04497354497354497,
+        "f1": 0.0716040716040716,
+        "auc_roc": 0.5040649440443015,
+        "auc_pr": 0.11600771416501073
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 4,
+        "fn_events": 0,
+        "fp_points": 479,
+        "fp_clusters": 479,
+        "recall_event": 1.0,
+        "precision_event_pointwise": 0.008281573498964804,
+        "precision_event_cluster": 0.008281573498964804,
+        "f1_event_cluster": 0.01642710472279261,
+        "f1_event_pointwise": 0.01642710472279261,
+        "detection_delays_points": [
+          13,
+          6,
+          2,
+          7
+        ],
+        "detection_delays_relative": [
+          0.02292768959435626,
+          0.010582010582010581,
+          0.003527336860670194,
+          0.012345679012345678
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": -69.04857248025185,
+        "low_fp_score": -100.0,
+        "low_fn_score": 43.460929895247006,
+        "raw_score": -9.523885798420148,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.74238528,
+        "optimal_standard_score": 74.43726147289807
+      },
+      "range_based": {
+        "range_recall": 0.5224867724867726,
+        "range_precision": 0.17555938037865748,
+        "range_f1": 0.26281200363983864
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 1.773,
+      "throughput_pts_per_sec": 12234.4,
+      "cpu_user_s": 1.74,
+      "cpu_sys_s": 0.02,
+      "cpu_avg_pct": 140.3,
+      "memory_peak_mb": 196.57,
+      "memory_delta_mb": 0.18,
+      "latency_p50_us": 11.48,
+      "latency_p95_us": 536.58,
+      "latency_p99_us": 813.15
+    }
+  },
+  "ZENIN sin Kuramoto": {
+    "report": {
+      "dataset_name": "ZENIN sin Kuramoto",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 103,
+        "fp": 419,
+        "fn": 2165,
+        "tn": 20008,
+        "precision": 0.19731800766283525,
+        "recall": 0.045414462081128745,
+        "f1": 0.07383512544802867,
+        "auc_roc": 0.5039675848327796,
+        "auc_pr": 0.126761287916528
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 4,
+        "fn_events": 0,
+        "fp_points": 419,
+        "fp_clusters": 419,
+        "recall_event": 1.0,
+        "precision_event_pointwise": 0.009456264775413711,
+        "precision_event_cluster": 0.009456264775413711,
+        "f1_event_cluster": 0.01873536299765808,
+        "f1_event_pointwise": 0.01873536299765808,
+        "detection_delays_points": [
+          3,
+          6,
+          2,
+          7
+        ],
+        "detection_delays_relative": [
+          0.005291005291005291,
+          0.010582010582010581,
+          0.003527336860670194,
+          0.012345679012345678
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": -100.0,
+        "low_fp_score": -100.0,
+        "low_fn_score": -81.84085881491417,
+        "raw_score": -39.63961543400641,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.9408,
+        "optimal_standard_score": 85.13032237529792
+      },
+      "range_based": {
+        "range_recall": 0.5227072310405644,
+        "range_precision": 0.19731800766283525,
+        "range_f1": 0.28648870588373304
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 1.298,
+      "throughput_pts_per_sec": 16714.8,
+      "cpu_user_s": 1.27,
+      "cpu_sys_s": 0.01,
+      "cpu_avg_pct": 136.1,
+      "memory_peak_mb": 197.59,
+      "memory_delta_mb": 0.01,
+      "latency_p50_us": 11.15,
+      "latency_p95_us": 322.45,
+      "latency_p99_us": 531.02
+    }
+  },
+  "ZENIN sin Rep Agn\u00f3stica": {
+    "report": {
+      "dataset_name": "ZENIN sin Rep Agn\u00f3stica",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 2268,
+        "tn": 20427,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "auc_roc": 0.5222175533834124,
+        "auc_pr": 0.10482933561234571
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 0,
+        "fn_events": 4,
+        "fp_points": 0,
+        "fp_clusters": 0,
+        "recall_event": 0.0,
+        "precision_event_pointwise": 0.0,
+        "precision_event_cluster": 0.0,
+        "f1_event_cluster": 0.0,
+        "f1_event_pointwise": 0.0,
+        "detection_delays_points": [],
+        "detection_delays_relative": []
+      },
+      "nab_scoring": {
+        "standard_score": 0.0,
+        "low_fp_score": 0.0,
+        "low_fn_score": 0.0,
+        "raw_score": -4.0,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.00999,
+        "optimal_standard_score": 65.7606673445038
+      },
+      "range_based": {
+        "range_recall": 0.0,
+        "range_precision": 1.0,
+        "range_f1": 0.0
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 5.888,
+      "throughput_pts_per_sec": 3684.6,
+      "cpu_user_s": 5.74,
+      "cpu_sys_s": 0.05,
+      "cpu_avg_pct": 109.4,
+      "memory_peak_mb": 199.62,
+      "memory_delta_mb": 2.03,
+      "latency_p50_us": 231.71,
+      "latency_p95_us": 418.59,
+      "latency_p99_us": 583.24
+    }
+  },
+  "Rolling Z-Score (w=50)": {
+    "report": {
+      "dataset_name": "Rolling Z-Score (w=50)",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 92,
+        "fp": 544,
+        "fn": 2176,
+        "tn": 19883,
+        "precision": 0.14465408805031446,
+        "recall": 0.04056437389770723,
+        "f1": 0.06336088154269973,
+        "auc_roc": 0.5582726341118013,
+        "auc_pr": 0.12302344794675912
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 4,
+        "fn_events": 0,
+        "fp_points": 544,
+        "fp_clusters": 271,
+        "recall_event": 1.0,
+        "precision_event_pointwise": 0.0072992700729927005,
+        "precision_event_cluster": 0.014545454545454545,
+        "f1_event_cluster": 0.028673835125448025,
+        "f1_event_pointwise": 0.014492753623188404,
+        "detection_delays_points": [
+          182,
+          20,
+          40,
+          539
+        ],
+        "detection_delays_relative": [
+          0.32098765432098764,
+          0.03527336860670194,
+          0.07054673721340388,
+          0.9506172839506173
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": 64.84429645442466,
+        "low_fp_score": 42.84450977657623,
+        "low_fn_score": 83.89612652889925,
+        "raw_score": 1.187543716353973,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.5055039066529541,
+        "optimal_standard_score": 66.21929645442466
+      },
+      "range_based": {
+        "range_recall": 0.5202821869488536,
+        "range_precision": 0.08135593220338982,
+        "range_f1": 0.14070931006727413
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 3.686,
+      "throughput_pts_per_sec": 5885.0,
+      "cpu_user_s": 3.5,
+      "cpu_sys_s": 0.02,
+      "cpu_avg_pct": 95.5,
+      "memory_peak_mb": 200.81,
+      "memory_delta_mb": 0.18,
+      "latency_p50_us": 142.69,
+      "latency_p95_us": 255.44,
+      "latency_p99_us": 457.44
+    }
+  },
+  "Z-Score Global": {
+    "report": {
+      "dataset_name": "Z-Score Global",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 458,
+        "fp": 4,
+        "fn": 1810,
+        "tn": 20423,
+        "precision": 0.9913419913419913,
+        "recall": 0.2019400352733686,
+        "f1": 0.3355311355311355,
+        "auc_roc": 0.8321674834868157,
+        "auc_pr": 0.6036079119104018
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 2,
+        "fn_events": 2,
+        "fp_points": 4,
+        "fp_clusters": 3,
+        "recall_event": 0.5,
+        "precision_event_pointwise": 0.3333333333333333,
+        "precision_event_cluster": 0.4,
+        "f1_event_cluster": 0.4444444444444445,
+        "f1_event_pointwise": 0.4,
+        "detection_delays_points": [
+          259,
+          113
+        ],
+        "detection_delays_relative": [
+          0.4567901234567901,
+          0.19929453262786595
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": 23.376395404664102,
+        "low_fp_score": 23.376395404664102,
+        "low_fn_score": 23.91759693644273,
+        "raw_score": -2.129888367626872,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 0.31029581059063954,
+        "optimal_standard_score": 48.27635087980018
+      },
+      "range_based": {
+        "range_recall": 0.35097001763668434,
+        "range_precision": 0.6666666666666666,
+        "range_f1": 0.4598497978047372
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 0.027,
+      "throughput_pts_per_sec": 797964.3,
+      "cpu_user_s": 0.03,
+      "cpu_sys_s": 0.0,
+      "cpu_avg_pct": 826.1,
+      "memory_peak_mb": 200.2,
+      "memory_delta_mb": 0.01,
+      "latency_p50_us": 1.2,
+      "latency_p95_us": 1.2,
+      "latency_p99_us": 1.2
+    }
+  },
+  "IQR Global": {
+    "report": {
+      "dataset_name": "IQR Global",
+      "total_points": 22695,
+      "anomalous_points": 2268,
+      "anomalous_events": 4,
+      "pointwise": {
+        "tp": 1333,
+        "fp": 965,
+        "fn": 935,
+        "tn": 19462,
+        "precision": 0.5800696257615318,
+        "recall": 0.5877425044091711,
+        "f1": 0.5838808585194919,
+        "auc_roc": 0.7702505541089278,
+        "auc_pr": 0.3821300764494325
+      },
+      "event_level": {
+        "total_events": 4,
+        "tp_events": 4,
+        "fn_events": 0,
+        "fp_points": 965,
+        "fp_clusters": 42,
+        "recall_event": 1.0,
+        "precision_event_pointwise": 0.0041279669762641896,
+        "precision_event_cluster": 0.08695652173913043,
+        "f1_event_cluster": 0.16,
+        "f1_event_pointwise": 0.008221993833504625,
+        "detection_delays_points": [
+          0,
+          75,
+          0,
+          0
+        ],
+        "detection_delays_relative": [
+          0.0,
+          0.13227513227513227,
+          0.0,
+          0.0
+        ]
+      },
+      "nab_scoring": {
+        "standard_score": -100.0,
+        "low_fp_score": -100.0,
+        "low_fn_score": -100.0,
+        "raw_score": -91.20472286967558,
+        "null_score": -4.0,
+        "perfect_score": 4.0,
+        "optimal_threshold": 1.1,
+        "optimal_standard_score": 0.0
+      },
+      "range_based": {
+        "range_recall": 0.7938712522045854,
+        "range_precision": 0.3210855569640292,
+        "range_f1": 0.4572385065963431
+      }
+    },
+    "resources": {
+      "elapsed_wall_s": 0.03,
+      "throughput_pts_per_sec": 724619.4,
+      "cpu_user_s": 0.03,
+      "cpu_sys_s": 0.0,
+      "cpu_avg_pct": 684.5,
+      "memory_peak_mb": 200.49,
+      "memory_delta_mb": 0.0,
+      "latency_p50_us": 1.32,
+      "latency_p95_us": 1.32,
+      "latency_p99_us": 1.32
+    }
+  }
+}
